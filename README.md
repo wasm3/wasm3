@@ -153,7 +153,7 @@ Some examples:
 
 ## The M3 strategy for other interpreters (is rad)
 
-The Gestalt M3 interpreter is slightly differently than the Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
+The Gestalt M3 interpreter works slightly differently than this Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
 
 But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit pathway.
 
