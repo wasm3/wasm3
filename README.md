@@ -166,7 +166,7 @@ return_t Operation_NewObject (registers...)
   
    * stack [index] = o;
   
-   return_t r = CallNextOperation (registers...);
+   return_t r = CallNextOperation (registers...);  // executes to the end of the scope/block/curly-brace, then returns
    
    if (o->ReferenceCount () == 0)
        runtime->DestroyObject (registers..., o);   // calls o's destructor and frees memory
