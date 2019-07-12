@@ -67,7 +67,7 @@ I set out with a goal of approximating Lua's performance, but this interperter a
 
 ### How it works
 
-This is rough information that's probably not immediately clear without also referencing the source code.
+This rough information might not be immediately intelligible without referencing the source code.
 
 #### Reduce bytecode decoding overhead
 
