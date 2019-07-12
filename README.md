@@ -127,7 +127,7 @@ m3`op_u64_Or_sr:
 
    Loops unwind the stack.  When a loop is continued, the Continue operation returns, unwinding the stack.  Its return value is a pointer to the loop opcode it wants to unwind to.  The Loop operations checks for its pointer and responds appropriately, either calling back into the loop code or returning, passing through the loop pointer. 
 
-* Traps work similarly. A trap pointer is returned from the trap operation which has the effect of unwinding the entire stack.
+* Traps/Exceptions work similarly. A trap pointer is returned from the trap operation which has the effect of unwinding the entire stack.
 
 * Returning from a (Wasm) function also unwinds the stack, back to the point of the Call operation. 
 
@@ -148,4 +148,35 @@ Some examples:
 
 * Linear memory:  Modules seem hardcoded to request 16MB of memory. What?  Why? As the host, where can I safely allocate things in linear memory? Who's in charge of this 16MB?
 * Traps: The spec says "Signed and unsigned operators trap whenever the result cannot be represented in the result type."  Really? That's cool, but how can the behavior of source languages be modeled (efficiently)? C integer operations wrap and sometimes that's what you want.
+
+## The M3 strategy for other interpreters (is rad)
+
+As mentioned, I originally developed this interpreter topology for another language called Gestalt. The Gestalt M3 interpreter functions slightly differently than the Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  
+
+(I think this slightly degrades x86 performance. I suspect the branch predictor works better when the Else block branches directly back to the end of the If block.)
+
+But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, I imagine the compiler itself would have to track scope and insert dererence opcodes manually.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit pathway.
+
+Here's some pseudocode to make this more concrete:
+
+```
+return_t Operation_NewObject (registers...)
+{
+   Object o = runtime->CreateObject (registers...);
+  
+   * stack [index] = o;
+  
+   return_t r = CallNextOperation (registers...);
+   
+   if (o->ReferenceCount () == 0)
+       runtime->DestroyObject (registers..., o);   // calls o's destructor and frees memory
+   
+   return r;
+}
+```
+
+Likewise, a "defer" function (like in Go) becomes absolutely effortless to implement.  Exceptions (try/catch) as well.  
+
+The takeaway: *by making the interpreter follow the intent and form of the original code, everything becomes easier and more efficient.*
+
 
