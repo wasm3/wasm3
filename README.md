@@ -1,13 +1,13 @@
 # M3/Wasm
 
-This is a work-in-progress WebAssembly interpreter written in C using a high performance and novel interpreter topology. The interpreter implementation is discussed some below.
+This is a work-in-progress WebAssembly interpreter written in C using a high performance and novel interpreter topology. The interpreter strategy was developed prior to this particular Wasm project and is described some below.
 
 ## Purpose
 
-I don't know. I just woke up one day and started hacking this out. Some ideas:
+I don't know. I just woke up one day and started hacking this out after realizing my interpreter was well suited for the Wasm bytecode structure. Some ideas:
 
 * It could be useful for embedded systems.
-* It might be a good warm-up, pre-JIT interpreter in more complex Wasm compiler stack.
+* It might be a good warm-up, pre-JIT interpreter in a more complex Wasm compiler stack.
 * It could serve as a Wasm validation library.
 * The interpreter topology might be inspiring to others.
 
@@ -29,7 +29,7 @@ C code lifted from: https://github.com/ColinEberhardt/wasm-mandelbrot
 |Interpreter|Execution Time|Relative to GCC|    |
 |-----------|--------------|---------------|----|
 |Life       |547 s         |133 x          | https://github.com/perlin-network/life 
-|Lua        |122 s         |30 x           | This isn't Lua running some weird Wasm transcoding; a manual Lua conversion of the C benchmark, for an additional reference point.
+|Lua        |122 s         |30 x           | This isn't Lua running some weird Wasm transcoding; a manual Lua conversion of the C benchmark as an additional reference point.
 |M3         |17.9 s        |4.4 x          |
 |GCC        |4.1 s         |               |
 
@@ -55,13 +55,15 @@ There's only an Xcode project file currently.
 
 Over the years, I've mucked around with creating my own personal programming language. It's called Gestalt. The yet unreleased repository will be here: https://github.com/soundandform/gestalt
 
-Early on I decided I needed an efficient interpreter to achieve the instant-feedback, live-coding environment I desire.  Deep traditional compilation is too slow and totally unnecessary during development.  And, most importantly, *compilation latency destroys creative flow*.
+Early on I decided I needed an efficient interpreter to achieve the instant-feedback, live-coding environment I desire.  Deep traditional compilation is too slow and totally unnecessary during development.  And, most importantly, compilation latency destroys creative flow.
 
-I briefly considered retooling something extant.  The Lua virtual machine, one of the faster interpreters, is too Lua centric.  And everything else is just way too slow.
+I briefly considered retooling something extant.  The Lua virtual machine, one of the faster interpreters, is too Lua centric.  And everything else is too slow.
 
-I've also always felt that the "spin in a loop around a giant switch statement" thing most interpreters do was clumsy and boring.  My intuition said there was some more elegant and efficient to be found.
+I've also always felt that the "spin in a loop around a giant switch statement" thing most interpreters do was clumsy and boring.  My intuition said there was something more elegant to be found.
 
-The structure that emerged I named a "meta machine" since it mirrors the execution of compiled code much more closely than the loop-based virtual machine.
+The structure that emerged I named a "meta machine" since it mirrors the execution of compiled code much more closely than the loop-based virtual machine.  
+
+I set out with a goal of approximating Lua's performance, but this interperter appears to beat out Lua by 3X and more on basic benchmarks -- whatever they're worth!  
 
 ### How it works
 
@@ -70,8 +72,8 @@ This is rough information that's probably not immediately clear without also ref
 #### Reduce bytecode decoding overhead
 
 * Bytecode/opcodes are translated into more efficient "operations" during a compilation pass, generating pages of meta-machine code
-    * M3 trades a little space for time. Most opcodes map to 3 different operations depending on the source operands.
-* Commonly occurring sequences of operations can be optimized into a "fused" operation.  This *sometimes* results in improved performance.
+    * M3 trades a some space for time. Opcodes map to up to 3 different operations depending on the number of source operands and commutative-ness.
+* Commonly occurring sequences of operations can can also be optimized into a "fused" operation.  This *sometimes* results in improved performance.
     * the modern CPU pipeline is a mysterious beast
 * In M3/Wasm, the stack machine model is translated into a more direct and efficient "register file" approach.
 
@@ -88,11 +90,11 @@ This is rough information that's probably not immediately clear without also ref
 * The return argument is a trap/exception and program flow control signal
 * The M3 program code is traversed by each operation calling the next. The operations themselves drive execution forward. There is no outer control structure.
     * Because operations end with a call to the next function, the C compiler will tail-call optimize most operations.
-* Finally, note that x86/ARM calling conventions pass initial arguments through registers, and indirect jumps are branch predicted.
+* Finally, note that x86/ARM calling conventions pass initial arguments through registers, and the indirect jumps between operations are branch predicted.
 
 #### The End Result
 
-Since operations all have a standardized signature and arguments are tail-call passed through to the next, the M3 "virtual" machine registers end up mapping directly to real CPU registers.  Instead, it's a meta machine with very low execution impedance.
+Since operations all have a standardized signature and arguments are tail-call passed through to the next, the M3 "virtual" machine registers end up mapping directly to real CPU registers.  It's not virtual! Instead, it's a meta machine with very low execution impedance.
 
 |M3 Register                  |x86 Register|
 |-----------------------------|------------|
@@ -125,19 +127,19 @@ m3`op_u64_Or_sr:
 
 * Looking at the above assembly code, you'll notice that once an M3 operation is optimized, it doesn't need the regular stack (no mucking with the ebp/esp registers).  This is the case for 90% of the opcodes.  Branching and call operations do require stack variables.  Therefore, execution can't march forward indefinitely; the stack would eventually overflow. 
 
-   Loops unwind the stack.  When a loop is continued, the Continue operation returns, unwinding the stack.  Its return value is a pointer to the loop opcode it wants to unwind to.  The Loop operations checks for its pointer and responds appropriately, either calling back into the loop code or returning, passing through the loop pointer. 
+   Therefore, loops unwind the stack.  When a loop is continued, the Continue operation returns, unwinding the stack.  Its return value is a pointer to the loop opcode it wants to unwind to.  The Loop operations checks for its pointer and responds appropriately, either calling back into the loop code or returning the loop pointer back down the call stack.
 
 * Traps/Exceptions work similarly. A trap pointer is returned from the trap operation which has the effect of unwinding the entire stack.
 
-* Returning from a (Wasm) function also unwinds the stack, back to the point of the Call operation. 
+* Returning from a Wasm function also unwinds the stack, back to the point of the Call operation. 
 
-* But, because M3 execution leans heavily on the native stack, this does create a runtime usage issue.
+* But, because M3 execution leans heavily on the native stack, this does create one runtime usage issue.
 
    A conventional interpreter can save its state, break out of its processing loop and return program control to the client code.  This is not the case in M3 since the C stack might be wound up in a loop for long periods of time.
 
    With Gestalt, I resolved this problem with fibers (built with Boost Context).  M3 execution occurs in a fiber so that control can effortlessly switch to the "main" fiber.  No explicit saving of state is necessary since that's the whole purpose of a fiber.
 
-   More simplistically, the interpreter runtime can also periodically call back to the client.  This is necessary, regardless, to detect hangs and break out of infinite loops.
+   More simplistically, the interpreter runtime can also periodically call back to the client (in the either the Loop or LoopContinue operation).  This is necessary, regardless, to detect hangs and break out of infinite loops.
 
 
 ### Thoughts & Questions about WebAssembly
@@ -151,11 +153,9 @@ Some examples:
 
 ## The M3 strategy for other interpreters (is rad)
 
-As mentioned, I originally developed this interpreter topology for another language called Gestalt. The Gestalt M3 interpreter functions slightly differently than the Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  
+The Gestalt M3 interpreter is slightly differently than the Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
 
-(I think this slightly degrades x86 performance. I suspect the branch predictor works better when the Else block branches directly back to the end of the If block.)
-
-But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, I imagine the compiler itself would have to track scope and insert dererence opcodes manually.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit pathway.
+But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit pathway.
 
 Here's some pseudocode to make this more concrete:
 
@@ -176,7 +176,4 @@ return_t Operation_NewObject (registers...)
 ```
 
 Likewise, a "defer" function (like in Go) becomes absolutely effortless to implement.  Exceptions (try/catch) as well.  
-
-The takeaway: *by making the interpreter follow the intent and form of the original code, everything becomes easier and more efficient.*
-
 
