@@ -55,7 +55,7 @@ There's only an Xcode project file currently.
 
 Over the years, I've mucked around with creating my own personal programming language. It's called Gestalt. The yet unreleased repository will be here: https://github.com/soundandform/gestalt
 
-Early on I decided I needed an efficient interpreter to achieve the instant-feedback, live-coding environment I desire.  Deep (traditional) compilation is too slow and totally unnecessary during development.  And, most importantly, compilation latency destroys creative flow.
+Early on I decided I needed an efficient interpreter to achieve the instant-feedback, live-coding environment I desire.  Deep traditional compilation is too slow and totally unnecessary during development.  And, most importantly, *compilation latency destroys creative flow*.
 
 I briefly considered retooling something extant.  The Lua virtual machine, one of the faster interpreters, is too Lua centric.  And everything else is just way too slow.
 
@@ -166,7 +166,7 @@ return_t Operation_NewObject (registers...)
   
    * stack [index] = o;
   
-   return_t r = CallNextOperation (registers...);  // executes to the end of the scope/block/curly-brace, then returns
+   return_t r = CallNextOperation (registers...);  // executes to the end of the scope/block/curly-brace & returns
    
    if (o->ReferenceCount () == 0)
        runtime->DestroyObject (registers..., o);   // calls o's destructor and frees memory
