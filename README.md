@@ -13,7 +13,7 @@ I don't know. I just woke up one day and started hacking this out. Some ideas:
 
 ## Current Status
 
-Its foundational is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.
+Its foundation is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.
 
 
 ## Benchmarks
