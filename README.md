@@ -7,13 +7,13 @@ This is a work-in-progress WebAssembly interpreter written in C using a high per
 I don't know. I just woke up one day and started hacking this out after realizing my interpreter was well suited for the Wasm bytecode structure. Some ideas:
 
 * It could be useful for embedded systems.
-* It might be a good warm-up, pre-JIT interpreter in a more complex Wasm compiler stack.
+* It might be a good start-up, pre-JIT interpreter in a more complex Wasm compiler stack.
 * It could serve as a Wasm validation library.
 * The interpreter topology might be inspiring to others.
 
 ## Current Status
 
-Its foundation is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.
+Its foundation is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.  
 
 
 ## Benchmarks
@@ -155,7 +155,7 @@ Some examples:
 
 The Gestalt M3 interpreter works slightly differently than this Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
 
-But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit pathway.
+But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit/return pathway.
 
 Here's some pseudocode to make this more concrete:
 
@@ -177,3 +177,11 @@ return_t Operation_NewObject (registers...)
 
 Likewise, a "defer" function (like in Go) becomes absolutely effortless to implement.  Exceptions (try/catch) as well.  
 
+
+## Thoughts about Bytecode
+
+By making the interpreter and/or bytecode follow the intent and form of the original code, everything becomes easier and more efficient, as demonstrated above.
+
+I realized this during the development of Gestalt and it seems the creators WebAssembly did too.  Dart developers thought about this concept too (http://dartdoc.takyam.com/articles/why-not-bytecode/)
+
+In retrospect, the original flaw of bytecode was its engineery, formless, intention-less pseudo-assembly language semantics. By obfuscating the desires of the original code and removing useful information, this only makes interpretion harder, compilation more complicated and exploiting security holes way easier.
