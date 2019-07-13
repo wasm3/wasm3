@@ -42,7 +42,7 @@ C code lifted from: https://github.com/ColinEberhardt/wasm-mandelbrot
 |GCC        |600 ms        |               |
 
 
-In general, the M3 strategy seems capable of executing code around 5-15X slower than compiled code on a modern x86 processor.   (Older CPUs don't fare as well. I suspect branch predictor differences.)  I have yet to test on anything ARM.
+In general, the M3 strategy seems capable of executing code around 4-15X slower than compiled code on a modern x86 processor.   (Older CPUs don't fare as well. I suspect branch predictor differences.)  I have yet to test on anything ARM.
 
 ## Building
 
