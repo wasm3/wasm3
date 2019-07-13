@@ -180,8 +180,12 @@ Likewise, a "defer" function (like in Go) becomes absolutely effortless to imple
 
 ## Thoughts about Bytecode
 
-By making the interpreter and/or bytecode follow the intent and form of the original code, everything becomes easier and more efficient, as demonstrated above.
+By making an interpreter and/or bytecode follow the intent and form of the original code, or at least an machine-optimized version of it, everything becomes easier and more efficient, as demonstrated above.
 
-I realized this during the development of Gestalt and it seems the creators WebAssembly did too.  Dart developers thought about this concept too (http://dartdoc.takyam.com/articles/why-not-bytecode/)
+I realized this during the development of Gestalt and it seems the creators of WebAssembly did too.  Dart developers thought about this general concept as well: http://dartdoc.takyam.com/articles/why-not-bytecode/
 
-In retrospect, the original flaw of bytecode was its engineery, formless, intention-less pseudo-assembly language semantics. By obfuscating the desires of the original code and removing useful information, this only makes interpretion harder, compilation more complicated and exploiting security holes way easier.
+In retrospect, the original flaw of the bytecode concept was its engineery, formless, intention-less pseudo-assembly language semantics. By obfuscating the desires of the original source code and deleting useful information, this only makes interpretion harder, compilation more complicated and exploiting security holes far more easy.  
+
+The mission of WebAssembly seems to be: to find the universal degree of freedom somewhere between a language VM and a bytecode VM -- to leverage the language of that Dart blog above. Cool.
+
+
