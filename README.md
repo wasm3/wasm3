@@ -1,6 +1,6 @@
 # M3/Wasm
 
-This is a work-in-progress WebAssembly interpreter written in C using a high performance and novel interpreter topology. The interpreter strategy was developed prior to this particular Wasm project and is described some below.
+This is a work-in-progress WebAssembly interpreter written in C using a high performance and novel interpreter topology. The interpreter strategy (named M3) was developed prior to this particular Wasm project and is described some below.
 
 ## Purpose
 
