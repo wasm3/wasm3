@@ -61,9 +61,9 @@ I briefly considered retooling something extant.  The Lua virtual machine, one o
 
 I've also always felt that the "spin in a loop around a giant switch statement" thing most interpreters do was clumsy and boring.  My intuition said there was something more elegant to be found.
 
-The structure that emerged I named a "meta machine" since it mirrors the execution of compiled code much more closely than the loop-based virtual machine.  
+The structure that emerged I named a "meta machine" since it mirrors the execution of compiled code much more closely than the switch-based virtual machine.  
 
-I set out with a goal of approximating Lua's performance, but this interperter appears to beat out Lua by 3X and more on basic benchmarks -- whatever they're worth!  
+I set out with a goal of approximating Lua's performance. But this interperter appears to beat Lua by 3X and more on basic benchmarks -- whatever they're worth!  
 
 ### How it works
 
