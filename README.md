@@ -30,7 +30,7 @@ C code lifted from: https://github.com/ColinEberhardt/wasm-mandelbrot
 |-----------|--------------|---------------|----|
 |Life       |547 s         |133 x          | https://github.com/perlin-network/life 
 |Lua        |122 s         |30 x           | This isn't Lua running some weird Wasm transcoding; a manual Lua conversion of the C benchmark as an additional reference point.
-|M3         |17.9 s        |4.4 x          |
+|M3         |17.9 s        |4.4 x          | (3.7 x on my 2016 MacBook Pro)
 |GCC        |4.1 s         |               |
 
 ### CRC32
