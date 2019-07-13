@@ -72,7 +72,7 @@ This rough information might not be immediately intelligible without referencing
 #### Reduce bytecode decoding overhead
 
 * Bytecode/opcodes are translated into more efficient "operations" during a compilation pass, generating pages of meta-machine code
-    * M3 trades a some space for time. Opcodes map to up to 3 different operations depending on the number of source operands and commutative-ness.
+    * M3 trades some space for time. Opcodes map to up to 3 different operations depending on the number of source operands and commutative-ness.
 * Commonly occurring sequences of operations can can also be optimized into a "fused" operation.  This *sometimes* results in improved performance.
     * the modern CPU pipeline is a mysterious beast
 * In M3/Wasm, the stack machine model is translated into a more direct and efficient "register file" approach.
