@@ -119,7 +119,7 @@ m3`op_u64_Or_sr:
 
 #### Registers and Operational Complexity
 
-* The conventional Windows calling convention isn't compatible with M3, as-is, since it only passes 4 arguments through registers.  Applying the vectorcall calling convention (https://docs.microsoft.com/en-us/cpp/cpp/vectorcall?view=vs-2019) should resolve this problem. (I haven't tried compiling this on Windows yet.)
+* The conventional Windows calling convention isn't compatible with M3, as-is, since it only passes 4 arguments through registers.  Applying the vectorcall calling convention (https://docs.microsoft.com/en-us/cpp/cpp/vectorcall) should resolve this problem. (I haven't tried compiling this on Windows yet.)
 
 * It's possible to use more CPU registers. For example, adding an additional floating-point register to the meta-machine did marginally increase performance in prior tests.  However, the operation space increases exponentially.  With one register, there are up to 3 operations per opcode (e.g. a non-commutative math operation). Adding another register increases the operation count to 10.  However, as you can see above, operations tend to be tiny.
 
