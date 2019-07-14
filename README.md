@@ -1,13 +1,13 @@
 # M3/Wasm
 
-This is a work-in-progress WebAssembly interpreter written in C using a high performance and novel interpreter topology. The interpreter strategy (named M3) was developed prior to this particular Wasm project and is described some below.
+This is a work-in-progress WebAssembly interpreter written in C using a novel, high performance interpreter topology. The interpreter strategy (named M3) was developed prior to this particular Wasm project and is described some below.
 
 ## Purpose
 
 I don't know. I just woke up one day and started hacking this out after realizing my interpreter was well suited for the Wasm bytecode structure. Some ideas:
 
 * It could be useful for embedded systems.
-* It might be a good start-up, pre-JIT interpreter in a more complex Wasm compiler stack.
+* It might be a good start-up, pre-JIT interpreter in a more complex Wasm compiler system.
 * It could serve as a Wasm validation library.
 * The interpreter topology might be inspiring to others.
 
@@ -63,7 +63,7 @@ I've also always felt that the "spin in a loop around a giant switch statement" 
 
 The structure that emerged I named a "meta machine" since it mirrors the execution of compiled code much more closely than the switch-based virtual machine.  
 
-I set out with a goal of approximating Lua's performance. But this interperter appears to beat Lua by 3X and more on basic benchmarks -- whatever they're worth!  
+I set out with a goal of approximating Lua's performance. But this interpreter appears to beat Lua by 3X and more on basic benchmarks -- whatever they're worth!  
 
 ### How it works
 
@@ -176,16 +176,5 @@ return_t Operation_NewObject (registers...)
 ```
 
 Likewise, a "defer" function (like in Go) becomes absolutely effortless to implement.  Exceptions (try/catch) as well.  
-
-
-## Thoughts about Bytecode
-
-By making an interpreter and/or bytecode follow the intent and form of the original code, or at least an machine-optimized version of it, everything becomes easier and more efficient, as demonstrated above.
-
-I realized this during the development of Gestalt and it seems the creators of WebAssembly did too.  Dart developers thought about this general concept as well: http://dartdoc.takyam.com/articles/why-not-bytecode/
-
-In retrospect, the original flaw of the bytecode concept was its engineery, formless, intention-less pseudo-assembly language semantics. By obfuscating the desires of the original source code and deleting useful information, this only makes interpretion harder, compilation more complicated and exploiting security holes far more easy.  
-
-The mission of WebAssembly seems to be: to find the universal degree of freedom somewhere between a language VM and a bytecode VM -- to leverage the language of that Dart blog above. Cool.
 
 
