@@ -7,13 +7,13 @@ This is a work-in-progress WebAssembly interpreter written in C using a high per
 I don't know. I just woke up one day and started hacking this out after realizing my interpreter was well suited for the Wasm bytecode structure. Some ideas:
 
 * It could be useful for embedded systems.
-* It might be a good warm-up, pre-JIT interpreter in a more complex Wasm compiler stack.
+* It might be a good start-up, pre-JIT interpreter in a more complex Wasm compiler stack.
 * It could serve as a Wasm validation library.
 * The interpreter topology might be inspiring to others.
 
 ## Current Status
 
-Its foundation is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.
+Its foundation is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.  
 
 
 ## Benchmarks
@@ -119,7 +119,7 @@ m3`op_u64_Or_sr:
 
 #### Registers and Operational Complexity
 
-* The conventional Windows calling convention isn't compatible with M3, as-is, since it only passes 4 arguments through registers.  Applying the vectorcall calling convention should resolve this problem. (I haven't tried compiling this on Windows yet.)
+* The conventional Windows calling convention isn't compatible with M3, as-is, since it only passes 4 arguments through registers.  Applying the vectorcall calling convention (https://docs.microsoft.com/en-us/cpp/cpp/vectorcall) should resolve this problem. (I haven't tried compiling this on Windows yet.)
 
 * It's possible to use more CPU registers. For example, adding an additional floating-point register to the meta-machine did marginally increase performance in prior tests.  However, the operation space increases exponentially.  With one register, there are up to 3 operations per opcode (e.g. a non-commutative math operation). Adding another register increases the operation count to 10.  However, as you can see above, operations tend to be tiny.
 
@@ -155,7 +155,7 @@ Some examples:
 
 The Gestalt M3 interpreter works slightly differently than this Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
 
-But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit pathway.
+But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit/return pathway.
 
 Here's some pseudocode to make this more concrete:
 
@@ -176,4 +176,16 @@ return_t Operation_NewObject (registers...)
 ```
 
 Likewise, a "defer" function (like in Go) becomes absolutely effortless to implement.  Exceptions (try/catch) as well.  
+
+
+## Thoughts about Bytecode
+
+By making an interpreter and/or bytecode follow the intent and form of the original code, or at least an machine-optimized version of it, everything becomes easier and more efficient, as demonstrated above.
+
+I realized this during the development of Gestalt and it seems the creators of WebAssembly did too.  Dart developers thought about this general concept as well: http://dartdoc.takyam.com/articles/why-not-bytecode/
+
+In retrospect, the original flaw of the bytecode concept was its engineery, formless, intention-less pseudo-assembly language semantics. By obfuscating the desires of the original source code and deleting useful information, this only makes interpretion harder, compilation more complicated and exploiting security holes far more easy.  
+
+The mission of WebAssembly seems to be: to find the universal degree of freedom somewhere between a language VM and a bytecode VM -- to leverage the language of that Dart blog above. Cool.
+
 
