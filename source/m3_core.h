@@ -59,6 +59,15 @@ const void * const	cvptr_t;
 # endif
 
 
+
+typedef struct M3MemoryHeader
+{
+	IM3Module		module;
+	void *			end;
+}
+M3MemoryHeader;
+
+
 static const char * m3LogTruncFilename (const char * i_file)
 {
 	const char * file = i_file + strlen (i_file);
@@ -197,6 +206,7 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 
 #define ErrorModule(RESULT, MOD, FORMAT, ...)	_m3Error (RESULT, MOD->runtime, MOD, NULL,	__FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 #define ErrorCompile(RESULT, COMP, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
+//#define ErrorExec(RESULT, MODULE, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 
 #define min(A,B) (A < B) ? A : B
 #define max(A,B) (A > B) ? A : B

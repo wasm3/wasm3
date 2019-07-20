@@ -8,9 +8,10 @@
 
 #include "m3_host.h"
 #include "m3_core.h"
-#include <stdio.h>
 #include "m3_env.h"
 
+#include <stdio.h>
+#include <assert.h>
 
 void m3_printf (cstr_t i_format, const void * i_varArgs)
 {
@@ -71,6 +72,10 @@ i32 AllocateHeap (M3Memory * io_memory, i32 i_size)
 	i_size = (i_size + 7) & ~7;
 	size_t ptrOffset = io_memory->heapOffset + (io_memory->heapAllocated += i_size);
 
+	size_t size = (u8 *) io_memory->mallocated->end - io_memory->wasmPages;
+	
+	assert (ptrOffset < size);
+
 	return (i32) ptrOffset;
 }
 
@@ -94,6 +99,12 @@ void *  m3_memset  (void * i_ptr, i32 i_value, i32 i_size)
 {
 	memset (i_ptr, i_value, i_size);
 	return i_ptr;
+}
+
+
+void *  m3_memcpy  (void * o_dst, void * i_src, i32 i_size)
+{
+	return memcpy (o_dst, i_src, i_size);
 }
 
 

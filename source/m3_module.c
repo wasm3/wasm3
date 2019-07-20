@@ -117,7 +117,7 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, m3
 			// Just get'n some tests/benchmarks going for now:
 			i32 pages = 2;
 			
-			size_t extra = c_m3MemPageSize * pages + 900000 * 2 + sizeof (M3MemoryHeader);
+			size_t extra = c_m3MemPageSize * pages + 900000 * 4 + sizeof (M3MemoryHeader);
 			
 			m3word_t alignedSize = i_memorySize + extra;
 			

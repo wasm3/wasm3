@@ -10,6 +10,15 @@
 #include "m3_compile.h"
 
 
+void ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
+{
+	M3MemoryHeader * info = (M3MemoryHeader *) (i_mem - sizeof (M3MemoryHeader));
+	u8 * mem8 = i_mem + i_offset;
+	
+	ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %lld bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
+}
+
+
 void  ReportError2  (IM3Function i_function, M3Result i_result)
 {
 	i_function->module->runtime->runtimeError = i_result;
@@ -289,3 +298,25 @@ d_m3OpDef (i32_Remainder)
 	}
 	else return c_m3Err_trapRemainderByZero;
 }
+
+
+//inline
+m3ret_t Remainder_u32 (i64 * o_result, u32 i_op1, u32 i_op2)
+{
+	if (i_op2 != 0)
+	{
+		//		// max negative divided by -1 overflows max positive
+		//		if (op0 == 0x80000000 and _r0 == -1)
+		//			_r0 = 0;
+		//		else
+		//			_r0 = op0 % _r0;
+		
+		u32 result = i_op1 % i_op2;
+		
+		* o_result = result;
+		
+		return c_m3Err_none;
+	}
+	else return c_m3Err_trapRemainderByZero;
+}
+

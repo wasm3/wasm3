@@ -992,7 +992,7 @@ _			(EmitOp		(o, op));
 			EmitPointer	(o, operand);
 			EmitOffset	(o, execTop);
 		}
-		else result = ErrorCompile (c_m3Err_functionImportMissing, o, "missing symbol: '%s'", GetFunctionName (function));
+		else result = ErrorCompile (c_m3Err_functionImportMissing, o, "missing function: '%s'", GetFunctionName (function));
 	}
 	else result = c_m3Err_functionLookupFailed;
 	
@@ -1360,7 +1360,7 @@ const M3OpInfo c_operations [] =
 	{ "i32.div_s",			-1, i_32,	d_binOpList (i32, Divide) 				},			// 0x6d
 	{ "i32.div_u",			-1, i_32,	d_binOpList (u32, Divide) 				},			// 0x6e
 	{ "i32.rem_s",			-1, i_32,	d_binOpList (i32, Remainder)			},			// 0x6f
-	{ "i32.rem_u",			-1, i_32,	NULL, 				NULL, NULL },			// 0x70
+	{ "i32.rem_u",			-1, i_32,	d_binOpList (u32, Remainder) 			},			// 0x70
 	{ "i32.and",			-1, i_32,	d_commutativeBinOpList (u64, And)		},			// 0x71
 	{ "i32.or",				-1, i_32,	d_commutativeBinOpList (u64, Or)		},			// 0x72
 	{ "i32.xor",			-1, i_32,	d_commutativeBinOpList (u64, Xor)		},			// 0x73

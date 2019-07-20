@@ -47,14 +47,14 @@
 
 // m3log (...) --------------------------------------------------------------------
 
-# define d_m3LogParse			0
-# define d_m3LogCompile			0
+# define d_m3LogParse			1
+# define d_m3LogCompile			1
 # define d_m3LogStack			0
 # define d_m3LogEmit			0
 # define d_m3LogCodePages		0
 # define d_m3LogModule			0
-# define d_m3LogRuntime			0
-# define d_m3LogExec			0
+# define d_m3LogRuntime			1
+# define d_m3LogExec			1
 
 
 

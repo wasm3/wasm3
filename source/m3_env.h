@@ -70,13 +70,6 @@ ccstr_t		SPrintFunctionArgList		(IM3Function i_function, m3stack_t i_sp);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
-typedef struct M3MemoryHeader
-{
-	IM3Module		module;
-	void *			end;
-}
-M3MemoryHeader;
-
 typedef struct M3Memory
 {
 	M3MemoryHeader *		mallocated;

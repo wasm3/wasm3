@@ -20,13 +20,15 @@ int main ()
 	uLongf length = 900000;
 	void * dest = malloc (length);
 
-	FILE * f = fopen ("/Users/smassey/98-0.txt", "r+b");
+	FILE * f = fopen ("/Users/smassey/Sync/Local/98-0.txt", "r+b");
 	
 	size_t s = 0;
 	if (f)
 	{
 		size_t d = fread (data, 1, srcLength, f);
-		
+
+		m3Out_i32 (d);
+
 //		ZEXTERN int ZEXPORT compress2 OF((Bytef *dest,   uLongf *destLen,
 //										  const Bytef *source, uLong sourceLen,
 //										  int level));

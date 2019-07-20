@@ -72,6 +72,7 @@ int  main  (int argc, const char * argv [])
 							m3_LinkFunction (module, "_malloc",				"i(Mi)",	(void *) m3_malloc);
 							m3_LinkFunction (module, "_free",				"v(Mi)",	(void *) m3_free);
 							m3_LinkFunction (module, "_memset",				"*(*ii)",	(void *) m3_memset);
+							m3_LinkFunction (module, "_memcpy",				"*(**i)",	(void *) m3_memcpy);
 							m3_LinkFunction (module, "_fopen",				"i(M**)",	(void *) m3_fopen);
 							m3_LinkFunction (module, "_fread",				"i(*ii*)",	(void *) m3_fread);
 

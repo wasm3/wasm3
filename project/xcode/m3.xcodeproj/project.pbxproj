@@ -59,13 +59,10 @@
 		B56FD4C12282A49C006B249B /* m3_module.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = m3_module.c; path = ../../source/m3_module.c; sourceTree = "<group>"; };
 		B59469F822654B8F008572B8 /* m3 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = m3; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5946A0322654C05008572B8 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../source/main.cpp; sourceTree = "<group>"; };
-		B5BE67F42280DCCC00D5CA2A /* test.trap.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = test.trap.c; path = ../../test/test.trap.c; sourceTree = "<group>"; };
 		B5C4BE4522790CE400CEB4AB /* mandelbrot.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = mandelbrot.c; path = ../../benchmark/mandelbrot.c; sourceTree = "<group>"; };
 		B5C4BE4722790FE200CEB4AB /* perf.dsp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = perf.dsp.c; path = ../../benchmark/perf.dsp.c; sourceTree = "<group>"; };
-		B5D5F5FA2277B12100FEA827 /* output.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = output.c; path = ../../test/output.c; sourceTree = "<group>"; };
 		B5EE06AA2266EF3800DCF003 /* m3_core.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = m3_core.c; path = ../../source/m3_core.c; sourceTree = "<group>"; };
 		B5EE06AC2266EF7100DCF003 /* m3_core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = m3_core.h; path = ../../source/m3_core.h; sourceTree = "<group>"; };
-		B5EFD6DD228E49FE001965C7 /* test.host.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = test.host.c; path = ../../test/test.host.c; sourceTree = "<group>"; };
 		B5F778892275781B001A4F1E /* m3_optimize.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = m3_optimize.c; path = ../../source/m3_optimize.c; sourceTree = "<group>"; };
 		B5F7788C227579A9001A4F1E /* m3_info.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = m3_info.c; path = ../../source/m3_info.c; sourceTree = "<group>"; };
 		B5FD6505227A53110077AAA3 /* m3_exec_defs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = m3_exec_defs.h; path = ../../source/m3_exec_defs.h; sourceTree = "<group>"; };
@@ -136,11 +133,8 @@
 			isa = PBXGroup;
 			children = (
 				B51327812277EB6000447182 /* perf.crc.c */,
-				B5D5F5FA2277B12100FEA827 /* output.c */,
 				B5C4BE4522790CE400CEB4AB /* mandelbrot.c */,
 				B5C4BE4722790FE200CEB4AB /* perf.dsp.c */,
-				B5BE67F42280DCCC00D5CA2A /* test.trap.c */,
-				B5EFD6DD228E49FE001965C7 /* test.host.c */,
 				B51D6D5622C69EF2008BA3E0 /* test.zlib.c */,
 			);
 			name = tests;
@@ -329,6 +323,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				GCC_VERSION = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -338,8 +333,8 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
-				GCC_OPTIMIZATION_LEVEL = fast;
-				OTHER_CFLAGS = "-fomit-frame-pointer";
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_VERSION = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

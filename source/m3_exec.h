@@ -214,6 +214,8 @@ d_m3Op_f (f32, Multiply, 					*)		d_m3Op_f (f64, Multiply, 					*)
 
 
 
+
+
 #define d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC) d_m3RetSig op_##TYPE##_##NAME##_sr (d_m3OpSig) \
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
@@ -244,24 +246,25 @@ d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC)
 #define d_m3FuncOp_i(TYPE, NAME, FUNC)					d_m3FuncOp_ 	(_r0, TYPE, NAME, FUNC)
 
 
-inline m3ret_t Remainder_u32 (i64 * o_result, u32 i_op1, u32 i_op2)
-{
-	if (i_op2 != 0)
-	{
-//		// max negative divided by -1 overflows max positive
-//		if (op0 == 0x80000000 and _r0 == -1)
-//			_r0 = 0;
-//		else
-//			_r0 = op0 % _r0;
-		
-		u32 result = i_op1 % i_op2;
-		
-		* o_result = result;
-		
-		return 0;
-	}
-	else return c_m3Err_trapRemainderByZero;
-}
+//inline
+m3ret_t Remainder_u32 (i64 * o_result, u32 i_op1, u32 i_op2);
+//{
+//	if (i_op2 != 0)
+//	{
+//		//		// max negative divided by -1 overflows max positive
+//		//		if (op0 == 0x80000000 and _r0 == -1)
+//		//			_r0 = 0;
+//		//		else
+//		//			_r0 = op0 % _r0;
+//
+//		u32 result = i_op1 % i_op2;
+//
+//		* o_result = result;
+//
+//		return c_m3Err_none;
+//	}
+//	else return c_m3Err_trapRemainderByZero;
+//}
 
 d_m3FuncOp_i (u32, Remainder, Remainder_u32);
 
@@ -776,15 +779,17 @@ d_m3Op  (f64_Store)
 
 //#define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
 
-#define d_outOfBounds { printf ("%p %p\n", mem8, end);  return c_m3Err_trapOutOfBoundsMemoryAccess; }
+void ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
+
+#define d_outOfBounds { printf ("%d %p\n", operand, end);  ReportOutOfBoundsMemoryError (_pc, _mem, operand);  return c_m3Err_trapOutOfBoundsMemoryAccess; }
 
 
 #define d_m3Store_i(SRC_TYPE, SIZE_TYPE) 				\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_sr)				\
 {														\
-	u32 operand = * (u32 *) (_sp + immediate (i32));		\
+	u32 operand = * (u32 *) (_sp + immediate (i32));	\
 														\
-	u32 offset = immediate (u32);							\
+	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
 	u8 * end = * ((u8 **) _mem - 1);					\

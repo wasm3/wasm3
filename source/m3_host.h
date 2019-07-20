@@ -30,6 +30,7 @@ extern "C" {
 	i32		m3_malloc		(IM3Module i_module, i32 i_size);
 	void	m3_free			(IM3Module i_module, i32 i_data);
 	void *	m3_memset		(void * i_ptr, i32 i_value, i32 i_size);
+	void *  m3_memcpy  		(void * o_dst, void * i_src, i32 i_size);
 
 	i32		m3_fread		(void * ptr, i32 size, i32 count, FILE * stream);
 
