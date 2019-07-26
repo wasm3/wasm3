@@ -73,6 +73,8 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
 {
 	size_t len = 0;
 	
+	* o_string = 0;
+	
 	if 		(i_type == c_m3Type_i32)
 		len = snprintf (o_string, i_n, "%d", * (i32 *) i_sp);
 	else if (i_type == c_m3Type_i64)
