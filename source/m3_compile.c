@@ -1041,7 +1041,7 @@ M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
 }
 
 
-M3Result  Compile_Loop_Block  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_LoopOrBlock  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 	
@@ -1244,8 +1244,8 @@ const M3OpInfo c_operations [] =
 {
 	{ "unreachable",		 0, none,	NULL,	NULL, NULL, 					Compile_Trap },			// 0x00
 	{ "nop",				 0, none, 	NULL,	NULL, NULL,						Compile_Nop },			// 0x01 .
-	{ "block",				 0, none,	NULL,	NULL, NULL,	 					Compile_Loop_Block },	// 0x02
-	{ "loop",				 0,	none,	NULL,	NULL, NULL,						Compile_Loop_Block },	// 0x03
+	{ "block",				 0, none,	NULL,	NULL, NULL,	 					Compile_LoopOrBlock },	// 0x02
+	{ "loop",				 0,	none,	NULL,	NULL, NULL,						Compile_LoopOrBlock },	// 0x03
 	{ "if",					-1,	none,	NULL,	NULL, NULL,						Compile_If },			// 0x04
 	{ "else",				 0, none,	NULL,	NULL, NULL,						Compile_Else_End },		// 0x05
 	
@@ -1280,10 +1280,10 @@ const M3OpInfo c_operations [] =
 	{ "f32.load",			0,	f_32,	NULL, 			NULL, NULL},								// 0x2a
 	{ "f64.load",			0,	f_64,	NULL, 			NULL, NULL},								// 0x2b
 	
-	{ "i32.load8_s",		0,	i_32,	op_i32_Load_i8_r, 		op_i32_Load_i8_s, NULL,				Compile_Load_Store },			// 0x2c
-	{ "i32.load8_u",		0,	i_32,	op_i32_Load_u8_r, 		op_i32_Load_u8_s, NULL,				Compile_Load_Store },			// 0x2d
-	{ "i32.load16_s",		0,	i_32,	NULL,		NULL, NULL,				Compile_Load_Store },			// 0x2e
-	{ "i32.load16_u",		0,	i_32,	op_i32_Load_u16_r, 		op_i32_Load_u16_s,  NULL,			Compile_Load_Store },			// 0x2f
+	{ "i32.load8_s",		0,	i_32,	op_i32_Load_i8_r,	op_i32_Load_i8_s, NULL,		Compile_Load_Store },			// 0x2c
+	{ "i32.load8_u",		0,	i_32,	op_i32_Load_u8_r,	op_i32_Load_u8_s, NULL,		Compile_Load_Store },			// 0x2d
+	{ "i32.load16_s",		0,	i_32,	op_i32_Load_i16_r,	op_i32_Load_i16_s, NULL,	Compile_Load_Store },			// 0x2e
+	{ "i32.load16_u",		0,	i_32,	op_i32_Load_u16_r,	op_i32_Load_u16_s,	NULL,	Compile_Load_Store },			// 0x2f
 	
 	{ "i64.load8_s",		0,	i_64,	NULL, 			NULL, NULL,			},			// 0x30
 	{ "i64.load8_u",		0,	i_64,	NULL,		NULL, NULL },			// 0x31

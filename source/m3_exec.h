@@ -9,6 +9,10 @@
 #ifndef m3_exec_h
 #define m3_exec_h
 
+// TODO: all these functions could move over to the .c at some point. normally, i'd say screw it,
+// but it might prove useful to be able to compile m3_exec alone w/ optimizations while the remaining
+// code is at debug O0
+
 #include "m3_exec_defs.h"
 
 #include <math.h>
@@ -822,11 +826,11 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_rs)				\
 }														\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_ss)				\
 {														\
-	i32 slot = immediate (i32);								\
+	i32 slot = immediate (i32);							\
 	SRC_TYPE value = * (SRC_TYPE *) (_sp + slot);		\
 														\
-	u32 operand = * (u32 *) (_sp + immediate (i32));		\
-	u32 offset = immediate (u32);							\
+	u32 operand = * (u32 *) (_sp + immediate (i32));	\
+	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
 	u8 * end = * ((u8 **) _mem - 1);					\

@@ -154,9 +154,7 @@ typedef int64_t	(* M3Callback)	(IM3Function i_currentFunction, void * i_ref);
 		d_m3AlignWasmMemoryToPages		false		The WebAssembly spec defines a 64kB page size and memory size is always
 													quantized to pages. In a non-Javascript centric WA host this seems
  													unnecessary.
- 
- 		d_m3CodePageSize				4096		WebAssembly is compiled to M3 code pages of this size.
-*/
+ */
 
 
 //--------------------------------------------------------------------------------------------------------------------------------------------

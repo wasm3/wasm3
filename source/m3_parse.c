@@ -29,6 +29,8 @@ _	(ReadLEB_u32 (& numTypes, & i_bytes, i_end));							m3log (parse, "** Type [%d
 	
 	if (numTypes)
 	{
+		// FIX: these need to be instead added to a set in the runtime struct to facilitate IndirectCall
+		
 _		(m3Alloc (& io_module->funcTypes, M3FuncType, numTypes));
 		
 		io_module->numFuncTypes = numTypes;

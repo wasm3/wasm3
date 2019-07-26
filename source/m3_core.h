@@ -59,15 +59,6 @@ const void * const	cvptr_t;
 # endif
 
 
-
-typedef struct M3MemoryHeader
-{
-	IM3Module		module;
-	void *			end;
-}
-M3MemoryHeader;
-
-
 static const char * m3LogTruncFilename (const char * i_file)
 {
 	const char * file = i_file + strlen (i_file);
@@ -161,6 +152,15 @@ static const char * m3LogTruncFilename (const char * i_file)
 typedef void /*const*/ *					code_t;
 typedef code_t const * /*__restrict__*/		pc_t;
 
+
+typedef struct M3MemoryHeader
+{
+	IM3Module		module;
+	void *			end;
+}
+M3MemoryHeader;
+
+
 typedef struct M3CodePageInfo
 {
 	struct M3CodePage *		next;
@@ -173,7 +173,7 @@ typedef struct M3CodePageInfo
 M3CodePageHeader;
 
 
-static const u32	c_m3CodePageFreeLinesThreshold 		= 10;
+static const u32	c_m3CodePageFreeLinesThreshold 	= 10;
 
 static const u32	c_m3MemPageSize					= 65536;
 static const u32	c_m3MaxFunctionStackHeight		= d_m3MaxFunctionStackHeight;
