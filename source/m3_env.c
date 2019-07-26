@@ -161,7 +161,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 	if (page)
 	{
 		pc_t m3code = GetPagePC (page);
-		result = Compile_Block (& o, i_type, 0);
+		result = CompileBlock (& o, i_type, 0);
 		
 		if (not result)
 		{

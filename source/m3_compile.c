@@ -1052,7 +1052,7 @@ _	(ReadBlockType (o, & blockType));
 
 _	(EmitOp (o, i_opcode == 0x03 ? op_Loop : op_Block));			// TODO: block operation not required
 
-_	(Compile_Block (o, blockType, i_opcode));
+_	(CompileBlock (o, blockType, i_opcode));
 
 	catch: return result;
 }
@@ -1077,7 +1077,7 @@ _	(EmitTopSlotAndPop (o));
 	u8 blockType;
 _	(ReadBlockType (o, & blockType));
 
-_	(Compile_Block (o, blockType, i_opcode));
+_	(CompileBlock (o, blockType, i_opcode));
 	
 	if (o->previousOpcode == c_waOp_else)
 	{
@@ -1282,9 +1282,9 @@ const M3OpInfo c_operations [] =
 	{ "f32.load",			0,	f_32,	NULL, 			NULL, NULL},								// 0x2a
 	{ "f64.load",			0,	f_64,	NULL, 			NULL, NULL},								// 0x2b
 	
-	{ "i32.load8_s",		0,	i_32,	op_i32_Load_i8_r,	op_i32_Load_i8_s, NULL,		Compile_Load_Store },			// 0x2c
-	{ "i32.load8_u",		0,	i_32,	op_i32_Load_u8_r,	op_i32_Load_u8_s, NULL,		Compile_Load_Store },			// 0x2d
-	{ "i32.load16_s",		0,	i_32,	op_i32_Load_i16_r,	op_i32_Load_i16_s, NULL,	Compile_Load_Store },			// 0x2e
+	{ "i32.load8_s",		0,	i_32,	op_i32_Load_i8_r,	op_i32_Load_i8_s,	NULL,	Compile_Load_Store },			// 0x2c
+	{ "i32.load8_u",		0,	i_32,	op_i32_Load_u8_r,	op_i32_Load_u8_s,	NULL,	Compile_Load_Store },			// 0x2d
+	{ "i32.load16_s",		0,	i_32,	op_i32_Load_i16_r,	op_i32_Load_i16_s,	NULL,	Compile_Load_Store },			// 0x2e
 	{ "i32.load16_u",		0,	i_32,	op_i32_Load_u16_r,	op_i32_Load_u16_s,	NULL,	Compile_Load_Store },			// 0x2f
 	
 	{ "i64.load8_s",		0,	i_64,	NULL, 			NULL, NULL,			},			// 0x30
@@ -1569,31 +1569,15 @@ _		(MoveStackTopToRegister (o));
 }
 
 
-M3Result  Compile_Block  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
-{
-	M3Result result;
+M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
+{																						d_m3Assert (not IsRegisterAllocated (o, 0));
+	M3Result result;																	d_m3Assert (not IsRegisterAllocated (o, 1));
 	
+
 	u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
 	
 	// save and clear the locals modification slots
 	u16 locals [numArgsAndLocals];
-	
-//	{
-//		u16 i = GetFunctionNumArgsAndLocals (o->function);
-//		while (i < o->stackIndex)
-//		{
-//			u16 location = o->wasmStack [i];
-//			if (IsRegisterLocation (location))
-//			{
-//				printf ("deal! %d - %d \n", (i32) i, (i32) location);
-////				abort ();
-////				d_m3Assert(false);
-//			}
-//			++i;
-//		}
-//	}
-																				d_m3Assert (not IsRegisterAllocated (o, 0));
-																				d_m3Assert (not IsRegisterAllocated (o, 1));
 	
 	memcpy (locals, o->wasmStack, numArgsAndLocals * sizeof (u16));
 	for (u32 i = 0; i < numArgsAndLocals; ++i)
@@ -1643,7 +1627,7 @@ M3Result  Compile_ElseBlock  (IM3Compilation o, pc_t * o_startPC, u8 i_blockType
 		IM3CodePage savedPage = o->page;
 		o->page = elsePage;
 	
-_		(Compile_Block (o, i_blockType, c_waOp_else));
+_		(CompileBlock (o, i_blockType, c_waOp_else));
 		
 _		(EmitOp (o, op_Branch));
 		EmitPointer (o, GetPagePC (savedPage));

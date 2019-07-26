@@ -150,7 +150,7 @@ void 		EmitConstant				(IM3Compilation o, const u64 immediate);
 void		Push						(IM3Compilation o, u8 i_waType, i16 i_location);
 void 		EmitPointer					(IM3Compilation o, const void * const i_immediate);
 
-M3Result	Compile_Block				(IM3Compilation io, u8 i_blockType, u8 i_blockOpcode);
+M3Result	CompileBlock				(IM3Compilation io, u8 i_blockType, u8 i_blockOpcode);
 M3Result	Compile_ElseBlock			(IM3Compilation io, pc_t * o_startPC, u8 i_blockType);
 
 M3Result	Compile_BlockStatements		(IM3Compilation io);
