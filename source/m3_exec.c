@@ -10,12 +10,14 @@
 #include "m3_compile.h"
 
 
-void ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
+m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 {
 	M3MemoryHeader * info = (M3MemoryHeader *) (i_mem - sizeof (M3MemoryHeader));
 	u8 * mem8 = i_mem + i_offset;
 	
 	ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %lld bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
+	
+	return c_m3Err_trapOutOfBoundsMemoryAccess;
 }
 
 
@@ -126,10 +128,14 @@ d_m3OpDef  (Entry)
 	
 	if (d_m3Log_exec)
 	{
-		char str [100];
-		SPrintArg (str, 99, _sp, function->funcType->returnType);
-
-		m3log (exec, " exit < %s -> %s  %s\n", function->name, str, r ? r : "");
+		u8 returnType = function->funcType->returnType;
+	
+		char str [100] = { '!', 0 };
+		
+		if (not r)
+			SPrintArg (str, 99, _sp, function->funcType->returnType);
+			
+		m3log (exec, " exit < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
 	}
 
 	return r;

@@ -1045,6 +1045,8 @@ M3Result  Compile_LoopOrBlock  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 	
+_ 	(PreserveRegisters (o));
+	
 	u8 blockType;
 _	(ReadBlockType (o, & blockType));
 
@@ -1571,26 +1573,27 @@ M3Result  Compile_Block  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
 {
 	M3Result result;
 	
-//	if (i_blockOpcode != c_waOp_block) yes or no??
-	{
-		u16 i = GetFunctionNumArgsAndLocals (o->function);
-		while (i < o->stackIndex)
-		{
-			u16 location = o->wasmStack [i];
-			if (IsRegisterLocation (location))
-			{
-				printf ("deal! %d - %d \n", (i32) i, (i32) location);
-				abort ();
-				d_m3Assert(false);
-			}
-			++i;
-		}
-	}																			d_m3Assert (not IsRegisterAllocated (o, 0));
-																				d_m3Assert (not IsRegisterAllocated (o, 1));
 	u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
-
+	
 	// save and clear the locals modification slots
 	u16 locals [numArgsAndLocals];
+	
+//	{
+//		u16 i = GetFunctionNumArgsAndLocals (o->function);
+//		while (i < o->stackIndex)
+//		{
+//			u16 location = o->wasmStack [i];
+//			if (IsRegisterLocation (location))
+//			{
+//				printf ("deal! %d - %d \n", (i32) i, (i32) location);
+////				abort ();
+////				d_m3Assert(false);
+//			}
+//			++i;
+//		}
+//	}
+																				d_m3Assert (not IsRegisterAllocated (o, 0));
+																				d_m3Assert (not IsRegisterAllocated (o, 1));
 	
 	memcpy (locals, o->wasmStack, numArgsAndLocals * sizeof (u16));
 	for (u32 i = 0; i < numArgsAndLocals; ++i)
