@@ -342,7 +342,7 @@ void  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
 		i_location = 0;
 	
 	o->wasmStack 		[stackIndex] = i_location;
-	o->typeStack 	[stackIndex] = i_m3Type;									m3logif (stack, dump_type_stack (o))
+	o->typeStack 		[stackIndex] = i_m3Type;									m3logif (stack, dump_type_stack (o))
 
 	if (IsRegisterLocation (i_location))
 	{

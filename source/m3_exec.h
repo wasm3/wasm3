@@ -742,11 +742,11 @@ d_m3Op (PreserveSetSlot_f)
 }
 
 
-//#define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
+#define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
 
 m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
 
-#define d_outOfBounds { printf ("%d %p\n", operand, end);  return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
+//#define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
 
 
 #define d_m3Load(REG,DEST_TYPE,SRC_TYPE) static inline m3ret_t vectorcall op_##DEST_TYPE##_Load_##SRC_TYPE##_r (d_m3OpSig) \

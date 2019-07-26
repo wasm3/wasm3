@@ -78,7 +78,7 @@ static const char * m3LogTruncFilename (const char * i_file)
 
 
 # define d_m3Log_parse d_m3LogParse			// required for m3logif
-# define d_m3Log_stack d_m3LogWasmStack
+# define d_m3Log_stack d_m3LogStack
 # define d_m3Log_exec d_m3LogExec
 
 # if d_m3LogOutput
@@ -99,7 +99,7 @@ static const char * m3LogTruncFilename (const char * i_file)
 #		define m3log_compile(...)
 #	endif
 
-#	if d_m3LogWasmStack
+#	if d_m3LogStack
 #		define m3log_stack(CATEGORY, FMT, ...) 			d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
 #		define m3log_stack(...)
