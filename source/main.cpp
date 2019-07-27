@@ -60,7 +60,6 @@ int  main  (int argc, const char * argv [])
 						
 						if (not result)
 						{
-							m3_LinkFunction (module, "_printf", "v(**)", (void *) m3_printf);
 							m3_LinkFunction (module, "_m3TestOut", "v(iFi)", (void *) m3TestOut);
 							m3_LinkFunction (module, "_m3StdOut", "v(*)", (void *) m3Output);
 							m3_LinkFunction (module, "_m3Export", "v(*i)", (void *) m3Export);
@@ -73,8 +72,9 @@ int  main  (int argc, const char * argv [])
 							m3_LinkFunction (module, "_free",				"v(Mi)",	(void *) m3_free);
 							m3_LinkFunction (module, "_memset",				"*(*ii)",	(void *) m3_memset);
 							m3_LinkFunction (module, "_memcpy",				"*(**i)",	(void *) m3_memcpy);
-							m3_LinkFunction (module, "_fopen",				"i(M**)",	(void *) m3_fopen);
-							m3_LinkFunction (module, "_fread",				"i(*ii*)",	(void *) m3_fread);
+							
+							m3_LinkCStd (module);
+							
 
 							m3_PrintRuntimeInfo (env);
 

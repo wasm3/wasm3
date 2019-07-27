@@ -9,7 +9,6 @@
 #ifndef m3_host_h
 #define m3_host_h
 
-//#include <inttypes.h>
 #include "m3_core.h"
 
 # if __cplusplus
@@ -37,6 +36,10 @@ extern "C" {
 
 	i32		m3_fopen		(IM3Module i_module, ccstr_t i_path, ccstr_t i_mode);
 
+	
+	M3Result	m3_LinkCStd		(IM3Module io_module);
+	
+	
 # if __cplusplus
 }
 # endif

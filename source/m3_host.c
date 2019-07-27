@@ -128,6 +128,22 @@ i32  m3_fopen  (IM3Module i_module, ccstr_t i_path, ccstr_t i_mode)
 }
 
 
+// HACK: just getting some code running.  stderr pointer needs to be statically placed at init
+i32 m3_getStderr (IM3Module i_module)
+{
+	i32 std = AllocateHeap (& i_module->memory, sizeof (FILE *));
+	i32 offset = AllocateHeap (& i_module->memory, sizeof (i32));
+
+	i32 * ptr = (i32 *) (i_module->memory.wasmPages + offset);
+	* ptr = std;
+	
+	void ** file = (void **) (i_module->memory.wasmPages + std);
+	*file = stderr;
+
+	return offset;
+}
+
+
 // TODO: system calls should be able to return traps. make return first arg.
 
 i32  m3_fread  (void * io_ptr, i32 i_size, i32 i_count, FILE * i_file)
@@ -135,6 +151,14 @@ i32  m3_fread  (void * io_ptr, i32 i_size, i32 i_count, FILE * i_file)
 	FILE * file = * (void **) i_file;
 	
 	return (i32) fread (io_ptr, i_size, i_count, file);
+}
+
+
+i32  m3_fwrite  (void * i_ptr, i32 i_size, i32 i_count, FILE * i_file)
+{
+	FILE * file = * (void **) i_file;
+	
+	return (i32) fwrite (i_ptr, i_size, i_count, file);
 }
 
 
@@ -187,6 +211,23 @@ void m3Export (const void * i_data, i32 i_size)
 
 	fwrite (i_data, 1, i_size, f);
 	fclose (f);
+}
+
+M3Result  m3_LinkCStd  (IM3Module io_module)
+{
+	M3Result result = c_m3Err_none;
+	
+	m3_LinkFunction (io_module, "_printf", 				"v(**)",	(void *) m3_printf);
+
+	m3_LinkFunction (io_module, "_fopen",				"i(M**)",	(void *) m3_fopen);
+	m3_LinkFunction (io_module, "_fread",				"i(*ii*)",	(void *) m3_fread);
+	m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(void *) m3_fwrite);
+
+	m3_LinkFunction (io_module, "_exit",				"v(i)",		(void *) exit);
+	
+	m3_LinkFunction (io_module, "g$_stderr",			"i(M)",		(void *) m3_getStderr);
+
+	catch: return result;
 }
 
 

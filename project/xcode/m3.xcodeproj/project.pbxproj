@@ -333,8 +333,9 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
-				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_VERSION = "";
+				OTHER_CFLAGS = "-fomit-frame-pointer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
