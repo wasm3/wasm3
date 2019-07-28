@@ -32,13 +32,11 @@ typedef int8_t			i8;
 	typedef u64		m3word_t;
 	typedef u32		m3halfword_t;
 	typedef i32		m3halfWordSigned_t;
-//	typedef i64		m3ret_t;
 #else
 	typedef i32		m3reg_t;
 
 	typedef u32		m3word_t;
 	typedef u16		m3halfword_t;
-//	typedef i32		m3ret_t;
 #endif
 
 typedef const void *			m3ret_t;

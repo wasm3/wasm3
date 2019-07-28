@@ -64,8 +64,9 @@ enum // EWaTypes
 	c_m3Type_f32	= 3,
 	c_m3Type_f64	= 4,
 	
-	c_m3Type_void	= 5,
-	c_m3Type_ptr	= 6,
+	c_m3Type_void,
+	c_m3Type_ptr,
+	c_m3Type_trap,
 	
 	c_m3Type_module
 };
@@ -137,6 +138,7 @@ d_m3ErrorConst (trapOutOfBoundsMemoryAccess,	"[trap] out of bounds memory access
 d_m3ErrorConst (trapDivisionByZero,				"[trap] division by zero")
 d_m3ErrorConst (trapRemainderByZero,			"[trap] remainder by zero")
 d_m3ErrorConst (trapTableIndexOutOfRange,		"[trap] table index is out of range")
+d_m3ErrorConst (trapExit,						"[trap] program called exit")
 d_m3ErrorConst (runtimeTrap,					"[trap] unspecified runtime trap")
 
 

@@ -10,6 +10,7 @@
 
 #include "m3_exec.h"
 #include "m3_env.h"
+#include "m3_exception.h"
 
 
 typedef struct M3State
@@ -41,13 +42,13 @@ m3ret_t PushArg_module (d_m3BindingArgList, M3State * _state)
 }
 
 
-//printf ("push ptr: r%d off: %d\n", INDEX, offset);
 #define d_argPusherPointer(INDEX) 										\
 m3ret_t PushArg_p##INDEX (d_m3BindingArgList, M3State * _state) 		\
 {																		\
 	i32 offset = (u32) * (_state->sp++);								\
 	_i##INDEX = (i64) (_state->mem + offset);							\
 	M3ArgPusher pusher = (* _state->pc++);								\
+printf ("push ptr: r%d off: %d\n", INDEX, offset);\
 	return pusher (d_m3BindingArgs, _state);							\
 }
 
@@ -83,6 +84,18 @@ M3ArgPusher c_m3PointerPushers 	[] = { PushArg_p0, PushArg_p1, PushArg_p2, PushA
 M3ArgPusher c_m3IntPushers 		[] = { PushArg_i0, PushArg_i1, PushArg_i2, PushArg_i3, NULL };
 M3ArgPusher c_m3Float32Pushers 	[] = { PushArg_f32_0, PushArg_f32_1, PushArg_f32_2, PushArg_f32_3, NULL };
 M3ArgPusher c_m3Float64Pushers 	[] = { PushArg_f64_0, PushArg_f64_1, PushArg_f64_2, PushArg_f64_3, NULL };
+
+
+
+d_m3RetSig  CallTrappingCFunction_void  (d_m3OpSig)
+{
+	M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
+	M3State state = { _pc, _sp, _mem };
+	
+	m3ret_t r = (m3ret_t) pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+	
+	return r;
+}
 
 
 d_m3RetSig  CallCFunction_i64  (d_m3OpSig)
@@ -144,10 +157,11 @@ u8  ConvertTypeCharToTypeId (char i_code)
 {
 	u8 type = 0;
 	
-	if (i_code > c_m3Type_ptr)
+//	if (i_code > c_m3Type_ptr)
 	{
 		if 		(i_code == 'v') type = c_m3Type_void;
 		else if (i_code == '*') type = c_m3Type_ptr;
+		else if (i_code == 'T') type = c_m3Type_trap;
 		else if (i_code == '8') type = c_m3Type_i32;
 		else if (i_code == 'f') type = c_m3Type_f32;
 		else if (i_code == 'F') type = c_m3Type_f64;
@@ -160,70 +174,75 @@ u8  ConvertTypeCharToTypeId (char i_code)
 }
 
 
-M3Result  ValidateSignature  (IM3Function i_function, u8 * o_normalizedSignature, ccstr_t i_linkingSignature)
+M3Result  ValidateSignature  (IM3Function i_function, bool * o_traps, u8 * o_normalizedSignature, ccstr_t i_linkingSignature)
 {
 	M3Result result = c_m3Err_none;
 	
+	* o_traps = false;
+	
 	cstr_t sig = i_linkingSignature;
-	
-	char returnTypeChar = * sig++;
 
-	if (returnTypeChar)
+	bool hasReturn = false;
+	u32 numArgs = 0;
+	
+	// check for trap flag
+	u8 type = ConvertTypeCharToTypeId (* sig);
+	if (type == c_m3Type_trap)
 	{
-		u8 returnType = ConvertTypeCharToTypeId (returnTypeChar);
-		
-		if (returnType)
-		{
-			o_normalizedSignature [0] = returnType;
-			
-			u32 hasModuleArgument = 0;
-			u32 i = 0;
-			while (i < c_m3MaxNumFunctionArgs)
-			{
-				char typeChar = * sig++;
-				
-				if (typeChar)
-				{
-					if (typeChar == '(' or typeChar == ' ')		// allow some decoration
-						continue;
-					else if (typeChar == ')')
-						break;
-					
-					u8 type = ConvertTypeCharToTypeId (typeChar);
-					
-					if (type)
-					{
-						if (type == c_m3Type_module)
-							hasModuleArgument = 1;
-						
-						// FIX: compare to fun; need to ignore module argument
-
-						o_normalizedSignature [++i] = type;
-					}
-					else
-					{
-						result = "unknown type char";
-						break;
-					}
-				}
-				else break;
-			}
-			
-			if (* sig == 0)
-			{
-				if (i == GetFunctionNumArgs (i_function) + hasModuleArgument)
-				{
-					
-				}
-				else result = "function arg count mismatch";
-			}
-			else result = "arg count overflow";
-		}
-		else result = "invalid return type char code";
+		* o_traps = true;
+		++sig;
 	}
-	else result = "missing return type";
 	
-	return result;
+	bool parsingArgs = false;
+	while (* sig)
+	{
+		if (numArgs >= c_m3MaxNumFunctionArgs)
+			throw ("arg count overflow");
+			
+		char typeChar = * sig++;
+		
+		if (typeChar == '(')
+		{
+			if (not hasReturn)
+				throw ("malformed function signature; missing return type");
+				
+			parsingArgs = true;
+			continue;
+		}
+		else if ( typeChar == ' ')
+			continue;
+		else if (typeChar == ')')
+			break;
+
+		type = ConvertTypeCharToTypeId (typeChar);
+		
+		if (type)
+		{
+			* o_normalizedSignature++ = type;
+
+			if (type == c_m3Type_trap)
+				throw ("malformed function signature");
+			
+			if (not parsingArgs)
+			{
+				if (hasReturn)
+					throw ("malformed function signature; too many return types");
+				
+				hasReturn = true;
+			}
+			else
+			{
+				if (type != c_m3Type_module)
+					++numArgs;
+			}
+		}
+		else throw ("unknown argument type char");
+	}
+	
+	if (GetFunctionNumArgs (i_function) != numArgs)
+		throw ("function arg count mismatch");
+	
+	catch: return result;
 }
 
 
@@ -246,15 +265,18 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  ccstr_t i_functionName,  ccstr
 	IM3Function func = (IM3Function) v_FindFunction (io_module, i_functionName);
 	if (func)
 	{
-		result = ValidateSignature (func, signature, i_signature);
+		bool trappingFunction = false;
+		
+		result = ValidateSignature (func, & trappingFunction, signature, i_signature);
 
 		if (not result)
 		{
+			u8 returnType = signature [0];
+			u8 * sig = & signature [1];
+
 			u32 intIndex = 0;
 			u32 floatIndex = 0;
 
-			u8 * sig = & signature [1];
-			
 			u32 i = 0;
 			while (* sig)
 			{
@@ -287,16 +309,26 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  ccstr_t i_functionName,  ccstr
 				func->compiled = GetPagePC (page);
 				func->module = io_module;
 				
-				IM3Operation callerOp = CallCFunction_i64;
+				IM3Operation callerOp;
 				
-				u8 returnType = signature [0];
-				
-				if		(returnType == c_m3Type_f64)
-					callerOp = CallCFunction_f64;
-				else if (returnType == c_m3Type_f32)
-					callerOp = CallCFunction_f32;
-				else if (returnType == c_m3Type_ptr)
-					callerOp = CallCFunction_ptr;
+				if (trappingFunction)
+				{
+					// TODO: returned types not implemented!
+					d_m3Assert (returnType == c_m3Type_void);
+
+					callerOp = CallTrappingCFunction_void;
+				}
+				else
+				{
+					callerOp = CallCFunction_i64;
+					
+					if		(returnType == c_m3Type_f64)
+						callerOp = CallCFunction_f64;
+					else if (returnType == c_m3Type_f32)
+						callerOp = CallCFunction_f32;
+					else if (returnType == c_m3Type_ptr)
+						callerOp = CallCFunction_ptr;
+				}
 
 				EmitWord (page, callerOp);
 				

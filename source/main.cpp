@@ -26,13 +26,15 @@ void  m3Output  (const char * i_string)
 }
 
 
-int  main  (int argc, const char * argv [])
+int  main  (int i_argc, const char * i_argv [])
 {
+	M3Result result = c_m3Err_none;
+	
 	m3_PrintM3Info ();
 
-	if (argc == 2)
+	if (i_argc >= 2)
 	{
-		FILE * f = fopen (argv [1], "rb");
+		FILE * f = fopen (i_argv [1], "rb");
 		
 		if (f)
 		{
@@ -46,83 +48,85 @@ int  main  (int argc, const char * argv [])
 				
 				if (wasm)
 				{
-					fread (wasm, 1, fsize, f);
-					fclose (f);
+					IM3Runtime env = nullptr;
 					
-					IM3Module module;
-					M3Result result = m3_ParseModule (& module, wasm, (u32) fsize);
-					
-					if (not result)
+					try
 					{
-						IM3Runtime env = m3_NewRuntime (32768);
+						fread (wasm, 1, fsize, f);
+						fclose (f);
 						
-						result = m3_LoadModule (env, module);
+						IM3Module module;
+						result = m3_ParseModule (& module, wasm, (u32) fsize); if (result) throw result;
 						
-						if (not result)
+						env = m3_NewRuntime (32768);
+						
+						result = m3_LoadModule (env, module); if (result) throw result;
+						
+						m3_LinkFunction (module, "_m3TestOut", "v(iFi)", (void *) m3TestOut);
+						m3_LinkFunction (module, "_m3StdOut", "v(*)", (void *) m3Output);
+						m3_LinkFunction (module, "_m3Export", "v(*i)", (void *) m3Export);
+						m3_LinkFunction (module, "_m3Out_f64", "v(F)", (void *) m3Out_f64);
+						m3_LinkFunction (module, "_m3Out_i32", "v(i)", (void *) m3Out_i32);
+						m3_LinkFunction (module, "_TestReturn", "F(i)", (void *) TestReturn);
+
+						m3_LinkFunction (module, "abortStackOverflow",	"v(i)",		(void *) m3_abort);
+						m3_LinkFunction (module, "_malloc",				"i(Mi)",	(void *) m3_malloc);
+						m3_LinkFunction (module, "_free",				"v(Mi)",	(void *) m3_free);
+						m3_LinkFunction (module, "_memset",				"*(*ii)",	(void *) m3_memset);
+						m3_LinkFunction (module, "_memcpy",				"*(**i)",	(void *) m3_memcpy);
+						
+						result = m3_LinkCStd (module); if (result) throw result;
+
+						m3_PrintRuntimeInfo (env);
+
+						IM3Function f;
+						result = m3_FindFunction (& f, env, "__post_instantiate"); if (result) throw result;
+						result = m3_Call (f); if (result) throw result;
+
+						IM3Function main;
+						result = m3_FindFunction (& main, env, "_main"); if (result) throw result;
+						
+						if (main)
 						{
-							m3_LinkFunction (module, "_m3TestOut", "v(iFi)", (void *) m3TestOut);
-							m3_LinkFunction (module, "_m3StdOut", "v(*)", (void *) m3Output);
-							m3_LinkFunction (module, "_m3Export", "v(*i)", (void *) m3Export);
-							m3_LinkFunction (module, "_m3Out_f64", "v(F)", (void *) m3Out_f64);
-							m3_LinkFunction (module, "_m3Out_i32", "v(i)", (void *) m3Out_i32);
-							m3_LinkFunction (module, "_TestReturn", "F(i)", (void *) TestReturn);
+							printf ("found _main\n");
 
-							m3_LinkFunction (module, "abortStackOverflow",	"v(i)",		(void *) m3_abort);
-							m3_LinkFunction (module, "_malloc",				"i(Mi)",	(void *) m3_malloc);
-							m3_LinkFunction (module, "_free",				"v(Mi)",	(void *) m3_free);
-							m3_LinkFunction (module, "_memset",				"*(*ii)",	(void *) m3_memset);
-							m3_LinkFunction (module, "_memcpy",				"*(**i)",	(void *) m3_memcpy);
+							clock_t start = clock ();
+
+							result = m3_Call (main);
 							
-							m3_LinkCStd (module);
+							clock_t end = clock ();
+							double elapsed_time = (end - start) / (double) CLOCKS_PER_SEC ;
+							printf("%lf\n", elapsed_time);
 							
-
-							m3_PrintRuntimeInfo (env);
-
-							IM3Function f;
-							result = m3_FindFunction (& f, env, "__post_instantiate");
-							if (not result)
-								result = m3_Call (f);
-
-							IM3Function main;
-							result = m3_FindFunction (& main, env, "_main");
+							printf ("call: %s\n", result);
 							
-							if (not result and main)
-							{
-								printf ("found _main\n");
-
-								clock_t start = clock ();
-
-								result = m3_Call (main);
-								
-								clock_t end = clock ();
-								double elapsed_time = (end - start) / (double) CLOCKS_PER_SEC ;
-								printf("%lf\n", elapsed_time);
-								
-								printf ("call: %s\n", result);
-								
-								m3_PrintProfilerInfo ();
-							}
-							else printf ("find: %s\n", result);
-						}
-						else printf ("import: %s\n", result);
-						
-						if (result)
-						{
-							M3ErrorInfo info = m3_GetErrorInfo (env);
-							printf ("%s\n", info.message);
+							m3_PrintProfilerInfo ();
 						}
 						
 						m3_FreeRuntime (env);
+						env = nullptr;
 					}
-					else printf ("parse: %s\n", result);
+					
+					catch (const M3Result & r) {}
+
+					if (result)
+					{
+						printf ("error: %s\n", result);
+					
+						if (env)
+						{
+							M3ErrorInfo info = m3_GetErrorInfo (env);
+							printf ("%s\n", info.message);
+							m3_FreeRuntime (env);
+						}
+					}
 				}
 				
 				free (wasm);
 			}
 		}
-		else printf ("couldn't open '%s'\n", argv  [1]);
+		else printf ("couldn't open '%s'\n", i_argv [1]);
 	}
-	
 	
 	printf ("\n");
 	

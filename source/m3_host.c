@@ -9,6 +9,7 @@
 #include "m3_host.h"
 #include "m3_core.h"
 #include "m3_env.h"
+#include "m3_exception.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -213,19 +214,34 @@ void m3Export (const void * i_data, i32 i_size)
 	fclose (f);
 }
 
+m3ret_t m3_exit (i32 i_code)
+{
+	printf ("exit: %d\n", i_code);
+	
+	return c_m3Err_trapExit;
+}
+
+M3Result  SuppressLookupFailure (M3Result i_result)
+{
+	if (i_result == c_m3Err_functionLookupFailed)
+		return c_m3Err_none;
+	else
+		return i_result;
+}
+
 M3Result  m3_LinkCStd  (IM3Module io_module)
 {
 	M3Result result = c_m3Err_none;
 	
-	m3_LinkFunction (io_module, "_printf", 				"v(**)",	(void *) m3_printf);
-
-	m3_LinkFunction (io_module, "_fopen",				"i(M**)",	(void *) m3_fopen);
-	m3_LinkFunction (io_module, "_fread",				"i(*ii*)",	(void *) m3_fread);
-	m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(void *) m3_fwrite);
-
-	m3_LinkFunction (io_module, "_exit",				"v(i)",		(void *) exit);
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_printf", 				"v(**)",	(void *) m3_printf)));
 	
-	m3_LinkFunction (io_module, "g$_stderr",			"i(M)",		(void *) m3_getStderr);
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fopen",				"i(M**)",	(void *) m3_fopen)));
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fread",				"i(*ii*)",	(void *) m3_fread)));
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(void *) m3_fwrite)));
+
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_exit",				"Tv(i)",	(void *) m3_exit)));
+	
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "g$_stderr",			"i(M)",		(void *) m3_getStderr)));
 
 	catch: return result;
 }
