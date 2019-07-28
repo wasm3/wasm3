@@ -133,8 +133,11 @@ void  ReleaseRuntime  (IM3Runtime i_runtime)
 
 void  m3_FreeRuntime  (IM3Runtime i_runtime)
 {
-	ReleaseRuntime (i_runtime);
-	free (i_runtime);
+	if (i_runtime)
+	{
+		ReleaseRuntime (i_runtime);
+		free (i_runtime);
+	}
 }
 
 
@@ -386,18 +389,51 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
 
 M3Result  m3_Call  (IM3Function i_function)
 {
+	return m3_CallWithArgs (i_function, 0, NULL);
+}
+
+
+M3Result  m3_CallWithArgs  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv)
+{
 	M3Result result = c_m3Err_none;
 	
 	if (i_function->compiled)
 	{
-		IM3Runtime env = i_function->module->runtime;
+		IM3Module module = i_function->module;
 		
+		IM3Runtime env = module->runtime;
+		
+_		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
+		
+		u8 * linearMemory = module->memory.wasmPages;
+
 		m3stack_t stack = env->stack;
-		stack += i_function->numLocals;
-		
-_		(Module_EnsureMemorySize (i_function->module, & i_function->module->memory, 3000000));
-		
-		u8 * linearMemory = i_function->module->memory.wasmPages;
+
+		if (i_argc)
+		{
+			IM3Memory memory = & module->memory;
+			// FIX: memory allocation in general
+			i32 offset = AllocateHeap (memory, sizeof (i32) * i_argc);
+			
+			i32 * pointers = (i32 *) (memory->wasmPages + offset);
+			
+			for (i32 i = 0; i < i_argc; ++i)
+			{
+				size_t argLength = strlen (i_argv [i]) + 1;
+				
+				if (argLength < 4000)
+				{
+					i32 o = AllocateHeap (memory, (i32) argLength);
+					memcpy (memory->wasmPages + o, i_argv [i], argLength);
+					
+					* pointers++ = o;
+				}
+				else throw ("insane argument string length");
+			}
+			
+			stack [0] = i_argc;
+			stack [1] = offset;
+		}
 
 _		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 

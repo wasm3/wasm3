@@ -11,6 +11,9 @@
 
 #include "m3_env.h"
 
-M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, m3word_t i_memorySize);
+M3Result  Module_EnsureMemorySize  (IM3Module i_module, IM3Memory io_memory, m3word_t i_memorySize);
+
+i32 AllocateHeap (M3Memory * io_memory, i32 i_size);
+
 
 #endif /* m3_module_h */

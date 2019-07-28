@@ -92,19 +92,19 @@ int  main  (int i_argc, const char * i_argv [])
 
 							clock_t start = clock ();
 
-							result = m3_Call (main);
+//							result = m3_Call (main);
+							
+							result = m3_CallWithArgs (main, i_argc, i_argv);
 							
 							clock_t end = clock ();
 							double elapsed_time = (end - start) / (double) CLOCKS_PER_SEC ;
 							printf("%lf\n", elapsed_time);
 							
-							printf ("call: %s\n", result);
+//							printf ("call: %s\n", result);
 							
 							m3_PrintProfilerInfo ();
 						}
 						
-						m3_FreeRuntime (env);
-						env = nullptr;
 					}
 					
 					catch (const M3Result & r) {}
@@ -117,9 +117,10 @@ int  main  (int i_argc, const char * i_argv [])
 						{
 							M3ErrorInfo info = m3_GetErrorInfo (env);
 							printf ("%s\n", info.message);
-							m3_FreeRuntime (env);
 						}
 					}
+					
+					m3_FreeRuntime (env);
 				}
 				
 				free (wasm);

@@ -68,18 +68,6 @@ void  m3_abort  (i32 i_dunno)
 }
 
 
-i32 AllocateHeap (M3Memory * io_memory, i32 i_size)
-{
-	i_size = (i_size + 7) & ~7;
-	size_t ptrOffset = io_memory->heapOffset + (io_memory->heapAllocated += i_size);
-
-	size_t size = (u8 *) io_memory->mallocated->end - io_memory->wasmPages;
-	
-	assert (ptrOffset < size);
-
-	return (i32) ptrOffset;
-}
-
 
 i32  m3_malloc  (IM3Module i_module, i32 i_size)
 {
@@ -187,10 +175,12 @@ void m3Out_f64 (double i_value)
 	printf ("%lf\n", i_value);
 }
 
+
 void m3Out_i32 (i32 i_value)
 {
 	printf ("m3_out: %d %u\n", i_value, (u32) i_value);
 }
+
 
 void  m3TestOut  (int32_t i_int0, double i_double, int32_t i_int1)
 {
@@ -214,12 +204,14 @@ void m3Export (const void * i_data, i32 i_size)
 	fclose (f);
 }
 
+
 m3ret_t m3_exit (i32 i_code)
 {
-	printf ("exit: %d\n", i_code);
+	printf ("exit (%d)\n", i_code);
 	
 	return c_m3Err_trapExit;
 }
+
 
 M3Result  SuppressLookupFailure (M3Result i_result)
 {
@@ -228,6 +220,7 @@ M3Result  SuppressLookupFailure (M3Result i_result)
 	else
 		return i_result;
 }
+
 
 M3Result  m3_LinkCStd  (IM3Module io_module)
 {

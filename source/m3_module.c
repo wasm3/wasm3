@@ -8,7 +8,7 @@
 
 
 #include "m3_module.h"
-
+#include <assert.h>
 
 void  m3_FreeModule  (IM3Module i_module)
 {
@@ -155,5 +155,17 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, m3
 	return result;
 }
 
+
+i32  AllocateHeap  (M3Memory * io_memory, i32 i_size)
+{
+	i_size = (i_size + 7) & ~7;
+	size_t ptrOffset = io_memory->heapOffset + (io_memory->heapAllocated += i_size);
+	
+	size_t size = (u8 *) io_memory->mallocated->end - io_memory->wasmPages;
+	
+	assert (ptrOffset < size);
+	
+	return (i32) ptrOffset;
+}
 
 
