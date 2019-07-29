@@ -1749,7 +1749,7 @@ _		(Compile_BlockStatements (& o));
 		
 		u32 numConstants = o.constSlotIndex - o.firstConstSlotIndex;
 		
-		io_function->numConstants = numConstants;					m3log (compile, "unique constants: %d unused slots: %d", numConstants, o.firstSlotIndex - o.constSlotIndex);
+		io_function->numConstants = numConstants;					m3log (compile, "unique constants: %d; unused slots: %d", numConstants, o.firstSlotIndex - o.constSlotIndex);
 		
 		if (numConstants)
 		{

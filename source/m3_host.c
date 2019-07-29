@@ -12,8 +12,9 @@
 #include "m3_exception.h"
 
 #include <stdio.h>
-#include <unistd.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 void m3_printf (cstr_t i_format, const void * i_varArgs)
 {
@@ -228,12 +229,17 @@ M3Result  SuppressLookupFailure (M3Result i_result)
 		return i_result;
 }
 
-#include <sys/ioctl.h>
+
 M3Result  m3_LinkCStd  (IM3Module io_module)
 {
 	M3Result result = c_m3Err_none;
 	
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_printf", 				"v(**)",	(void *) m3_printf)));
+
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_malloc",				"i(Mi)",	(void *) m3_malloc)));
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_free",				"v(Mi)",	(void *) m3_free)));
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_memset",				"*(*ii)",	(void *) m3_memset)));
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_memcpy",				"*(**i)",	(void *) m3_memcpy)));
 	
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fopen",				"i(M**)",	(void *) m3_fopen)));
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fread",				"i(*ii*)",	(void *) m3_fread)));

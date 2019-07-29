@@ -70,18 +70,18 @@ int  main  (int i_argc, const char * i_argv [])
 						m3_LinkFunction (module, "_TestReturn", "F(i)", (void *) TestReturn);
 
 						m3_LinkFunction (module, "abortStackOverflow",	"v(i)",		(void *) m3_abort);
-						m3_LinkFunction (module, "_malloc",				"i(Mi)",	(void *) m3_malloc);
-						m3_LinkFunction (module, "_free",				"v(Mi)",	(void *) m3_free);
-						m3_LinkFunction (module, "_memset",				"*(*ii)",	(void *) m3_memset);
-						m3_LinkFunction (module, "_memcpy",				"*(**i)",	(void *) m3_memcpy);
 						
 						result = m3_LinkCStd (module); if (result) throw result;
 
 						m3_PrintRuntimeInfo (env);
 
 						IM3Function f;
-						result = m3_FindFunction (& f, env, "__post_instantiate"); if (result) throw result;
-						result = m3_Call (f); if (result) throw result;
+						result = m3_FindFunction (& f, env, "__post_instantiate"); //if (result) throw result;
+						
+						if (not result)
+						{
+							result = m3_Call (f); if (result) throw result;
+						}
 
 						IM3Function main;
 						result = m3_FindFunction (& main, env, "_main"); if (result) throw result;

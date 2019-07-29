@@ -48,7 +48,7 @@ m3ret_t PushArg_p##INDEX (d_m3BindingArgList, M3State * _state) 		\
 	i32 offset = (u32) * (_state->sp++);								\
 	_i##INDEX = (i64) (_state->mem + offset);							\
 	M3ArgPusher pusher = (* _state->pc++);								\
-printf ("push ptr: r%d off: %d\n", INDEX, offset);\
+	if (0) printf ("push ptr: r%d off: %d\n", INDEX, offset);			\
 	return pusher (d_m3BindingArgs, _state);							\
 }
 
