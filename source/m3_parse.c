@@ -25,7 +25,7 @@ M3Result  ParseSection_Type  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_e
 	M3Result result = c_m3Err_none;
 	
 	u32 numTypes;
-_	(ReadLEB_u32 (& numTypes, & i_bytes, i_end));							m3log (parse, "** Type [%d]", numTypes);
+_	(ReadLEB_u32 (& numTypes, & i_bytes, i_end));									m3log (parse, "** Type [%d]", numTypes);
 	
 	if (numTypes)
 	{
@@ -67,7 +67,7 @@ _			(ReadLEB_u7 /* u1 in spec */ (& returnCount, & i_bytes, i_end));
 				i8 returnType;
 _				(ReadLEB_i7 (& returnType, & i_bytes, i_end));
 _				(NormalizeType (& ft->returnType, returnType));
-			}																					m3logif (parse, PrintFuncTypeSignature (ft))
+			}																		m3logif (parse, PrintFuncTypeSignature (ft))
 
 			++ft;
 		}
@@ -91,7 +91,7 @@ M3Result  ParseSection_Function  (IM3Module io_module, bytes_t i_bytes, cbytes_t
 	M3Result result = c_m3Err_none;
 	
 	u32 numFunctions;
-_	(ReadLEB_u32 (& numFunctions, & i_bytes, i_end));									m3log (parse, "** Function [%d]", numFunctions);
+_	(ReadLEB_u32 (& numFunctions, & i_bytes, i_end));								m3log (parse, "** Function [%d]", numFunctions);
 
 	for (u32 i = 0; i < numFunctions; ++i)
 	{
@@ -112,7 +112,7 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 	M3ImportInfo import = {}, clearImport = {};
 	
 	u32 numImports;
-_	(ReadLEB_u32 (& numImports, & i_bytes, i_end));								m3log (parse, "** Import [%d]", numImports);
+_	(ReadLEB_u32 (& numImports, & i_bytes, i_end));									m3log (parse, "** Import [%d]", numImports);
 	
 	for (u32 i = 0; i < numImports; ++i)
 	{
@@ -120,7 +120,7 @@ _	(ReadLEB_u32 (& numImports, & i_bytes, i_end));								m3log (parse, "** Impor
 		
 _		(Read_utf8 (& import.moduleUtf8, & i_bytes, i_end));
 _		(Read_utf8 (& import.fieldUtf8, & i_bytes, i_end));
-_		(Read_u8 (& importKind, & i_bytes, i_end));								m3log (parse, "  - kind: %d; '%s.%s' ",
+_		(Read_u8 (& importKind, & i_bytes, i_end));									m3log (parse, "  - kind: %d; '%s.%s' ",
 																					   			(u32) importKind, import.moduleUtf8, import.fieldUtf8);
 		switch (importKind)
 		{
@@ -152,7 +152,7 @@ _				(ReadLEB_u32 (& pages, & i_bytes, i_end));
 				if (flag)
 _ 					(ReadLEB_u32 (& maxPages, & i_bytes, i_end));
 
-				io_module->memory.virtualSize = pages * c_m3MemPageSize;				m3log (parse, "     memory: pages: %d max: %d", pages, maxPages);
+				io_module->memory.virtualSize = pages * c_m3MemPageSize;			m3log (parse, "     memory: pages: %d max: %d", pages, maxPages);
 			}
 			break;
 				
@@ -193,7 +193,7 @@ M3Result  ParseSection_Export  (IM3Module io_module, bytes_t i_bytes, cbytes_t	i
 	M3Result result = c_m3Err_none;
 	
 	u32 numExports;
-_	(ReadLEB_u32 (& numExports, & i_bytes, i_end));						m3log (parse, "** Export [%d]", numExports);
+_	(ReadLEB_u32 (& numExports, & i_bytes, i_end));									m3log (parse, "** Export [%d]", numExports);
 	
 	for (u32 i = 0; i < numExports; ++i)
 	{
@@ -203,7 +203,7 @@ _	(ReadLEB_u32 (& numExports, & i_bytes, i_end));						m3log (parse, "** Export 
 
 _		(Read_utf8 (& utf8, & i_bytes, i_end));
 _		(Read_u8 (& exportKind, & i_bytes, i_end));
-_		(ReadLEB_u32 (& index, & i_bytes, i_end));							m3log (parse, "  - index: %4d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
+_		(ReadLEB_u32 (& index, & i_bytes, i_end));									m3log (parse, "  - index: %4d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
 		
 		if (exportKind == c_externalKind_function)
 		{
@@ -264,7 +264,7 @@ M3Result  ParseSection_Code  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_
 	M3Result result;
 
 	u32 numFunctions;
-_	(ReadLEB_u32 (& numFunctions, & i_bytes, i_end));						m3log (parse, "** Code [%d]", numFunctions);
+_	(ReadLEB_u32 (& numFunctions, & i_bytes, i_end));								m3log (parse, "** Code [%d]", numFunctions);
 	
 	if (numFunctions != io_module->numFunctions - io_module->numImports)
 	{
@@ -287,7 +287,7 @@ _		(ReadLEB_u32 (& size, & i_bytes, i_end));
 				const u8 * start = ptr;
 				
 				u32 numLocals;
-_				(ReadLEB_u32 (& numLocals, & ptr, i_end));					m3log (parse, "  - func size: %d; locals: %d", size, numLocals);
+_				(ReadLEB_u32 (& numLocals, & ptr, i_end));							m3log (parse, "  - func size: %d; locals: %d", size, numLocals);
 				
 				u32 numLocalVars = 0;
 				
@@ -301,7 +301,7 @@ _					(ReadLEB_u32 (& varCount, & ptr, i_end));
 _					(ReadLEB_i7 (& varType, & ptr, i_end));
 _					(NormalizeType (& normalizedType, varType));
 
-					numLocalVars += varCount;									m3log (parse, "    - %d locals; type: '%s'", varCount, c_waTypes [-varType]);
+					numLocalVars += varCount;										m3log (parse, "    - %d locals; type: '%s'", varCount, c_waTypes [-varType]);
 				}
 				
 				IM3Function func = Module_GetFunction (io_module, f + io_module->numImports);
@@ -329,7 +329,7 @@ M3Result  ParseSection_Data  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_
 	M3Result result = c_m3Err_none;
 	
 	u32 numDataSegments;
-_	(ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));						m3log (parse, "** Data [%d]", numDataSegments);
+_	(ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));							m3log (parse, "** Data [%d]", numDataSegments);
 	
 _	(m3Alloc (& io_module->dataSegments, M3DataSegment, numDataSegments));
 
@@ -350,7 +350,7 @@ _ 		(Parse_InitExpr (io_module, & i_bytes, i_end));
 		
 _ 		(ReadLEB_u32 (& segment->size, & i_bytes, i_end));
 
-		segment->data = i_bytes;												m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
+		segment->data = i_bytes;													m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
 																					   i, segment->memoryRegion, segment->initExprSize, segment->size);
 	}
 
@@ -366,7 +366,7 @@ M3Result  ParseSection_Global  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
 	M3Result result = c_m3Err_none;
 	
 	u32 numGlobals;
-_	(ReadLEB_u32 (& numGlobals, & i_bytes, i_end));								m3log (parse, "** Global [%d]", numGlobals);
+_	(ReadLEB_u32 (& numGlobals, & i_bytes, i_end));									m3log (parse, "** Global [%d]", numGlobals);
 	
 	for (u32 i = 0; i < numGlobals; ++i)
 	{
@@ -374,7 +374,7 @@ _	(ReadLEB_u32 (& numGlobals, & i_bytes, i_end));								m3log (parse, "** Globa
 		u8 type;
 		
 _ 		(ReadLEB_i7 (& waType, & i_bytes, i_end));
-_ 		(NormalizeType (& type, waType));							m3log (parse, "  - add global: [%d] %s", i, c_waTypes [type]);
+_ 		(NormalizeType (& type, waType));											m3log (parse, "  - add global: [%d] %s", i, c_waTypes [type]);
 		
 		IM3Global global;
 _ 		(Module_AddGlobal (io_module, & global, type, false /* mutable */, false /* isImport */));
@@ -397,7 +397,7 @@ M3Result  ParseSection_Custom  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
 
 	cstr_t name;
 _	(Read_utf8 (& name, & i_bytes, i_end));
-																				m3log (parse, "** Custom: '%s'", name);
+																					m3log (parse, "** Custom: '%s'", name);
 	if (strcmp (name, "name") != 0)
 		i_bytes = i_end;
 	
@@ -426,7 +426,7 @@ _				(Read_utf8 (& name, & i_bytes, i_end));
 				{
 					if (not io_module->functions [index].name)
 					{
-						io_module->functions [index].name = name;						m3log (parse, "naming function [%d]: %s", index, name);
+						io_module->functions [index].name = name;					m3log (parse, "naming function [%d]: %s", index, name);
 						name = NULL;
 					}
 //							else m3log (parse, "prenamed: %s", io_module->functions [index].name);

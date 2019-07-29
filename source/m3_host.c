@@ -12,6 +12,7 @@
 #include "m3_exception.h"
 
 #include <stdio.h>
+#include <unistd.h>
 #include <assert.h>
 
 void m3_printf (cstr_t i_format, const void * i_varArgs)
@@ -151,6 +152,12 @@ i32  m3_fwrite  (void * i_ptr, i32 i_size, i32 i_count, FILE * i_file)
 }
 
 
+i32  m3_write  (i32 i_fd, const void * i_data, i32 i_count)
+{
+	return (i32) write (i_fd, i_data, i_count);
+}
+
+
 M3Result EmbedHost (IM3Runtime i_runtime)
 {
 	M3Result result = c_m3Err_none;
@@ -221,7 +228,7 @@ M3Result  SuppressLookupFailure (M3Result i_result)
 		return i_result;
 }
 
-
+#include <sys/ioctl.h>
 M3Result  m3_LinkCStd  (IM3Module io_module)
 {
 	M3Result result = c_m3Err_none;
@@ -232,8 +239,13 @@ _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fopen",				"i(M**)",	(vo
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fread",				"i(*ii*)",	(void *) m3_fread)));
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(void *) m3_fwrite)));
 
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_write",				"i(i*i)",	(void *) m3_write)));
+
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_ioctl",				"i(ii*)",	(void *) ioctl)));
+
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_exit",				"Tv(i)",	(void *) m3_exit)));
-	
+_	(SuppressLookupFailure (m3_LinkFunction (io_module, "_perror",				"v(*)",		(void *) perror)));
+
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "g$_stderr",			"i(M)",		(void *) m3_getStderr)));
 
 	catch: return result;

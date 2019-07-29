@@ -992,7 +992,7 @@ _			(EmitOp		(o, op));
 			EmitPointer	(o, operand);
 			EmitOffset	(o, execTop);
 		}
-		else result = ErrorCompile (c_m3Err_functionImportMissing, o, "missing function: '%s'", GetFunctionName (function));
+		else result = ErrorCompile (c_m3Err_functionImportMissing, o, "'%s'", GetFunctionName (function));
 	}
 	else result = c_m3Err_functionLookupFailed;
 	

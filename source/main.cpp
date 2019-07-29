@@ -94,6 +94,12 @@ int  main  (int i_argc, const char * i_argv [])
 
 //							result = m3_Call (main);
 							
+							if (i_argc)
+							{
+								--i_argc;
+								++i_argv;
+							}
+							
 							result = m3_CallWithArgs (main, i_argc, i_argv);
 							
 							clock_t end = clock ();
@@ -111,13 +117,15 @@ int  main  (int i_argc, const char * i_argv [])
 
 					if (result)
 					{
-						printf ("error: %s\n", result);
+						printf ("result: %s", result);
 					
 						if (env)
 						{
 							M3ErrorInfo info = m3_GetErrorInfo (env);
-							printf ("%s\n", info.message);
+							printf (" (%s)", info.message);
 						}
+						
+						printf ("\n");
 					}
 					
 					m3_FreeRuntime (env);

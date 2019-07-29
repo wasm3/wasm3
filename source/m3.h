@@ -85,61 +85,62 @@ typedef M3ImportInfo * IM3ImportInfo;
 
 
 
-
-# ifndef d_m3ErrorConst
-# define d_m3ErrorConst(LABEL, STRING) extern const M3Result c_m3Err_##LABEL;
-# endif
-
 // -------------------------------------------------------------------------------------------------------------------------------
 //  error codes
 // -------------------------------------------------------------------------------------------------------------------------------
 
-d_m3ErrorConst (none, 							NULL)
+# ifndef d_m3ErrorConst
+# 	define d_m3ErrorConst(LABEL, STRING)		extern const M3Result c_m3Err_##LABEL;
+# endif
+
+// -------------------------------------------------------------------------------------------------------------------------------
+
+d_m3ErrorConst	(none, 							NULL)
 
 // general errors
-d_m3ErrorConst (typeListOverflow, 				"type list count exceeds 32 types")
-d_m3ErrorConst (mallocFailed, 					"memory allocation failed")
+d_m3ErrorConst	(typeListOverflow, 				"type list count exceeds 32 types")
+d_m3ErrorConst	(mallocFailed, 					"memory allocation failed")
 
 // parse errors
-d_m3ErrorConst (incompatibleWasmVersion,	 	"incompatible WASM binary version")
-d_m3ErrorConst (wasmMalformed, 					"malformed WASM binary")
-d_m3ErrorConst (misorderedWasmSection, 			"out of ordr WASM section")
-d_m3ErrorConst (wasmUnderrun, 					"underrun while parsing WASM binary")
-d_m3ErrorConst (wasmOverrun, 					"overrun while parsing WASM binary")
-d_m3ErrorConst (wasmMissingInitExpr, 			"missing init_expr in WASM binary")
-d_m3ErrorConst (lebOverflow, 					"LEB encoded value overflow")
-d_m3ErrorConst (missingUTF8, 					"zero length UTF-8 string")
-d_m3ErrorConst (wasmSectionUnderrun, 			"section underrun while parsing WASM binary")
-d_m3ErrorConst (wasmSectionOverrun, 			"section overrun while parsing WASM binary")
-d_m3ErrorConst (invalidTypeId, 					"unknown value_type")
+d_m3ErrorConst	(incompatibleWasmVersion,	 	"incompatible WASM binary version")
+d_m3ErrorConst	(wasmMalformed, 				"malformed WASM binary")
+d_m3ErrorConst	(misorderedWasmSection, 		"out of ordr WASM section")
+d_m3ErrorConst	(wasmUnderrun, 					"underrun while parsing WASM binary")
+d_m3ErrorConst	(wasmOverrun, 					"overrun while parsing WASM binary")
+d_m3ErrorConst	(wasmMissingInitExpr, 			"missing init_expr in WASM binary")
+d_m3ErrorConst	(lebOverflow, 					"LEB encoded value overflow")
+d_m3ErrorConst	(missingUTF8, 					"zero length UTF-8 string")
+d_m3ErrorConst	(wasmSectionUnderrun, 			"section underrun while parsing WASM binary")
+d_m3ErrorConst	(wasmSectionOverrun, 			"section overrun while parsing WASM binary")
+d_m3ErrorConst	(invalidTypeId, 				"unknown value_type")
 
 // link errors
-d_m3ErrorConst (moduleAlreadyLinked,			"attempting to bind module to multiple runtimes")
-d_m3ErrorConst (functionLookupFailed,			"function lookup failed")
-d_m3ErrorConst (functionImportMissing,			"missing imported function");
+d_m3ErrorConst	(moduleAlreadyLinked,			"attempting to bind module to multiple runtimes")
+d_m3ErrorConst	(functionLookupFailed,			"function lookup failed")
+d_m3ErrorConst	(functionImportMissing,			"missing imported function");
 
 // compilation errors
-d_m3ErrorConst (noCompiler, 					"no compiler found for opcode")
-d_m3ErrorConst (unknownOpcode, 					"unknown opcode")
-d_m3ErrorConst (functionStackOverflow, 			"compiling function overran its stack height limit")
-d_m3ErrorConst (functionStackUnderrun,	 		"compiling function underran the stack")
-d_m3ErrorConst (mallocFailedCodePage, 			"memory allocation failed when acquiring a new M3 code page")
-d_m3ErrorConst (optimizerFailed, 				"optimizer failed")	// not a fatal error. a result,
+d_m3ErrorConst	(noCompiler, 					"no compiler found for opcode")
+d_m3ErrorConst	(unknownOpcode, 				"unknown opcode")
+d_m3ErrorConst	(functionStackOverflow, 		"compiling function overran its stack height limit")
+d_m3ErrorConst	(functionStackUnderrun,	 		"compiling function underran the stack")
+d_m3ErrorConst	(mallocFailedCodePage, 			"memory allocation failed when acquiring a new M3 code page")
+d_m3ErrorConst	(optimizerFailed, 				"optimizer failed")	// not a fatal error. a result,
 
 // runtime errors
-d_m3ErrorConst (missingCompiledCode,			"function is missing compiled m3 code")
-d_m3ErrorConst (wasmMemoryOverflow, 			"runtime ran out of memory")
-d_m3ErrorConst (globalMemoryNotAllocated, 		"global memory is missing from a module")
-d_m3ErrorConst (globaIndexOutOfBounds, 			"global index is too large")
+d_m3ErrorConst	(missingCompiledCode,			"function is missing compiled m3 code")
+d_m3ErrorConst	(wasmMemoryOverflow, 			"runtime ran out of memory")
+d_m3ErrorConst	(globalMemoryNotAllocated, 		"global memory is missing from a module")
+d_m3ErrorConst	(globaIndexOutOfBounds, 		"global index is too large")
 
 // traps
-d_m3ErrorConst (trapTruncationOverflow,			"[trap] truncation from floating point to integer overflow")
-d_m3ErrorConst (trapOutOfBoundsMemoryAccess,	"[trap] out of bounds memory access")
-d_m3ErrorConst (trapDivisionByZero,				"[trap] division by zero")
-d_m3ErrorConst (trapRemainderByZero,			"[trap] remainder by zero")
-d_m3ErrorConst (trapTableIndexOutOfRange,		"[trap] table index is out of range")
-d_m3ErrorConst (trapExit,						"[trap] program called exit")
-d_m3ErrorConst (runtimeTrap,					"[trap] unspecified runtime trap")
+d_m3ErrorConst	(trapTruncationOverflow,		"[trap] truncation from floating point to integer overflow")
+d_m3ErrorConst	(trapOutOfBoundsMemoryAccess,	"[trap] out of bounds memory access")
+d_m3ErrorConst	(trapDivisionByZero,			"[trap] division by zero")
+d_m3ErrorConst	(trapRemainderByZero,			"[trap] remainder by zero")
+d_m3ErrorConst	(trapTableIndexOutOfRange,		"[trap] table index is out of range")
+d_m3ErrorConst	(trapExit,						"[trap] program called exit")
+d_m3ErrorConst	(runtimeTrap,					"[trap] unspecified runtime trap")
 
 
 typedef void	(* M3Free) 		(const void * i_data, void * i_ref);
@@ -189,22 +190,22 @@ typedef int64_t	(* M3Callback)	(IM3Function i_currentFunction, void * i_ref);
 	M3Result			m3_ParseModule				(IM3Module * 			o_module,
 													 const uint8_t * const	i_wasmBytes,
 													 uint32_t				i_numWasmBytes
-							 // M3Free				i_releasHandler		// i_ref argument type provided to M3Free() handler is <IM3Module>
+							 // M3Free				i_releaseHandler		// i_ref argument type provided to M3Free() handler is <IM3Module>
 							 );
-
 	//	If i_wasmReleaseHandler is provided, then i_wasmBytes must be persistent until the handler is invoked.
 	//	If the handler is NULL, ParseModule will make a copy of i_wasmBytes and releases ownership of the pointer.
 	//	if a result is return, * o_module will be set to NULL
 
-	void				m3_FreeModule				(IM3Module i_module);
 
+	void				m3_FreeModule				(IM3Module i_module);
 	//	Only unloaded modules need to be freed.
+
 
 //	M3Result			m3_EnableOptimizer			(IM3Module io_module,  bool i_enable);
 
 	M3Result			m3_LoadModule				(IM3Runtime io_runtime,  IM3Module io_module);
+	//	LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime.
 
-	//	LoadModule transfers ownership of a module to the runtime. Do not free modules once imported into the runtime.
 
 	M3Result			m3_LinkFunction				(IM3Module				io_module,
 													 const char * const		i_functionName,
