@@ -806,8 +806,7 @@ d_m3Op  (f64_Store)
 #define d_m3Store_i(SRC_TYPE, SIZE_TYPE) 				\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_sr)				\
 {														\
-	u32 operand = * (u32 *) (_sp + immediate (i32));	\
-														\
+	u32 operand = slot (u32);							\
 	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
@@ -824,9 +823,8 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_sr)				\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_rs)				\
 {														\
 	u32 operand = (u32) _r0;							\
-	SRC_TYPE value = * (SRC_TYPE *) (_sp + immediate (i32));\
-														\
-	u32 offset = immediate (u32);							\
+	SRC_TYPE value = slot (SRC_TYPE);					\
+	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
 	u8 * end = * ((u8 **) _mem - 1);					\
@@ -841,10 +839,8 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_rs)				\
 }														\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_ss)				\
 {														\
-	i32 slot = immediate (i32);							\
-	SRC_TYPE value = * (SRC_TYPE *) (_sp + slot);		\
-														\
-	u32 operand = * (u32 *) (_sp + immediate (i32));	\
+	u32 operand = slot (u32);							\
+	SRC_TYPE value = slot (SRC_TYPE);					\
 	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
