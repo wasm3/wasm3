@@ -29,7 +29,8 @@
 #ifndef m3_h
 #define m3_h
 
-#include <inttypes.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 typedef const char *	M3Result;
 
@@ -89,8 +90,10 @@ typedef M3ImportInfo * IM3ImportInfo;
 //  error codes
 // -------------------------------------------------------------------------------------------------------------------------------
 
-# ifndef d_m3ErrorConst
-# 	define d_m3ErrorConst(LABEL, STRING)		extern const M3Result c_m3Err_##LABEL;
+# if defined(M3_IMPLEMENT_ERROR_STRINGS)
+#   define d_m3ErrorConst(LABEL, STRING)        M3Result c_m3Err_##LABEL = { STRING };
+# else
+# 	define d_m3ErrorConst(LABEL, STRING)		extern M3Result c_m3Err_##LABEL;
 # endif
 
 // -------------------------------------------------------------------------------------------------------------------------------

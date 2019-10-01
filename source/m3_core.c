@@ -4,8 +4,8 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
-// instantiate error strings here
-# define d_m3ErrorConst(LABEL, STRING) const M3Result c_m3Err_##LABEL = { STRING };
+#define M3_IMPLEMENT_ERROR_STRINGS
+#include "m3.h"
 
 #include "m3_core.h"
 
