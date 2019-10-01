@@ -35,9 +35,6 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-#For gcc -O3
-#For clang -Ofast
-
 file(GLOB M3_SRC "source/*.c" "source/*.cpp")
 
 if((CMAKE_C_COMPILER_ID MATCHES "GNU") OR
@@ -61,7 +58,13 @@ if(WIN32)
   endif()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}") # /GR- /GX-
 else()
-  set(CMAKE_C_FLAGS_RELEASE "-Oz -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
+  if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(OPT_FLAGS "-O3 -fpermissive")
+  else()
+    set(OPT_FLAGS "-Oz")
+  endif()
+
+  set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}") # -fno-rtti -fno-exceptions
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")

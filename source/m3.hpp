@@ -10,9 +10,15 @@
 #ifndef m3_hpp
 #define m3_hpp
 
-extern "C"
-{
-	# include "m3.h"
+# if __cplusplus && !defined(M3_COMPILED_AS_CPP)
+extern "C" {
+# endif
+
+	#include "m3.h"
+	#include "m3_host.h"
+
+# if __cplusplus && !defined(M3_COMPILED_AS_CPP)
 }
+# endif
 
 #endif /* m3_hpp */
