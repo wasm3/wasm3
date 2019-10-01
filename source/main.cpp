@@ -29,8 +29,6 @@ void  m3Output  (const char * i_string)
 int  main  (int i_argc, const char * i_argv [])
 {
 	M3Result result = c_m3Err_none;
-	
-	m3_PrintM3Info ();
 
 	if (i_argc >= 2)
 	{
@@ -84,11 +82,11 @@ int  main  (int i_argc, const char * i_argv [])
 						}
 
 						IM3Function main;
-						result = m3_FindFunction (& main, env, "_main"); if (result) throw result;
+						result = m3_FindFunction (& main, env, i_argv[2]); if (result) throw result;
 						
 						if (main)
 						{
-							printf ("found _main\n");
+							printf ("found %s\n", i_argv[2]);
 
 							clock_t start = clock ();
 
@@ -96,15 +94,15 @@ int  main  (int i_argc, const char * i_argv [])
 							
 							if (i_argc)
 							{
-								--i_argc;
-								++i_argv;
+								i_argc -= 2;
+								i_argv += 2;
 							}
 							
 							result = m3_CallWithArgs (main, i_argc, i_argv);
 							
 							clock_t end = clock ();
 							double elapsed_time = (end - start) / (double) CLOCKS_PER_SEC ;
-							printf("%lf\n", elapsed_time);
+							printf("Time: %.3lf s\n", elapsed_time);
 							
 //							printf ("call: %s\n", result);
 							
@@ -126,6 +124,7 @@ int  main  (int i_argc, const char * i_argv [])
 						}
 						
 						printf ("\n");
+                        return 1;
 					}
 					
 					m3_FreeRuntime (env);
@@ -135,7 +134,7 @@ int  main  (int i_argc, const char * i_argv [])
 			}
 		}
 		else printf ("couldn't open '%s'\n", i_argv [1]);
-	}
+	} else printf ("not enough arguments\n");
 	
 	printf ("\n");
 	
