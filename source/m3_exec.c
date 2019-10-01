@@ -169,7 +169,7 @@ d_m3OpDef  (DumpStack)
 	}
 	printf ("---------------------------------------------------------------------------------------------------------\n");
 	
-	return _ (_pc, d_m3OpArgs);
+	return Op (_pc, d_m3OpArgs);
 }
 
 
@@ -307,7 +307,7 @@ d_m3OpDef (i32_Remainder)
 
 
 //inline
-m3ret_t Remainder_u32 (i64 * o_result, u32 i_op1, u32 i_op2)
+m3ret_t Remainder_u32 (m3reg_t * o_result, u32 i_op1, u32 i_op2)
 {
 	if (i_op2 != 0)
 	{

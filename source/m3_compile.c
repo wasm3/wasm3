@@ -285,10 +285,10 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_type)
 _			(EmitOp (o, regSelect ? op_SetSlot_f : op_SetSlot_i));
 			EmitConstant (o, slot);
 		}
-		else throw (c_m3Err_functionStackOverflow);
+		else _throw (c_m3Err_functionStackOverflow);
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -301,7 +301,7 @@ M3Result  PreserveRegisters  (IM3Compilation o)
 _	(PreserveRegisterIfOccupied (o, c_m3Type_f64));
 _	(PreserveRegisterIfOccupied (o, c_m3Type_i64));
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -326,7 +326,7 @@ _				(PreserveRegisterIfOccupied (o, c_m3Type_f64));
 		}
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -458,7 +458,7 @@ _			(PushAllocatedSlotAndEmit (o, i_m3Type));
 		}
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -493,7 +493,7 @@ _	(EmitOp (o, op));
 	if (not IsStackTopInRegister (o))
 		EmitConstant (o, GetStackTopExecSlot (o));
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -522,7 +522,7 @@ _	(EmitOp (o, op));
 		
 	EmitConstant (o, i_preserveSlot);
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -544,7 +544,7 @@ _		(EmitTopSlotAndPop (o));
 		PushRegister (o, type);
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -585,14 +585,14 @@ M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preserve
 			if (* o_preservedStackIndex == i_localIndex)
 			{
 				if (not AllocateExecSlot (o, o_preservedStackIndex))
-					throw (c_m3Err_functionStackOverflow);
+					_throw (c_m3Err_functionStackOverflow);
 			}
 			
 			o->wasmStack [i] = * o_preservedStackIndex;
 		}
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -635,7 +635,7 @@ _	(ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%
 	
 _	(PushConst (o, value, c_m3Type_i32));
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -648,7 +648,7 @@ _	(ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%
 	
 _	(PushConst (o, value, c_m3Type_i64));
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -663,7 +663,7 @@ _	(ReadLEB_u32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%
 	f64 f = * (f32 *) & value;
 _	(PushConst (o, * (u64 *) & f, c_m3Type_f64));
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -676,7 +676,7 @@ _	(Read_u64 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (
 	
 _	(PushConst (o, value, c_m3Type_f64));
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -694,7 +694,7 @@ _		(Pop (o));
 	
 _	(EmitOp (o, op_Return));
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -711,7 +711,7 @@ _			(ReturnStackTop (o));
 _		(EmitOp (o, op_End));
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -746,9 +746,9 @@ _			(PreservedCopyTopSlot (o, localSlot, preserveSlot))
 		if (i_opcode != c_waOp_teeLocal)
 _			(Pop (o));
 	}
-	else throw ("local index out of bounds");
+	else _throw ("local index out of bounds");
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -762,7 +762,7 @@ _	(ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));
 	u8 type = o->typeStack [localIndex];
 	Push (o, type, localIndex);
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -774,7 +774,7 @@ _	(EmitOp (o, op_GetGlobal));
 	EmitPointer (o, & i_global->intValue);
 _	(PushAllocatedSlotAndEmit (o, i_global->type));
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -797,7 +797,7 @@ _	(EmitOp (o, op));
 
 _	(Pop (o));
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -820,7 +820,7 @@ _	(ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
 	}
 	else result = ErrorCompile (c_m3Err_globaIndexOutOfBounds, o, "");
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -875,7 +875,7 @@ _		(m3Alloc (& scope->patches, M3BranchPatch, 1));
 		scope->patches->next = patch;
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -922,7 +922,7 @@ _			(m3Alloc (& scope->patches, M3BranchPatch, 1));
 		}
 	}
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -950,7 +950,7 @@ _		(Pop (o));
 		Push (o, i_type->returnType, execTop);
 	}
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -996,7 +996,7 @@ _			(EmitOp		(o, op));
 	}
 	else result = c_m3Err_functionLookupFailed;
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1022,9 +1022,9 @@ _		(EmitOp		(o, op_CallIndirect));
 		EmitPointer	(o, type);				// TODO: unify all types in M3Rsuntime
 		EmitOffset	(o, execTop);
 	}
-	else throw ("function type index out of range");
+	else _throw ("function type index out of range");
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1037,7 +1037,7 @@ M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
 	_	(ReadLEB_i7 (& type, & o->wasm, o->wasmEnd));
 	_	(NormalizeType (o_blockType, type));								if (* o_blockType)	m3log (compile, d_indent "%s (block_type: 0x%02x normalized: %d)",
 																								   GetIndentionString (o), (u32) (u8) type, (u32) * o_blockType);
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1054,7 +1054,7 @@ _	(EmitOp (o, i_opcode == 0x03 ? op_Loop : op_Block));			// TODO: block operatio
 
 _	(CompileBlock (o, blockType, i_opcode));
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1090,7 +1090,7 @@ _		(Compile_ElseBlock (o, pc, blockType));
 	}
 	else * pc = GetPC (o);
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1132,7 +1132,7 @@ _	(EmitOp (o, op));
 	
 	PushRegister (o, type);
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1217,7 +1217,7 @@ _				(EmitTopSlotAndPop (o));
 		result = "fail";	assert (false);
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1233,7 +1233,7 @@ _	(ReadLEB_u32 (& offset, & o->wasm, o->wasmEnd));
 _	(Compile_Operator (o, i_opcode));
 	EmitConstant (o, offset);
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1511,7 +1511,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
 			{
 				* o_copyStackTopToRegister = not IsStackTopInRegister (o);
 			}
-			else throw ("unexpected block stack offset");
+			else _throw ("unexpected block stack offset");
 		}
 	}
 	else
@@ -1522,7 +1522,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
 		o->stackIndex = initStackIndex;
 	}
 	
-	catch: d_m3Assert (not result);
+	_catch: d_m3Assert (not result);
 	
 	return result;
 }
@@ -1565,7 +1565,7 @@ _		(MoveStackTopToRegister (o));
 
 	o->block = outerScope;
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1610,7 +1610,7 @@ _			(IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
 	}
 	
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1634,9 +1634,9 @@ _		(EmitOp (o, op_Branch));
 
 		o->page = savedPage;
 	}
-	else throw (c_m3Err_mallocFailedCodePage);
+	else _throw (c_m3Err_mallocFailedCodePage);
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1661,7 +1661,7 @@ _		(NormalizeType (& localType, waType));
 _			(PushAllocatedSlot (o, localType));
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -1758,9 +1758,9 @@ _			(m3Alloc (& io_function->constants, u64, numConstants));
 			memcpy (io_function->constants, o.constants, sizeof (u64) * numConstants);
 		}
 	}
-	else throw (c_m3Err_mallocFailedCodePage);
+	else _throw (c_m3Err_mallocFailedCodePage);
 	
-	catch:
+	_catch:
 	{
 		ReleaseCodePage (rt, o.page);
 	}

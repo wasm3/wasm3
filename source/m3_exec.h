@@ -38,7 +38,7 @@
 # endif
 
 # ifndef nextOp
-# 	define nextOp()					_ (_pc, d_m3OpArgs)
+# 	define nextOp()					Op (_pc, d_m3OpArgs)
 # endif
 
 #define d_call(PC)					Call (PC, d_m3OpArgs)
@@ -59,7 +59,7 @@ d_m3RetSig  Else  (d_m3OpSig)
 }
 
 
-d_m3RetSig _ (d_m3OpSig)
+d_m3RetSig Op (d_m3OpSig)
 {
 	IM3Operation operation = (* _pc);
 	return operation (_pc + 1, d_m3OpArgs);
@@ -73,7 +73,7 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 	* strstr (name, "(") = 0;
 	
 	printf ("%s\n", name);
-	return _ (d_m3OpAllArgs);
+	return Op (d_m3OpAllArgs);
 }
 
 static const u32 c_m3ProfilerSlotMask = 0xFFFF;
@@ -91,7 +91,7 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
 	ProfileHit (i_operationName);
 	
-	return _ (_pc, d_m3OpArgs);
+	return Op (_pc, d_m3OpArgs);
 }
 
 
@@ -251,7 +251,7 @@ d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC)
 
 
 //inline
-m3ret_t Remainder_u32 (i64 * o_result, u32 i_op1, u32 i_op2);
+m3ret_t Remainder_u32 (m3reg_t * o_result, u32 i_op1, u32 i_op2);
 //{
 //	if (i_op2 != 0)
 //	{

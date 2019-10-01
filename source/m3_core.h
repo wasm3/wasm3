@@ -137,7 +137,7 @@ static const char * m3LogTruncFilename (const char * i_file)
 #	define m3logif(CATEGORY, STATEMENT)					m3log_##CATEGORY (CATEGORY, ""); if (d_m3Log_##CATEGORY) { STATEMENT; printf ("\n"); }
 # else
 #	define m3log(CATEGORY, FMT, ...)
-#	define m3logif(STATEMENT)
+#	define m3logif(CATEGORY, STATEMENT)
 # endif
 
 

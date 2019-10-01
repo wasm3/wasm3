@@ -267,7 +267,7 @@ _		(Module_EnsureMemorySize (io_module, & io_module->memory, minMemorySize));
 		memcpy (io_module->memory.wasmPages + segmentOffset, segment->data, segment->size);
 	}
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -311,17 +311,17 @@ _						(ReadLEB_u32 (& functionIndex, & bytes, end));
 							IM3Function function = & io_module->functions [functionIndex];		d_m3Assert (function); //printf ("table: %s\n", function->name);
 							io_module->table0 [e + offset] = function;
 						}
-						else throw ("function index out of range");
+						else _throw ("function index out of range");
 					}
 				}
-				else throw (c_m3Err_mallocFailed);
+				else _throw (c_m3Err_mallocFailed);
 			}
-			else throw ("table overflow");
+			else _throw ("table overflow");
 		}
-		else throw ("element table index must be zero for MVP");
+		else _throw ("element table index must be zero for MVP");
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -341,9 +341,9 @@ _		(InitElements (io_module));
 		io_module->next = io_runtime->modules;
 		io_runtime->modules = io_module;
 	}
-	else throw (c_m3Err_moduleAlreadyLinked);
+	else _throw (c_m3Err_moduleAlreadyLinked);
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -428,7 +428,7 @@ _		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
 					
 					* pointers++ = o;
 				}
-				else throw ("insane argument string length");
+				else _throw ("insane argument string length");
 			}
 			
 			stack [0] = i_argc;
@@ -440,9 +440,9 @@ _		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 		u64 value = * (u64 *) (stack);
 		m3log (runtime, "return64: %llu return32: %u", value, (u32) value);
 	}
-	else throw (c_m3Err_missingCompiledCode);
+	else _throw (c_m3Err_missingCompiledCode);
 	
-	catch: return result;
+	_catch: return result;
 }
 
 

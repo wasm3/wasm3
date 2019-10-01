@@ -197,14 +197,14 @@ M3Result  ValidateSignature  (IM3Function i_function, bool * o_traps, u8 * o_nor
 	while (* sig)
 	{
 		if (numArgs >= c_m3MaxNumFunctionArgs)
-			throw ("arg count overflow");
+			_throw ("arg count overflow");
 			
 		char typeChar = * sig++;
 		
 		if (typeChar == '(')
 		{
 			if (not hasReturn)
-				throw ("malformed function signature; missing return type");
+				_throw ("malformed function signature; missing return type");
 				
 			parsingArgs = true;
 			continue;
@@ -221,12 +221,12 @@ M3Result  ValidateSignature  (IM3Function i_function, bool * o_traps, u8 * o_nor
 			* o_normalizedSignature++ = type;
 
 			if (type == c_m3Type_trap)
-				throw ("malformed function signature");
+				_throw ("malformed function signature");
 			
 			if (not parsingArgs)
 			{
 				if (hasReturn)
-					throw ("malformed function signature; too many return types");
+					_throw ("malformed function signature; too many return types");
 				
 				hasReturn = true;
 			}
@@ -236,13 +236,13 @@ M3Result  ValidateSignature  (IM3Function i_function, bool * o_traps, u8 * o_nor
 					++numArgs;
 			}
 		}
-		else throw ("unknown argument type char");
+		else _throw ("unknown argument type char");
 	}
 	
 	if (GetFunctionNumArgs (i_function) != numArgs)
-		throw ("function arg count mismatch");
+		_throw ("function arg count mismatch");
 	
-	catch: return result;
+	_catch: return result;
 }
 
 

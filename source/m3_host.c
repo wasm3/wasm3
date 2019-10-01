@@ -9,6 +9,7 @@
 #include "m3_host.h"
 #include "m3_core.h"
 #include "m3_env.h"
+#include "m3_module.h"
 #include "m3_exception.h"
 
 #include <stdio.h>
@@ -254,7 +255,7 @@ _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_perror",				"v(*)",		(vo
 
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "g$_stderr",			"i(M)",		(void *) m3_getStderr)));
 
-	catch: return result;
+	_catch: return result;
 }
 
 

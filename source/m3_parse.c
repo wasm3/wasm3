@@ -43,7 +43,7 @@ _		(m3Alloc (& io_module->funcTypes, M3FuncType, numTypes));
 _			(ReadLEB_i7 (& form, & i_bytes, i_end));
 			
 			if (form != -32)
-				throw (c_m3Err_wasmMalformed); // for WA MVP				}
+				_throw (c_m3Err_wasmMalformed); // for WA MVP				}
 			
 _			(ReadLEB_u32 (& ft->numArgs, & i_bytes, i_end));
 			
@@ -57,7 +57,7 @@ _					(ReadLEB_i7 (& argType, & i_bytes, i_end));
 					ft->argTypes [i] = -argType;
 				}
 			}
-			else throw (c_m3Err_typeListOverflow);
+			else _throw (c_m3Err_typeListOverflow);
 			
 			u8 returnCount;
 _			(ReadLEB_u7 /* u1 in spec */ (& returnCount, & i_bytes, i_end));
@@ -73,7 +73,7 @@ _				(NormalizeType (& ft->returnType, returnType));
 		}
 	}
 
-	catch:
+	_catch:
 	
 	if (result)
 	{
@@ -101,7 +101,7 @@ _		(ReadLEB_u32 (& funcTypeIndex, & i_bytes, i_end));
 _		(Module_AddFunction (io_module, funcTypeIndex, NULL /* import info */));
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -159,27 +159,27 @@ _ 					(ReadLEB_u32 (& maxPages, & i_bytes, i_end));
 			case c_externalKind_global:
 			{
 				i8 waType;
-				u8 type, mutable;
+				u8 type, mut;
 				
 _				(ReadLEB_i7 (& waType, & i_bytes, i_end));
 _				(NormalizeType (& type, waType));
-_				(ReadLEB_u7 (& mutable, & i_bytes, i_end));							m3log (parse, "     global: %s mutable=%d", c_waTypes [type], (u32) mutable);
+_				(ReadLEB_u7 (& mut, & i_bytes, i_end));							m3log (parse, "     global: %s mutable=%d", c_waTypes [type], (u32) mut);
 				
 				IM3Global global;
-_				(Module_AddGlobal (io_module, & global, type, mutable, true /* isImport */));
+_				(Module_AddGlobal (io_module, & global, type, mut, true /* isImport */));
 				global->import = import;
 				import = clearImport;
 			}
 			break;
 			
 			default:
-				throw (c_m3Err_wasmMalformed);
+				_throw (c_m3Err_wasmMalformed);
 		}
 
 		FreeImportInfo (& import);
 	}
 
-	catch:
+	_catch:
 	{
 		FreeImportInfo (& import);
 	}
@@ -217,7 +217,7 @@ _		(ReadLEB_u32 (& index, & i_bytes, i_end));									m3log (parse, "  - index: 
 		free ((void *) utf8);
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -269,7 +269,7 @@ _	(ReadLEB_u32 (& numFunctions, & i_bytes, i_end));								m3log (parse, "** Cod
 	if (numFunctions != io_module->numFunctions - io_module->numImports)
 	{
 		numFunctions = 0;
-		throw (c_m3Err_wasmMalformed);	// FIX: better error
+		_throw (c_m3Err_wasmMalformed);	// FIX: better error
 	}
 	
 	for (u32 f = 0; f < numFunctions; ++f)
@@ -311,11 +311,11 @@ _					(NormalizeType (& normalizedType, varType));
 				func->wasmEnd = i_bytes;
 				func->numLocals = numLocalVars;
 			}
-			else throw (c_m3Err_wasmSectionOverrun);
+			else _throw (c_m3Err_wasmSectionOverrun);
 		}
 	}
 
-	catch:
+	_catch:
 	
 	if (not result and i_bytes != i_end)
 		result = c_m3Err_wasmSectionUnderrun;
@@ -346,7 +346,7 @@ _ 		(Parse_InitExpr (io_module, & i_bytes, i_end));
 		segment->initExprSize = (u32) (i_bytes - segment->initExpr);
 		
 		if (segment->initExprSize <= 1)
-			throw (c_m3Err_wasmMissingInitExpr);
+			_throw (c_m3Err_wasmMissingInitExpr);
 		
 _ 		(ReadLEB_u32 (& segment->size, & i_bytes, i_end));
 
@@ -354,7 +354,7 @@ _ 		(ReadLEB_u32 (& segment->size, & i_bytes, i_end));
 																					   i, segment->memoryRegion, segment->initExprSize, segment->size);
 	}
 
-	catch:
+	_catch:
 	// TODO failure cleanup
 
 	return result;
@@ -384,10 +384,10 @@ _		(Parse_InitExpr (io_module, & i_bytes, i_end));
 		global->initExprSize = (u32) (i_bytes - global->initExpr);
 		
 		if (global->initExprSize <= 1)
-			throw (c_m3Err_wasmMissingInitExpr);
+			_throw (c_m3Err_wasmMissingInitExpr);
 	}
 
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -439,7 +439,7 @@ _				(Read_utf8 (& name, & i_bytes, i_end));
 		i_bytes += payloadLength;
 	}
 	
-	catch: return result;
+	_catch: return result;
 }
 
 
@@ -522,14 +522,14 @@ _					(ParseModuleSection (module, sectionCode, pos, sectionLength));
 					if (sectionCode)
 						previousSection = sectionCode;
 				}
-				else throw (c_m3Err_misorderedWasmSection);
+				else _throw (c_m3Err_misorderedWasmSection);
 			}
 		}
-		else throw (c_m3Err_incompatibleWasmVersion);
+		else _throw (c_m3Err_incompatibleWasmVersion);
 	}
-	else throw (c_m3Err_wasmMalformed);
+	else _throw (c_m3Err_wasmMalformed);
 
-	catch:
+	_catch:
 	
 	if (result)
 	{
