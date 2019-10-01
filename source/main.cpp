@@ -7,11 +7,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <time.h>
 
 #include "m3.hpp"
-
-#include <time.h>
 
 extern "C"
 {
@@ -74,8 +72,8 @@ int  main  (int i_argc, const char * i_argv [])
 						m3_PrintRuntimeInfo (env);
 
 						IM3Function f;
-						result = m3_FindFunction (& f, env, "__post_instantiate"); //if (result) throw result;
-						
+						result = m3_FindFunction (& f, env, "__post_instantiate");
+
 						if (not result)
 						{
 							result = m3_Call (f); if (result) throw result;
@@ -124,7 +122,7 @@ int  main  (int i_argc, const char * i_argv [])
 						}
 						
 						printf ("\n");
-                        return 1;
+						return 1;
 					}
 					
 					m3_FreeRuntime (env);
