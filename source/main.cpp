@@ -69,7 +69,7 @@ int  main  (int i_argc, const char * i_argv [])
 						
 						result = m3_LinkCStd (module); if (result) throw result;
 
-						m3_PrintRuntimeInfo (env);
+						//m3_PrintRuntimeInfo (env);
 
 						IM3Function f;
 						result = m3_FindFunction (& f, env, "__post_instantiate");
@@ -79,32 +79,41 @@ int  main  (int i_argc, const char * i_argv [])
 							result = m3_Call (f); if (result) throw result;
 						}
 
+						const char* fname = i_argv[2];
+
 						IM3Function main;
-						result = m3_FindFunction (& main, env, i_argv[2]); if (result) throw result;
-						
+						result = m3_FindFunction (& main, env, fname); if (result) throw result;
+
 						if (main)
 						{
-							printf ("found %s\n", i_argv[2]);
 
 							clock_t start = clock ();
 
-//							result = m3_Call (main);
-							
-							if (i_argc)
-							{
-								i_argc -= 2;
-								i_argv += 2;
+							if (!strcmp(fname, "_main") || !strcmp(fname, "main")) {
+								if (i_argc)
+								{
+									i_argc -= 2;
+									i_argv += 2;
+								}
+								result = m3_CallMain (main, i_argc, i_argv);
+							} else {
+								if (i_argc)
+								{
+									i_argc -= 3;
+									i_argv += 3;
+								}
+								result = m3_CallWithArgs (main, i_argc, i_argv);
 							}
-							
-							result = m3_CallWithArgs (main, i_argc, i_argv);
-							
+
 							clock_t end = clock ();
 							double elapsed_time = (end - start) / (double) CLOCKS_PER_SEC ;
 							printf("Time: %.3lf s\n", elapsed_time);
 							
 //							printf ("call: %s\n", result);
-							
-							m3_PrintProfilerInfo ();
+
+							//m3_PrintProfilerInfo ();
+						} else {
+							printf ("%s not found\n", fname);
 						}
 						
 					}
@@ -113,8 +122,8 @@ int  main  (int i_argc, const char * i_argv [])
 
 					if (result)
 					{
-						printf ("result: %s", result);
-					
+						printf ("Error: %s", result);
+
 						if (env)
 						{
 							M3ErrorInfo info = m3_GetErrorInfo (env);
