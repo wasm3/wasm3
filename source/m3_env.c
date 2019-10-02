@@ -79,8 +79,6 @@ void  InitRuntime  (IM3Runtime io_runtime, u32 i_stackSizeInBytes)
 
 IM3Runtime  m3_NewRuntime  (u32 i_stackSizeInBytes)
 {
-	m3_PrintM3Info ();
-	
 	IM3Runtime env;
 	m3Alloc (& env, M3Runtime, 1);
 	
@@ -394,6 +392,62 @@ M3Result  m3_Call  (IM3Function i_function)
 
 
 M3Result  m3_CallWithArgs  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv)
+{
+	M3Result result = c_m3Err_none;
+
+	if (i_function->compiled)
+	{
+		IM3Module module = i_function->module;
+
+		IM3Runtime env = module->runtime;
+
+		IM3FuncType ftype = i_function->funcType;
+
+_		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
+
+		u8 * linearMemory = module->memory.wasmPages;
+
+		m3stack_t stack = env->stack;
+
+		m3logif (runtime, PrintFuncTypeSignature (ftype));
+
+		if (i_argc != ftype->numArgs) {
+			_throw("arguments count missmatch");
+		}
+
+		for (int i = 0; i < ftype->numArgs; ++i)
+		{
+			m3stack_t s = &stack[i];
+			ccstr_t*  str = i_argv[i];
+			switch (ftype->argTypes[i]) {
+			case c_m3Type_i32:  *(i32*)(s) = atol(str);  break;
+			case c_m3Type_i64:  *(i64*)(s) = atoll(str); break;
+			case c_m3Type_f32:  *(f32*)(s) = atof(str);  break;
+			case c_m3Type_f64:  *(f64*)(s) = atof(str);  break;
+			default: _throw("unknown argument type");
+			}
+		}
+
+_		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
+
+		switch (ftype->returnType) {
+		case c_m3Type_none: break;
+		case c_m3Type_i32:  printf("Result: %ld\n",  *(i32*)(stack));  break;
+		case c_m3Type_i64:  printf("Result: %lld\n", *(i64*)(stack));  break;
+		case c_m3Type_f32:  printf("Result: %f\n",   *(f32*)(stack));  break;
+		case c_m3Type_f64:  printf("Result: %lf\n",  *(f64*)(stack));  break;
+		default: _throw("unknown return type");
+		}
+
+		//u64 value = * (u64 *) (stack);
+		//m3log (runtime, "return64: %llu return32: %u", value, (u32) value);
+	}
+	else _throw (c_m3Err_missingCompiledCode);
+
+	_catch: return result;
+}
+
+M3Result  m3_CallMain  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv)
 {
 	M3Result result = c_m3Err_none;
 	
