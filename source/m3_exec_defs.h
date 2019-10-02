@@ -13,7 +13,6 @@
 
 // default Windows x64 calling convention doesn't have enough registers for M3. It only supports
 // 4 args passed through registers but its enhanced __vectorcall calling convention does.
-// I've yet to test M3 on Windows though...
 
 # if defined (_WIN32) || defined (WIN32)
 # 	define	vectorcall __vectorcall
@@ -39,7 +38,7 @@ static const i64 c_m3NumFpRegisters = 1;
 
 static const i64 c_m3NumRegisters = c_m3NumIntRegisters + c_m3NumFpRegisters;
 
-typedef m3ret_t (* IM3Operation) (d_m3OpSig);
+typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 
 
 
