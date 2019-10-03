@@ -14,6 +14,15 @@ from pprint import pprint
 # Utilities
 #
 
+class ansi:
+    ENDC = '\033[0m'
+    HEADER = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 class dotdict(dict):
     def __init__(self, *args, **kwargs):
         super(dotdict, self).__init__(*args, **kwargs)
@@ -29,6 +38,9 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+def warning(msg):
+    print(f"{ansi.WARNING}Warning:{ansi.ENDC} {msg}")
+
 def run(cmd):
     return subprocess.check_output(cmd, shell=True)
 
@@ -36,17 +48,9 @@ def filename(p):
     _, fn = os.path.split(p)
     return fn
 
-curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
-coreDir = os.path.join(curDir, "core")
-specDir = "core/spec/"
-
-parser = argparse.ArgumentParser()
-parser.add_argument("file", nargs='*')
-
-arguments = parser.parse_args()
-sys.argv = sys.argv[:1]
-
-stats = dotdict(modules=0, total=0, skipped=0, failed=0, crashed=0)
+#
+# Spec tests preparation
+#
 
 def specTestsFetch():
     from io import BytesIO
@@ -75,9 +79,26 @@ def specTestsPreprocess():
         json_fn = os.path.join(coreDir, os.path.splitext(fn)[0]) + ".json"
         run(f"wast2json --debug-names -o {json_fn} {wast_fn}")
 
+#
+# Actual test
+#
+
+curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+coreDir = os.path.join(curDir, "core")
+specDir = "core/spec/"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("file", nargs='*')
+
+args = parser.parse_args()
+sys.argv = sys.argv[:1]
+
+stats = dotdict(modules=0, total=0, skipped=0, failed=0, crashed=0)
+
 def runInvoke(test):
     wasm = os.path.relpath(os.path.join(coreDir, test.module), curDir)
-    cmd = ["../build/wasm3", wasm, test.action.field]
+    cmd = [args.exec, wasm, test.action.field]
     for arg in test.action.args:
         cmd.append(arg['value'])
 
@@ -86,16 +107,18 @@ def runInvoke(test):
     output = (wasm3.stdout + wasm3.stderr).strip()
 
     def testFail(msg):
-        print(" ----------------------")
-        print("Source:  " + test.source)
-        print("Command: " + ' '.join(cmd))
-        print("Message: " + msg)
-        print("Log:")
-        print(output)
         stats.failed += 1
+        print(" ----------------------")
+        print(f"Source:  {ansi.HEADER}{test.source}{ansi.ENDC}")
+        print(f"Command: {' '.join(cmd)}")
+        #print(f"RetCode: {wasm3.returncode}")
+        print(f"Message: {ansi.FAIL}{msg}{ansi.ENDC}")
+        if len(output):
+            print(f"Log:")
+            print(output)
         #sys.exit(1)
 
-    if len(output) == 0:
+    if len(output) == 0 or wasm3.returncode < 0:
         stats.crashed += 1
         return testFail("<CRASHED>")
 
@@ -126,7 +149,7 @@ if not os.path.isdir(coreDir):
         specTestsFetch()
     specTestsPreprocess()
 
-jsonFiles = arguments.file if arguments.file else glob.glob(os.path.join(coreDir, "*.json"))
+jsonFiles = args.file if args.file else glob.glob(os.path.join(coreDir, "*.json"))
 jsonFiles.sort()
 
 for fn in jsonFiles:
@@ -139,7 +162,7 @@ for fn in jsonFiles:
     if wast_source in ["linking.wast", "exports.wast"]:
         stats.total += len(data["commands"])
         stats.skipped += len(data["commands"])
-        print(f"Warning: skipped {wast_source}")
+        warning(f"skipped {wast_source}")
         continue
 
     for cmd in data["commands"]:
@@ -189,3 +212,14 @@ for fn in jsonFiles:
             raise(Exception(f"Unknown command: {test}."))
 
 pprint(stats)
+
+if stats.failed > 0:
+    print(f"{ansi.FAIL}=======================")
+    print(f" FAILED: {(stats.failed*100)/stats.total}%")
+    print(f"======================={ansi.ENDC}")
+else:
+    print(f"{ansi.OKGREEN}=======================")
+    print(f" All tests OK")
+    if stats.skipped > 0:
+        print(f"{ansi.WARNING} (some tests skipped){ansi.OKGREEN}")
+    print(f"======================={ansi.ENDC}")
