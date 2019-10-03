@@ -89,10 +89,13 @@ specDir = "core/spec/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--show-logs", action="store_true")
+parser.add_argument("--skip-crashes", action="store_true")
+parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("file", nargs='*')
 
 args = parser.parse_args()
-sys.argv = sys.argv[:1]
+#sys.argv = sys.argv[:1]
 
 stats = dotdict(modules=0, total=0, skipped=0, failed=0, crashed=0)
 
@@ -102,47 +105,63 @@ def runInvoke(test):
     for arg in test.action.args:
         cmd.append(arg['value'])
 
+    if args.verbose:
+        print(f"Running {' '.join(cmd)}")
+
     wasm3 = subprocess.run(cmd, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     output = (wasm3.stdout + wasm3.stderr).strip()
 
-    def testFail(msg):
+    # Parse the actual output
+    actual = None
+    if len(output) == 0 or wasm3.returncode < 0:
+        stats.crashed += 1
+        actual = "<Crashed>"
+        if args.skip_crashes:
+            stats.failed += 1
+            return
+
+    if not actual:
+        result = re.findall(r'^Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        if len(result) == 1:
+            actual = "result " + result[0]
+    if not actual:
+        result = re.findall(r'^Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
+        if len(result) == 1:
+            actual = "trap " + result[0]
+    if not actual:
+        result = re.findall(r'^Error: (.*?) \(', "\n" + output + "\n", re.MULTILINE)
+        if len(result) == 1:
+            actual = "error " + result[0]
+    if not actual:
+        actual = "<No Result>"
+
+    # Prepare the expected result
+    expect = None
+    if "expected" in test:
+        if len(test.expected) == 0:
+            expect = "result <Empty Stack>"
+        elif len(test.expected) == 1:
+            expect = "result " + str(test.expected[0]['value'])
+        else:
+            warning(f"Test {test.source} specifies multiple results")
+            expect = "result <Multiple>"
+    elif "expected_trap" in test:
+        expect = "trap " + str(test.expected_trap)
+    else:
+        expect = "<Unknown>"
+
+    if actual != expect:
         stats.failed += 1
         print(" ----------------------")
-        print(f"Source:  {ansi.HEADER}{test.source}{ansi.ENDC}")
-        print(f"Command: {' '.join(cmd)}")
-        #print(f"RetCode: {wasm3.returncode}")
-        print(f"Message: {ansi.FAIL}{msg}{ansi.ENDC}")
-        if len(output):
+        print(f"Test:     {ansi.HEADER}{test.source}{ansi.ENDC} -> {' '.join(cmd)}")
+        #print(f"RetCode:  {wasm3.returncode}")
+        print(f"Expected: {ansi.OKGREEN}{expect}{ansi.ENDC}")
+        print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
+        if args.show_logs and len(output):
             print(f"Log:")
             print(output)
         #sys.exit(1)
-
-    if len(output) == 0 or wasm3.returncode < 0:
-        stats.crashed += 1
-        return testFail("<CRASHED>")
-
-    if "expected" in test:
-        result = re.findall(r'^Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
-        if len(result) != 1:
-            result = ["<NO RESULT>"]
-
-        actual = str(result[0])
-        expect = str(test.expected[0]['value'])
-
-        if actual != expect:
-            return testFail(f"Actual: {actual}, Expected {expect}")
-
-    elif "expected_trap" in test:
-        result = re.findall(r'^Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
-        if len(result) != 1:
-            result = ["<NO TRAP>"]
-
-        actual = str(result[0])
-        expect = str(test.expected_trap)
-
-        if actual != expect:
-            return testFail(f"Actual trap: {actual}, Expected trap {expect}")
 
 if not os.path.isdir(coreDir):
     if not os.path.isdir(specDir):
@@ -183,6 +202,9 @@ for fn in jsonFiles:
                 test.type == "assert_return_canonical_nan" or
                 test.type == "assert_return_arithmetic_nan"):
 
+            if args.verbose:
+                print(f"Checking {test.source}")
+
             stats.total += 1
 
             if test.type == "assert_return":
@@ -214,8 +236,11 @@ for fn in jsonFiles:
 pprint(stats)
 
 if stats.failed > 0:
+    failed = (stats.failed*100)/stats.total
     print(f"{ansi.FAIL}=======================")
-    print(f" FAILED: {(stats.failed*100)/stats.total}%")
+    print(f" FAILED: {failed:.2f}%")
+    if stats.crashed > 0:
+        print(f" Crashed: {stats.crashed}")
     print(f"======================={ansi.ENDC}")
 else:
     print(f"{ansi.OKGREEN}=======================")
