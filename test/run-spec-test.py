@@ -130,7 +130,7 @@ def runInvoke(test):
         if len(result) == 1:
             actual = "trap " + result[0]
     if not actual:
-        result = re.findall(r'^Error: (.*?) \(', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(r'^Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
         if len(result) == 1:
             actual = "error " + result[0]
     if not actual:
@@ -209,8 +209,12 @@ for fn in jsonFiles:
 
             if test.type == "assert_return":
                 test.expected = cmd["expected"]
-            if test.type == "assert_trap":
+            elif test.type == "assert_trap":
                 test.expected_trap = cmd["text"]
+            else:
+                stats.skipped += 1
+                warning(f"skipped {test.source} {test.type}")
+                continue
 
             test.action = dotdict(cmd["action"])
             if test.action.type == "invoke":
