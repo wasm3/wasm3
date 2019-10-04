@@ -8,6 +8,9 @@ import glob
 import sys
 import json
 import re
+import struct
+import math
+
 from pprint import pprint
 
 #
@@ -47,6 +50,14 @@ def run(cmd):
 def filename(p):
     _, fn = os.path.split(p)
     return fn
+
+def binaryToFloat(num, t):
+    if t == "f32":
+        return struct.unpack('!f', struct.pack('!L', num))[0]
+    elif t == "f64":
+        return struct.unpack('!d', struct.pack('!Q', num))[0]
+    else:
+        raise(Exception(f"Unknown type: {t}"))
 
 #
 # Spec tests preparation
@@ -92,12 +103,13 @@ parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--skip-crashes", action="store_true")
 parser.add_argument("-v", "--verbose", action="store_true")
+parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("file", nargs='*')
 
 args = parser.parse_args()
 #sys.argv = sys.argv[:1]
 
-stats = dotdict(modules=0, total=0, skipped=0, failed=0, crashed=0)
+stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, success=0, missing=0)
 
 def runInvoke(test):
     wasm = os.path.relpath(os.path.join(coreDir, test.module), curDir)
@@ -114,17 +126,15 @@ def runInvoke(test):
 
     # Parse the actual output
     actual = None
+    actual_val = None
     if len(output) == 0 or wasm3.returncode < 0:
         stats.crashed += 1
         actual = "<Crashed>"
-        if args.skip_crashes:
-            stats.failed += 1
-            return
-
     if not actual:
         result = re.findall(r'^Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
         if len(result) == 1:
             actual = "result " + result[0]
+            actual_val = result[0]
     if not actual:
         result = re.findall(r'^Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
         if len(result) == 1:
@@ -136,13 +146,28 @@ def runInvoke(test):
     if not actual:
         actual = "<No Result>"
 
+    if actual == "error no operation ()":
+        if not args.silent:
+            warning(f"{test.source} [{test.action.field}] => not implemented")
+        stats.missing += 1
+        stats.failed += 1
+        return
+
     # Prepare the expected result
     expect = None
     if "expected" in test:
         if len(test.expected) == 0:
             expect = "result <Empty Stack>"
         elif len(test.expected) == 1:
-            expect = "result " + str(test.expected[0]['value'])
+            value = str(test.expected[0]['value'])
+            expect = "result " + value
+            if (value == "<Canonical NaN>" or value == "<Arithmetic NaN>") and actual_val:
+                val = binaryToFloat(int(actual_val), test.expected[0]['type'])
+                #warning(f"{actual_val} => {val}")
+                if math.isnan(val):
+                    actual = "<Some NaN>"
+                    expect = "<Some NaN>"
+
         else:
             warning(f"Test {test.source} specifies multiple results")
             expect = "result <Multiple>"
@@ -151,8 +176,13 @@ def runInvoke(test):
     else:
         expect = "<Unknown>"
 
-    if actual != expect:
+    if actual == expect:
+        stats.success += 1
+    else:
         stats.failed += 1
+        if args.silent: return
+        if args.skip_crashes and actual == "<Crashed>": return
+
         print(" ----------------------")
         print(f"Test:     {ansi.HEADER}{test.source}{ansi.ENDC} -> {' '.join(cmd)}")
         #print(f"RetCode:  {wasm3.returncode}")
@@ -179,9 +209,9 @@ for fn in jsonFiles:
     wast_module = ""
 
     if wast_source in ["linking.wast", "exports.wast"]:
-        stats.total += len(data["commands"])
-        stats.skipped += len(data["commands"])
-        warning(f"skipped {wast_source}")
+        count = len(data["commands"])
+        stats.skipped += count
+        warning(f"Skipped {wast_source} ({count} tests)")
         continue
 
     for cmd in data["commands"]:
@@ -191,11 +221,9 @@ for fn in jsonFiles:
         test.type = cmd["type"]
 
         if test.type == "module":
-            stats.modules += 1
-
             wast_module = cmd["filename"]
 
-        elif (test.type == "action" or
+        elif (  test.type == "action" or
                 test.type == "assert_return" or
                 test.type == "assert_trap" or
                 test.type == "assert_exhaustion" or
@@ -205,50 +233,54 @@ for fn in jsonFiles:
             if args.verbose:
                 print(f"Checking {test.source}")
 
-            stats.total += 1
-
             if test.type == "assert_return":
                 test.expected = cmd["expected"]
+            elif test.type == "assert_return_canonical_nan":
+                test.expected = cmd["expected"]
+                test.expected[0]["value"] = "<Canonical NaN>"
+            elif test.type == "assert_return_arithmetic_nan":
+                test.expected = cmd["expected"]
+                test.expected[0]["value"] = "<Arithmetic NaN>"
             elif test.type == "assert_trap":
                 test.expected_trap = cmd["text"]
             else:
                 stats.skipped += 1
-                warning(f"skipped {test.source} {test.type}")
+                warning(f"Skipped {test.source} {test.type}")
                 continue
 
             test.action = dotdict(cmd["action"])
             if test.action.type == "invoke":
+                stats.total_run += 1
                 runInvoke(test)
             else:
-                raise(Exception(f"Unknown action: {action}."))
+                stats.skipped += 1
+                warning(f"Unknown action: {test.action}")
+                continue
 
-        elif test.type == "register":
-            stats.skipped += 1
-
-        elif (test.type == "assert_invalid" or
+        elif (  test.type == "register" or
+                test.type == "assert_invalid" or
                 test.type == "assert_malformed" or
                 test.type == "assert_unlinkable" or
                 test.type == "assert_uninstantiable"):
-
-            test.module = cmd["filename"]
-            stats.modules += 1
             stats.skipped += 1
-
         else:
             raise(Exception(f"Unknown command: {test}."))
+
+if (stats.failed + stats.success) != stats.total_run:
+    warning("Statistics summary invalid")
 
 pprint(stats)
 
 if stats.failed > 0:
-    failed = (stats.failed*100)/stats.total
+    failed = (stats.failed*100)/stats.total_run
     print(f"{ansi.FAIL}=======================")
     print(f" FAILED: {failed:.2f}%")
     if stats.crashed > 0:
         print(f" Crashed: {stats.crashed}")
     print(f"======================={ansi.ENDC}")
-else:
+elif stats.success > 0:
     print(f"{ansi.OKGREEN}=======================")
-    print(f" All tests OK")
+    print(f" {stats.success}/{stats.total_run} tests OK")
     if stats.skipped > 0:
-        print(f"{ansi.WARNING} (some tests skipped){ansi.OKGREEN}")
+        print(f"{ansi.WARNING} ({stats.skipped} tests skipped){ansi.OKGREEN}")
     print(f"======================={ansi.ENDC}")
