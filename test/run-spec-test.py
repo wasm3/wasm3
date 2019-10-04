@@ -100,6 +100,7 @@ specDir = "core/spec/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--test", metavar="<source:line>")
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--skip-crashes", action="store_true")
 parser.add_argument("-v", "--verbose", action="store_true")
@@ -108,6 +109,9 @@ parser.add_argument("file", nargs='*')
 
 args = parser.parse_args()
 #sys.argv = sys.argv[:1]
+
+if args.test:
+    args.show_logs = True
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, success=0, missing=0)
 
@@ -147,11 +151,8 @@ def runInvoke(test):
         actual = "<No Result>"
 
     if actual == "error no operation ()":
-        if not args.silent:
-            warning(f"{test.source} [{test.action.field}] => not implemented")
+        actual = "<Not Implemented>"
         stats.missing += 1
-        stats.failed += 1
-        return
 
     # Prepare the expected result
     expect = None
@@ -176,13 +177,7 @@ def runInvoke(test):
     else:
         expect = "<Unknown>"
 
-    if actual == expect:
-        stats.success += 1
-    else:
-        stats.failed += 1
-        if args.silent: return
-        if args.skip_crashes and actual == "<Crashed>": return
-
+    def showTestResult():
         print(" ----------------------")
         print(f"Test:     {ansi.HEADER}{test.source}{ansi.ENDC} -> {' '.join(cmd)}")
         #print(f"RetCode:  {wasm3.returncode}")
@@ -191,6 +186,17 @@ def runInvoke(test):
         if args.show_logs and len(output):
             print(f"Log:")
             print(output)
+
+    if actual == expect:
+        stats.success += 1
+        if args.test:
+            showTestResult()
+    else:
+        stats.failed += 1
+        if args.silent: return
+        if args.skip_crashes and actual == "<Crashed>": return
+
+        showTestResult()
         #sys.exit(1)
 
 if not os.path.isdir(coreDir):
@@ -229,6 +235,9 @@ for fn in jsonFiles:
                 test.type == "assert_exhaustion" or
                 test.type == "assert_return_canonical_nan" or
                 test.type == "assert_return_arithmetic_nan"):
+
+            if args.test and test.source != args.test:
+                continue
 
             if args.verbose:
                 print(f"Checking {test.source}")
