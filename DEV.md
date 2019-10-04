@@ -9,7 +9,10 @@ cmake ..
 make -j8
 ```
 
-It's recommended to use Clang/Ninja to build the project
+It's recommended to use Clang/Ninja to build the project.
+
+**Note:** When using GCC or Microsoft C++ Compiler, all `.c` files are forced to be comiled as `C++` to eliminate some errors.
+Currently, support for these compilers was added for evaluation purposes.
 
 ## Build on Linux
 
