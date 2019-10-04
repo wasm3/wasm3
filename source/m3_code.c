@@ -96,8 +96,6 @@ IM3CodePage  PopCodePage  (IM3CodePage * i_list)
 
 void  TestCodePageCapacity	(IM3CodePage i_page)
 {
-	#if DEBUG
-		assert (i_page->info.lineIndex <= i_page->info.numLines);
-	#endif
+	d_m3Assert (i_page->info.lineIndex <= i_page->info.numLines);
 }
 	

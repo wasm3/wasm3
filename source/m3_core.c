@@ -9,6 +9,17 @@
 
 #include "m3_core.h"
 
+void m3NotImplemented() {
+	printf("Not implemented\n");
+	abort();
+}
+
+void m3AbortIfNot(bool condition) {
+	if (!condition) {
+		printf("Fatal error\n");
+		abort();
+	}
+}
 
 M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
 {

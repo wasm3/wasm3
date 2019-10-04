@@ -163,7 +163,7 @@ i32  AllocateHeap  (M3Memory * io_memory, i32 i_size)
 	
 	size_t size = (u8 *) io_memory->mallocated->end - io_memory->wasmPages;
 	
-	assert (ptrOffset < size);
+	d_m3AssertFatal (ptrOffset < size);
 	
 	return (i32) ptrOffset;
 }

@@ -18,6 +18,7 @@
 
 #define d_indent "     | "
 
+u16  GetMaxExecSlot  (IM3Compilation o);
 
 const char *  GetOpcodeIndentionString  (IM3Compilation o)
 {
@@ -909,8 +910,7 @@ _		(GetBlockScope (o, & scope, target));
 
 		if (scope->opcode == c_waOp_loop)
 		{
-			printf ("not implemented\n");
-			abort ();
+			m3NotImplemented();
 		}
 		else
 		{
@@ -1116,7 +1116,7 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 _		(Pop (o));
 	}
 	
-	assert (IsIntType (type));		// fp unimplemented
+	d_m3AssertFatal (IsIntType (type));		// fp unimplemented
 
 	// this operation doesn't consume a register, so might have to protected its contents
 	if (op == op_Select_i_sss)
@@ -1600,7 +1600,7 @@ _			(IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
 			if (preserveToSlot != i)
 			{
 				printf ("preserving local: %d to slot: %d\n", i, preserveToSlot);
-					abort (); // implement
+				m3NotImplemented();
 			}
 		}
 		
@@ -1686,7 +1686,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
 	
 	// if constants overflow their reserved stack space, the compiler simply emits op_Const
 	// operations as needed. Compiled expressions (global inits) don't pass through this
-	// ReserveConstants function and thus always prdouce inline contants.
+	// ReserveConstants function and thus always produce inline contants.
 	numConstants = min (numConstants, c_m3MaxNumFunctionConstants);
 	
 	u32 freeSlots = c_m3MaxFunctionStackHeight - o->constSlotIndex;
@@ -1738,7 +1738,7 @@ _		(Compile_ReserveConstants (& o));
 		o.block.initStackIndex = o.stackIndex;
 		
 		pc_t pc2 = GetPagePC (o.page);
-		assert (pc2 == pc);
+		d_m3AssertFatal (pc2 == pc);
 		
 _		(EmitOp (& o, op_Entry));//, comp.stackIndex);
 		EmitPointer (& o, io_function);

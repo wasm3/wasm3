@@ -329,7 +329,7 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
 
 	if (not io_module->runtime)
 	{
-//		assert (io_module->memory.actualSize == 0);
+//		d_m3Assert (io_module->memory.actualSize == 0);
 
 _		(InitGlobals (io_module));
 _		(InitDataSegments (io_module));

@@ -296,7 +296,7 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  ccstr_t i_functionName,  ccstr
 				else
 				{
 					result = "FIX";
-					abort ();
+					m3NotImplemented();
 				}
 				
 				++i; ++sig;

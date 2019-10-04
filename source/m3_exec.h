@@ -94,8 +94,9 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 	return Op (_pc, d_m3OpArgs);
 }
 
-
+#if d_m3RuntimeStackDumps
 d_m3OpDecl  (DumpStack)
+#endif
 
 
 
@@ -189,6 +190,15 @@ d_m3Op_i (u32, GreaterThanOrEqual,			>=)		d_m3Op_i (u64, GreaterThanOrEqual,			>
 
 // are these supposed to trap? sounds like it
 // "Signed and unsigned operators trap whenever the result cannot be represented in the result type."
+
+/* TODO: use
+ * __builtin_add_overflow
+ * __builtin_mul_overflow
+ * __builtin_clz, __builtin_clzll
+ * __builtin_ctz, __builtin_ctzll
+ * __builtin_popcount, __builtin_popcountll
+ * rint (nearest?)
+ */
 
 d_m3CommutativeOp_i (i32, Add,				+)		d_m3CommutativeOp_i (i64, Add,				+)
 d_m3CommutativeOp_i (i32, Multiply,			*)		d_m3CommutativeOp_i (i64, Multiply,			*)

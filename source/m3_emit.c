@@ -51,7 +51,9 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 	// it's OK for page to be null; when compile-walking the bytecode without emitting
 	if (o->page)
 	{
+#if d_m3RuntimeStackDumps
 		if (i_operation != op_DumpStack)
+#endif
 			o->numEmits++;
 		
 		result = BridgeToNewPageIfNecessary (o);

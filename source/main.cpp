@@ -105,10 +105,11 @@ int  main  (int i_argc, const char * i_argv [])
 								result = m3_CallWithArgs (main, i_argc, i_argv);
 							}
 
+#ifdef M3_PRINT_TIME
 							clock_t end = clock ();
 							double elapsed_time = (end - start) / (double) CLOCKS_PER_SEC ;
 							printf("Time: %.3lf s\n", elapsed_time);
-							
+#endif
 //							printf ("call: %s\n", result);
 
 							//m3_PrintProfilerInfo ();

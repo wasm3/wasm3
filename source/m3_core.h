@@ -144,8 +144,10 @@ static const char * m3LogTruncFilename (const char * i_file)
 
 # if DEBUG
 #	define d_m3Assert(ASS)		assert (ASS)
+#	define d_m3AssertFatal(ASS)	assert (ASS)
 # else
 #	define d_m3Assert(ASS)
+#	define d_m3AssertFatal(ASS)	m3AbortIfNot (ASS)
 # endif
 
 typedef void /*const*/ *					code_t;
@@ -210,6 +212,8 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 #define min(A,B) (A < B) ? A : B
 #define max(A,B) (A > B) ? A : B
 
+void		m3NotImplemented		();
+void		m3AbortIfNot			(bool condition);
 
 M3Result	m3Malloc				(void ** o_ptr, size_t i_size);
 void * 		m3Realloc				(void * i_ptr, size_t i_newSize, size_t i_oldSize);

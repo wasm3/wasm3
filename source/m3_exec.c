@@ -142,7 +142,7 @@ d_m3OpDef  (Entry)
 }
 
 
-
+#if d_m3RuntimeStackDumps
 d_m3OpDef  (DumpStack)
 {
 	u32 opcodeIndex			= immediate (u32);
@@ -171,7 +171,7 @@ d_m3OpDef  (DumpStack)
 	
 	return Op (_pc, d_m3OpArgs);
 }
-
+#endif
 
 
 
@@ -190,7 +190,7 @@ void  ProfileHit  (cstr_t i_operationName)
 		if (slot->opName != i_operationName)
 		{
 			printf ("**** profiler slot collision; increase mask width\n");
-			abort ();
+			m3NotImplemented ();
 		}
 	}
 	
@@ -288,7 +288,7 @@ d_m3OpDef  (End)
 
 d_m3OpDef (i32_Remainder)
 {
-	abort (); // fix
+	m3NotImplemented (); // fix
 	
 	if (_r0 != 0)
 	{

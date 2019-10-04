@@ -137,7 +137,7 @@ _				(Module_AddFunction (io_module, typeIndex, & import))
 			break;
 			
 			case c_externalKind_table:
-//					abort ();
+//					m3NotImplemented ();
 //					result = ParseType_Table (& i_bytes, i_end);
 				break;
 				
