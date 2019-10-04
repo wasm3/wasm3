@@ -1214,7 +1214,7 @@ _				(EmitTopSlotAndPop (o));
 	}
 	else
 	{
-		result = "fail";	assert (false);
+		result = "no operation";
 	}
 	
 	_catch: return result;
