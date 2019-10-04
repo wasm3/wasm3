@@ -45,6 +45,12 @@ if((CMAKE_C_COMPILER_ID MATCHES "GNU") OR
   add_definitions(-DM3_COMPILED_AS_CPP=1)
 endif()
 
+
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1 -ggdb")
+if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive") # TODO: remove
+endif()
+
 if(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_MBCS) # -DM3_RUN_LOOPS=10
 
@@ -59,9 +65,9 @@ if(WIN32)
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}") # /GR- /GX-
 else()
   if (CMAKE_C_COMPILER_ID MATCHES "GNU")
-    set(OPT_FLAGS "-O3 -fpermissive")
+    set(OPT_FLAGS "-O3")
   else()
-    set(OPT_FLAGS "-Oz")
+    set(OPT_FLAGS "-Oz") # -Ofast
   endif()
 
   set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
