@@ -67,7 +67,11 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 {
 	if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
 		o->block.depth--;
+#ifdef DEBUG
 	m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o), c_operations [i_opcode].name);
+#else
+	m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
+#endif
 	if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
 		o->block.depth++;
 }
@@ -1244,219 +1248,219 @@ _	(Compile_Operator (o, i_opcode));
 
 const M3OpInfo c_operations [] =
 {
-	{ "unreachable",		 0, none,	NULL,	NULL, NULL, 					Compile_Trap },			// 0x00
-	{ "nop",				 0, none, 	NULL,	NULL, NULL,						Compile_Nop },			// 0x01 .
-	{ "block",				 0, none,	NULL,	NULL, NULL,	 					Compile_LoopOrBlock },	// 0x02
-	{ "loop",				 0,	none,	NULL,	NULL, NULL,						Compile_LoopOrBlock },	// 0x03
-	{ "if",					-1,	none,	NULL,	NULL, NULL,						Compile_If },			// 0x04
-	{ "else",				 0, none,	NULL,	NULL, NULL,						Compile_Else_End },		// 0x05
+	M3OP( "unreachable",		 0, none,	NULL,	NULL, NULL, 					Compile_Trap ),			// 0x00
+	M3OP( "nop",				 0, none, 	NULL,	NULL, NULL,						Compile_Nop ),			// 0x01 .
+	M3OP( "block",				 0, none,	NULL,	NULL, NULL,	 					Compile_LoopOrBlock ),	// 0x02
+	M3OP( "loop",				 0,	none,	NULL,	NULL, NULL,						Compile_LoopOrBlock ),	// 0x03
+	M3OP( "if",					-1,	none,	NULL,	NULL, NULL,						Compile_If ),			// 0x04
+	M3OP( "else",				 0, none,	NULL,	NULL, NULL,						Compile_Else_End ),		// 0x05
 	
-	{ "reserved" }, { "reserved" }, { "reserved" }, { "reserved" }, { "reserved" },						// 0x06 - 0x0a
+	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,						// 0x06 - 0x0a
 	
-	{ "end",				 0,	none,	NULL,	NULL,	NULL,					Compile_Else_End },		// 0x0b
-	{ "br",					 0,	none,	NULL,	NULL,	NULL,					Compile_Branch },		// 0x0c
-	{ "br_if",				-1,	none,	NULL,	NULL,	NULL,					Compile_Branch },		// 0x0d
-	{ "br_table",			-1,	none, 	NULL,	NULL,	NULL,					Compile_BranchTable },	// 0x0e
-	{ "return",				 0,	any,	NULL,	NULL,	NULL,					Compile_Return },		// 0x0f
-	{ "call",				 0,	any,	NULL,	NULL,	NULL,					Compile_Call },			// 0x10
-	{ "call_indirect",		 0,	any,	NULL,	NULL,	NULL,					Compile_CallIndirect },	// 0x11
+	M3OP( "end",				 0,	none,	NULL,	NULL,	NULL,					Compile_Else_End ),		// 0x0b
+	M3OP( "br",					 0,	none,	NULL,	NULL,	NULL,					Compile_Branch ),		// 0x0c
+	M3OP( "br_if",				-1,	none,	NULL,	NULL,	NULL,					Compile_Branch ),		// 0x0d
+	M3OP( "br_table",			-1,	none, 	NULL,	NULL,	NULL,					Compile_BranchTable ),	// 0x0e
+	M3OP( "return",				 0,	any,	NULL,	NULL,	NULL,					Compile_Return ),		// 0x0f
+	M3OP( "call",				 0,	any,	NULL,	NULL,	NULL,					Compile_Call ),			// 0x10
+	M3OP( "call_indirect",		 0,	any,	NULL,	NULL,	NULL,					Compile_CallIndirect ),	// 0x11
 	
-	{ "reserved" },	{ "reserved" },	{ "reserved" },	{ "reserved" },										// 0x12 - 0x15
-	{ "reserved" },	{ "reserved" }, { "reserved" }, { "reserved" },										// 0x16 - 0x19
+	M3OP_RESERVED,	M3OP_RESERVED,	M3OP_RESERVED,	M3OP_RESERVED,										// 0x12 - 0x15
+	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,										// 0x16 - 0x19
 	
-	{ "drop",				-1,	none,	NULL,	NULL,	NULL,					Compile_Drop },			// 0x1a
-	{ "select",				-2,	any,	NULL,	NULL,	NULL,					Compile_Select	},		// 0x1b
+	M3OP( "drop",				-1,	none,	NULL,	NULL,	NULL,					Compile_Drop ),			// 0x1a
+	M3OP( "select",				-2,	any,	NULL,	NULL,	NULL,					Compile_Select	),		// 0x1b
 	
-	{ "reserved" },	{ "reserved" }, { "reserved" }, { "reserved" },										// 0x1c - 0x1f
+	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,										// 0x1c - 0x1f
 	
-	{ "local.get",			1,	any,	NULL,	NULL,	NULL,					Compile_GetLocal },		// 0x20
-	{ "local.set",			1,	none,	NULL,	NULL,	NULL,					Compile_SetLocal },		// 0x21
-	{ "local.tee",			0,	any,	NULL,	NULL,	NULL,					Compile_SetLocal},		// 0x22
-	{ "global.get",			1,	none,	NULL,	NULL,	NULL,					Compile_GetSetGlobal },	// 0x23
-	{ "global.set",			1,	none,	NULL,	NULL,	NULL,					Compile_GetSetGlobal },	// 0x24
+	M3OP( "local.get",			1,	any,	NULL,	NULL,	NULL,					Compile_GetLocal ),		// 0x20
+	M3OP( "local.set",			1,	none,	NULL,	NULL,	NULL,					Compile_SetLocal ),		// 0x21
+	M3OP( "local.tee",			0,	any,	NULL,	NULL,	NULL,					Compile_SetLocal ),		// 0x22
+	M3OP( "global.get",			1,	none,	NULL,	NULL,	NULL,					Compile_GetSetGlobal ),	// 0x23
+	M3OP( "global.set",			1,	none,	NULL,	NULL,	NULL,					Compile_GetSetGlobal ),	// 0x24
 	
-	{ "reserved" },	{ "reserved" }, { "reserved" }, 													// 0x25 - 0x27
+	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, 													// 0x25 - 0x27
 	
-	{ "i32.load",			0,	i_32,	op_i32_Load_i32_r, op_i32_Load_i32_s, NULL,			Compile_Load_Store },			// 0x28
-	{ "i64.load",			0,	i_64, 	NULL,	 			NULL, NULL				},								// 0x29
-	{ "f32.load",			0,	f_32,	NULL, 			NULL, NULL},								// 0x2a
-	{ "f64.load",			0,	f_64,	NULL, 			NULL, NULL},								// 0x2b
+	M3OP( "i32.load",			0,	i_32,	op_i32_Load_i32_r, op_i32_Load_i32_s, NULL,			Compile_Load_Store ),			// 0x28
+	M3OP( "i64.load",			0,	i_64, 	NULL,	 			NULL, NULL				),								// 0x29
+	M3OP( "f32.load",			0,	f_32,	NULL, 			NULL, NULL),								// 0x2a
+	M3OP( "f64.load",			0,	f_64,	NULL, 			NULL, NULL),								// 0x2b
 	
-	{ "i32.load8_s",		0,	i_32,	op_i32_Load_i8_r,	op_i32_Load_i8_s,	NULL,	Compile_Load_Store },			// 0x2c
-	{ "i32.load8_u",		0,	i_32,	op_i32_Load_u8_r,	op_i32_Load_u8_s,	NULL,	Compile_Load_Store },			// 0x2d
-	{ "i32.load16_s",		0,	i_32,	op_i32_Load_i16_r,	op_i32_Load_i16_s,	NULL,	Compile_Load_Store },			// 0x2e
-	{ "i32.load16_u",		0,	i_32,	op_i32_Load_u16_r,	op_i32_Load_u16_s,	NULL,	Compile_Load_Store },			// 0x2f
+	M3OP( "i32.load8_s",		0,	i_32,	op_i32_Load_i8_r,	op_i32_Load_i8_s,	NULL,	Compile_Load_Store ),			// 0x2c
+	M3OP( "i32.load8_u",		0,	i_32,	op_i32_Load_u8_r,	op_i32_Load_u8_s,	NULL,	Compile_Load_Store ),			// 0x2d
+	M3OP( "i32.load16_s",		0,	i_32,	op_i32_Load_i16_r,	op_i32_Load_i16_s,	NULL,	Compile_Load_Store ),			// 0x2e
+	M3OP( "i32.load16_u",		0,	i_32,	op_i32_Load_u16_r,	op_i32_Load_u16_s,	NULL,	Compile_Load_Store ),			// 0x2f
 	
-	{ "i64.load8_s",		0,	i_64,	NULL, 			NULL, NULL,			},			// 0x30
-	{ "i64.load8_u",		0,	i_64,	NULL,		NULL, NULL },			// 0x31
-	{ "i64.load16_s",		0,	i_64,	NULL, 		NULL, NULL },			// 0x32
-	{ "i64.load16_u",		0,	i_64,	NULL, 		NULL, NULL},			// 0x33
-	{ "i64.load32_s",		0,	i_64,	NULL, 		NULL, NULL },			// 0x34
-	{ "i64.load32_u",		0,	i_64,	NULL, 		NULL, NULL },			// 0x35
+	M3OP( "i64.load8_s",		0,	i_64,	NULL, 			NULL, NULL,			),			// 0x30
+	M3OP( "i64.load8_u",		0,	i_64,	NULL,		NULL, NULL ),			// 0x31
+	M3OP( "i64.load16_s",		0,	i_64,	NULL, 		NULL, NULL ),			// 0x32
+	M3OP( "i64.load16_u",		0,	i_64,	NULL, 		NULL, NULL ),			// 0x33
+	M3OP( "i64.load32_s",		0,	i_64,	NULL, 		NULL, NULL ),			// 0x34
+	M3OP( "i64.load32_u",		0,	i_64,	NULL, 		NULL, NULL ),			// 0x35
 	
-	{ "i32.store",			-2,	none,	d_binOpList (i32, Store_i32),				Compile_Load_Store },		// 0x36
-	{ "i64.store",			-2,	none,	NULL, 		NULL, NULL },		// 0x37
-	{ "f32.store",			-2,	none,	NULL, 			NULL, NULL },		// 0x38
-	{ "f64.store",			-2,	none,	op_f64_Store, 		NULL, NULL,	 			Compile_Load_Store },		// 0x39
+	M3OP( "i32.store",			-2,	none,	d_binOpList (i32, Store_i32),				Compile_Load_Store ),		// 0x36
+	M3OP( "i64.store",			-2,	none,	NULL, 		NULL, NULL ),		// 0x37
+	M3OP( "f32.store",			-2,	none,	NULL, 			NULL, NULL ),		// 0x38
+	M3OP( "f64.store",			-2,	none,	op_f64_Store, 		NULL, NULL,	 			Compile_Load_Store ),		// 0x39
 	
-	{ "i32.store8",			-2,	none,	d_binOpList (i32, Store_u8),  				Compile_Load_Store },		// 0x3a
-	{ "i32.store16",		-2,	none,	d_binOpList (i32, Store_i16),  				Compile_Load_Store },		// 0x3b
+	M3OP( "i32.store8",			-2,	none,	d_binOpList (i32, Store_u8),  				Compile_Load_Store ),		// 0x3a
+	M3OP( "i32.store16",		-2,	none,	d_binOpList (i32, Store_i16),  				Compile_Load_Store ),		// 0x3b
 	
-	{ "i64.store8",			-2,	none,	NULL, 				NULL, NULL  },		// 0x3c
-	{ "i64.store16",		-2,	none,	NULL, 			NULL, NULL  },		// 0x3d
-	{ "i64.store32",		-2,	none,	NULL, 			NULL, NULL  },		// 0x3e
+	M3OP( "i64.store8",			-2,	none,	NULL, 				NULL, NULL  ),		// 0x3c
+	M3OP( "i64.store16",		-2,	none,	NULL, 			NULL, NULL  ),		// 0x3d
+	M3OP( "i64.store32",		-2,	none,	NULL, 			NULL, NULL  ),		// 0x3e
 	
-	{ "current_memory",		1,	i_64,	NULL, 			NULL, NULL  },		// 0x3f		// FIX!! don't know about these stck offs
-	{ "grow_memory",		-1,	i_64,	NULL, 			NULL, NULL  },		// 0x40
+	M3OP( "current_memory",		1,	i_64,	NULL, 			NULL, NULL  ),		// 0x3f		// FIX!! don't know about these stck offs
+	M3OP( "grow_memory",		-1,	i_64,	NULL, 			NULL, NULL  ),		// 0x40
 	
-	{ "i32.const",			1,	i_32,	NULL, 			NULL, NULL,						Compile_Const_i32 },			// 0x41
-	{ "i64.const",			1,	i_64,	NULL,		NULL, NULL,		Compile_Const_i64 },			// 0x42
-	{ "f32.const",			1,	f_32,	NULL, 					NULL, NULL,					Compile_Const_f32 },		// 0x43
-	{ "f64.const",			1,	f_64,	NULL, 				NULL, NULL,						Compile_Const_f64 },			// 0x44
+	M3OP( "i32.const",			1,	i_32,	NULL, 			NULL, NULL,						Compile_Const_i32 ),			// 0x41
+	M3OP( "i64.const",			1,	i_64,	NULL,		NULL, NULL,		Compile_Const_i64 ),			// 0x42
+	M3OP( "f32.const",			1,	f_32,	NULL, 					NULL, NULL,					Compile_Const_f32 ),		// 0x43
+	M3OP( "f64.const",			1,	f_64,	NULL, 				NULL, NULL,						Compile_Const_f64 ),			// 0x44
 	
-	{ "i32.eqz",			0,	i_32,	d_unaryOpList (i32, EqualToZero)		},			// 0x45
-	{ "i32.eq",				-1,	i_32,	d_binOpList (i32, Equal) 				},			// 0x46
-	{ "i32.ne",				-1,	i_32,	d_binOpList (i32, NotEqual) 			},			// 0x47
-	{ "i32.lt_s",			-1,	i_32,	d_binOpList (i32, LessThan) 			},			// 0x48
-	{ "i32.lt_u",			-1,	i_32,	d_binOpList (u32, LessThan) 			},			// 0x49
-	{ "i32.gt_s",			-1,	i_32,	d_binOpList (i32, GreaterThan)			},			// 0x4a
-	{ "i32.gt_u",			-1,	i_32,	d_binOpList (u32, GreaterThan)			},			// 0x4b
-	{ "i32.le_s",			-1,	i_32,	d_binOpList (i32, LessThanOrEqual)		},			// 0x4c
-	{ "i32.le_u",			-1,	i_32,	d_binOpList (u32, LessThanOrEqual)		},			// 0x4d
-	{ "i32.ge_s",			-1,	i_32,	d_binOpList	(i32, GreaterThanOrEqual)	},			// 0x4e
-	{ "i32.ge_u",			-1,	i_32,	d_binOpList	(u32, GreaterThanOrEqual)	},			// 0x4f
+	M3OP( "i32.eqz",			0,	i_32,	d_unaryOpList (i32, EqualToZero)		),			// 0x45
+	M3OP( "i32.eq",				-1,	i_32,	d_binOpList (i32, Equal) 				),			// 0x46
+	M3OP( "i32.ne",				-1,	i_32,	d_binOpList (i32, NotEqual) 			),			// 0x47
+	M3OP( "i32.lt_s",			-1,	i_32,	d_binOpList (i32, LessThan) 			),			// 0x48
+	M3OP( "i32.lt_u",			-1,	i_32,	d_binOpList (u32, LessThan) 			),			// 0x49
+	M3OP( "i32.gt_s",			-1,	i_32,	d_binOpList (i32, GreaterThan)			),			// 0x4a
+	M3OP( "i32.gt_u",			-1,	i_32,	d_binOpList (u32, GreaterThan)			),			// 0x4b
+	M3OP( "i32.le_s",			-1,	i_32,	d_binOpList (i32, LessThanOrEqual)		),			// 0x4c
+	M3OP( "i32.le_u",			-1,	i_32,	d_binOpList (u32, LessThanOrEqual)		),			// 0x4d
+	M3OP( "i32.ge_s",			-1,	i_32,	d_binOpList	(i32, GreaterThanOrEqual)	),			// 0x4e
+	M3OP( "i32.ge_u",			-1,	i_32,	d_binOpList	(u32, GreaterThanOrEqual)	),			// 0x4f
 	
-	{ "i64.eqz",			0,	i_32,	d_unaryOpList (i64, EqualToZero)		},			// 0x50
-	{ "i64.eq",				-1,	i_32,	d_binOpList (i64, Equal)				},			// 0x51
-	{ "i64.ne",				-1,	i_32,	d_binOpList (i64, NotEqual)				},			// 0x52
-	{ "i64.lt_s",			-1,	i_32,	d_binOpList	(i64, LessThan)				},			// 0x53
-	{ "i64.lt_u",			-1,	i_32,	d_binOpList	(u64, LessThan)				},			// 0x54
-	{ "i64.gt_s",			-1,	i_32,	d_binOpList	(i64, GreaterThan)			},			// 0x55
-	{ "i64.gt_u",			-1,	i_32,	d_binOpList	(u64, GreaterThan)			},			// 0x56
-	{ "i64.le_s",			-1,	i_32,	d_binOpList	(i64, LessThanOrEqual)		},			// 0x57
-	{ "i64.le_u",			-1,	i_32,	d_binOpList	(u64, LessThanOrEqual)		},			// 0x58
-	{ "i64.ge_s",			-1,	i_32,	d_binOpList	(i64, GreaterThanOrEqual)	},			// 0x59
-	{ "i64.ge_u",			-1,	i_32,	d_binOpList	(u64, GreaterThanOrEqual)	},			// 0x5a
+	M3OP( "i64.eqz",			0,	i_32,	d_unaryOpList (i64, EqualToZero)		),			// 0x50
+	M3OP( "i64.eq",				-1,	i_32,	d_binOpList (i64, Equal)				),			// 0x51
+	M3OP( "i64.ne",				-1,	i_32,	d_binOpList (i64, NotEqual)				),			// 0x52
+	M3OP( "i64.lt_s",			-1,	i_32,	d_binOpList	(i64, LessThan)				),			// 0x53
+	M3OP( "i64.lt_u",			-1,	i_32,	d_binOpList	(u64, LessThan)				),			// 0x54
+	M3OP( "i64.gt_s",			-1,	i_32,	d_binOpList	(i64, GreaterThan)			),			// 0x55
+	M3OP( "i64.gt_u",			-1,	i_32,	d_binOpList	(u64, GreaterThan)			),			// 0x56
+	M3OP( "i64.le_s",			-1,	i_32,	d_binOpList	(i64, LessThanOrEqual)		),			// 0x57
+	M3OP( "i64.le_u",			-1,	i_32,	d_binOpList	(u64, LessThanOrEqual)		),			// 0x58
+	M3OP( "i64.ge_s",			-1,	i_32,	d_binOpList	(i64, GreaterThanOrEqual)	),			// 0x59
+	M3OP( "i64.ge_u",			-1,	i_32,	d_binOpList	(u64, GreaterThanOrEqual)	),			// 0x5a
 	
-	{ "f32.eq",				-1,	i_32,	d_binOpList (f64, Equal)				},			// 0x5b
-	{ "f32.ne",				-1,	i_32,	d_binOpList (f64, NotEqual) 			},			// 0x5c
-	{ "f32.lt",				-1,	i_32,	d_binOpList (f64, LessThan)				},			// 0x5d
-	{ "f32.gt",				-1,	i_32,	d_binOpList (f64, GreaterThan)			},			// 0x5e
-	{ "f32.le",				-1,	i_32,	d_binOpList (f32, LessThanOrEqual)		},			// 0x5f
-	{ "f32.ge",				-1,	i_32,	d_binOpList (f32, GreaterThanOrEqual)	},			// 0x60
+	M3OP( "f32.eq",				-1,	i_32,	d_binOpList (f64, Equal)				),			// 0x5b
+	M3OP( "f32.ne",				-1,	i_32,	d_binOpList (f64, NotEqual) 			),			// 0x5c
+	M3OP( "f32.lt",				-1,	i_32,	d_binOpList (f64, LessThan)				),			// 0x5d
+	M3OP( "f32.gt",				-1,	i_32,	d_binOpList (f64, GreaterThan)			),			// 0x5e
+	M3OP( "f32.le",				-1,	i_32,	d_binOpList (f32, LessThanOrEqual)		),			// 0x5f
+	M3OP( "f32.ge",				-1,	i_32,	d_binOpList (f32, GreaterThanOrEqual)	),			// 0x60
 	
-	{ "f64.eq",				-1,	i_32,	d_binOpList (f64, Equal)				},			// 0x61
-	{ "f64.ne",				-1,	i_32,	d_binOpList (f64, NotEqual) 			},			// 0x62
-	{ "f64.lt",				-1,	i_32,	d_binOpList (f64, LessThan)				},			// 0x63
-	{ "f64.gt",				-1,	i_32,	d_binOpList (f64, GreaterThan) 			},			// 0x64
-	{ "f64.le",				-1,	i_32,	d_binOpList (f64, LessThanOrEqual) 		},			// 0x65
-	{ "f64.ge",				-1,	i_32,	d_binOpList (f64, GreaterThanOrEqual)	},			// 0x66
+	M3OP( "f64.eq",				-1,	i_32,	d_binOpList (f64, Equal)				),			// 0x61
+	M3OP( "f64.ne",				-1,	i_32,	d_binOpList (f64, NotEqual) 			),			// 0x62
+	M3OP( "f64.lt",				-1,	i_32,	d_binOpList (f64, LessThan)				),			// 0x63
+	M3OP( "f64.gt",				-1,	i_32,	d_binOpList (f64, GreaterThan) 			),			// 0x64
+	M3OP( "f64.le",				-1,	i_32,	d_binOpList (f64, LessThanOrEqual) 		),			// 0x65
+	M3OP( "f64.ge",				-1,	i_32,	d_binOpList (f64, GreaterThanOrEqual)	),			// 0x66
 	
-	{ "i32.clz",			1,	i_32,	NULL, 			NULL, NULL },			// 0x67
-	{ "i32.ctz",			1,	i_32,	NULL, 				NULL, NULL },			// 0x68
-	{ "i32.popcnt",			1,	i_32,	NULL, 			NULL, NULL },			// 0x69
+	M3OP( "i32.clz",			1,	i_32,	NULL, 			NULL, NULL ),			// 0x67
+	M3OP( "i32.ctz",			1,	i_32,	NULL, 				NULL, NULL ),			// 0x68
+	M3OP( "i32.popcnt",			1,	i_32,	NULL, 			NULL, NULL ),			// 0x69
 	
-	{ "i32.add",			-1, i_32,	d_commutativeBinOpList (i32, Add)		},			// 0x6a
-	{ "i32.sub",			-1, i_32,	d_binOpList	(i32, Subtract)				},			// 0x6b
-	{ "i32.mul",			-1, i_32,	d_commutativeBinOpList (i32, Multiply)	},			// 0x6c
-	{ "i32.div_s",			-1, i_32,	d_binOpList (i32, Divide) 				},			// 0x6d
-	{ "i32.div_u",			-1, i_32,	d_binOpList (u32, Divide) 				},			// 0x6e
-	{ "i32.rem_s",			-1, i_32,	d_binOpList (i32, Remainder)			},			// 0x6f
-	{ "i32.rem_u",			-1, i_32,	d_binOpList (u32, Remainder) 			},			// 0x70
-	{ "i32.and",			-1, i_32,	d_commutativeBinOpList (u64, And)		},			// 0x71
-	{ "i32.or",				-1, i_32,	d_commutativeBinOpList (u64, Or)		},			// 0x72
-	{ "i32.xor",			-1, i_32,	d_commutativeBinOpList (u64, Xor)		},			// 0x73
-	{ "i32.shl",			-1, i_32,	d_binOpList (i32, ShiftLeft)			},			// 0x74
-	{ "i32.shr_s",			-1, i_32,	d_binOpList (i32, ShiftRight)			},			// 0x75
-	{ "i32.shr_u",			-1, i_32,	d_binOpList (u32, ShiftRight)			},			// 0x76
-	{ "i32.rotl",			-1, i_32,	NULL, 			NULL, NULL },			// 0x77
-	{ "i32.rotr",			-1, i_32,	NULL, 				NULL, NULL },			// 0x78
+	M3OP( "i32.add",			-1, i_32,	d_commutativeBinOpList (i32, Add)		),			// 0x6a
+	M3OP( "i32.sub",			-1, i_32,	d_binOpList	(i32, Subtract)				),			// 0x6b
+	M3OP( "i32.mul",			-1, i_32,	d_commutativeBinOpList (i32, Multiply)	),			// 0x6c
+	M3OP( "i32.div_s",			-1, i_32,	d_binOpList (i32, Divide) 				),			// 0x6d
+	M3OP( "i32.div_u",			-1, i_32,	d_binOpList (u32, Divide) 				),			// 0x6e
+	M3OP( "i32.rem_s",			-1, i_32,	d_binOpList (i32, Remainder)			),			// 0x6f
+	M3OP( "i32.rem_u",			-1, i_32,	d_binOpList (u32, Remainder) 			),			// 0x70
+	M3OP( "i32.and",			-1, i_32,	d_commutativeBinOpList (u64, And)		),			// 0x71
+	M3OP( "i32.or",				-1, i_32,	d_commutativeBinOpList (u64, Or)		),			// 0x72
+	M3OP( "i32.xor",			-1, i_32,	d_commutativeBinOpList (u64, Xor)		),			// 0x73
+	M3OP( "i32.shl",			-1, i_32,	d_binOpList (i32, ShiftLeft)			),			// 0x74
+	M3OP( "i32.shr_s",			-1, i_32,	d_binOpList (i32, ShiftRight)			),			// 0x75
+	M3OP( "i32.shr_u",			-1, i_32,	d_binOpList (u32, ShiftRight)			),			// 0x76
+	M3OP( "i32.rotl",			-1, i_32,	NULL, 			NULL, NULL ),			// 0x77
+	M3OP( "i32.rotr",			-1, i_32,	NULL, 				NULL, NULL ),			// 0x78
 	
-	{ "i64.clz",			1,	i_32,	NULL, 			NULL, NULL },			// 0x79
-	{ "i64.ctz",			1,	i_32,	NULL, 			NULL, NULL },			// 0x7a
-	{ "i64.popcnt",			1,	i_32,	NULL, 			NULL, NULL 	},			// 0x7b
+	M3OP( "i64.clz",			1,	i_32,	NULL, 			NULL, NULL ),			// 0x79
+	M3OP( "i64.ctz",			1,	i_32,	NULL, 			NULL, NULL ),			// 0x7a
+	M3OP( "i64.popcnt",			1,	i_32,	NULL, 			NULL, NULL 	),			// 0x7b
 	
-	{ "i64.add",			-1,	i_64,	d_commutativeBinOpList (i64, Add)		},			// 0x7c
-	{ "i64.sub",			-1,	i_64,	d_binOpList (i64, Subtract)				},			// 0x7d
-	{ "i64.mul",			-1,	i_64,	NULL, 			NULL, NULL },			// 0x7e
-	{ "i64.div_s",			-1,	i_64,	d_binOpList (i64, Divide) },			// 0x7f
-	{ "i64.div_u",			-1,	i_64,	NULL, 			NULL, NULL },			// 0x80
-	{ "i64.rem_s",			-1,	i_64,	NULL, 			NULL, NULL },			// 0x81
-	{ "i64.rem_u",			-1,	i_64,	NULL, 			NULL, NULL },			// 0x82
-	{ "i64.and",			-1,	i_64,	d_commutativeBinOpList (u64, And)		},			// 0x83
-	{ "i64.or",				-1,	i_64,	d_commutativeBinOpList (u64, Or)		},			// 0x84
-	{ "i64.xor",			-1,	i_64,	d_commutativeBinOpList (u64, Xor)		},			// 0x85
-	{ "i64.shl",			-1,	i_64,	d_binOpList (i64, ShiftLeft)			},			// 0x86
-	{ "i64.shr_s",			-1,	i_64,	d_binOpList (i64, ShiftRight)			},			// 0x87
-	{ "i64.shr_u",			-1,	i_64,	d_binOpList (u64, ShiftRight)			},			// 0x88
-	{ "i64.rotl",			-1,	i_64,	NULL, 		NULL, NULL },			// 0x89
-	{ "i64.rotr",			-1,	i_64,	NULL, 			NULL, NULL },			// 0x8a
+	M3OP( "i64.add",			-1,	i_64,	d_commutativeBinOpList (i64, Add)		),			// 0x7c
+	M3OP( "i64.sub",			-1,	i_64,	d_binOpList (i64, Subtract)				),			// 0x7d
+	M3OP( "i64.mul",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x7e
+	M3OP( "i64.div_s",			-1,	i_64,	d_binOpList (i64, Divide) ),			// 0x7f
+	M3OP( "i64.div_u",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x80
+	M3OP( "i64.rem_s",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x81
+	M3OP( "i64.rem_u",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x82
+	M3OP( "i64.and",			-1,	i_64,	d_commutativeBinOpList (u64, And)		),			// 0x83
+	M3OP( "i64.or",				-1,	i_64,	d_commutativeBinOpList (u64, Or)		),			// 0x84
+	M3OP( "i64.xor",			-1,	i_64,	d_commutativeBinOpList (u64, Xor)		),			// 0x85
+	M3OP( "i64.shl",			-1,	i_64,	d_binOpList (i64, ShiftLeft)			),			// 0x86
+	M3OP( "i64.shr_s",			-1,	i_64,	d_binOpList (i64, ShiftRight)			),			// 0x87
+	M3OP( "i64.shr_u",			-1,	i_64,	d_binOpList (u64, ShiftRight)			),			// 0x88
+	M3OP( "i64.rotl",			-1,	i_64,	NULL, 		NULL, NULL ),			// 0x89
+	M3OP( "i64.rotr",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x8a
 	
-	{ "f32.abs",			0,	f_32,	op_f32_Abs, 		NULL, NULL },			// 0x8b
-	{ "f32.neg",			0,	f_32,	NULL, 			NULL, NULL },			// 0x8c
-	{ "f32.ceil",			0,	f_32,	op_f32_Ceil, 		NULL, NULL },			// 0x8d
-	{ "f32.floor",			0,	f_32,	op_f32_Floor, 		NULL, NULL },			// 0x8e
-	{ "f32.trunc",			0,	f_32,	op_f32_Trunc, 		NULL, NULL },			// 0x8f
-	{ "f32.nearest",		0,	f_32,	NULL, 			NULL, NULL },			// 0x90
-	{ "f32.sqrt",			0,	f_32,	op_f32_Sqrt, 		NULL, NULL },			// 0x91
+	M3OP( "f32.abs",			0,	f_32,	op_f32_Abs, 		NULL, NULL ),			// 0x8b
+	M3OP( "f32.neg",			0,	f_32,	NULL, 			NULL, NULL ),			// 0x8c
+	M3OP( "f32.ceil",			0,	f_32,	op_f32_Ceil, 		NULL, NULL ),			// 0x8d
+	M3OP( "f32.floor",			0,	f_32,	op_f32_Floor, 		NULL, NULL ),			// 0x8e
+	M3OP( "f32.trunc",			0,	f_32,	op_f32_Trunc, 		NULL, NULL ),			// 0x8f
+	M3OP( "f32.nearest",		0,	f_32,	NULL, 			NULL, NULL ),			// 0x90
+	M3OP( "f32.sqrt",			0,	f_32,	op_f32_Sqrt, 		NULL, NULL ),			// 0x91
 	
-	{ "f32.add",			-1,	f_32,	d_commutativeBinOpList (f32, Add) },				// 0x92
-	{ "f32.sub",			-1,	f_32,	d_binOpList (f32, Subtract) },						// 0x93
-	{ "f32.mul",			-1,	f_32,	d_commutativeBinOpList (f32, Multiply) },			// 0x94
-	{ "f32.div",			-1,	f_32,	d_binOpList (f32, Divide) },						// 0x95
-	{ "f32.min",			-1,	f_32,	op_f32_Min, 		NULL, NULL },					// 0x96
-	{ "f32.max",			-1,	f_32,	op_f32_Max, 			NULL, NULL },				// 0x97
-	{ "f32.copysign",		-1,	f_32,	op_f32_CopySign, 		NULL, NULL },				// 0x98
+	M3OP( "f32.add",			-1,	f_32,	d_commutativeBinOpList (f32, Add) ),				// 0x92
+	M3OP( "f32.sub",			-1,	f_32,	d_binOpList (f32, Subtract) ),						// 0x93
+	M3OP( "f32.mul",			-1,	f_32,	d_commutativeBinOpList (f32, Multiply) ),			// 0x94
+	M3OP( "f32.div",			-1,	f_32,	d_binOpList (f32, Divide) ),						// 0x95
+	M3OP( "f32.min",			-1,	f_32,	op_f32_Min, 		NULL, NULL ),					// 0x96
+	M3OP( "f32.max",			-1,	f_32,	op_f32_Max, 			NULL, NULL ),				// 0x97
+	M3OP( "f32.copysign",		-1,	f_32,	op_f32_CopySign, 		NULL, NULL ),				// 0x98
 	
-	{ "f64.abs",			0,	f_64,	op_f64_Abs, 		NULL, NULL },			// 0x99
-	{ "f64.neg",			0,	f_64,	NULL, 				NULL, NULL },			// 0x9a
-	{ "f64.ceil",			0,	f_64,	op_f64_Ceil, 		NULL, NULL },			// 0x9b
-	{ "f64.floor",			0,	f_64,	op_f64_Floor, 		NULL, NULL },			// 0x9c
-	{ "f64.trunc",			0,	f_64,	op_f64_Trunc, 		NULL, NULL },			// 0x9d
-	{ "f64.nearest",		0,	f_64,	NULL, 				NULL, NULL },			// 0x9e
-	{ "f64.sqrt",			0,	f_64,	op_f64_Sqrt, 		NULL, NULL },			// 0x9f
+	M3OP( "f64.abs",			0,	f_64,	op_f64_Abs, 		NULL, NULL ),			// 0x99
+	M3OP( "f64.neg",			0,	f_64,	NULL, 				NULL, NULL ),			// 0x9a
+	M3OP( "f64.ceil",			0,	f_64,	op_f64_Ceil, 		NULL, NULL ),			// 0x9b
+	M3OP( "f64.floor",			0,	f_64,	op_f64_Floor, 		NULL, NULL ),			// 0x9c
+	M3OP( "f64.trunc",			0,	f_64,	op_f64_Trunc, 		NULL, NULL ),			// 0x9d
+	M3OP( "f64.nearest",		0,	f_64,	NULL, 				NULL, NULL ),			// 0x9e
+	M3OP( "f64.sqrt",			0,	f_64,	op_f64_Sqrt, 		NULL, NULL ),			// 0x9f
 	
-	{ "f64.add",			-1,	f_64, 	d_commutativeBinOpList (f64, Add)},					// 0xa0
-	{ "f64.sub",			-1,	f_64, 	d_binOpList (f64, Subtract) },						// 0xa1
-	{ "f64.mul",			-1,	f_64, 	d_commutativeBinOpList (f64, Multiply) },			// 0xa2
-	{ "f64.div",			-1,	f_64, 	d_binOpList (f64, Divide) },						// 0xa3
-	{ "f64.min",			-1,	f_64, 	op_f64_Min, 		NULL, NULL },			// 0xa4
-	{ "f64.max",			-1,	f_64, 	op_f64_Max, 			NULL, NULL },			// 0xa5
-	{ "f64.copysign",		-1,	f_64, 	op_f64_CopySign, 			NULL, NULL },			// 0xa6
+	M3OP( "f64.add",			-1,	f_64, 	d_commutativeBinOpList (f64, Add)),					// 0xa0
+	M3OP( "f64.sub",			-1,	f_64, 	d_binOpList (f64, Subtract) ),						// 0xa1
+	M3OP( "f64.mul",			-1,	f_64, 	d_commutativeBinOpList (f64, Multiply) ),			// 0xa2
+	M3OP( "f64.div",			-1,	f_64, 	d_binOpList (f64, Divide) ),						// 0xa3
+	M3OP( "f64.min",			-1,	f_64, 	op_f64_Min, 		NULL, NULL ),			// 0xa4
+	M3OP( "f64.max",			-1,	f_64, 	op_f64_Max, 			NULL, NULL ),			// 0xa5
+	M3OP( "f64.copysign",		-1,	f_64, 	op_f64_CopySign, 			NULL, NULL ),			// 0xa6
 	
-	{ "i32.wrap/i64",		0,	i_32,	op_Nop, 		NULL, NULL 		},			// 0xa7
-	{ "i32.trunc_s/f32",	0,	i_32,	NULL, 			NULL, NULL },			// 0xa8
-	{ "i32.trunc_u/f32",	0,	i_32,	NULL, 			NULL, NULL },			// 0xa9
-	{ "i32.trunc_s/f64",	0,	i_32,	op_i32_Truncate_f64,		NULL, NULL },			// 0xaa
-	{ "i32.trunc_u/f64",	0,	i_32,	NULL, 				NULL, NULL  },			// 0xab
+	M3OP( "i32.wrap/i64",		0,	i_32,	op_Nop, 		NULL, NULL 		),			// 0xa7
+	M3OP( "i32.trunc_s/f32",	0,	i_32,	NULL, 			NULL, NULL ),			// 0xa8
+	M3OP( "i32.trunc_u/f32",	0,	i_32,	NULL, 			NULL, NULL ),			// 0xa9
+	M3OP( "i32.trunc_s/f64",	0,	i_32,	op_i32_Truncate_f64,		NULL, NULL ),			// 0xaa
+	M3OP( "i32.trunc_u/f64",	0,	i_32,	NULL, 				NULL, NULL  ),			// 0xab
 	
-	{ "i64.extend_s/i32",	0,	i_64,	op_Extend_s, 		NULL, NULL },			// 0xac
-	{ "i64.extend_u/i32",	0,	i_64,	op_Extend_u,		NULL, NULL  },			// 0xad
-	{ "i64.trunc_s/f32",	0,	i_64,	NULL, 			NULL, NULL },			// 0xae
-	{ "i64.trunc_u/f32",	0,	i_64,	NULL, 			NULL, NULL },			// 0xaf
-	{ "i64.trunc_s/f64",	0,	i_64,	NULL, 		NULL, NULL },			// 0xb0
-	{ "i64.trunc_u/f64",	0,	i_64,	NULL, 		NULL, NULL },			// 0xb1
+	M3OP( "i64.extend_s/i32",	0,	i_64,	op_Extend_s, 		NULL, NULL ),			// 0xac
+	M3OP( "i64.extend_u/i32",	0,	i_64,	op_Extend_u,		NULL, NULL  ),			// 0xad
+	M3OP( "i64.trunc_s/f32",	0,	i_64,	NULL, 			NULL, NULL ),			// 0xae
+	M3OP( "i64.trunc_u/f32",	0,	i_64,	NULL, 			NULL, NULL ),			// 0xaf
+	M3OP( "i64.trunc_s/f64",	0,	i_64,	NULL, 		NULL, NULL ),			// 0xb0
+	M3OP( "i64.trunc_u/f64",	0,	i_64,	NULL, 		NULL, NULL ),			// 0xb1
 	
-	{ "f32.convert_s/i32",	0,	f_32, 	NULL, NULL, NULL },			// 0xb2
-	{ "f32.convert_u/i32",	0,	f_32, 	NULL, 	NULL, NULL },			// 0xb3
-	{ "f32.convert_s/i64",	0,	f_32, 	NULL, NULL, NULL },			// 0xb4
-	{ "f32.convert_u/i64",	0,	f_32, 	NULL, 		NULL, NULL },			// 0xb5
-	{ "f32.demote/f64",		0,	f_32, 	op_f32_Demote_r, 		op_f32_Demote_s, 	NULL },			// 0xb6
+	M3OP( "f32.convert_s/i32",	0,	f_32, 	NULL, NULL, NULL ),			// 0xb2
+	M3OP( "f32.convert_u/i32",	0,	f_32, 	NULL, 	NULL, NULL ),			// 0xb3
+	M3OP( "f32.convert_s/i64",	0,	f_32, 	NULL, NULL, NULL ),			// 0xb4
+	M3OP( "f32.convert_u/i64",	0,	f_32, 	NULL, 		NULL, NULL ),			// 0xb5
+	M3OP( "f32.demote/f64",		0,	f_32, 	op_f32_Demote_r, 		op_f32_Demote_s, 	NULL ),			// 0xb6
 	
-	{ "f64.convert_s/i32",	0,	f_64,	op_f64_Convert_i32_r,	op_f64_Convert_i32_s },			// 0xb7
-	{ "f64.convert_u/i32",	0,	f_64,	NULL,NULL, NULL },			// 0xb8
-	{ "f64.convert_s/i64",	0,	f_64,	NULL,NULL, NULL },			// 0xb9
-	{ "f64.convert_u/i64",	0,	f_64,	NULL,NULL, NULL },			// 0xba
-	{ "f64.promote/f32",	0,	f_64,	op_Nop,	NULL, NULL },			// 0xbb
+	M3OP( "f64.convert_s/i32",	0,	f_64,	op_f64_Convert_i32_r,	op_f64_Convert_i32_s ),			// 0xb7
+	M3OP( "f64.convert_u/i32",	0,	f_64,	NULL,NULL, NULL ),			// 0xb8
+	M3OP( "f64.convert_s/i64",	0,	f_64,	NULL,NULL, NULL ),			// 0xb9
+	M3OP( "f64.convert_u/i64",	0,	f_64,	NULL,NULL, NULL ),			// 0xba
+	M3OP( "f64.promote/f32",	0,	f_64,	op_Nop,	NULL, NULL ),			// 0xbb
 	
-	{ "i32.reinterpret/f32", 0,	i_32,	NULL,	NULL, NULL },			// 0xbc
-	{ "i64.reinterpret/f64", 0,	i_64,	NULL,	NULL, NULL },			// 0xbd
-	{ "f32.reinterpret/i32", 0,	f_32,	NULL,NULL, NULL },			// 0xbe
-	{ "f64.reinterpret/i64", 0,	f_64,	NULL,NULL, NULL },			// 0xbf
+	M3OP( "i32.reinterpret/f32", 0,	i_32,	NULL,	NULL, NULL ),			// 0xbc
+	M3OP( "i64.reinterpret/f64", 0,	i_64,	NULL,	NULL, NULL ),			// 0xbd
+	M3OP( "f32.reinterpret/i32", 0,	f_32,	NULL,NULL, NULL ),			// 0xbe
+	M3OP( "f64.reinterpret/i64", 0,	f_64,	NULL,NULL, NULL ),			// 0xbf
 	
 	// for code logging
-	{ "Const",				1,	any,	op_Const },
-	{ NULL } 														// null termination for FindOperationInfo ()
+	M3OP( "Const",				1,	any,	op_Const ),
+	M3OP( "termination",        0,  c_m3Type_void ) 					// termination for FindOperationInfo ()
 };
 
 

@@ -124,7 +124,9 @@ typedef M3Result (* M3Compiler)			(IM3Compilation, u8);
 
 typedef struct M3OpInfo
 {
+#ifdef DEBUG
 	const char * const		name;
+#endif
 	
 	i8						stackOffset;
 	u8						type;
@@ -141,7 +143,13 @@ typedef const M3OpInfo *	IM3OpInfo;
 
 extern const M3OpInfo c_operations [];
 
-
+#ifdef DEBUG
+	#define M3OP(...) { __VA_ARGS__ }
+	#define M3OP_RESERVED { "reserved" }
+#else
+	#define M3OP(name, ...) { __VA_ARGS__ }
+	#define M3OP_RESERVED { }
+#endif
 //-----------------------------------------------------------------------------------------------------------------------------------
 
 

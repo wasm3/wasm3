@@ -142,7 +142,7 @@ OpInfo FindOperationInfo  (IM3Operation i_operation)
 	{
 		IM3OpInfo oi = & c_operations [i];
 		
-		if (oi->name)
+		if (oi->type != c_m3Type_void)
 		{
 			if (oi->operation_rs == i_operation or
 				oi->operation_sr == i_operation or
@@ -208,7 +208,11 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 					char infoString [1000] = { 0 };
 					DecodeOperation (infoString, i.opcode, i.info, & pc);
 					
+#ifdef DEBUG
 					m3log (code, "%p: %15s %-20s", pc - 1, i.info->name, infoString);
+#else
+					m3log (code, "%p: %15s %-20s", pc - 1, "---", infoString);
+#endif
 				}
 				else break;
 			}

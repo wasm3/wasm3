@@ -56,6 +56,15 @@ const void * const	cvptr_t;
 # 	define or		||
 # endif
 
+#define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+
+# ifdef DEBUG
+#	define M3_FILE __FILE__
+#	define M3_LINE __LINE__
+#else
+#	define M3_FILE ""
+#	define M3_LINE 0
+#endif
 
 static const char * m3LogTruncFilename (const char * i_file)
 {
@@ -83,7 +92,7 @@ static const char * m3LogTruncFilename (const char * i_file)
 # if d_m3LogOutput
 
 // with filename:
-//#	define d_m3Log(CATEGORY, FMT, ...) 					printf (" %-12s | %-8s |  " FMT, m3LogTruncFilename (__FILE__), #CATEGORY, ##__VA_ARGS__);
+//#	define d_m3Log(CATEGORY, FMT, ...) 					printf (" %-12s | %-8s |  " FMT, m3LogTruncFilename (M3_FILE), #CATEGORY, ##__VA_ARGS__);
 #	define d_m3Log(CATEGORY, FMT, ...) 					printf (" %8s  |  " FMT, #CATEGORY, ##__VA_ARGS__);
 
 #	if d_m3LogParse
@@ -205,9 +214,9 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 
 #define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...)	m3Error (RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ##__VA_ARGS__)
 
-#define ErrorModule(RESULT, MOD, FORMAT, ...)	_m3Error (RESULT, MOD->runtime, MOD, NULL,	__FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
-#define ErrorCompile(RESULT, COMP, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
-//#define ErrorExec(RESULT, MODULE, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
+#define ErrorModule(RESULT, MOD, FORMAT, ...)	_m3Error (RESULT, MOD->runtime, MOD, NULL,	M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
+#define ErrorCompile(RESULT, COMP, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
+//#define ErrorExec(RESULT, MODULE, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
 
 #define min(A,B) (A < B) ? A : B
 #define max(A,B) (A > B) ? A : B
