@@ -771,7 +771,8 @@ m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
 //#define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
 
 
-#define d_m3Load(REG,DEST_TYPE,SRC_TYPE) static inline m3ret_t vectorcall op_##DEST_TYPE##_Load_##SRC_TYPE##_r (d_m3OpSig) \
+#define d_m3Load(REG,DEST_TYPE,SRC_TYPE)				\
+d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)					\
 { 														\
 	u32 offset = immediate (u32);						\
 	u32 operand = (u32) _r0;							\
@@ -786,7 +787,7 @@ m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
 	}													\
 	else d_outOfBounds;									\
 } 														\
-static inline m3ret_t vectorcall op_##DEST_TYPE##_Load_##SRC_TYPE##_s (d_m3OpSig)		\
+d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)					\
 { 														\
 	u32 operand = * (u32 *) (_sp + immediate (i32));	\
 	u32 offset = immediate (u32);						\
