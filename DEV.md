@@ -40,6 +40,14 @@ You may need to install:
 - [Ninja](https://github.com/ninja-build/ninja/releases)
 - [Clang 9](https://releases.llvm.org/download.html#9.0.0)
 
+```bat
+REM  Prepare environment (if needed):
+"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+set PATH=C:\Program Files\CMake\bin;%PATH%
+set PATH=C:\Program Files\LLVM\bin;%PATH%
+set PATH=C:\Python36-32\;C:\Python36-32\Scripts\;%PATH%
+```
+
 ### Clang with Ninja (recommended)
 
 ```bat
