@@ -16,6 +16,7 @@
 #include "m3_exec_defs.h"
 
 #include <math.h>
+#include <limits.h>
 
 # define rewrite(NAME)				* ((void **) (_pc-1)) = NAME
 
@@ -100,14 +101,15 @@ d_m3OpDecl  (DumpStack)
 
 
 
-#define d_m3CompareOp(REG, TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME##_sr (d_m3OpSig) \
+#define d_m3CompareOp(REG, TYPE, NAME, OPERATION)		\
+d_m3Op(TYPE##_##NAME##_sr)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
 	_r0 = * stack OPERATION (TYPE) REG;					\
 	return nextOp ();									\
 }														\
 														\
-d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
+d_m3Op(TYPE##_##NAME##_ss)								\
 { 														\
 	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
 	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
@@ -115,7 +117,7 @@ d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
 	return nextOp ();									\
 }														\
 														\
-d_m3RetSig op_##TYPE##_##NAME##_rs (d_m3OpSig) 			\
+d_m3Op(TYPE##_##NAME##_rs)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
 	_r0 = (TYPE) REG OPERATION (* stack);				\
@@ -127,14 +129,15 @@ d_m3RetSig op_##TYPE##_##NAME##_rs (d_m3OpSig) 			\
 
 //-----------------------
 
-#define d_m3CommutativeOp(REG, TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME##_sr (d_m3OpSig) \
+#define d_m3CommutativeOp(REG, TYPE, NAME, OPERATION)	\
+d_m3Op(TYPE##_##NAME##_sr)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
 	REG = * stack OPERATION (TYPE) REG;					\
 	return nextOp ();									\
 }														\
 														\
-d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
+d_m3Op(TYPE##_##NAME##_ss)								\
 { 														\
 	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
 	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
@@ -142,7 +145,8 @@ d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
 	return nextOp ();									\
 }
 
-#define d_m3Op_(REG, TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME##_rs (d_m3OpSig) \
+#define d_m3Op_(REG, TYPE, NAME, OPERATION)				\
+d_m3Op(TYPE##_##NAME##_rs)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
 	REG = (TYPE) REG OPERATION (* stack);				\
@@ -230,7 +234,8 @@ d_m3Op_f (f32, Multiply, 					*)		d_m3Op_f (f64, Multiply, 					*)
 
 
 
-#define d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC) d_m3RetSig op_##TYPE##_##NAME##_sr (d_m3OpSig) \
+#define d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC)	\
+d_m3Op(TYPE##_##NAME##_sr)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
 	m3ret_t r = FUNC (& REG, * stack, (TYPE) REG);		\
@@ -238,7 +243,7 @@ d_m3Op_f (f32, Multiply, 					*)		d_m3Op_f (f64, Multiply, 					*)
 	else return nextOp ();								\
 }														\
 														\
-d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
+d_m3Op(TYPE##_##NAME##_ss)								\
 { 														\
 	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
 	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
@@ -247,7 +252,8 @@ d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
 	else return nextOp ();								\
 }
 
-#define d_m3FuncOp_(REG, TYPE, NAME, FUNC) d_m3RetSig op_##TYPE##_##NAME##_rs (d_m3OpSig) \
+#define d_m3FuncOp_(REG, TYPE, NAME, FUNC)				\
+d_m3Op(TYPE##_##NAME##_rs)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
 	m3ret_t r = FUNC (& REG, * stack, (TYPE) REG);		\
@@ -285,7 +291,8 @@ d_m3FuncOp_i (u32, Remainder, Remainder_u32);
 
 
 /*
-#define d_m3Op_Divide_f(TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME (d_m3OpSig) \
+#define d_m3Op_Divide_f(TYPE, NAME, OPERATION)			\
+d_m3Op(TYPE##_##NAME)									\
 { 														\
 	if (_fp0 != 0.)										\
 	{													\
@@ -304,7 +311,8 @@ d_m3Op_f (f32, Divide, 			/)
 d_m3Op_f (f64, Divide, 			/)
 
 
-#define d_m3BinaryOp2(TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME (d_m3OpSig) \
+#define d_m3BinaryOp2(TYPE, NAME, OPERATION) \
+d_m3Op(TYPE##_##NAME)					\
 { 										\
 	TYPE op1 = * ((TYPE *) --_sp);		\
 	TYPE * op0 = (TYPE *) (_sp - 1);	\
@@ -321,9 +329,9 @@ static inline f64 max64 (f64 a, f64 b) { return a > b ? a : b; }	d_m3BinaryOp2 (
 d_m3BinaryOp2 (f32, CopySign, copysignf);	d_m3BinaryOp2 (f64, CopySign, copysign);
 
 
-#define d_m3UnaryOp2(TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME (d_m3OpSig) \
+#define d_m3UnaryOp2(TYPE, NAME, OPERATION)	\
+d_m3Op(TYPE##_##NAME)						\
 { 											\
-	abort (); \
 	TYPE * op = (TYPE *) (_sp - 1);			\
 	* op = OPERATION (* op);				\
 	return nextOp ();						\
@@ -338,12 +346,13 @@ d_m3UnaryOp2 (f32, Sqrt, sqrtf);			d_m3UnaryOp2 (f64, Sqrt, sqrt);
 
 
 // "unary"
-#define d_m3UnaryOp_i(TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME##_r (d_m3OpSig) \
+#define d_m3UnaryOp_i(TYPE, NAME, OPERATION)		\
+d_m3Op(TYPE##_##NAME##_r)							\
 { 													\
 	_r0 = (TYPE) _r0 OPERATION;						\
 	return nextOp ();								\
 } 													\
-d_m3RetSig op_##TYPE##_##NAME##_s (d_m3OpSig)		\
+d_m3Op(TYPE##_##NAME##_s)							\
 { 													\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));\
 	_r0 = * stack OPERATION;						\
@@ -355,13 +364,14 @@ d_m3UnaryOp_i (i32, EqualToZero, == 0)
 d_m3UnaryOp_i (i64, EqualToZero, == 0)
 
 
-#define d_m3IntToFpConvertOp(TO, NAME, FROM) d_m3RetSig op_##TO##_##NAME##_##FROM##_r (d_m3OpSig) \
+#define d_m3IntToFpConvertOp(TO, NAME, FROM)				\
+d_m3Op(TO##_##NAME##_##FROM##_r)							\
 { 															\
 	_fp0 = (TO) ((FROM) _r0);								\
 	return nextOp ();										\
 } 															\
 															\
-d_m3RetSig op_##TO##_##NAME##_##FROM##_s (d_m3OpSig) 		\
+d_m3Op(TO##_##NAME##_##FROM##_s)							\
 { 															\
 	FROM * stack = (FROM *) (_sp + immediate (i32));		\
 	_fp0 = (TO) (* stack);									\
@@ -375,13 +385,14 @@ d_m3IntToFpConvertOp (f64, Convert, i32);
 //d_m3IntToFpConversionOp (f64, Convert, u64);
 
 
-#define d_m3FpToFpConvertOp(TO, NAME) d_m3RetSig op_##TO##_##NAME##_r (d_m3OpSig) \
+#define d_m3FpToFpConvertOp(TO, NAME)						\
+d_m3Op(TO##_##NAME##_r)										\
 { 															\
 	_fp0 = (TO) _fp0;										\
 	return nextOp ();										\
 } 															\
 															\
-d_m3RetSig op_##TO##_##NAME##_s (d_m3OpSig) 				\
+d_m3Op(TO##_##NAME##_s)										\
 { 															\
 	f64 * stack = (f64 *) (_sp + immediate (i32));			\
 	_fp0 = (TO) (* stack);									\
@@ -410,7 +421,8 @@ d_m3Op  (Nop)
 }
 
 
-#define d_m3TruncateOp(TO, NAME, FROM, TEST) d_m3RetSig op_##TO##_##NAME##_##FROM (d_m3OpSig) \
+#define d_m3TruncateOp(TO, NAME, FROM, TEST)	\
+d_m3Op(TO##_##NAME##_##FROM)					\
 { 												\
 	FROM from = _fp0;							\
 	if (TEST (from))							\
@@ -875,10 +887,11 @@ d_m3Store_i (i32, i16)
 # if d_m3EnableOptimizations
 //---------------------------------------------------------------------------------------------------------------------
 
-	#define d_m3BinaryOpWith1_i(TYPE, NAME, OPERATION) d_m3RetSig op_##TYPE##_##NAME (d_m3OpSig) \
-	{ 										\
-		_r0 = _r0 OPERATION 1;			\
-		return nextOp ();					\
+	#define d_m3BinaryOpWith1_i(TYPE, NAME, OPERATION)	\
+	d_m3Op(TYPE##_##NAME)								\
+	{ 													\
+		_r0 = _r0 OPERATION 1;							\
+		return nextOp ();								\
 	}
 
 	d_m3BinaryOpWith1_i (u64, Increment,	+)
