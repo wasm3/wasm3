@@ -1342,10 +1342,10 @@ const M3OpInfo c_operations [] =
 	M3OP( "i64.ge_s",			-1,	i_32,	d_binOpList	(i64, GreaterThanOrEqual)	),			// 0x59
 	M3OP( "i64.ge_u",			-1,	i_32,	d_binOpList	(u64, GreaterThanOrEqual)	),			// 0x5a
 
-	M3OP( "f32.eq",				-1,	i_32,	d_binOpList (f64, Equal)				),			// 0x5b
-	M3OP( "f32.ne",				-1,	i_32,	d_binOpList (f64, NotEqual) 			),			// 0x5c
-	M3OP( "f32.lt",				-1,	i_32,	d_binOpList (f64, LessThan)				),			// 0x5d
-	M3OP( "f32.gt",				-1,	i_32,	d_binOpList (f64, GreaterThan)			),			// 0x5e
+	M3OP( "f32.eq",				-1,	i_32,	d_binOpList (f32, Equal)				),			// 0x5b
+	M3OP( "f32.ne",				-1,	i_32,	d_binOpList (f32, NotEqual) 			),			// 0x5c
+	M3OP( "f32.lt",				-1,	i_32,	d_binOpList (f32, LessThan)				),			// 0x5d
+	M3OP( "f32.gt",				-1,	i_32,	d_binOpList (f32, GreaterThan)			),			// 0x5e
 	M3OP( "f32.le",				-1,	i_32,	d_binOpList (f32, LessThanOrEqual)		),			// 0x5f
 	M3OP( "f32.ge",				-1,	i_32,	d_binOpList (f32, GreaterThanOrEqual)	),			// 0x60
 
