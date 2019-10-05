@@ -17,6 +17,9 @@ from pprint import pprint
 # Utilities
 #
 
+log = open("spec-test.log","w+")
+log.write("======================\n")
+
 class ansi:
     ENDC = '\033[0m'
     HEADER = '\033[94m'
@@ -42,6 +45,7 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 def warning(msg):
+    log.write("Warning: " + msg + "\n")
     print(f"{ansi.WARNING}Warning:{ansi.ENDC} {msg}")
 
 def run(cmd):
@@ -187,12 +191,15 @@ def runInvoke(test):
             print(f"Log:")
             print(output)
 
+    log.write(f"{test.source}\t|\t{filename(cmd[1])} {cmd[2]}({', '.join(cmd[3:])})\t=>\t\t")
     if actual == expect:
         stats.success += 1
+        log.write(f"OK: {actual}\n")
         if args.test:
             showTestResult()
     else:
         stats.failed += 1
+        log.write(f"FAIL: {actual}, should be: {expect}\n")
         if args.silent: return
         if args.skip_crashes and actual == "<Crashed>": return
 
