@@ -198,9 +198,6 @@ d_m3Op_i (u32, GreaterThanOrEqual,			>=)		d_m3Op_i (u64, GreaterThanOrEqual,			>
 /* TODO: use
  * __builtin_add_overflow
  * __builtin_mul_overflow
- * __builtin_clz, __builtin_clzll
- * __builtin_ctz, __builtin_ctzll
- * __builtin_popcount, __builtin_popcountll
  * rint (nearest?)
  */
 
@@ -208,14 +205,6 @@ d_m3CommutativeOp_i (i32, Add,				+)		d_m3CommutativeOp_i (i64, Add,				+)
 d_m3CommutativeOp_i (i32, Multiply,			*)		d_m3CommutativeOp_i (i64, Multiply,			*)
 
 d_m3Op_i (i32, Subtract, 					-)		d_m3Op_i (i64, Subtract,					-)
-
-d_m3Op_i (i32, Remainder,					%)
-
-// TODO: trap division by zero
-d_m3Op_i (i32, Divide,						/)		d_m3Op_i (i64, Divide,						/)
-d_m3Op_i (u32, Divide,						/)		d_m3Op_i (u64, Divide,						/)
-
-d_m3OpDecl (i32_Remainder)
 
 d_m3Op_i (i32, ShiftLeft,					<<)		d_m3Op_i (i64, ShiftLeft,					<<)
 d_m3Op_i (i32, ShiftRight,					>>)		d_m3Op_i (i64, ShiftRight,					>>)
@@ -233,66 +222,33 @@ d_m3Op_f (f32, Multiply, 					*)		d_m3Op_f (f64, Multiply, 					*)
 
 
 
-
-#define d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC)	\
+#define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OPERATION) \
 d_m3Op(TYPE##_##NAME##_sr)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	m3ret_t r = FUNC (& REG, * stack, (TYPE) REG);		\
-	if (r) return r;									\
-	else return nextOp ();								\
+	OPERATION((RES), (* stack), ((TYPE) REG));			\
+	return nextOp ();									\
 }														\
 														\
-d_m3Op(TYPE##_##NAME##_ss)								\
+d_m3Op(TYPE##_##NAME##_ss) 								\
 { 														\
 	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
 	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
-	m3ret_t r = FUNC (& REG, * stackA, * stackB);		\
-	if (r) return r;									\
-	else return nextOp ();								\
+	OPERATION((RES), (* stackA), (* stackB));			\
+	return nextOp ();									\
 }
 
-#define d_m3FuncOp_(REG, TYPE, NAME, FUNC)				\
+#define d_m3OpMacro(RES, REG, TYPE, NAME, OPERATION)	\
 d_m3Op(TYPE##_##NAME##_rs)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	m3ret_t r = FUNC (& REG, * stack, (TYPE) REG);		\
-	if (r) return r;									\
-	else return nextOp ();								\
-}														\
-d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC)
-
-
-#define d_m3FuncOp_i(TYPE, NAME, FUNC)					d_m3FuncOp_ 	(_r0, TYPE, NAME, FUNC)
-
-
-#define d_m3CommutativeOpFunc(REG, TYPE, NAME, OPERATION) \
-d_m3RetSig op_##TYPE##_##NAME##_sr (d_m3OpSig)			\
-{ 														\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	REG = OPERATION(* stack, (TYPE) REG);				\
+	OPERATION((RES), (* stack), ((TYPE) REG));			\
 	return nextOp ();									\
 }														\
-														\
-d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
-{ 														\
-	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
-	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
-	REG = OPERATION(* stackA, * stackB);				\
-	return nextOp ();									\
-}
+d_m3CommutativeOpMacro(RES, REG, TYPE,NAME,OPERATION)
 
-#define d_m3OpFunc_(REG, TYPE, NAME, OPERATION)			\
-d_m3RetSig op_##TYPE##_##NAME##_rs (d_m3OpSig)			\
-{ 														\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	REG = OPERATION(* stack, (TYPE) REG);				\
-	return nextOp ();									\
-}														\
-d_m3CommutativeOpFunc(REG, TYPE,NAME,OPERATION)
-
-#define d_m3CommutativeOpFunc_i(TYPE, NAME, OP) 	d_m3CommutativeOpFunc	(_r0, TYPE, NAME, OP)
-#define d_m3OpFunc_i(TYPE, NAME, OP)				d_m3OpFunc_				(_r0, TYPE, NAME, OP)
+#define d_m3CommutativeOpMacro_i(TYPE, NAME, OP) 	d_m3CommutativeOpMacro	(_r0, _r0, TYPE, NAME, OP)
+#define d_m3OpMacro_i(TYPE, NAME, OP)				d_m3OpMacro				(_r0, _r0, TYPE, NAME, OP)
 
 // Based on: http://stackoverflow.com/a/776523/471795
 static inline
@@ -327,34 +283,66 @@ u64 rotr64(u64 n, unsigned c) {
   return (n>>c) | (n<<( (-c)&mask ));
 }
 
+#define OP_ROTL_32(RES, A, B) RES = rotl32(A, B)
+#define OP_ROTR_32(RES, A, B) RES = rotr32(A, B)
+#define OP_ROTL_64(RES, A, B) RES = rotl64(A, B)
+#define OP_ROTR_64(RES, A, B) RES = rotr64(A, B)
 
-d_m3OpFunc_i(u32, Rotl, rotl32);
-d_m3OpFunc_i(u32, Rotr, rotr32);
-d_m3OpFunc_i(u64, Rotl, rotl64);
-d_m3OpFunc_i(u64, Rotr, rotr64);
+d_m3OpMacro_i(u32, Rotl, OP_ROTL_32);
+d_m3OpMacro_i(u32, Rotr, OP_ROTR_32);
+d_m3OpMacro_i(u64, Rotl, OP_ROTL_64);
+d_m3OpMacro_i(u64, Rotr, OP_ROTR_64);
 
+#define OP_DIV(RES, A, B) \
+	if (B == 0) return c_m3Err_trapDivisionByZero; \
+	RES = A / B;
 
-//inline
-m3ret_t Remainder_u32 (m3reg_t * o_result, u32 i_op1, u32 i_op2);
-//{
-//	if (i_op2 != 0)
-//	{
-//		//		// max negative divided by -1 overflows max positive
-//		//		if (op0 == 0x80000000 and _r0 == -1)
-//		//			_r0 = 0;
-//		//		else
-//		//			_r0 = op0 % _r0;
-//
-//		u32 result = i_op1 % i_op2;
-//
-//		* o_result = result;
-//
-//		return c_m3Err_none;
-//	}
-//	else return c_m3Err_trapRemainderByZero;
-//}
+#define OP_REM(RES, A, B) \
+	if (B == 0) return c_m3Err_trapRemainderByZero; \
+	RES = A % B;
 
-d_m3FuncOp_i (u32, Remainder, Remainder_u32);
+// 2's complement detection
+#if (INT_MIN != -INT_MAX)
+
+	#define OP_DIV_I32(RES, A, B) \
+		if (B == 0) return c_m3Err_trapDivisionByZero; \
+		if (B == -1 and A == INT_MIN) return c_m3Err_trapIntegerOverflow; \
+		RES = A / B;
+
+	#define OP_DIV_I64(RES, A, B) \
+		if (B == 0) return c_m3Err_trapDivisionByZero; \
+		if (B == -1 and A == LONG_MIN) return c_m3Err_trapIntegerOverflow; \
+		RES = A / B;
+
+	#define OP_REM_I32(RES, A, B) \
+		if (B == 0) return c_m3Err_trapRemainderByZero; \
+		if (B == -1 and A == INT_MIN) RES = 0; \
+		else RES = A % B;
+
+	#define OP_REM_I64(RES, A, B) \
+		if (B == 0) return c_m3Err_trapRemainderByZero; \
+		if (B == -1 and A == LONG_MIN) RES = 0; \
+		else RES = A % B;
+
+#else
+
+	#define OP_DIV_I32 OP_DIV
+	#define OP_DIV_I64 OP_DIV
+	#define OP_REM_I32 OP_REM
+	#define OP_REM_I64 OP_REM
+
+#endif
+
+d_m3OpMacro_i(u32, Divide, OP_DIV);
+d_m3OpMacro_i(i32, Divide, OP_DIV_I32);
+d_m3OpMacro_i(u64, Divide, OP_DIV);
+d_m3OpMacro_i(i64, Divide, OP_DIV_I64);
+
+d_m3OpMacro_i(u32, Remainder, OP_REM);
+d_m3OpMacro_i(i32, Remainder, OP_REM_I32);
+d_m3OpMacro_i(u64, Remainder, OP_REM);
+d_m3OpMacro_i(i64, Remainder, OP_REM_I64);
+
 
 
 

@@ -1356,9 +1356,9 @@ const M3OpInfo c_operations [] =
 	M3OP( "f64.le",				-1,	i_32,	d_binOpList (f64, LessThanOrEqual) 		),			// 0x65
 	M3OP( "f64.ge",				-1,	i_32,	d_binOpList (f64, GreaterThanOrEqual)	),			// 0x66
 
-	M3OP( "i32.clz",			0,	i_32,	d_unaryOpList (u32, Clz) ),			// 0x67
-	M3OP( "i32.ctz",			0,	i_32,	d_unaryOpList (u32, Ctz) ),			// 0x68
-	M3OP( "i32.popcnt",			0,	i_32,	d_unaryOpList (u32, Popcnt) ),			// 0x69
+	M3OP( "i32.clz",			0,	i_32,	d_unaryOpList (u32, Clz)				),			// 0x67
+	M3OP( "i32.ctz",			0,	i_32,	d_unaryOpList (u32, Ctz)				),			// 0x68
+	M3OP( "i32.popcnt",			0,	i_32,	d_unaryOpList (u32, Popcnt)				),			// 0x69
 
 	M3OP( "i32.add",			-1, i_32,	d_commutativeBinOpList (i32, Add)		),			// 0x6a
 	M3OP( "i32.sub",			-1, i_32,	d_binOpList	(i32, Subtract)				),			// 0x6b
@@ -1373,20 +1373,20 @@ const M3OpInfo c_operations [] =
 	M3OP( "i32.shl",			-1, i_32,	d_binOpList (i32, ShiftLeft)			),			// 0x74
 	M3OP( "i32.shr_s",			-1, i_32,	d_binOpList (i32, ShiftRight)			),			// 0x75
 	M3OP( "i32.shr_u",			-1, i_32,	d_binOpList (u32, ShiftRight)			),			// 0x76
-	M3OP( "i32.rotl",			-1, i_32,	d_binOpList (u32, Rotl) ),			// 0x77
-	M3OP( "i32.rotr",			-1, i_32,	d_binOpList (u32, Rotr) ),			// 0x78
+	M3OP( "i32.rotl",			-1, i_32,	d_binOpList (u32, Rotl)					),			// 0x77
+	M3OP( "i32.rotr",			-1, i_32,	d_binOpList (u32, Rotr)					),			// 0x78
 
-	M3OP( "i64.clz",			0,	i_32,	d_unaryOpList (u64, Clz) ),			// 0x79
-	M3OP( "i64.ctz",			0,	i_32,	d_unaryOpList (u64, Ctz) ),			// 0x7a
-	M3OP( "i64.popcnt",			0,	i_32,	d_unaryOpList (u64, Popcnt) 	),			// 0x7b
+	M3OP( "i64.clz",			0,	i_32,	d_unaryOpList (u64, Clz)				),			// 0x79
+	M3OP( "i64.ctz",			0,	i_32,	d_unaryOpList (u64, Ctz)				),			// 0x7a
+	M3OP( "i64.popcnt",			0,	i_32,	d_unaryOpList (u64, Popcnt)				),			// 0x7b
 
 	M3OP( "i64.add",			-1,	i_64,	d_commutativeBinOpList (i64, Add)		),			// 0x7c
 	M3OP( "i64.sub",			-1,	i_64,	d_binOpList (i64, Subtract)				),			// 0x7d
-	M3OP( "i64.mul",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x7e
-	M3OP( "i64.div_s",			-1,	i_64,	d_binOpList (i64, Divide) ),			// 0x7f
-	M3OP( "i64.div_u",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x80
-	M3OP( "i64.rem_s",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x81
-	M3OP( "i64.rem_u",			-1,	i_64,	NULL, 			NULL, NULL ),			// 0x82
+	M3OP( "i64.mul",			-1,	i_64,	d_commutativeBinOpList (i64, Multiply)	),			// 0x7e
+	M3OP( "i64.div_s",			-1,	i_64,	d_binOpList (i64, Divide)				),			// 0x7f
+	M3OP( "i64.div_u",			-1,	i_64,	d_binOpList (u64, Divide)				),			// 0x80
+	M3OP( "i64.rem_s",			-1,	i_64,	d_binOpList (i64, Remainder)			),			// 0x81
+	M3OP( "i64.rem_u",			-1,	i_64,	d_binOpList (u64, Remainder)			),			// 0x82
 	M3OP( "i64.and",			-1,	i_64,	d_commutativeBinOpList (u64, And)		),			// 0x83
 	M3OP( "i64.or",				-1,	i_64,	d_commutativeBinOpList (u64, Or)		),			// 0x84
 	M3OP( "i64.xor",			-1,	i_64,	d_commutativeBinOpList (u64, Xor)		),			// 0x85
