@@ -72,7 +72,7 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 	char name [100];
 	strcpy (name, strstr (i_opcode, "op_") + 3);
 	* strstr (name, "(") = 0;
-	
+
 	printf ("%s\n", name);
 	return Op (d_m3OpAllArgs);
 }
@@ -91,7 +91,7 @@ void  ProfileHit  (cstr_t i_operationName);
 d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
 	ProfileHit (i_operationName);
-	
+
 	return Op (_pc, d_m3OpArgs);
 }
 
@@ -266,6 +266,74 @@ d_m3CommutativeFuncOp(REG, TYPE, NAME, FUNC)
 #define d_m3FuncOp_i(TYPE, NAME, FUNC)					d_m3FuncOp_ 	(_r0, TYPE, NAME, FUNC)
 
 
+#define d_m3CommutativeOpFunc(REG, TYPE, NAME, OPERATION) \
+d_m3RetSig op_##TYPE##_##NAME##_sr (d_m3OpSig)			\
+{ 														\
+	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
+	REG = OPERATION(* stack, (TYPE) REG);				\
+	return nextOp ();									\
+}														\
+														\
+d_m3RetSig op_##TYPE##_##NAME##_ss(d_m3OpSig) 			\
+{ 														\
+	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
+	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
+	REG = OPERATION(* stackA, * stackB);				\
+	return nextOp ();									\
+}
+
+#define d_m3OpFunc_(REG, TYPE, NAME, OPERATION)			\
+d_m3RetSig op_##TYPE##_##NAME##_rs (d_m3OpSig)			\
+{ 														\
+	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
+	REG = OPERATION(* stack, (TYPE) REG);				\
+	return nextOp ();									\
+}														\
+d_m3CommutativeOpFunc(REG, TYPE,NAME,OPERATION)
+
+#define d_m3CommutativeOpFunc_i(TYPE, NAME, OP) 	d_m3CommutativeOpFunc	(_r0, TYPE, NAME, OP)
+#define d_m3OpFunc_i(TYPE, NAME, OP)				d_m3OpFunc_				(_r0, TYPE, NAME, OP)
+
+// Based on: http://stackoverflow.com/a/776523/471795
+static inline
+u32 rotl32(u32 n, unsigned c) {
+  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
+  c = c % 32;
+  c &= mask;
+  return (n<<c) | (n>>( (-c)&mask ));
+}
+
+static inline
+u32 rotr32(u32 n, unsigned c) {
+  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
+  c = c % 32;
+  c &= mask;
+  return (n>>c) | (n<<( (-c)&mask ));
+}
+
+static inline
+u64 rotl64(u64 n, unsigned c) {
+  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
+  c = c % 64;
+  c &= mask;
+  return (n<<c) | (n>>( (-c)&mask ));
+}
+
+static inline
+u64 rotr64(u64 n, unsigned c) {
+  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
+  c = c % 64;
+  c &= mask;
+  return (n>>c) | (n<<( (-c)&mask ));
+}
+
+
+d_m3OpFunc_i(u32, Rotl, rotl32);
+d_m3OpFunc_i(u32, Rotr, rotr32);
+d_m3OpFunc_i(u64, Rotl, rotl64);
+d_m3OpFunc_i(u64, Rotr, rotr64);
+
+
 //inline
 m3ret_t Remainder_u32 (m3reg_t * o_result, u32 i_op1, u32 i_op2);
 //{
@@ -349,19 +417,35 @@ d_m3UnaryOp2 (f32, Sqrt, sqrtf);			d_m3UnaryOp2 (f64, Sqrt, sqrt);
 #define d_m3UnaryOp_i(TYPE, NAME, OPERATION)		\
 d_m3Op(TYPE##_##NAME##_r)							\
 { 													\
-	_r0 = (TYPE) _r0 OPERATION;						\
+	_r0 = OPERATION ((TYPE) _r0);					\
 	return nextOp ();								\
 } 													\
 d_m3Op(TYPE##_##NAME##_s)							\
 { 													\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));\
-	_r0 = * stack OPERATION;						\
+	_r0 = OPERATION (* stack);						\
 	return nextOp ();								\
 }
 
+#define OP_EQZ(x) ((x) == 0)
 
-d_m3UnaryOp_i (i32, EqualToZero, == 0)
-d_m3UnaryOp_i (i64, EqualToZero, == 0)
+// clz, ctz result is undefined for 0, so we fix it
+#define OP_CLZ_32(x) (((x) == 0) ? 32 : __builtin_clz(x))
+#define OP_CTZ_32(x) (((x) == 0) ? 32 : __builtin_ctz(x))
+#define OP_CLZ_64(x) (((x) == 0) ? 64 : __builtin_clzll(x))
+#define OP_CTZ_64(x) (((x) == 0) ? 64 : __builtin_ctzll(x))
+
+d_m3UnaryOp_i (i32, EqualToZero, OP_EQZ)
+d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
+
+d_m3UnaryOp_i (u32, Clz, OP_CLZ_32)
+d_m3UnaryOp_i (u64, Clz, OP_CLZ_64)
+
+d_m3UnaryOp_i (u32, Ctz, OP_CTZ_32)
+d_m3UnaryOp_i (u64, Ctz, OP_CTZ_64)
+
+d_m3UnaryOp_i (u32, Popcnt, __builtin_popcount)
+d_m3UnaryOp_i (u64, Popcnt, __builtin_popcountll)
 
 
 #define d_m3IntToFpConvertOp(TO, NAME, FROM)				\
@@ -447,7 +531,7 @@ static inline bool IsValid_i32 (f64 i_value)
 		if (i_value >= INT32_MIN and i_value <= INT32_MAX)
 			return true;
 	}
-	
+
 	return false;
 }
 
@@ -470,7 +554,7 @@ d_m3OpDecl 	(If_s)
 d_m3Op  (Select_i_ssr)
 {
  	i32 condition = (i32) _r0;
-	
+
 	i64 operand2 = * (_sp + immediate (i32));
 	i64 operand1 = * (_sp + immediate (i32));
 
@@ -482,12 +566,12 @@ d_m3Op  (Select_i_ssr)
 d_m3Op  (Select_i_srs)
 {
 	i32 condition = (i32) * (_sp + immediate (i32));
-	
+
 	i64 operand2 = _r0;
 	i64 operand1 = * (_sp + immediate (i32));
-	
+
 	_r0 = (condition) ? operand1 : operand2;
-	
+
 	return nextOp ();
 }
 
@@ -495,12 +579,12 @@ d_m3Op  (Select_i_srs)
 d_m3Op  (Select_i_rss)
 {
 	i32 condition = (i32) * (_sp + immediate (i32));
-	
+
 	i64 operand2 = * (_sp + immediate (i32));
 	i64 operand1 = _r0;
-	
+
 	_r0 = (condition) ? operand1 : operand2;
-	
+
 	return nextOp ();
 }
 
@@ -508,12 +592,12 @@ d_m3Op  (Select_i_rss)
 d_m3Op  (Select_i_sss)
 {
 	i32 condition = (i32) * (_sp + immediate (i32));
-	
+
 	i64 operand2 = * (_sp + immediate (i32));
 	i64 operand1 = * (_sp + immediate (i32));
 
 	_r0 = (condition) ? operand1 : operand2;
-	
+
 	return nextOp ();
 }
 
@@ -521,10 +605,10 @@ d_m3Op  (Select_i_sss)
 d_m3Op  (Select_f)
 {
 	i32 condition = (i32) _r0;
-	
+
 	f64 operand2 = * (f64 *) (_sp + immediate (i32));
 	f64 operand1 = * (f64 *) (_sp + immediate (i32));
-	
+
 	_fp0 = (condition) ? operand1 : operand2;
 
 	return nextOp ();
@@ -566,9 +650,9 @@ d_m3Op  (BranchTable)
 {
 	i32 index		= (i32) _r0;
 	u32 numTargets	= immediate (u32);
-	
+
 	pc_t * branches = (pc_t *) _pc;
-	
+
 	if (index < 0 or index > numTargets)
 		index = numTargets;	// the default index
 
@@ -580,7 +664,7 @@ d_m3Op  (ContinueLoop)
 {
 	// TODO: this is where execution can "escape" the M3 code and callback to the client / fiber switch
 	// OR it can go in the Loop operation
-	
+
 	void * loopId = immediate (void *);
 	return loopId;
 }
@@ -590,7 +674,7 @@ d_m3Op  (ContinueLoopIf)
 {
 	i32 condition = (i32) _r0;
 	void * loopId = immediate (void *);
-	
+
 	if (condition)
 	{
 		return loopId;
@@ -611,7 +695,7 @@ d_m3Op  (Const)
 	u64 constant = immediate (u64);
 	i32 offset = immediate (i32);
 	* (_sp + offset) = constant;
-	
+
 	return nextOp ();
 }
 
@@ -624,12 +708,12 @@ d_m3OpDecl  (End)
 d_m3Op  (GetGlobal)
 {
 	i64 * global = immediate (i64 *);
-	
+
 //	printf ("get global: %p %lld\n", global, *global);
-	
+
 	i32 offset 	= immediate (i32);
 	* (_sp + offset) = * global;
-	
+
 	return nextOp ();
 }
 
@@ -648,7 +732,7 @@ d_m3Op  (SetGlobal_i)
 {
 	i64 * global = immediate (i64 *);
 	* global = _r0;
-	
+
 //	printf ("set global: %p %lld\n", global, _r0);
 
 	return nextOp ();
@@ -659,7 +743,7 @@ d_m3Op  (SetGlobal_f)
 {
 	f64 * global = immediate (f64 *);
 	* global = _fp0;
-	
+
 	return nextOp ();
 }
 
@@ -670,7 +754,7 @@ d_m3Op (CopySlot)
 	u64 * src = _sp + immediate (i32);
 
 	* dst = * src;					// printf ("copy: %p <- %lld <- %p\n", dst, * dst, src);
-	
+
 	return nextOp ();
 }
 
@@ -683,7 +767,7 @@ d_m3Op (PreserveCopySlot)
 
 	* preserve = * dest;
 	* dest = * src;
-	
+
 	return nextOp ();
 }
 
@@ -691,10 +775,10 @@ d_m3Op (PreserveCopySlot)
 d_m3Op  (SetRegister_i)
 {
 	i32 offset = immediate (i32);
-	
+
 	u64 * stack = _sp + offset;
 	_r0 = * stack;
-	
+
 	return nextOp ();
 }
 
@@ -703,7 +787,7 @@ d_m3Op  (SwapRegister_i)
 {
 	slot (u64) = _r0;
 	_r0 = slot (u64);
-	
+
 	return nextOp ();
 }
 
@@ -711,10 +795,10 @@ d_m3Op  (SwapRegister_i)
 d_m3Op  (SetRegister_f)
 {
 	i32 offset = immediate (i32);
-	
+
 	f64 * stack = (f64 *) _sp + offset;
 	_fp0 = * stack;
-	
+
 	return nextOp ();
 }
 
@@ -722,12 +806,12 @@ d_m3Op  (SetRegister_f)
 d_m3Op (SetSlot_i)
 {
 	i32 offset = immediate (i32);
-	
+
 //	printf ("setslot_i %d\n", offset);
-	
+
 	u64 * stack = _sp + offset;
 	* stack = _r0;
-	
+
 	return nextOp ();
 }
 
@@ -738,7 +822,7 @@ d_m3Op (PreserveSetSlot_i)
 	u64 * preserve = (u64 *) _sp + immediate (i32);
 	* preserve = * stack;
 	* stack = _r0;
-	
+
 	return nextOp ();
 }
 
@@ -748,7 +832,7 @@ d_m3Op (SetSlot_f)
 	i32 offset = immediate (i32);
 	f64 * stack = (f64 *) _sp + offset;
 	* stack = _fp0;
-	
+
 	return nextOp ();
 }
 
