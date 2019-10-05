@@ -415,17 +415,24 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv
 			_throw("arguments count missmatch");
 		}
 
-		// The format is currently not user-friendly,
-		// but it's used in spec tests
+		// The format is currently not user-friendly by default,
+		// as this is used in spec tests
 		for (int i = 0; i < ftype->numArgs; ++i)
 		{
 			m3stack_t s = &stack[i];
 			ccstr_t str = i_argv[i];
 			switch (ftype->argTypes[i]) {
+#ifdef USE_HUMAN_FRIENDLY_ARGS
+			case c_m3Type_i32:  *(i32*)(s) = atol(str);  break;
+			case c_m3Type_i64:  *(i64*)(s) = atoll(str); break;
+			case c_m3Type_f32:  *(f32*)(s) = atof(str);  break;
+			case c_m3Type_f64:  *(f64*)(s) = atof(str);  break;
+#else
 			case c_m3Type_i32:  *(u32*)(s) = strtoul(str, NULL, 10);  break;
 			case c_m3Type_i64:  *(u64*)(s) = strtoull(str, NULL, 10); break;
 			case c_m3Type_f32:  *(u32*)(s) = strtoul(str, NULL, 10);  break;
 			case c_m3Type_f64:  *(u64*)(s) = strtoull(str, NULL, 10); break;
+#endif
 			default: _throw("unknown argument type");
 			}
 		}
@@ -434,10 +441,17 @@ _		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 
 		switch (ftype->returnType) {
 		case c_m3Type_none: break;
+#ifdef USE_HUMAN_FRIENDLY_ARGS
+		case c_m3Type_i32:  printf("Result: %ld\n",  *(i32*)(stack));  break;
+		case c_m3Type_i64:  printf("Result: %lld\n", *(i64*)(stack));  break;
+		case c_m3Type_f32:  printf("Result: %f\n",   *(f32*)(stack));  break;
+		case c_m3Type_f64:  printf("Result: %lf\n",  *(f64*)(stack));  break;
+#else
 		case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
 		case c_m3Type_i64:  printf("Result: %lu\n", *(u64*)(stack));  break;
 		case c_m3Type_f32:  printf("Result: %u\n",  *(u32*)(stack));  break;
 		case c_m3Type_f64:  printf("Result: %lu\n", *(u64*)(stack));  break;
+#endif
 		default: _throw("unknown return type");
 		}
 
