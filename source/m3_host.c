@@ -14,8 +14,11 @@
 
 #include <stdio.h>
 #include <assert.h>
+
+#ifndef WIN32
 #include <unistd.h>
 #include <sys/ioctl.h>
+#endif
 
 void m3_printf (cstr_t i_format, const void * i_varArgs)
 {
@@ -248,7 +251,9 @@ _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(
 
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_write",				"i(i*i)",	(void *) m3_write)));
 
+#ifndef WIN32
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_ioctl",				"i(ii*)",	(void *) ioctl)));
+#endif
 
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_exit",				"Tv(i)",	(void *) m3_exit)));
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_perror",				"v(*)",		(void *) perror)));
