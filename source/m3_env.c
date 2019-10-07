@@ -449,7 +449,7 @@ _		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 #else
 		case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
 		case c_m3Type_i64:  printf("Result: %lu\n", *(u64*)(stack));  break;
-		case c_m3Type_f32:  printf("Result: %u\n",  *(u32*)(stack));  break;
+		case c_m3Type_f32:  { f32 val = *(f64*)(stack); printf("Result: %u\n", *(u32*)&val ); }  break;
 		case c_m3Type_f64:  printf("Result: %lu\n", *(u64*)(stack));  break;
 #endif
 		default: _throw("unknown return type");

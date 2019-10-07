@@ -78,9 +78,9 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
 	if 		(i_type == c_m3Type_i32)
 		len = snprintf (o_string, i_n, "%d", * (i32 *) i_sp);
 	else if (i_type == c_m3Type_i64)
-		len = snprintf (o_string, i_n, "%lld", * i_sp);
+		len = snprintf (o_string, i_n, "%ld", * i_sp);
 	else if (i_type == c_m3Type_f32)
-		len = snprintf (o_string, i_n, "%f",  * (f32 *) i_sp);
+		len = snprintf (o_string, i_n, "%f",  * (f64 *) i_sp); // f32 value in 64-bit register
 	else if (i_type == c_m3Type_f64)
 		len = snprintf (o_string, i_n, "%lf", * (f64 *) i_sp);
 	
