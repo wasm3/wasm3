@@ -194,12 +194,7 @@ d_m3Op_i (u32, GreaterThanOrEqual,			>=)		d_m3Op_i (u64, GreaterThanOrEqual,			>
 
 // are these supposed to trap? sounds like it
 // "Signed and unsigned operators trap whenever the result cannot be represented in the result type."
-
-/* TODO: use
- * __builtin_add_overflow
- * __builtin_mul_overflow
- * rint (nearest?)
- */
+// Maybe we can use __builtin_add_overflow, __builtin_mul_overflow here?
 
 d_m3CommutativeOp_i (i32, Add,				+)		d_m3CommutativeOp_i (i64, Add,				+)
 d_m3CommutativeOp_i (i32, Multiply,			*)		d_m3CommutativeOp_i (i64, Multiply,			*)
@@ -217,7 +212,7 @@ d_m3CommutativeOp_i (u64, Xor,				^)
 d_m3Op_f (f32, Add, 						+)		d_m3Op_f (f64, Add, 						+)
 d_m3Op_f (f32, Subtract,				 	-)		d_m3Op_f (f64, Subtract,	 				-)
 d_m3Op_f (f32, Multiply, 					*)		d_m3Op_f (f64, Multiply, 					*)
-
+d_m3Op_f (f32, Divide, 						/)		d_m3Op_f (f64, Divide, 						/)
 
 
 
@@ -249,6 +244,8 @@ d_m3CommutativeOpMacro(RES, REG, TYPE,NAME,OPERATION)
 
 #define d_m3CommutativeOpMacro_i(TYPE, NAME, OP) 	d_m3CommutativeOpMacro	(_r0, _r0, TYPE, NAME, OP)
 #define d_m3OpMacro_i(TYPE, NAME, OP)				d_m3OpMacro				(_r0, _r0, TYPE, NAME, OP)
+#define d_m3CommutativeOpMacro_f(TYPE, NAME, OP) 	d_m3CommutativeOpMacro	(_fp0, _fp0, TYPE, NAME, OP)
+#define d_m3OpMacro_f(TYPE, NAME, OP)				d_m3OpMacro				(_fp0, _fp0, TYPE, NAME, OP)
 
 // Based on: http://stackoverflow.com/a/776523/471795
 static inline
@@ -344,61 +341,97 @@ d_m3OpMacro_i(u64, Remainder, OP_REM);
 d_m3OpMacro_i(i64, Remainder, OP_REM_I64);
 
 
-
-
-/*
-#define d_m3Op_Divide_f(TYPE, NAME, OPERATION)			\
-d_m3Op(TYPE##_##NAME)									\
-{ 														\
-	if (_fp0 != 0.)										\
-	{													\
-		f64 op0 = * ((f64 *) --_sp);					\
-		_fp0 = (TYPE) op0 OPERATION (TYPE) _fp0;		\
-		return nextOp ();								\
-	}													\
-	else return c_m3Trap_divisionByZero;				\
+// Min, Max
+static inline
+f32 min_f32(f32 a, f32 b) {
+	if (isnan(a)) return a;
+	if (isnan(b)) return b;
+    f32 c = fminf(a, b);
+    if (c==0 and a==b) { return signbit(a) ? a : b; }
+    return c;
 }
 
-d_m3Op_Divide_f (f32, Divide, 				/)
-d_m3Op_Divide_f (f64, Divide, 				/)
-*/
-
-d_m3Op_f (f32, Divide, 			/)
-d_m3Op_f (f64, Divide, 			/)
-
-
-#define d_m3BinaryOp2(TYPE, NAME, OPERATION) \
-d_m3Op(TYPE##_##NAME)					\
-{ 										\
-	TYPE op1 = * ((TYPE *) --_sp);		\
-	TYPE * op0 = (TYPE *) (_sp - 1);	\
-	* op0 = OPERATION (*op0, op1);		\
-abort ();\
-	return nextOp ();					\
+static inline
+f32 max_f32(f32 a, f32 b) {
+	if (isnan(a)) return a;
+	if (isnan(b)) return b;
+    f32 c = fmaxf(a, b);
+    if (c==0 and a==b) { return signbit(a) ? b : a; }
+    return c;
 }
 
-static inline f32 min32 (f32 a, f32 b) { return a < b ? a : b; }	d_m3BinaryOp2 (f32, Min, min32);
-static inline f64 min64 (f64 a, f64 b) { return a < b ? a : b; }	d_m3BinaryOp2 (f64, Min, min64);
-static inline f32 max32 (f32 a, f32 b) { return a > b ? a : b; }	d_m3BinaryOp2 (f32, Max, max32);
-static inline f64 max64 (f64 a, f64 b) { return a > b ? a : b; }	d_m3BinaryOp2 (f64, Max, max64);
+static inline
+f64 min_f64(f64 a, f64 b) {
+	if (isnan(a)) return a;
+	if (isnan(b)) return b;
+    f64 c = fmin(a, b);
+    if (c==0 and a==b) { return signbit(a) ? a : b; }
+    return c;
+}
 
-d_m3BinaryOp2 (f32, CopySign, copysignf);	d_m3BinaryOp2 (f64, CopySign, copysign);
+static inline
+f64 max_f64(f64 a, f64 b) {
+	if (isnan(a)) return a;
+	if (isnan(b)) return b;
+    f64 c = fmax(a, b);
+    if (c==0 and a==b) { return signbit(a) ? b : a; }
+    return c;
+}
+
+static inline
+f32 nearest_f32(f32 a) {
+	if (a > 0.f and a <= 0.5f) return 0.f;
+	if (a < 0.f and a >= -0.5f) return -0.f;
+    return rintf(a);
+}
+
+static inline
+f64 nearest_f64(f64 a) {
+	if (a > 0.0 and a <= 0.5) return 0.0;
+	if (a < 0.0 and a >= -0.5) return -0.0;
+    return rint(a);
+}
+
+#define OP_MIN_F32(RES, A, B) RES = min_f32(A, B)
+#define OP_MAX_F32(RES, A, B) RES = max_f32(A, B)
+#define OP_MIN_F64(RES, A, B) RES = min_f64(A, B)
+#define OP_MAX_F64(RES, A, B) RES = max_f64(A, B)
+
+#define OP_COPYSIGN_F32(RES, A, B) RES = copysignf(A, B)
+#define OP_COPYSIGN_F64(RES, A, B) RES = copysign(A, B)
 
 
-#define d_m3UnaryOp2(TYPE, NAME, OPERATION)	\
-d_m3Op(TYPE##_##NAME)						\
-{ 											\
-	TYPE * op = (TYPE *) (_sp - 1);			\
-	* op = OPERATION (* op);				\
-	return nextOp ();						\
+d_m3OpMacro_f(f32, Min, OP_MIN_F32);
+d_m3OpMacro_f(f32, Max, OP_MAX_F32);
+d_m3OpMacro_f(f64, Min, OP_MIN_F64);
+d_m3OpMacro_f(f64, Max, OP_MAX_F64);
+
+d_m3OpMacro_f(f32, CopySign, OP_COPYSIGN_F32);
+d_m3OpMacro_f(f64, CopySign, OP_COPYSIGN_F64);
+
+
+
+#define d_m3UnaryOp_f(TYPE, NAME, OPERATION)			\
+d_m3Op(TYPE##_##NAME##_r)							\
+{ 													\
+	_fp0 = OPERATION ((TYPE) _fp0);					\
+	return nextOp ();								\
+} 													\
+d_m3Op(TYPE##_##NAME##_s)							\
+{ 													\
+	TYPE * stack = (TYPE *) (_sp + immediate (i32));\
+	_fp0 = OPERATION (* stack);						\
+	return nextOp ();								\
 }
 
 
-d_m3UnaryOp2 (f32, Abs, fabsf);				d_m3UnaryOp2 (f64, Abs, fabs);
-d_m3UnaryOp2 (f32, Ceil, ceilf);			d_m3UnaryOp2 (f64, Ceil, ceil);
-d_m3UnaryOp2 (f32, Floor, floorf);			d_m3UnaryOp2 (f64, Floor, floor);
-d_m3UnaryOp2 (f32, Trunc, truncf);			d_m3UnaryOp2 (f64, Trunc, trunc);
-d_m3UnaryOp2 (f32, Sqrt, sqrtf);			d_m3UnaryOp2 (f64, Sqrt, sqrt);
+d_m3UnaryOp_f (f32, Abs, fabsf);			d_m3UnaryOp_f (f64, Abs, fabs);
+d_m3UnaryOp_f (f32, Ceil, ceilf);			d_m3UnaryOp_f (f64, Ceil, ceil);
+d_m3UnaryOp_f (f32, Floor, floorf);			d_m3UnaryOp_f (f64, Floor, floor);
+d_m3UnaryOp_f (f32, Trunc, truncf);			d_m3UnaryOp_f (f64, Trunc, trunc);
+d_m3UnaryOp_f (f32, Sqrt, sqrtf);			d_m3UnaryOp_f (f64, Sqrt, sqrt);
+d_m3UnaryOp_f (f32, Nearest, nearest_f32);	d_m3UnaryOp_f (f64, Nearest, nearest_f64);
+d_m3UnaryOp_f (f32, Negate, -);				d_m3UnaryOp_f (f64, Negate, -);
 
 
 // "unary"
