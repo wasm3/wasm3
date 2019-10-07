@@ -14,6 +14,26 @@ import math
 from pprint import pprint
 
 #
+# Args handling
+#
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--test", metavar="<source:line>")
+parser.add_argument("--all", action="store_true")
+parser.add_argument("--show-logs", action="store_true")
+parser.add_argument("--skip-crashes", action="store_true")
+parser.add_argument("--format", choices=["raw", "hex", "fp"], default="raw")
+parser.add_argument("-v", "--verbose", action="store_true")
+parser.add_argument("-s", "--silent", action="store_true")
+parser.add_argument("file", nargs='*')
+
+args = parser.parse_args()
+
+if args.test:
+    args.show_logs = True
+
+#
 # Utilities
 #
 
@@ -57,11 +77,47 @@ def filename(p):
 
 def binaryToFloat(num, t):
     if t == "f32":
-        return struct.unpack('!f', struct.pack('!L', num))[0]
+        return struct.unpack('!f', struct.pack('!L', int(num)))[0]
     elif t == "f64":
-        return struct.unpack('!d', struct.pack('!Q', num))[0]
+        return struct.unpack('!d', struct.pack('!Q', int(num)))[0]
     else:
         raise(Exception(f"Unknown type: {t}"))
+
+#
+# Value format options
+#
+
+def formatValueRaw(num, t):
+    return str(num)
+
+def formatValueHex(num, t):
+    if t == "f32":
+        return "{0:#0{1}x}".format(int(num), 8+2)
+    elif t == "f64":
+        return "{0:#0{1}x}".format(int(num), 16+2)
+    else:
+        return str(num)
+
+def formatValueFloat(num, t):
+    if t == "f32":
+        s = 6
+    elif t == "f64":
+        s = 10
+    else:
+        return str(num)
+
+    result = "{0:.{1}f}".format(binaryToFloat(num, t), s).rstrip('0')
+    if result.endswith('.'): result = result + '0'
+    if len(result) > s*2:
+        result = "{0:.{1}e}".format(binaryToFloat(num, t), s)
+    return result
+
+formaters = {
+    'raw': formatValueRaw,
+    'hex': formatValueHex,
+    'fp':  formatValueFloat,
+}
+formatValue = formaters[args.format]
 
 #
 # Spec tests preparation
@@ -102,28 +158,18 @@ curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 coreDir = os.path.join(curDir, "core")
 specDir = "core/spec/"
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
-parser.add_argument("--test", metavar="<source:line>")
-parser.add_argument("--show-logs", action="store_true")
-parser.add_argument("--skip-crashes", action="store_true")
-parser.add_argument("-v", "--verbose", action="store_true")
-parser.add_argument("-s", "--silent", action="store_true")
-parser.add_argument("file", nargs='*')
 
-args = parser.parse_args()
-#sys.argv = sys.argv[:1]
-
-if args.test:
-    args.show_logs = True
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, success=0, missing=0)
 
 def runInvoke(test):
     wasm = os.path.relpath(os.path.join(coreDir, test.module), curDir)
     cmd = [args.exec, wasm, test.action.field]
+
+    displayArgs = []
     for arg in test.action.args:
         cmd.append(arg['value'])
+        displayArgs.append(formatValue(arg['value'], arg['type']))
 
     if args.verbose:
         print(f"Running {' '.join(cmd)}")
@@ -164,14 +210,20 @@ def runInvoke(test):
         if len(test.expected) == 0:
             expect = "result <Empty Stack>"
         elif len(test.expected) == 1:
+            t = test.expected[0]['type']
             value = str(test.expected[0]['value'])
             expect = "result " + value
-            if (value == "<Canonical NaN>" or value == "<Arithmetic NaN>") and actual_val:
-                val = binaryToFloat(int(actual_val), test.expected[0]['type'])
-                #warning(f"{actual_val} => {val}")
-                if math.isnan(val):
-                    actual = "<Some NaN>"
-                    expect = "<Some NaN>"
+
+            if actual_val != None and (t == "f32" or t == "f64"):
+                if (value == "<Canonical NaN>" or value == "<Arithmetic NaN>"):
+                    val = binaryToFloat(actual_val, t)
+                    #warning(f"{actual_val} => {val}")
+                    if math.isnan(val):
+                        actual = "<Some NaN>"
+                        expect = "<Some NaN>"
+                else:
+                    expect = "result " + formatValue(value, t)
+                    actual = "result " + formatValue(actual_val, t)
 
         else:
             warning(f"Test {test.source} specifies multiple results")
@@ -184,6 +236,7 @@ def runInvoke(test):
     def showTestResult():
         print(" ----------------------")
         print(f"Test:     {ansi.HEADER}{test.source}{ansi.ENDC} -> {' '.join(cmd)}")
+        print(f"Args:     {', '.join(displayArgs)}")
         #print(f"RetCode:  {wasm3.returncode}")
         print(f"Expected: {ansi.OKGREEN}{expect}{ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
@@ -191,7 +244,7 @@ def runInvoke(test):
             print(f"Log:")
             print(output)
 
-    log.write(f"{test.source}\t|\t{filename(cmd[1])} {cmd[2]}({', '.join(cmd[3:])})\t=>\t\t")
+    log.write(f"{test.source}\t|\t{filename(wasm)} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
     if actual == expect:
         stats.success += 1
         log.write(f"OK: {actual}\n")
@@ -211,8 +264,33 @@ if not os.path.isdir(coreDir):
         specTestsFetch()
     specTestsPreprocess()
 
-jsonFiles = args.file if args.file else glob.glob(os.path.join(coreDir, "*.json"))
-jsonFiles.sort()
+# Currently default to running the predefined list of tests
+# TODO: Switch to running all tests when wasm spec is implemented
+
+if args.file:
+    jsonFiles = args.file
+elif args.all:
+    jsonFiles = glob.glob(os.path.join(coreDir, "*.json"))
+    jsonFiles.sort()
+else:
+    jsonFiles = list(map(lambda x : f"./core/{x}.json", [
+        #--- Complete ---
+        "i32", "i64", "stack", "fac",
+        "f32_cmp", "f64_cmp",
+        "f32", "f64",
+        "float_misc",
+        #--- In progress ---
+        #"int_literals",
+        #"int_exprs",
+        #"float_literals",
+        #"float_exprs",
+        #"if",
+        #"elem",
+        #"switch",
+        #"call",
+        #"get_local",
+        #"tee_local",
+    ]))
 
 for fn in jsonFiles:
     with open(fn) as f:
@@ -226,6 +304,8 @@ for fn in jsonFiles:
         stats.skipped += count
         warning(f"Skipped {wast_source} ({count} tests)")
         continue
+
+    print(f"Running {fn}")
 
     for cmd in data["commands"]:
         test = dotdict()
@@ -280,7 +360,7 @@ for fn in jsonFiles:
                 test.type == "assert_uninstantiable"):
             stats.skipped += 1
         else:
-            raise(Exception(f"Unknown command: {test}."))
+            raise(Exception(f"Unknown command: {test}"))
 
 if (stats.failed + stats.success) != stats.total_run:
     warning("Statistics summary invalid")
