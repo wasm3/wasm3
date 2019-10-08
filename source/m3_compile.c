@@ -1203,6 +1203,7 @@ _			(PreserveRegisterIfOccupied (o, op->type));
 
 	if (operation)
 	{
+		// TODO: Skip Nops?
 		//if (operation == op_Nop) return result;
 
 _		(EmitOp (o, operation));
