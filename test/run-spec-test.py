@@ -277,6 +277,7 @@ else:
         #--- Complete ---
         "i32", "i64", "stack", "fac",
         "f32_cmp", "f64_cmp",
+        "f32_bitwise", "f64_bitwise",
         "f32", "f64",
         "float_misc",
         #--- In progress ---
