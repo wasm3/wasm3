@@ -14,6 +14,7 @@
 // code is at debug O0
 
 #include "m3_exec_defs.h"
+#include "m3_math_utils.h"
 
 #include <math.h>
 #include <limits.h>
@@ -101,95 +102,79 @@ d_m3OpDecl  (DumpStack)
 
 
 
-#define d_m3CompareOp(REG, TYPE, NAME, OPERATION)		\
+// TODO: Ok, this needs some explanation here ;0
+
+#define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OP, ...) \
 d_m3Op(TYPE##_##NAME##_sr)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	_r0 = * stack OPERATION (TYPE) REG;					\
+	OP((RES), (* stack), ((TYPE) REG), ##__VA_ARGS__);	\
 	return nextOp ();									\
 }														\
-														\
-d_m3Op(TYPE##_##NAME##_ss)								\
+d_m3Op(TYPE##_##NAME##_ss) 								\
 { 														\
 	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
 	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
-	_r0 = * stackA OPERATION * stackB;					\
-	return nextOp ();									\
-}														\
-														\
-d_m3Op(TYPE##_##NAME##_rs)								\
-{ 														\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	_r0 = (TYPE) REG OPERATION (* stack);				\
-	return nextOp ();									\
-}														\
-
-// compare needs to be distinct for fp 'cause the result must be _r0
-#define d_m3CompareOp_f(TYPE, NAME, OP) 		d_m3CompareOp (_fp0, TYPE, NAME, OP)
-
-//-----------------------
-
-#define d_m3CommutativeOp(REG, TYPE, NAME, OPERATION)	\
-d_m3Op(TYPE##_##NAME##_sr)								\
-{ 														\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	REG = * stack OPERATION (TYPE) REG;					\
-	return nextOp ();									\
-}														\
-														\
-d_m3Op(TYPE##_##NAME##_ss)								\
-{ 														\
-	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
-	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
-	REG = * stackA OPERATION * stackB;					\
+	OP((RES), (* stackA), (* stackB), ##__VA_ARGS__);	\
 	return nextOp ();									\
 }
 
-#define d_m3Op_(REG, TYPE, NAME, OPERATION)				\
+#define d_m3OpMacro(RES, REG, TYPE, NAME, OP, ...)		\
 d_m3Op(TYPE##_##NAME##_rs)								\
 { 														\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	REG = (TYPE) REG OPERATION (* stack);				\
+	OP((RES), (* stack), ((TYPE) REG), ##__VA_ARGS__);	\
 	return nextOp ();									\
 }														\
-d_m3CommutativeOp(REG, TYPE,NAME,OPERATION)
+d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
+
+// Accept macros
+#define d_m3CommutativeOpMacro_i(TYPE, NAME, MACRO, ...) 	d_m3CommutativeOpMacro	( _r0,  _r0, TYPE, NAME, MACRO, ##__VA_ARGS__)
+#define d_m3OpMacro_i(TYPE, NAME, MACRO, ...)				d_m3OpMacro				( _r0,  _r0, TYPE, NAME, MACRO, ##__VA_ARGS__)
+#define d_m3CommutativeOpMacro_f(TYPE, NAME, MACRO, ...) 	d_m3CommutativeOpMacro	(_fp0, _fp0, TYPE, NAME, MACRO, ##__VA_ARGS__)
+#define d_m3OpMacro_f(TYPE, NAME, MACRO, ...)				d_m3OpMacro				(_fp0, _fp0, TYPE, NAME, MACRO, ##__VA_ARGS__)
+
+#define M3_FUNC(RES, A, B, OP)  (RES) = OP((A), (B))	// Accept functions: res = OP(a,b)
+#define M3_OPER(RES, A, B, OP)  (RES) = ((A) OP (B))	// Accept operators: res = a OP b
+
+#define d_m3CommutativeOpFunc_i(TYPE, NAME, OP) 	d_m3CommutativeOpMacro_i	(TYPE, NAME, M3_FUNC, OP)
+#define d_m3OpFunc_i(TYPE, NAME, OP)				d_m3OpMacro_i				(TYPE, NAME, M3_FUNC, OP)
+#define d_m3CommutativeOpFunc_f(TYPE, NAME, OP) 	d_m3CommutativeOpMacro_f	(TYPE, NAME, M3_FUNC, OP)
+#define d_m3OpFunc_f(TYPE, NAME, OP)				d_m3OpMacro_f				(TYPE, NAME, M3_FUNC, OP)
+
+#define d_m3CommutativeOp_i(TYPE, NAME, OP) 		d_m3CommutativeOpMacro_i	(TYPE, NAME, M3_OPER, OP)
+#define d_m3Op_i(TYPE, NAME, OP)					d_m3OpMacro_i				(TYPE, NAME, M3_OPER, OP)
+#define d_m3CommutativeOp_f(TYPE, NAME, OP) 		d_m3CommutativeOpMacro_f	(TYPE, NAME, M3_OPER, OP)
+#define d_m3Op_f(TYPE, NAME, OP)					d_m3OpMacro_f				(TYPE, NAME, M3_OPER, OP)
+
+// compare needs to be distinct for fp 'cause the result must be _r0
+#define d_m3CompareOp_f(TYPE, NAME, OP)				d_m3OpMacro					(_r0, _fp0, TYPE, NAME, M3_OPER, OP)
 
 
-#define d_m3CommutativeOp_i(TYPE, NAME, OP) 		d_m3CommutativeOp	(_r0, TYPE, NAME, OP)
-#define d_m3Op_i(TYPE, NAME, OP)					d_m3Op_				(_r0, TYPE, NAME, OP)
-#define d_m3CommutativeOp_f(TYPE, NAME, OP) 		d_m3CommutativeOp	(_fp0, TYPE, NAME, OP)
-#define d_m3Op_f(TYPE, NAME, OP)					d_m3Op_				(_fp0, TYPE, NAME, OP)
-
-
+//-----------------------
 
 // signed
 d_m3Op_i (i32, Equal,						==)		d_m3Op_i (i64, Equal,						==)
 d_m3Op_i (i32, NotEqual,					!=)		d_m3Op_i (i64, NotEqual,					!=)
 
-d_m3Op_i (i32, LessThan,					<)		d_m3Op_i (i64, LessThan,					<)
-d_m3Op_i (i32, GreaterThan,					>)		d_m3Op_i (i64, GreaterThan,					>)
+d_m3Op_i (i32, LessThan,					< )		d_m3Op_i (i64, LessThan,					< )
+d_m3Op_i (i32, GreaterThan,					> )		d_m3Op_i (i64, GreaterThan,					> )
 d_m3Op_i (i32, LessThanOrEqual,				<=)		d_m3Op_i (i64, LessThanOrEqual,				<=)
 d_m3Op_i (i32, GreaterThanOrEqual,			>=)		d_m3Op_i (i64, GreaterThanOrEqual,			>=)
 
-d_m3CompareOp_f (f32, Equal,				==)
-d_m3CompareOp_f (f32, NotEqual,				!=)
-d_m3CompareOp_f (f32, LessThan,				<)
-d_m3CompareOp_f (f32, GreaterThan,			>)
-d_m3CompareOp_f (f32, LessThanOrEqual,		<=)
-d_m3CompareOp_f (f32, GreaterThanOrEqual,	>=)
-
-d_m3CompareOp_f (f64, Equal,				==)
-d_m3CompareOp_f (f64, NotEqual,				!=)
-d_m3CompareOp_f (f64, LessThan,				<)
-d_m3CompareOp_f (f64, GreaterThan,			>)
-d_m3CompareOp_f (f64, LessThanOrEqual,		<=)
-d_m3CompareOp_f (f64, GreaterThanOrEqual,	>=)
-
 // unsigned
-d_m3Op_i (u32, LessThan,					<)		d_m3Op_i (u64, LessThan,					<)
-d_m3Op_i (u32, GreaterThan,					>)		d_m3Op_i (u64, GreaterThan,					>)
+d_m3Op_i (u32, LessThan,					< )		d_m3Op_i (u64, LessThan,					< )
+d_m3Op_i (u32, GreaterThan,					> )		d_m3Op_i (u64, GreaterThan,					> )
 d_m3Op_i (u32, LessThanOrEqual,				<=)		d_m3Op_i (u64, LessThanOrEqual,				<=)
 d_m3Op_i (u32, GreaterThanOrEqual,			>=)		d_m3Op_i (u64, GreaterThanOrEqual,			>=)
+
+// float
+d_m3CompareOp_f (f32, Equal,				==)		d_m3CompareOp_f (f64, Equal,				==)
+d_m3CompareOp_f (f32, NotEqual,				!=)		d_m3CompareOp_f (f64, NotEqual,				!=)
+d_m3CompareOp_f (f32, LessThan,				< )		d_m3CompareOp_f (f64, LessThan,				< )
+d_m3CompareOp_f (f32, GreaterThan,			> )		d_m3CompareOp_f (f64, GreaterThan,			> )
+d_m3CompareOp_f (f32, LessThanOrEqual,		<=)		d_m3CompareOp_f (f64, LessThanOrEqual,		<=)
+d_m3CompareOp_f (f32, GreaterThanOrEqual,	>=)		d_m3CompareOp_f (f64, GreaterThanOrEqual,	>=)
 
 
 // are these supposed to trap? sounds like it
@@ -209,255 +194,74 @@ d_m3CommutativeOp_i (u64, And,				&)
 d_m3CommutativeOp_i (u64, Or,				|)
 d_m3CommutativeOp_i (u64, Xor,				^)
 
-d_m3Op_f (f32, Add, 						+)		d_m3Op_f (f64, Add, 						+)
+d_m3CommutativeOp_f (f32, Add, 				+)		d_m3CommutativeOp_f (f64, Add, 				+)
+d_m3CommutativeOp_f (f32, Multiply, 		*)		d_m3CommutativeOp_f (f64, Multiply, 		*)
 d_m3Op_f (f32, Subtract,				 	-)		d_m3Op_f (f64, Subtract,	 				-)
-d_m3Op_f (f32, Multiply, 					*)		d_m3Op_f (f64, Multiply, 					*)
 d_m3Op_f (f32, Divide, 						/)		d_m3Op_f (f64, Divide, 						/)
 
 
+d_m3OpFunc_i(u32, Rotl, rotl32)
+d_m3OpFunc_i(u32, Rotr, rotr32)
+d_m3OpFunc_i(u64, Rotl, rotl64)
+d_m3OpFunc_i(u64, Rotr, rotr64)
 
+d_m3OpMacro_i(u32, Divide, OP_DIV_U);
+d_m3OpMacro_i(i32, Divide, OP_DIV_S, INT_MIN);
+d_m3OpMacro_i(u64, Divide, OP_DIV_U);
+d_m3OpMacro_i(i64, Divide, OP_DIV_S, LONG_MIN);
 
-#define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OPERATION) \
-d_m3Op(TYPE##_##NAME##_sr)								\
-{ 														\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	OPERATION((RES), (* stack), ((TYPE) REG));			\
-	return nextOp ();									\
-}														\
-														\
-d_m3Op(TYPE##_##NAME##_ss) 								\
-{ 														\
-	TYPE * stackB = (TYPE *) (_sp + immediate (i32));	\
-	TYPE * stackA = (TYPE *) (_sp + immediate (i32));	\
-	OPERATION((RES), (* stackA), (* stackB));			\
-	return nextOp ();									\
-}
+d_m3OpMacro_i(u32, Remainder, OP_REM_U);
+d_m3OpMacro_i(i32, Remainder, OP_REM_S, INT_MIN);
+d_m3OpMacro_i(u64, Remainder, OP_REM_U);
+d_m3OpMacro_i(i64, Remainder, OP_REM_S, LONG_MIN);
 
-#define d_m3OpMacro(RES, REG, TYPE, NAME, OPERATION)	\
-d_m3Op(TYPE##_##NAME##_rs)								\
-{ 														\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));	\
-	OPERATION((RES), (* stack), ((TYPE) REG));			\
-	return nextOp ();									\
-}														\
-d_m3CommutativeOpMacro(RES, REG, TYPE,NAME,OPERATION)
+d_m3OpFunc_f(f32, Min, min_f32);
+d_m3OpFunc_f(f32, Max, max_f32);
+d_m3OpFunc_f(f64, Min, min_f64);
+d_m3OpFunc_f(f64, Max, max_f64);
 
-#define d_m3CommutativeOpMacro_i(TYPE, NAME, OP) 	d_m3CommutativeOpMacro	(_r0, _r0, TYPE, NAME, OP)
-#define d_m3OpMacro_i(TYPE, NAME, OP)				d_m3OpMacro				(_r0, _r0, TYPE, NAME, OP)
-#define d_m3CommutativeOpMacro_f(TYPE, NAME, OP) 	d_m3CommutativeOpMacro	(_fp0, _fp0, TYPE, NAME, OP)
-#define d_m3OpMacro_f(TYPE, NAME, OP)				d_m3OpMacro				(_fp0, _fp0, TYPE, NAME, OP)
+d_m3OpFunc_f(f32, CopySign, copysignf);
+d_m3OpFunc_f(f64, CopySign, copysign);
 
-// Based on: http://stackoverflow.com/a/776523/471795
-static inline
-u32 rotl32(u32 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 32;
-  c &= mask;
-  return (n<<c) | (n>>( (-c)&mask ));
-}
+// Unary operations
+// Note: This macro follows the principle of d_m3OpMacro
 
-static inline
-u32 rotr32(u32 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 32;
-  c &= mask;
-  return (n>>c) | (n<<( (-c)&mask ));
-}
-
-static inline
-u64 rotl64(u64 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 64;
-  c &= mask;
-  return (n<<c) | (n>>( (-c)&mask ));
-}
-
-static inline
-u64 rotr64(u64 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 64;
-  c &= mask;
-  return (n>>c) | (n<<( (-c)&mask ));
-}
-
-#define OP_ROTL_32(RES, A, B) RES = rotl32(A, B)
-#define OP_ROTR_32(RES, A, B) RES = rotr32(A, B)
-#define OP_ROTL_64(RES, A, B) RES = rotl64(A, B)
-#define OP_ROTR_64(RES, A, B) RES = rotr64(A, B)
-
-d_m3OpMacro_i(u32, Rotl, OP_ROTL_32);
-d_m3OpMacro_i(u32, Rotr, OP_ROTR_32);
-d_m3OpMacro_i(u64, Rotl, OP_ROTL_64);
-d_m3OpMacro_i(u64, Rotr, OP_ROTR_64);
-
-#define OP_DIV(RES, A, B) \
-	if (B == 0) return c_m3Err_trapDivisionByZero; \
-	RES = A / B;
-
-#define OP_REM(RES, A, B) \
-	if (B == 0) return c_m3Err_trapRemainderByZero; \
-	RES = A % B;
-
-// 2's complement detection
-#if (INT_MIN != -INT_MAX)
-
-	#define OP_DIV_I32(RES, A, B) \
-		if (B == 0) return c_m3Err_trapDivisionByZero; \
-		if (B == -1 and A == INT_MIN) return c_m3Err_trapIntegerOverflow; \
-		RES = A / B;
-
-	#define OP_DIV_I64(RES, A, B) \
-		if (B == 0) return c_m3Err_trapDivisionByZero; \
-		if (B == -1 and A == LONG_MIN) return c_m3Err_trapIntegerOverflow; \
-		RES = A / B;
-
-	#define OP_REM_I32(RES, A, B) \
-		if (B == 0) return c_m3Err_trapRemainderByZero; \
-		if (B == -1 and A == INT_MIN) RES = 0; \
-		else RES = A % B;
-
-	#define OP_REM_I64(RES, A, B) \
-		if (B == 0) return c_m3Err_trapRemainderByZero; \
-		if (B == -1 and A == LONG_MIN) RES = 0; \
-		else RES = A % B;
-
-#else
-
-	#define OP_DIV_I32 OP_DIV
-	#define OP_DIV_I64 OP_DIV
-	#define OP_REM_I32 OP_REM
-	#define OP_REM_I64 OP_REM
-
-#endif
-
-d_m3OpMacro_i(u32, Divide, OP_DIV);
-d_m3OpMacro_i(i32, Divide, OP_DIV_I32);
-d_m3OpMacro_i(u64, Divide, OP_DIV);
-d_m3OpMacro_i(i64, Divide, OP_DIV_I64);
-
-d_m3OpMacro_i(u32, Remainder, OP_REM);
-d_m3OpMacro_i(i32, Remainder, OP_REM_I32);
-d_m3OpMacro_i(u64, Remainder, OP_REM);
-d_m3OpMacro_i(i64, Remainder, OP_REM_I64);
-
-
-// Min, Max
-static inline
-f32 min_f32(f32 a, f32 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f32 c = fminf(a, b);
-    if (c==0 and a==b) { return signbit(a) ? a : b; }
-    return c;
-}
-
-static inline
-f32 max_f32(f32 a, f32 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f32 c = fmaxf(a, b);
-    if (c==0 and a==b) { return signbit(a) ? b : a; }
-    return c;
-}
-
-static inline
-f64 min_f64(f64 a, f64 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f64 c = fmin(a, b);
-    if (c==0 and a==b) { return signbit(a) ? a : b; }
-    return c;
-}
-
-static inline
-f64 max_f64(f64 a, f64 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f64 c = fmax(a, b);
-    if (c==0 and a==b) { return signbit(a) ? b : a; }
-    return c;
-}
-
-static inline
-f32 nearest_f32(f32 a) {
-	if (a > 0.f and a <= 0.5f) return 0.f;
-	if (a < 0.f and a >= -0.5f) return -0.f;
-    return rintf(a);
-}
-
-static inline
-f64 nearest_f64(f64 a) {
-	if (a > 0.0 and a <= 0.5) return 0.0;
-	if (a < 0.0 and a >= -0.5) return -0.0;
-    return rint(a);
-}
-
-#define OP_MIN_F32(RES, A, B) RES = min_f32(A, B)
-#define OP_MAX_F32(RES, A, B) RES = max_f32(A, B)
-#define OP_MIN_F64(RES, A, B) RES = min_f64(A, B)
-#define OP_MAX_F64(RES, A, B) RES = max_f64(A, B)
-
-#define OP_COPYSIGN_F32(RES, A, B) RES = copysignf(A, B)
-#define OP_COPYSIGN_F64(RES, A, B) RES = copysign(A, B)
-
-
-d_m3OpMacro_f(f32, Min, OP_MIN_F32);
-d_m3OpMacro_f(f32, Max, OP_MAX_F32);
-d_m3OpMacro_f(f64, Min, OP_MIN_F64);
-d_m3OpMacro_f(f64, Max, OP_MAX_F64);
-
-d_m3OpMacro_f(f32, CopySign, OP_COPYSIGN_F32);
-d_m3OpMacro_f(f64, CopySign, OP_COPYSIGN_F64);
-
-
-
-#define d_m3UnaryOp_f(TYPE, NAME, OPERATION)			\
+#define d_m3UnaryMacro(RES, REG, TYPE, NAME, OP, ...)	\
 d_m3Op(TYPE##_##NAME##_r)							\
 { 													\
-	_fp0 = OPERATION ((TYPE) _fp0);					\
+	OP((RES), (TYPE) REG, ##__VA_ARGS__);			\
 	return nextOp ();								\
 } 													\
 d_m3Op(TYPE##_##NAME##_s)							\
 { 													\
 	TYPE * stack = (TYPE *) (_sp + immediate (i32));\
-	_fp0 = OPERATION (* stack);						\
+	OP((RES), (* stack), ##__VA_ARGS__);			\
 	return nextOp ();								\
 }
 
+#define M3_UNARY(RES, X, OP) (RES) = OP(X)
+#define d_m3UnaryOp_i(TYPE, NAME, OPERATION)		d_m3UnaryMacro( _r0,  _r0, TYPE, NAME, M3_UNARY, OPERATION)
+#define d_m3UnaryOp_f(TYPE, NAME, OPERATION)		d_m3UnaryMacro(_fp0, _fp0, TYPE, NAME, M3_UNARY, OPERATION)
 
-d_m3UnaryOp_f (f32, Abs, fabsf);			d_m3UnaryOp_f (f64, Abs, fabs);
-d_m3UnaryOp_f (f32, Ceil, ceilf);			d_m3UnaryOp_f (f64, Ceil, ceil);
-d_m3UnaryOp_f (f32, Floor, floorf);			d_m3UnaryOp_f (f64, Floor, floor);
-d_m3UnaryOp_f (f32, Trunc, truncf);			d_m3UnaryOp_f (f64, Trunc, trunc);
-d_m3UnaryOp_f (f32, Sqrt, sqrtf);			d_m3UnaryOp_f (f64, Sqrt, sqrt);
-d_m3UnaryOp_f (f32, Nearest, nearest_f32);	d_m3UnaryOp_f (f64, Nearest, nearest_f64);
-d_m3UnaryOp_f (f32, Negate, -);				d_m3UnaryOp_f (f64, Negate, -);
+d_m3UnaryOp_f (f32, Abs,		fabsf);			d_m3UnaryOp_f (f64, Abs,		fabs);
+d_m3UnaryOp_f (f32, Ceil,		ceilf);			d_m3UnaryOp_f (f64, Ceil,		ceil);
+d_m3UnaryOp_f (f32, Floor,		floorf);		d_m3UnaryOp_f (f64, Floor,		floor);
+d_m3UnaryOp_f (f32, Trunc,		truncf);		d_m3UnaryOp_f (f64, Trunc,		trunc);
+d_m3UnaryOp_f (f32, Sqrt,		sqrtf);			d_m3UnaryOp_f (f64, Sqrt,		sqrt);
+d_m3UnaryOp_f (f32, Nearest,	nearest_f32);	d_m3UnaryOp_f (f64, Nearest,	nearest_f64);
+d_m3UnaryOp_f (f32, Negate,		-);				d_m3UnaryOp_f (f64, Negate,		-);
 
-
-// "unary"
-#define d_m3UnaryOp_i(TYPE, NAME, OPERATION)		\
-d_m3Op(TYPE##_##NAME##_r)							\
-{ 													\
-	_r0 = OPERATION ((TYPE) _r0);					\
-	return nextOp ();								\
-} 													\
-d_m3Op(TYPE##_##NAME##_s)							\
-{ 													\
-	TYPE * stack = (TYPE *) (_sp + immediate (i32));\
-	_r0 = OPERATION (* stack);						\
-	return nextOp ();								\
-}
 
 #define OP_EQZ(x) ((x) == 0)
 
-// clz, ctz result is undefined for 0, so we fix it
+d_m3UnaryOp_i (i32, EqualToZero, OP_EQZ)
+d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
+
+// clz(0), ctz(0) results are undefined, fix it
 #define OP_CLZ_32(x) (((x) == 0) ? 32 : __builtin_clz(x))
 #define OP_CTZ_32(x) (((x) == 0) ? 32 : __builtin_ctz(x))
 #define OP_CLZ_64(x) (((x) == 0) ? 64 : __builtin_clzll(x))
 #define OP_CTZ_64(x) (((x) == 0) ? 64 : __builtin_ctzll(x))
-
-d_m3UnaryOp_i (i32, EqualToZero, OP_EQZ)
-d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
 d_m3UnaryOp_i (u32, Clz, OP_CLZ_32)
 d_m3UnaryOp_i (u64, Clz, OP_CLZ_64)
@@ -467,6 +271,28 @@ d_m3UnaryOp_i (u64, Ctz, OP_CTZ_64)
 
 d_m3UnaryOp_i (u32, Popcnt, __builtin_popcount)
 d_m3UnaryOp_i (u64, Popcnt, __builtin_popcountll)
+
+#define OP_WRAP_I64(X) (X) & 0x00000000ffffffff
+
+d_m3UnaryOp_i (i32, Wrap_i64, OP_WRAP_I64)
+
+
+#define OP_TRUNC(RES, A, COND_MIN, COND_MAX)				\
+	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
+	if (A COND_MAX or A COND_MIN) {							\
+		return c_m3Err_trapIntegerOverflow;					\
+	}														\
+	RES = A;
+
+d_m3UnaryMacro(_r0, _fp0, f32, Trunc_i32, OP_TRUNC, < INT32_MIN, >= INT32_MAX)
+d_m3UnaryMacro(_r0, _fp0, f32, Trunc_u32, OP_TRUNC, <= -1, >= UINT32_MAX)
+d_m3UnaryMacro(_r0, _fp0, f64, Trunc_i32, OP_TRUNC, < INT32_MIN, >= INT32_MAX)
+d_m3UnaryMacro(_r0, _fp0, f64, Trunc_u32, OP_TRUNC, <= -1, >= UINT32_MAX)
+
+d_m3UnaryMacro(_r0, _fp0, f32, Trunc_i64, OP_TRUNC, < INT64_MIN, >= INT64_MAX)
+d_m3UnaryMacro(_r0, _fp0, f32, Trunc_u64, OP_TRUNC, <= -1, >= UINT64_MAX)
+d_m3UnaryMacro(_r0, _fp0, f64, Trunc_i64, OP_TRUNC, < INT64_MIN, >= INT64_MAX)
+d_m3UnaryMacro(_r0, _fp0, f64, Trunc_u64, OP_TRUNC, <= -1, >= UINT64_MAX)
 
 
 #define d_m3IntToFpConvertOp(TO, NAME, FROM)				\
@@ -485,9 +311,9 @@ d_m3Op(TO##_##NAME##_##FROM##_s)							\
 
 
 d_m3IntToFpConvertOp (f64, Convert, i32);
-//d_m3IntToFpConversionOp (f64, Convert, u32);
-//d_m3IntToFpConversionOp (f64, Convert, i64);
-//d_m3IntToFpConversionOp (f64, Convert, u64);
+d_m3IntToFpConvertOp (f64, Convert, u32);
+d_m3IntToFpConvertOp (f64, Convert, i64);
+d_m3IntToFpConvertOp (f64, Convert, u64);
 
 
 #define d_m3FpToFpConvertOp(TO, NAME)						\
@@ -507,6 +333,32 @@ d_m3Op(TO##_##NAME##_s)										\
 
 d_m3FpToFpConvertOp (f32, Demote)
 
+
+#define d_m3ReinterpretOp(REG, TO, SRC, FROM, CAST)			\
+d_m3Op(TO##_Reinterpret_##CAST##_r)							\
+{ 															\
+	static_assert(sizeof(SRC) == sizeof(FROM));				\
+	static_assert(sizeof(CAST) == sizeof(TO));				\
+	const CAST copy = (FROM)SRC;							\
+	REG = *(TO*)&copy;										\
+	return nextOp ();										\
+} 															\
+															\
+d_m3Op(TO##_Reinterpret_##CAST##_s)							\
+{ 															\
+	FROM * stack = (FROM *) (_sp + immediate (i32));		\
+	const CAST copy = (* stack);							\
+	REG = *(TO*)&copy;										\
+	return nextOp ();										\
+}
+
+
+d_m3ReinterpretOp (_r0, i32, _fp0, f64, f32)
+d_m3ReinterpretOp (_r0, i64, _fp0, f64, f64)
+d_m3ReinterpretOp (_fp0, f32, _r0, i64, i32)
+d_m3ReinterpretOp (_fp0, f64, _r0, i64, i64)
+
+
 d_m3Op  (Extend_u)
 {
 	_r0 = (u32) _r0;
@@ -524,40 +376,6 @@ d_m3Op  (Nop)
 {
 	return nextOp ();
 }
-
-
-#define d_m3TruncateOp(TO, NAME, FROM, TEST)	\
-d_m3Op(TO##_##NAME##_##FROM)					\
-{ 												\
-	FROM from = _fp0;							\
-	if (TEST (from))							\
-	{ 											\
-		_r0 = (TO) from;						\
-		return nextOp ();						\
-	}											\
-	else return c_m3Err_trapTruncationOverflow;	\
-}
-
-/*
- FIX: should trap
- Truncation from floating point to integer where IEEE 754-2008 would specify an invalid operator exception
- (e.g. when the floating point value is NaN or outside the range which rounds to an integer in range) traps.
-
- */
-
-static inline bool IsValid_i32 (f64 i_value)
-{
-	if (not isnan (i_value))
-	{
-		if (i_value >= INT32_MIN and i_value <= INT32_MAX)
-			return true;
-	}
-
-	return false;
-}
-
-
-d_m3TruncateOp  (i32, Truncate, f64, IsValid_i32);
 
 
 d_m3Op  (Block)
@@ -911,13 +729,24 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)					\
 
 
 #define d_m3Load_i(DEST_TYPE, SRC_TYPE) d_m3Load(_r0, DEST_TYPE, SRC_TYPE)
+#define d_m3Load_f(DEST_TYPE, SRC_TYPE) d_m3Load(_fp0, DEST_TYPE, SRC_TYPE)
 
-d_m3Load_i (i32, i32);
+d_m3Load_f (f32, f32);
+d_m3Load_f (f64, f64);
 
 d_m3Load_i (i32, i8);
 d_m3Load_i (i32, u8);
 d_m3Load_i (i32, i16);
 d_m3Load_i (i32, u16);
+d_m3Load_i (i32, i32);
+
+d_m3Load_i (i64, i8);
+d_m3Load_i (i64, u8);
+d_m3Load_i (i64, i16);
+d_m3Load_i (i64, u16);
+d_m3Load_i (i64, i32);
+d_m3Load_i (i64, u32);
+d_m3Load_i (i64, i64);
 
 
 d_m3Op  (f64_Store)
@@ -985,8 +814,8 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_ss)				\
 
 
 d_m3Store_i (i32, u8)
-d_m3Store_i (i32, i32)
 d_m3Store_i (i32, i16)
+d_m3Store_i (i32, i32)
 
 
 //---------------------------------------------------------------------------------------------------------------------

@@ -137,11 +137,10 @@ d_m3ErrorConst	(globalMemoryNotAllocated, 		"global memory is missing from a mod
 d_m3ErrorConst	(globaIndexOutOfBounds, 		"global index is too large")
 
 // traps
-d_m3ErrorConst	(trapTruncationOverflow,		"[trap] truncation from floating point to integer overflow")
 d_m3ErrorConst	(trapOutOfBoundsMemoryAccess,	"[trap] out of bounds memory access")
 d_m3ErrorConst	(trapDivisionByZero,			"[trap] integer divide by zero")
-d_m3ErrorConst	(trapRemainderByZero,			"[trap] integer divide by zero")
 d_m3ErrorConst	(trapIntegerOverflow,			"[trap] integer overflow")
+d_m3ErrorConst	(trapIntegerConversion,			"[trap] invalid conversion to integer")
 d_m3ErrorConst	(trapTableIndexOutOfRange,		"[trap] table index is out of range")
 d_m3ErrorConst	(trapExit,						"[trap] program called exit")
 d_m3ErrorConst	(runtimeTrap,					"[trap] unspecified runtime trap")
