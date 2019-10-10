@@ -14,6 +14,39 @@
 #include <math.h>
 #include <limits.h>
 
+#if defined(M3_COMPILER_MSVC)
+
+#include <intrin.h>
+
+#define __builtin_popcount    __popcnt
+#define __builtin_popcountll  __popcnt64
+
+static inline int __builtin_ctz(uint32_t x) {
+    unsigned long ret;
+    _BitScanForward(&ret, x);
+    return (int)ret;
+}
+
+static inline int __builtin_ctzll(unsigned long long x) {
+    unsigned long ret;
+    _BitScanForward64(&ret, x);
+    return (int)ret;
+}
+
+static inline int __builtin_clz(uint32_t x) {
+    unsigned long ret;
+    _BitScanReverse(&ret, x);
+    return (int)(31 ^ ret);
+}
+
+static inline int __builtin_clzll(unsigned long long x) {
+    unsigned long ret;
+    _BitScanReverse64(&ret, x);
+    return (int)(63 ^ ret);
+}
+
+#endif
+
 /*
  * Rotr, Rotl
  */
