@@ -30,13 +30,10 @@ typedef int8_t			i8;
 	typedef i64		m3reg_t;
 
 	typedef u64		m3word_t;
-	typedef u32		m3halfword_t;
-	typedef i32		m3halfWordSigned_t;
 #else
 	typedef i32		m3reg_t;
 
 	typedef u32		m3word_t;
-	typedef u16		m3halfword_t;
 #endif
 
 typedef const void *			m3ret_t;
@@ -50,7 +47,7 @@ typedef u64 *					m3stack_t;
 typedef
 const void * const	cvptr_t;
 
-# ifndef __cplusplus
+# if !defined(__cplusplus) || defined(M3_COMPILER_MSVC)
 # 	define not 		!
 # 	define and 		&&
 # 	define or		||
@@ -69,16 +66,16 @@ const void * const	cvptr_t;
 static const char * m3LogTruncFilename (const char * i_file)
 {
 	const char * file = i_file + strlen (i_file);
-	
+
 	while (true)
 	{
 		char c = * (file - 1);
 		if (c == '/' or c == '\\')
 			break;
-			
+
 		--file;
 	}
-			
+
 	return file;
 }
 
@@ -218,8 +215,12 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 #define ErrorCompile(RESULT, COMP, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
 //#define ErrorExec(RESULT, MODULE, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
 
+#ifndef min
 #define min(A,B) (A < B) ? A : B
+#endif
+#ifndef max
 #define max(A,B) (A > B) ? A : B
+#endif
 
 void		m3NotImplemented		();
 void		m3AbortIfNot			(bool condition);
