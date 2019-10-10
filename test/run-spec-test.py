@@ -119,6 +119,9 @@ formaters = {
 }
 formatValue = formaters[args.format]
 
+if args.format == "fp":
+    warning("When using fp display format, values are compared loosely (some tests may produce false positives)")
+
 #
 # Spec tests preparation
 #
