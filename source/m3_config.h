@@ -9,6 +9,15 @@
 #ifndef m3_config_h
 #define m3_config_h
 
+# if defined(__clang__)
+#  define M3_COMPILER_CLANG 1
+# elif defined(__GNUC__) || defined(__GNUG__)
+#  define M3_COMPILER_GCC 1
+# elif defined(_MSC_VER)
+#  define M3_COMPILER_MSVC 1
+# else
+#  warning "Compiler not detected"
+# endif
 
 # ifndef d_m3CodePageSize
 #	define d_m3MaxNumFunctionArgs				32
