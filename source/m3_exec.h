@@ -67,7 +67,7 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 	* strstr (name, "(") = 0;
 
 	printf ("%s\n", name);
-	return Op (d_m3OpAllArgs);
+	return ((IM3Operation)(* _pc))(d_m3OpAllArgs);
 }
 
 static const u32 c_m3ProfilerSlotMask = 0xFFFF;
@@ -85,7 +85,7 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
 	ProfileHit (i_operationName);
 
-	return Op (_pc, d_m3OpArgs);
+	return ((IM3Operation)(* _pc))(d_m3OpAllArgs);
 }
 
 #if d_m3RuntimeStackDumps
