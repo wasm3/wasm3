@@ -116,6 +116,38 @@ u64 rotr64(u64 n, unsigned c) {
 #endif
 
 /*
+ * Trunc
+ */
+
+#define OP_TRUNC_I32(RES, A)								\
+	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
+	if (A < INT32_MIN or A >= INT32_MAX) {					\
+		return c_m3Err_trapIntegerOverflow;					\
+	}														\
+	RES = A;
+
+#define OP_TRUNC_U32(RES, A)								\
+	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
+	if (A <= -1 or A >= UINT32_MAX) {						\
+		return c_m3Err_trapIntegerOverflow;					\
+	}														\
+	RES = A;
+
+#define OP_TRUNC_I64(RES, A)								\
+	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
+	if (A < INT64_MIN or A >= INT64_MAX) {					\
+		return c_m3Err_trapIntegerOverflow;					\
+	}														\
+	RES = A;
+
+#define OP_TRUNC_U64(RES, A)								\
+	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
+	if (A <= -1 or A >= UINT64_MAX) {						\
+		return c_m3Err_trapIntegerOverflow;					\
+	}														\
+	RES = A;
+
+/*
  * Min, Max
  */
 static inline
@@ -173,4 +205,4 @@ f64 nearest_f64(f64 a) {
 }
 
 
-#endif /* m3_exception_h */
+#endif /* m3_math_utils_h */
