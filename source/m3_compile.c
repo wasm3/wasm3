@@ -1322,8 +1322,8 @@ const M3OpInfo c_operations [] =
 	M3OP( "f64.const",			1,	f_64,	NULL, 			NULL, NULL,				Compile_Const_f64 ),			// 0x44
 
 	M3OP( "i32.eqz",			0,	i_32,	d_unaryOpList (i32, EqualToZero)		),			// 0x45
-	M3OP( "i32.eq",				-1,	i_32,	d_binOpList (i32, Equal) 				),			// 0x46
-	M3OP( "i32.ne",				-1,	i_32,	d_binOpList (i32, NotEqual) 			),			// 0x47
+	M3OP( "i32.eq",				-1,	i_32,	d_commutativeBinOpList (i32, Equal) 	),			// 0x46
+	M3OP( "i32.ne",				-1,	i_32,	d_commutativeBinOpList (i32, NotEqual)	),			// 0x47
 	M3OP( "i32.lt_s",			-1,	i_32,	d_binOpList (i32, LessThan) 			),			// 0x48
 	M3OP( "i32.lt_u",			-1,	i_32,	d_binOpList (u32, LessThan) 			),			// 0x49
 	M3OP( "i32.gt_s",			-1,	i_32,	d_binOpList (i32, GreaterThan)			),			// 0x4a
@@ -1334,8 +1334,8 @@ const M3OpInfo c_operations [] =
 	M3OP( "i32.ge_u",			-1,	i_32,	d_binOpList	(u32, GreaterThanOrEqual)	),			// 0x4f
 
 	M3OP( "i64.eqz",			0,	i_32,	d_unaryOpList (i64, EqualToZero)		),			// 0x50
-	M3OP( "i64.eq",				-1,	i_32,	d_binOpList (i64, Equal)				),			// 0x51
-	M3OP( "i64.ne",				-1,	i_32,	d_binOpList (i64, NotEqual)				),			// 0x52
+	M3OP( "i64.eq",				-1,	i_32,	d_commutativeBinOpList (i64, Equal)		),			// 0x51
+	M3OP( "i64.ne",				-1,	i_32,	d_commutativeBinOpList (i64, NotEqual)	),			// 0x52
 	M3OP( "i64.lt_s",			-1,	i_32,	d_binOpList	(i64, LessThan)				),			// 0x53
 	M3OP( "i64.lt_u",			-1,	i_32,	d_binOpList	(u64, LessThan)				),			// 0x54
 	M3OP( "i64.gt_s",			-1,	i_32,	d_binOpList	(i64, GreaterThan)			),			// 0x55
@@ -1345,15 +1345,15 @@ const M3OpInfo c_operations [] =
 	M3OP( "i64.ge_s",			-1,	i_32,	d_binOpList	(i64, GreaterThanOrEqual)	),			// 0x59
 	M3OP( "i64.ge_u",			-1,	i_32,	d_binOpList	(u64, GreaterThanOrEqual)	),			// 0x5a
 
-	M3OP( "f32.eq",				-1,	i_32,	d_binOpList (f32, Equal)				),			// 0x5b
-	M3OP( "f32.ne",				-1,	i_32,	d_binOpList (f32, NotEqual) 			),			// 0x5c
+	M3OP( "f32.eq",				-1,	i_32,	d_commutativeBinOpList (f32, Equal)		),			// 0x5b
+	M3OP( "f32.ne",				-1,	i_32,	d_commutativeBinOpList (f32, NotEqual) 	),			// 0x5c
 	M3OP( "f32.lt",				-1,	i_32,	d_binOpList (f32, LessThan)				),			// 0x5d
 	M3OP( "f32.gt",				-1,	i_32,	d_binOpList (f32, GreaterThan)			),			// 0x5e
 	M3OP( "f32.le",				-1,	i_32,	d_binOpList (f32, LessThanOrEqual)		),			// 0x5f
 	M3OP( "f32.ge",				-1,	i_32,	d_binOpList (f32, GreaterThanOrEqual)	),			// 0x60
 
-	M3OP( "f64.eq",				-1,	i_32,	d_binOpList (f64, Equal)				),			// 0x61
-	M3OP( "f64.ne",				-1,	i_32,	d_binOpList (f64, NotEqual) 			),			// 0x62
+	M3OP( "f64.eq",				-1,	i_32,	d_commutativeBinOpList (f64, Equal)		),			// 0x61
+	M3OP( "f64.ne",				-1,	i_32,	d_commutativeBinOpList (f64, NotEqual) 	),			// 0x62
 	M3OP( "f64.lt",				-1,	i_32,	d_binOpList (f64, LessThan)				),			// 0x63
 	M3OP( "f64.gt",				-1,	i_32,	d_binOpList (f64, GreaterThan) 			),			// 0x64
 	M3OP( "f64.le",				-1,	i_32,	d_binOpList (f64, LessThanOrEqual) 		),			// 0x65
@@ -1584,8 +1584,12 @@ M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
 	u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
 
 	// save and clear the locals modification slots
+#if defined(M3_COMPILER_MSVC)
+	assert (numArgsAndLocals <= 128);
+	u16 locals [128];
+#else
 	u16 locals [numArgsAndLocals];
-
+#endif
 	memcpy (locals, o->wasmStack, numArgsAndLocals * sizeof (u16));
 	for (u32 i = 0; i < numArgsAndLocals; ++i)
 	{
