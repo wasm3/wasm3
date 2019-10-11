@@ -26,22 +26,13 @@ typedef uint8_t			u8;
 typedef int8_t			i8;
 
 
-#if __LP64__
-	typedef i64		m3reg_t;
-
-	typedef u64		m3word_t;
-#else
-	typedef i32		m3reg_t;
-
-	typedef u32		m3word_t;
-#endif
-
 typedef const void *			m3ret_t;
 typedef const char * 			cstr_t;
 typedef const char * const 		ccstr_t;
 typedef const u8 * 				bytes_t;
 typedef const u8 * const 		cbytes_t;
 
+typedef i64						m3reg_t;
 typedef u64 *					m3stack_t;
 
 typedef

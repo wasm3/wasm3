@@ -12,6 +12,7 @@
 // some macros to emulate try/catch 
 #define EXC_PRINT       //printf("Exc: %s:%d\n", __FILE__, __LINE__);
 
+#define _try
 #define _(TRY)			{ result = TRY; if (result) { EXC_PRINT; goto _catch; } }
 #define _throw(ERROR)	{ result = ERROR; EXC_PRINT; goto _catch; }
 

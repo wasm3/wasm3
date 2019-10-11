@@ -96,7 +96,7 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 }
 
 
-M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, m3word_t i_memorySize)
+M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, size_t i_memorySize)
 {
 	M3Result result = c_m3Err_none;
 	
@@ -119,11 +119,11 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, m3
 			
 			size_t extra = c_m3MemPageSize * pages + 900000 * 4 + sizeof (M3MemoryHeader);
 			
-			m3word_t alignedSize = i_memorySize + extra;
+			size_t alignedSize = i_memorySize + extra;
 			
 			if (c_m3AlignWasmMemoryToPages)
 			{
-				m3word_t aligner = c_m3MemPageSize - 1;
+				size_t aligner = c_m3MemPageSize - 1;
 				alignedSize += aligner;
 				alignedSize &= ~aligner;
 			}

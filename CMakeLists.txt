@@ -13,6 +13,11 @@ if(CLANG_CL)
   set(CMAKE_LINKER       "lld-link")
 endif()
 
+if(M EQUAL 32)
+  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -m32")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "set build type to Release")
 endif()

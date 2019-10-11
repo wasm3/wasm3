@@ -159,7 +159,11 @@ i32  m3_fwrite  (void * i_ptr, i32 i_size, i32 i_count, FILE * i_file)
 
 i32  m3_write  (i32 i_fd, const void * i_data, i32 i_count)
 {
+#if defined(WIN32)
+	return 0;
+#else
 	return (i32) write (i_fd, i_data, i_count);
+#endif
 }
 
 

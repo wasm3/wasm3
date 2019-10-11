@@ -39,7 +39,7 @@ typedef struct M3Function
 
 	cstr_t		 			name;
 
-	m3word_t				hits;
+	u32						hits;
 	
 	IM3FuncType				funcType;
 	

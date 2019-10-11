@@ -33,7 +33,7 @@ void  m3_PrintRuntimeInfo  (IM3Runtime i_runtime)
 {
 	printf ("\n-- m3 runtime -------------------------------------------------\n");
 	
-	printf (" stack-size: %lu   \n\n", i_runtime->numStackSlots * sizeof (m3word_t));
+	printf (" stack-size: %lu   \n\n", i_runtime->numStackSlots * sizeof (m3reg_t));
 
 	u32 moduleIndex = 0;
 	ForEachModule (i_runtime, (ModuleVisitor) v_PrintEnvModuleInfo, & moduleIndex);

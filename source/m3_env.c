@@ -73,7 +73,7 @@ void FreeImportInfo (M3ImportInfo * i_info)
 void  InitRuntime  (IM3Runtime io_runtime, u32 i_stackSizeInBytes)
 {
 	m3Malloc (& io_runtime->stack, i_stackSizeInBytes);
-	io_runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3word_t);
+	io_runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
 }
 
 
@@ -448,9 +448,9 @@ _		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 		case c_m3Type_f64:  printf("Result: %lf\n",  *(f64*)(stack));  break;
 #else
 		case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
-		case c_m3Type_i64:  printf("Result: %lu\n", *(u64*)(stack));  break;
+		case c_m3Type_i64:  printf("Result: %llu\n", *(u64*)(stack));  break;
 		case c_m3Type_f32:  { f32 val = *(f64*)(stack); printf("Result: %u\n", *(u32*)&val ); }  break;
-		case c_m3Type_f64:  printf("Result: %lu\n", *(u64*)(stack));  break;
+		case c_m3Type_f64:  printf("Result: %llu\n", *(u64*)(stack));  break;
 #endif
 		default: _throw("unknown return type");
 		}

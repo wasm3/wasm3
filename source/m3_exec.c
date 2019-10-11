@@ -100,7 +100,7 @@ d_m3OpDef  (Compile)
 	if (not result)
 	{
 		// patch up compiled pc and call rewriten op_Call
-		*((m3word_t *) --_pc) = (m3word_t) (function->compiled);
+		*((size_t *) --_pc) = (size_t) (function->compiled);
 		--_pc;
 		result = nextOp ();
 	}
