@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
+set(OUT_FILE "wasm3")
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
   set(CMAKE_CXX_COMPILER "clang++${CLANG_SUFFIX}")
@@ -11,6 +12,12 @@ if(CLANG_CL)
   set(CMAKE_C_COMPILER   "clang-cl")
   set(CMAKE_CXX_COMPILER "clang-cl")
   set(CMAKE_LINKER       "lld-link")
+endif()
+
+if(EMSCRIPTEN)
+  set(CMAKE_C_COMPILER   "emcc")
+  set(CMAKE_CXX_COMPILER "em++")
+  set(OUT_FILE           "wasm3.html")
 endif()
 
 if(M EQUAL 32)
@@ -56,8 +63,12 @@ if (CMAKE_C_COMPILER_ID MATCHES "GNU")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive") # TODO: remove
 endif()
 
-if(WIN32)
-  add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_MBCS) # -DM3_RUN_LOOPS=10
+if(EMSCRIPTEN)
+  set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -w -Wfatal-errors -Xclang -target-feature -Xclang +tail-call")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 --lto-O3 --closure 1 --strip-all --gc-sections") # --emrun
+elseif(WIN32)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX- /diagnostics:column")
 
@@ -72,7 +83,7 @@ else()
   if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(OPT_FLAGS "-O3")
   else()
-    set(OPT_FLAGS "-Oz") # -Ofast
+    set(OPT_FLAGS "-Oz -Wl,--lto-O3") # -Ofast
   endif()
 
   set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
@@ -81,11 +92,11 @@ else()
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 endif()
 
-add_executable(wasm3 ${M3_SRC})
+add_executable(${OUT_FILE} ${M3_SRC})
 
 check_ipo_supported(RESULT result)
 if(result)
-  set_property(TARGET wasm3 PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+  set_property(TARGET ${OUT_FILE} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   message("LTO:        ON")
 else()
   message("LTO:        OFF")
