@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 
 set(OUT_FILE "wasm3")
+
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
   set(CMAKE_CXX_COMPILER "clang++${CLANG_SUFFIX}")
@@ -70,7 +71,7 @@ if(EMSCRIPTEN)
 elseif(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX- /diagnostics:column")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWIN32 /WX- /diagnostics:column")
 
   if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi /Zo /Oxs /w /fp:fast /arch:AVX2")
