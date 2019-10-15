@@ -78,6 +78,21 @@ cmake -GNinja ..
 ninja
 ```
 
+## Build using Emscripten
+
+```sh
+source /opt/emsdk/emsdk_env.sh --build=Release
+mkdir -p build
+cd build
+cmake -GNinja -DEMSCRIPTEN=1 ..
+ninja
+```
+**Note:** the build uses tail-call WebAssembly extension.
+This is currently available in V8:
+```sh
+chrome --js-flags="--experimental-wasm-return-call --wasm-opt"
+```
+
 ## Running WebAssembly spec tests
 
 To run spec tests, you need `python3` and `WABT` (The WebAssembly Binary Toolkit).
