@@ -59,7 +59,7 @@ u32  NumFreeLines  (IM3CodePage i_page)
 }
 
 
-void  EmitWord  (IM3CodePage i_page, const void * const i_word)
+void  EmitWordImpl  (IM3CodePage i_page, const void * i_word)
 {
 	i_page->code [i_page->info.lineIndex++] = (void *) i_word;
 	

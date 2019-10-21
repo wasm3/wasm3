@@ -35,9 +35,9 @@ typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
 m3ret_t PushArg_module (d_m3BindingArgList, M3State * _state)
 {
 	void ** ptr = (void **) _state->mem;
-	IM3Module module = * (ptr - 2);
+	IM3Module module = (IM3Module)(*(ptr - 2));
 	_i0 = (i64) module;
-	M3ArgPusher pusher = (* _state->pc++);
+	M3ArgPusher pusher = (M3ArgPusher)(* _state->pc++);
 	return pusher (d_m3BindingArgs, _state);
 }
 
@@ -47,7 +47,7 @@ m3ret_t PushArg_p##INDEX (d_m3BindingArgList, M3State * _state) 		\
 {																		\
 	i32 offset = (u32) * (_state->sp++);								\
 	_i##INDEX = (i64) (_state->mem + offset);							\
-	M3ArgPusher pusher = (* _state->pc++);								\
+	M3ArgPusher pusher = (M3ArgPusher)(* _state->pc++);					\
 	if (0) printf ("push ptr: r%d off: %d\n", INDEX, offset);			\
 	return pusher (d_m3BindingArgs, _state);							\
 }
@@ -57,7 +57,7 @@ m3ret_t PushArg_p##INDEX (d_m3BindingArgList, M3State * _state) 		\
 m3ret_t PushArg_i##INDEX (d_m3BindingArgList, M3State * _state)			\
 {																		\
 	_i##INDEX = * (_state->sp++);										\
-	M3ArgPusher pusher = (* _state->pc++);								\
+	M3ArgPusher pusher = (M3ArgPusher)(* _state->pc++);					\
 	return pusher (d_m3BindingArgs, _state);							\
 }
 
@@ -67,7 +67,7 @@ m3ret_t PushArg_i##INDEX (d_m3BindingArgList, M3State * _state)			\
 m3ret_t PushArg_##TYPE##_##INDEX (d_m3BindingArgList, M3State * _state)	\
 {																		\
 	_f##INDEX = * (TYPE *) (_state->sp++);								\
-	M3ArgPusher pusher = (* _state->pc++);								\
+	M3ArgPusher pusher = (M3ArgPusher)(* _state->pc++);					\
 	return pusher (d_m3BindingArgs, _state);							\
 }
 
@@ -139,10 +139,10 @@ d_m3RetSig  CallCFunction_ptr  (d_m3OpSig)
 	M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
 	M3State state = { _pc, _sp, _mem };
 	
-	const u8 * r = pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+	const u8 * r = (const u8*)pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
 	
 	void ** ptr = (void **) _mem;
-	IM3Module module = * (ptr - 2);
+	IM3Module module = (IM3Module)(* (ptr - 2));
 
 	size_t offset = r - (const u8 *) module->memory.wasmPages;
 	

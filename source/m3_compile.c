@@ -661,6 +661,7 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
+_try {
 	u32 value;
 _	(ReadLEB_u32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), * ((f32 *) & value));
 
@@ -668,7 +669,7 @@ _	(ReadLEB_u32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%
 	f64 f = * (f32 *) & value;
 _	(PushConst (o, * (u64 *) & f, c_m3Type_f64));
 
-	_catch: return result;
+	} _catch: return result;
 }
 
 
@@ -761,13 +762,13 @@ M3Result  Compile_GetLocal  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
+_try {
 	u32 localIndex;
 _	(ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));
 
 	u8 type = o->typeStack [localIndex];
 	Push (o, type, localIndex);
-
-	_catch: return result;
+	} _catch: return result;
 }
 
 
@@ -876,7 +877,7 @@ _		(EmitOp (o, op));
 _		(m3Alloc (& scope->patches, M3BranchPatch, 1));
 
 //					printf ("scope: %p -- attach patch: %p to %p \n", scope, scope->patches, patch);
-		scope->patches->location = ReservePointer (o);
+		scope->patches->location = (pc_t*)ReservePointer (o);
 		scope->patches->next = patch;
 	}
 
@@ -888,6 +889,7 @@ M3Result  Compile_BranchTable  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
+_try {
 	u32 targetCount;
 _	(ReadLEB_u32 (& targetCount, & o->wasm, o->wasmEnd));
 
@@ -921,12 +923,12 @@ _		(GetBlockScope (o, & scope, target));
 			IM3BranchPatch patch = scope->patches;
 _			(m3Alloc (& scope->patches, M3BranchPatch, 1));
 
-			scope->patches->location = ReservePointer (o);
+			scope->patches->location = (pc_t*)ReservePointer (o);
 			scope->patches->next = patch;
 		}
 	}
 
-	_catch: return result;
+	} _catch: return result;
 }
 
 
@@ -934,6 +936,7 @@ M3Result  CompileCallArgsReturn  (IM3Compilation o, IM3FuncType i_type, bool i_i
 {
 	M3Result result = c_m3Err_none;
 
+_try {
 	u16 execTop = GetMaxExecSlot (o);
 	u32 numArgs = i_type->numArgs + i_isIndirect;
 	u16 argTop = execTop + numArgs;
@@ -954,7 +957,7 @@ _		(Pop (o));
 		Push (o, i_type->returnType, execTop);
 	}
 
-	_catch: return result;
+	} _catch: return result;
 }
 
 
@@ -962,6 +965,7 @@ M3Result  Compile_Call  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
+_try {
 	u32 functionIndex;
 _	(ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
 
@@ -972,7 +976,7 @@ _	(ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
 																				GetIndentionString (o), GetFunctionName (function), function->funcType->numArgs);
 		if (function->module)
 		{
-			// OPTZ: could avoid arg copy when args are already sequential and at top
+			// TODO OPTZ: could avoid arg copy when args are already sequential and at top
 
 			u16 execTop = GetMaxExecSlot (o);
 
@@ -1000,7 +1004,7 @@ _			(EmitOp		(o, op));
 	}
 	else result = c_m3Err_functionLookupFailed;
 
-	_catch: return result;
+	} _catch: return result;
 }
 
 
@@ -1023,7 +1027,7 @@ _		(CompileCallArgsReturn (o, type, true));
 
 _		(EmitOp		(o, op_CallIndirect));
 		EmitPointer	(o, o->module);
-		EmitPointer	(o, type);				// TODO: unify all types in M3Rsuntime
+		EmitPointer	(o, type);				// TODO: unify all types in M3Runtime
 		EmitOffset	(o, execTop);
 	}
 	else _throw ("function type index out of range");
@@ -1066,6 +1070,7 @@ M3Result  Compile_If  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
+_try {
 _	(PreserveNonTopRegisters (o));
 
 	IM3Operation op = IsStackTopInRegister (o) ? op_If_r : op_If_s;
@@ -1075,8 +1080,8 @@ _	(EmitTopSlotAndPop (o));
 
 	i32 stackIndex = o->stackIndex;
 
-	pc_t * preservations = ReservePointer (o);
-	pc_t * pc = ReservePointer (o);
+	pc_t * preservations = (pc_t*)ReservePointer (o);
+	pc_t * pc = (pc_t*)ReservePointer (o);
 
 	u8 blockType;
 _	(ReadBlockType (o, & blockType));
@@ -1094,7 +1099,7 @@ _		(Compile_ElseBlock (o, pc, blockType));
 	}
 	else * pc = GetPC (o);
 
-	_catch: return result;
+	} _catch: return result;
 }
 
 
@@ -1120,7 +1125,7 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 _		(Pop (o));
 	}
 
-	d_m3AssertFatal (IsIntType (type));		// fp unimplemented
+	d_m3AssertFatal (IsIntType (type));		// TODO: fp unimplemented
 
 	// this operation doesn't consume a register, so might have to protected its contents
 	if (op == op_Select_i_sss)
@@ -1158,7 +1163,7 @@ M3Result  Compile_Trap  (IM3Compilation o, u8 i_opcode)
 }
 
 
-// OPTZ: currently all stack slot indicies take up a full word, but
+// TODO OPTZ: currently all stack slot indicies take up a full word, but
 // dual stack source operands could be packed together
 M3Result  Compile_Operator  (IM3Compilation o, u8 i_opcode)
 {

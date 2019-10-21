@@ -486,6 +486,7 @@ M3Result  m3_ParseModule  (IM3Module * o_module, cbytes_t i_bytes, u32 i_numByte
 	M3Result result;
 
 	IM3Module module;
+_try {
 _	(m3Alloc (& module, M3Module, 1));
 //	Module_Init (module);
 
@@ -529,7 +530,7 @@ _					(ParseModuleSection (module, sectionCode, pos, sectionLength));
 	}
 	else _throw (c_m3Err_wasmMalformed);
 
-	_catch:
+	} _catch:
 	
 	if (result)
 	{

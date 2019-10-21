@@ -30,7 +30,7 @@ void					FreeCodePages			(IM3CodePage i_page);
 //void					CloseCodePage			(IM3CodePage i_page);
 u32						NumFreeLines			(IM3CodePage i_page);
 pc_t					GetPagePC				(IM3CodePage i_page);
-void					EmitWord				(IM3CodePage i_page, const void * const i_word);
+void					EmitWordImpl			(IM3CodePage i_page, const void * i_word);
 
 void					PushCodePage			(IM3CodePage * i_list, IM3CodePage i_codePage);
 IM3CodePage				PopCodePage				(IM3CodePage * i_list);
@@ -38,5 +38,6 @@ IM3CodePage				PopCodePage				(IM3CodePage * i_list);
 void					TestCodePageCapacity	(IM3CodePage i_page);
 void					DumpCodePage			(IM3CodePage i_codePage, pc_t i_startPC);
 
+#define EmitWord(page, val) EmitWordImpl(page, (void*)(val))
 
 #endif /* m3_code_h */

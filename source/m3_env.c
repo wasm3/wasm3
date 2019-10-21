@@ -293,7 +293,7 @@ _			(ReadLEB_u32 (& numElements, & bytes, end));
 
 			if (endElement > offset)
 			{
-				io_module->table0 = m3RellocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
+				io_module->table0 = (IM3Function*)m3RellocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
 
 				if (io_module->table0)
 				{
@@ -366,7 +366,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
 {
 	M3Result result = c_m3Err_none;
 
-	IM3Function function = ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
+	IM3Function function = (IM3Function)ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
 
 	if (function)
 	{
@@ -407,12 +407,12 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv
 
 		u8 * linearMemory = module->memory.wasmPages;
 
-		m3stack_t stack = env->stack;
+		m3stack_t stack = (m3stack_t)(env->stack);
 
 		m3logif (runtime, PrintFuncTypeSignature (ftype));
 
 		if (i_argc != ftype->numArgs) {
-			_throw("arguments count missmatch");
+			_throw("arguments count mismatch");
 		}
 
 		// The format is currently not user-friendly by default,
@@ -437,7 +437,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv
 			}
 		}
 
-_		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
+_		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 
 		switch (ftype->returnType) {
 		case c_m3Type_none: break;
@@ -477,7 +477,7 @@ _		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
 
 		u8 * linearMemory = module->memory.wasmPages;
 
-		m3stack_t stack = env->stack;
+		m3stack_t stack = (m3stack_t)(env->stack);
 
 		if (i_argc)
 		{
@@ -505,7 +505,7 @@ _		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
 			stack [1] = offset;
 		}
 
-_		(Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
+_		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 
 		u64 value = * (u64 *) (stack);
 		m3log (runtime, "return64: %llu return32: %u", value, (u32) value);

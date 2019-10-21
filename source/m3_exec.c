@@ -21,9 +21,9 @@ m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 }
 
 
-void  ReportError2  (IM3Function i_function, M3Result i_result)
+void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 {
-	i_function->module->runtime->runtimeError = i_result;
+	i_function->module->runtime->runtimeError = (M3Result)i_result;
 }
 
 
@@ -92,7 +92,7 @@ d_m3OpDef  (Compile)
 	
 	IM3Function function		= immediate (IM3Function);
 
-	M3Result result = c_m3Err_none;
+	m3ret_t result = c_m3Err_none;
 	
 	if (not function->compiled)	// check to see if function was compiled since this operation was emitted.
 		result = Compile_Function (function);
@@ -272,16 +272,3 @@ d_m3OpDef  (IfPreserve)
 	else
 		return d_else (elsePC);
 }
-
-
-d_m3OpDef  (Trap)
-{													m3log (exec, "*** trapping ***");
-	return c_m3Err_runtimeTrap;
-}
-
-
-d_m3OpDef  (End)
-{
-	return 0;
-}
-

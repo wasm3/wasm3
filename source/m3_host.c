@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(ESP8266) && !defined(WM_W600)
 #include <unistd.h>
 #include <sys/ioctl.h>
 #endif
@@ -27,7 +27,7 @@ void m3_printf (cstr_t i_format, const void * i_varArgs)
 	char output [c_bufferLength];
 
 	size_t formatLength = strlen (i_format) + 1;
-	char * buffer = formatLength <= c_bufferLength ? format : malloc (formatLength);
+	char * buffer = formatLength <= c_bufferLength ? format : (char*)malloc (formatLength);
 	
 	size_t numArgs = 0;
 	char * p = 0;
@@ -143,7 +143,7 @@ i32 m3_getStderr (IM3Module i_module)
 
 i32  m3_fread  (void * io_ptr, i32 i_size, i32 i_count, FILE * i_file)
 {
-	FILE * file = * (void **) i_file;
+	FILE * file = (FILE *)(* (void **) i_file);
 	
 	return (i32) fread (io_ptr, i_size, i_count, file);
 }
@@ -151,7 +151,7 @@ i32  m3_fread  (void * io_ptr, i32 i_size, i32 i_count, FILE * i_file)
 
 i32  m3_fwrite  (void * i_ptr, i32 i_size, i32 i_count, FILE * i_file)
 {
-	FILE * file = * (void **) i_file;
+	FILE * file = (FILE *)(* (void **) i_file);
 	
 	return (i32) fwrite (i_ptr, i_size, i_count, file);
 }
@@ -159,11 +159,10 @@ i32  m3_fwrite  (void * i_ptr, i32 i_size, i32 i_count, FILE * i_file)
 
 i32  m3_write  (i32 i_fd, const void * i_data, i32 i_count)
 {
-#if defined(WIN32)
-	return 0;
-#else
+#if !defined(WIN32) && !defined(ESP8266) && !defined(WM_W600)
 	return (i32) write (i_fd, i_data, i_count);
 #endif
+	return 0;
 }
 
 
@@ -255,7 +254,7 @@ _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(
 
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_write",				"i(i*i)",	(void *) m3_write)));
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(ESP8266) && !defined(WM_W600)
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_ioctl",				"i(ii*)",	(void *) ioctl)));
 #endif
 

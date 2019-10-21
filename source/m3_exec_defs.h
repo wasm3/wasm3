@@ -14,9 +14,16 @@
 // default Windows x64 calling convention doesn't have enough registers for M3. It only supports
 // 4 args passed through registers but its enhanced __vectorcall calling convention does.
 
-# if defined (_WIN32) || defined (WIN32)
+# if defined (M3_COMPILER_MSVC)
+# 	define	vectorcall
+# elif defined(WIN32)
 # 	define	vectorcall __vectorcall
-#
+# elif defined (ESP8266)
+#	include <c_types.h>
+#	define vectorcall //ICACHE_FLASH_ATTR
+# elif defined (ESP32)
+# 	include "esp_system.h"
+# 	define vectorcall IRAM_ATTR
 # else
 # 	define vectorcall
 # endif

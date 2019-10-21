@@ -35,7 +35,7 @@ M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_typ
 	M3Result result = c_m3Err_none;
 	
 	u32 index = io_module->numGlobals++;
-	io_module->globals = m3RellocArray (io_module->globals, M3Global, io_module->numGlobals, index);
+	io_module->globals = (M3Global*)m3RellocArray (io_module->globals, M3Global, io_module->numGlobals, index);
 	
 	if (io_module->globals)
 	{
@@ -58,7 +58,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
 	M3Result result = c_m3Err_none;
 	
 	u32 index = io_module->numFunctions++;
-	io_module->functions = m3RellocArray (io_module->functions, M3Function, io_module->numFunctions, index);
+	io_module->functions = (M3Function*)m3RellocArray (io_module->functions, M3Function, io_module->numFunctions, index);
 	
 	if (io_module->functions)
 	{
@@ -128,7 +128,7 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
 				alignedSize &= ~aligner;
 			}
 			
-			io_memory->mallocated = m3Realloc (io_memory->mallocated, alignedSize, actualSize);
+			io_memory->mallocated = (M3MemoryHeader *)m3Realloc (io_memory->mallocated, alignedSize, actualSize);
 			
 			m3log (runtime, "resized WASM linear memory to %llu bytes (%p)", alignedSize, io_memory->mallocated);
 			

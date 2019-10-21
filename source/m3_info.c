@@ -197,7 +197,7 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 		
 		while (pc < end)
 		{
-			IM3Operation op = * pc++;
+			IM3Operation op = (IM3Operation)(* pc++);
 			
 			if (op)
 			{

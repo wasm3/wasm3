@@ -19,7 +19,7 @@
 #include <math.h>
 #include <limits.h>
 
-# define rewrite(NAME)				* ((void **) (_pc-1)) = NAME
+# define rewrite(NAME)				* ((void **) (_pc-1)) = (void*)(NAME)
 
 # define d_m3RetSig					static inline m3ret_t vectorcall
 # define d_m3Op(NAME)				d_m3RetSig op_##NAME (d_m3OpSig)
@@ -32,7 +32,7 @@
 # define slot(TYPE)					* (TYPE *) (_sp + immediate (i32))
 
 # if d_m3EnableOpProfiling
-# 	define nextOp()					profileOp (_pc, d_m3OpArgs, __PRETTY_FUNCTION__)
+# 	define nextOp()					profileOp (d_m3OpAllArgs, __PRETTY_FUNCTION__)
 # endif
 
 # if d_m3TraceExec
@@ -43,20 +43,20 @@
 # 	define nextOp()					((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 # endif
 
-#define d_call(PC)					Call (PC, d_m3OpArgs)
+#define d_call(PC)					Call ((pc_t)PC, d_m3OpArgs)
 
-#define d_else(PC)					Else (PC, d_m3OpArgs)
+#define d_else(PC)					Else ((pc_t)PC, d_m3OpArgs)
 
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
-	IM3Operation operation = (* _pc);
+	IM3Operation operation = (IM3Operation)(* _pc);
 	return operation (_pc + 1, d_m3OpArgs);
 }
 
 d_m3RetSig  Else  (d_m3OpSig)
 {
-	IM3Operation operation = (* _pc);
+	IM3Operation operation = (IM3Operation)(* _pc);
 	return operation (_pc + 1, d_m3OpArgs);
 }
 
@@ -527,9 +527,17 @@ d_m3Op  (Const)
 }
 
 
-d_m3OpDecl  (Trap)
+d_m3Op  (Trap)
+{													m3log (exec, "*** trapping ***");
+	return c_m3Err_runtimeTrap;
+}
 
-d_m3OpDecl  (End)
+
+d_m3Op  (End)
+{
+	return 0;
+}
+
 
 
 d_m3Op  (GetGlobal)
@@ -713,7 +721,8 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)					\
 	}													\
 	else d_outOfBounds;									\
 }
-//	printf ("get: %d -> %d\n", operand + offset, (i64) REG);				\
+
+//	printf ("get: %d -> %d\n", operand + offset, (i64) REG);
 
 
 #define d_m3Load_i(DEST_TYPE, SRC_TYPE) d_m3Load(_r0, DEST_TYPE, SRC_TYPE)
