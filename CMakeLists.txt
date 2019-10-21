@@ -83,7 +83,7 @@ elseif(WIN32)
   endif()
 else()
   if (CMAKE_C_COMPILER_ID MATCHES "GNU")
-    set(OPT_FLAGS "-O3 -Wl,--lto-O3")
+    set(OPT_FLAGS "-O3")
   else()
     set(OPT_FLAGS "-Oz") # -Ofast
   endif()
