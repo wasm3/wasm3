@@ -22,7 +22,10 @@
  
  	POSSIBLE FUTURE FEATURES:
  		- segmented stack 
- 		- M3 stack that lives on the C stack (this might be useful in a memory constrained environment).
+ 		- M3 stack that lives on the C stack (this might be useful in a memory constrained environment)
+        - i32, f32 could occupy 4 bytes on M3 stack
+        - support of tail calls wasm extension
+        - WASI support
  */
 
 
