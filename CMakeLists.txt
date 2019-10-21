@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 
 set(OUT_FILE "wasm3")
+set(APP_DIR  "platforms/app")
 
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
@@ -18,7 +19,9 @@ endif()
 if(EMSCRIPTEN)
   set(CMAKE_C_COMPILER   "emcc")
   set(CMAKE_CXX_COMPILER "em++")
+
   set(OUT_FILE           "wasm3.html")
+  set(APP_DIR            "platforms/emscripten")
 endif()
 
 if(M EQUAL 32)
@@ -48,7 +51,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-file(GLOB M3_SRC "source/*.c" "source/*.cpp")
+file(GLOB M3_SRC "source/*.c" "source/*.cpp" "${APP_DIR}/*.cpp")
+
+include_directories("./source/")
 
 if((CMAKE_C_COMPILER_ID MATCHES "GNU") OR
    (CMAKE_C_COMPILER_ID MATCHES "MSVC"))
@@ -59,10 +64,7 @@ if((CMAKE_C_COMPILER_ID MATCHES "GNU") OR
 endif()
 
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1 -ggdb")
-if (CMAKE_C_COMPILER_ID MATCHES "GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive") # TODO: remove
-endif()
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1 -ggdb -O0")
 
 if(EMSCRIPTEN)
   set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -w -Wfatal-errors -Xclang -target-feature -Xclang +tail-call")
@@ -74,26 +76,29 @@ elseif(WIN32)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWIN32 /WX- /diagnostics:column")
 
   if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi /Zo /Oxs /w /fp:fast /arch:AVX2")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /W0 /Zi /Zo /arch:AVX2")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/DEBUG:FULL")
   else()
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O3 /Oy /GS- /Qvec /w -Xclang -Oz /fp:fast") # /Gr
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /W0 /GS- /Qvec -Clang -Oz")
   endif()
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}") # /GR- /GX-
 else()
   if (CMAKE_C_COMPILER_ID MATCHES "GNU")
-    set(OPT_FLAGS "-O3")
+    set(OPT_FLAGS "-O3 -Wl,--lto-O3")
   else()
-    set(OPT_FLAGS "-Oz -Wl,--lto-O3") # -Ofast
+    set(OPT_FLAGS "-Oz") # -Ofast
   endif()
 
   set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}") # -fno-rtti -fno-exceptions
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+
 add_executable(${OUT_FILE} ${M3_SRC})
+target_link_libraries(${OUT_FILE} m)
 
 check_ipo_supported(RESULT result)
 if(result)
