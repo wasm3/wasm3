@@ -1,16 +1,15 @@
 # Performance
 
 ```log
+Function:                       fib(40)
 -----------------------------------------------------
  Device:    Lenovo Ideapad 720s [i5-8250U @ 1.60GHz]
 -----------------------------------------------------
-                                fib(40)
-
 Linux       x64   gcc 7.4.0       4.63s
 Linux       x64   clang 9         5.32s
 Win 10      x64   clang 9         5.35s
 Win 10      x64   msvc 2019       6.10s
-Win 10      x86   clang           9.43s (No TCO)
+Win 10      x86   clang           9.43s  - no TCO
 Linux       x86   gcc            11.34s
 Linux       x86   clang          15.37s  - no TCO
 Chrome     wasm   emcc 1.38      30.42s  --experimental-wasm-return-call --wasm-opt --wasm-no-bounds-checks --wasm-no-stack-checks
@@ -42,13 +41,19 @@ Espruino    x64   2v04             >20m
 Linux      armv7l gcc 8.3        23.78s
 ```
 
-```log
------------------------------------------------------
- Device:    ESP32 [ESP32D0WDQ5 Xtensa LX6 @ 240MHz]
------------------------------------------------------
-ESP-IDF     lx6   gcc             17.9m  - no TCO, and yes, minutes! ;)
+# Performance on MCUs
 
+```log
+Function:                                fib(24)   fib64(24)      comments
+----------------------------------------------------------------------------------------------------
+ESP8266             LX106 @ 160MHz         288ms       299ms      no TCO
+ESP32                 LX6 @ 240MHz         410ms       430ms      no TCO
+WM W600            Arm M3 @ 80MHz          716ms       782ms      TCO, stack used: 1952
+WM W600            Arm M3 @ 80MHz          846ms       914ms      no TCO, stack used: 8168
+Arduino MKR1000   Arm M0+ @ 48MHz          1.93s       2.06s      no TCO
+HiFive1 FE310    rv32imac @ 320MHz         9.10s       9.82s
 ```
+
 
 ## Running
 
