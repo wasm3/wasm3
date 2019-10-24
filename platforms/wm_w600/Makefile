@@ -90,7 +90,10 @@ endif
 #   for a subtree within the makefile rooted therein
 #
 
-DEFINES =  -w -DWM_W600 -O3 -fomit-frame-pointer
+DEFINES =  -w -DWM_W600 -Os -flto
+#-fno-optimize-sibling-calls
+
+LINKFLAGS_$(TARGET) += $(DEFINES)
 
 #############################################################
 # Recursion Magic - Don't touch this!!

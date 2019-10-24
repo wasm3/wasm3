@@ -21,5 +21,5 @@ w600tool.py --upload .output/wasm3_gz.img
 ```
 or
 ```sh
-w600tool.py --upload ./bin/wasm3/wasm3.fls
+w600tool.py --upload .output/wasm3.fls
 ```
