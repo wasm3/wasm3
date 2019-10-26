@@ -28,8 +28,8 @@ int puts(const char *str) {
 #define printf(msg, ...) puts(msg)
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return false; }
 
-#include "m3.h"
-#include "m3_env.h"
+#include "m3/m3.h"
+#include "m3/m3_env.h"
 
 #include "fib.wasm.h"
 
