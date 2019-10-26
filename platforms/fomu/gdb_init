@@ -1,0 +1,11 @@
+set history save on
+set confirm off
+set remotetimeout 240
+set print asm-demangle on
+
+target remote localhost:1234
+
+# monitor reset halt
+# load
+# continue
+# quit
