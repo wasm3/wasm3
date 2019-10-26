@@ -216,8 +216,13 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 void		m3NotImplemented		();
 void		m3AbortIfNot			(bool condition);
 
+void		m3Yield					();
+
 M3Result	m3Malloc				(void ** o_ptr, size_t i_size);
 void * 		m3Realloc				(void * i_ptr, size_t i_newSize, size_t i_oldSize);
+void		m3Free_impl				(void * o_ptr);
+
+#define		m3Free(P)				{ m3Free_impl((void*)(P)); P = NULL; }
 
 bool		IsIntType				(u8 i_wasmType);
 bool		IsFpType				(u8 i_wasmType);

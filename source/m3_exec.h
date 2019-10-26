@@ -50,6 +50,7 @@
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
+	m3Yield ();
 	IM3Operation operation = (IM3Operation)(* _pc);
 	return operation (_pc + 1, d_m3OpArgs);
 }

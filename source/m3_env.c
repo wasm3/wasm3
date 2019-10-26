@@ -65,25 +65,24 @@ u32  GetFunctionNumArgsAndLocals (IM3Function i_function)
 
 void FreeImportInfo (M3ImportInfo * i_info)
 {
-	free ((void *) i_info->moduleUtf8);	i_info->moduleUtf8 = NULL;
-	free ((void *) i_info->fieldUtf8);	i_info->fieldUtf8 = NULL;
+	m3Free (i_info->moduleUtf8);
+	m3Free (i_info->fieldUtf8);
 }
-
-
-void  InitRuntime  (IM3Runtime io_runtime, u32 i_stackSizeInBytes)
-{
-	m3Malloc (& io_runtime->stack, i_stackSizeInBytes);
-	io_runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
-}
-
 
 IM3Runtime  m3_NewRuntime  (u32 i_stackSizeInBytes)
 {
 	IM3Runtime env;
 	m3Alloc (& env, M3Runtime, 1);
 
-	if (env)
-		InitRuntime (env, i_stackSizeInBytes);
+	if (!env) return NULL;
+
+	m3Malloc (& env->stack, i_stackSizeInBytes);
+
+	if (!env->stack) {
+		m3Free(env);
+		return NULL;
+	}
+	env->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
 
 	return env;
 }
@@ -125,7 +124,7 @@ void  ReleaseRuntime  (IM3Runtime i_runtime)
 	FreeCodePages (i_runtime->pagesOpen);
 	FreeCodePages (i_runtime->pagesFull);
 
-	free (i_runtime->stack);
+	m3Free (i_runtime->stack);
 }
 
 
@@ -134,7 +133,7 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
 	if (i_runtime)
 	{
 		ReleaseRuntime (i_runtime);
-		free (i_runtime);
+		m3Free (i_runtime);
 	}
 }
 

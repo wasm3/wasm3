@@ -77,7 +77,7 @@ _				(NormalizeType (& ft->returnType, returnType));
 	
 	if (result)
 	{
-		free (io_module->funcTypes);
+		m3Free (io_module->funcTypes);
 		io_module->funcTypes = NULL;
 		io_module->numFuncTypes = 0;
 	}
@@ -214,7 +214,7 @@ _		(ReadLEB_u32 (& index, & i_bytes, i_end));									m3log (parse, "  - index: 
 			}
 		}
 		
-		free ((void *) utf8);
+		m3Free (utf8);
 	}
 	
 	_catch: return result;
@@ -401,7 +401,7 @@ _	(Read_utf8 (& name, & i_bytes, i_end));
 	if (strcmp (name, "name") != 0)
 		i_bytes = i_end;
 	
-	free ((void *) name);
+	m3Free (name);
 
 	while (i_bytes < i_end)
 	{
@@ -432,7 +432,7 @@ _				(Read_utf8 (& name, & i_bytes, i_end));
 //							else m3log (parse, "prenamed: %s", io_module->functions [index].name);
 				}
 				
-				free ((void *) name);
+				m3Free (name);
 			}
 		}
 		

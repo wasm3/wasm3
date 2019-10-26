@@ -21,6 +21,88 @@ void m3AbortIfNot(bool condition) {
 	}
 }
 
+__attribute__((weak))
+void m3Yield ()
+{
+}
+
+#if d_m3FixedHeap
+
+static u8 fixedHeap[d_m3FixedHeap];
+static u8* fixedHeapPtr = fixedHeap;
+static u8* const fixedHeapEnd = fixedHeap + d_m3FixedHeap;
+static u8* fixedHeapLast = NULL;
+
+#if d_m3FixedHeapAlign > 1
+#	define HEAP_ALIGN_PTR(P) P = (u8*)(((size_t)(P)+(d_m3FixedHeapAlign-1)) & ~ (d_m3FixedHeapAlign-1));
+#else
+#	define HEAP_ALIGN_PTR(P)
+#endif
+
+M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
+{
+	u8 * ptr = fixedHeapPtr;
+
+	fixedHeapPtr += i_size;
+	HEAP_ALIGN_PTR(fixedHeapPtr);
+
+	if (fixedHeapPtr >= fixedHeapEnd)
+	{
+		* o_ptr = NULL;
+
+		return c_m3Err_mallocFailed;
+	}
+
+	memset (ptr, 0x0, i_size);
+	* o_ptr = ptr;
+	fixedHeapLast = ptr;
+
+	//printf("== alloc %d => %p\n", i_size, ptr);
+
+	return c_m3Err_none;
+}
+
+void		m3Free_impl				(void * o_ptr)
+{
+	if (!o_ptr) return;
+
+	// Handle the last chunk
+	if (o_ptr == fixedHeapLast) {
+		fixedHeapPtr = fixedHeapLast;
+		fixedHeapLast = NULL;
+		//printf("== free %p\n", o_ptr);
+	} else {
+		//printf("== free %p [failed]\n", o_ptr);
+	}
+}
+
+void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+{
+	//printf("== realloc %p => %d\n", i_ptr, i_newSize);
+
+	void * ptr = i_ptr;
+	if (i_newSize == i_oldSize) return ptr;
+
+	// Handle the last chunk
+	if (i_ptr && i_ptr == fixedHeapLast) {
+		fixedHeapPtr = fixedHeapLast + i_newSize;
+		HEAP_ALIGN_PTR(fixedHeapPtr);
+		return ptr;
+	}
+
+	m3Malloc(&ptr, i_newSize);
+	if (!ptr) return NULL;
+
+	if (i_ptr) {
+		memcpy(ptr, i_ptr, i_oldSize);
+	}
+
+	return ptr;
+}
+
+
+#else
+
 M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
 {
 	M3Result result = c_m3Err_none;
@@ -33,12 +115,22 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
 	else result = c_m3Err_mallocFailed;
 
 	* o_ptr = ptr;
+	//printf("== alloc %d => %p\n", i_size, ptr);
 
 	return result;
 }
 
+void  m3Free_impl  (void * o_ptr)
+{
+	if (!o_ptr) return;
+
+	//printf("== free %p\n", o_ptr);
+	free(o_ptr);
+}
+
 void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
+	//printf("== realloc %p => %d\n", i_ptr, i_newSize);
 	void * ptr = i_ptr;
 	
 	if (i_newSize != i_oldSize)
@@ -58,6 +150,8 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 	
 	return ptr;
 }
+
+#endif
 
 //--------------------------------------------------------------------------------------------
 

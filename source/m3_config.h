@@ -45,6 +45,13 @@
 #	define d_m3LogOutput						true
 # endif
 
+# ifndef d_m3FixedHeap
+#	define d_m3FixedHeap						0
+# endif
+
+# ifndef d_m3FixedHeapAlign
+#	define d_m3FixedHeapAlign					16
+# endif
 
 // logging ---------------------------------------------------------------------------
 

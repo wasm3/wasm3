@@ -1567,7 +1567,7 @@ _	(Compile_BlockStatements (o));
 		pc_t * location = block->patches->location;
 		* location = GetPC (o);
 
-		free (block->patches);
+		m3Free (block->patches);
 		block->patches = next;
 	}
 

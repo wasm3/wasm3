@@ -24,6 +24,12 @@
 # elif defined (ESP32)
 # 	include "esp_system.h"
 # 	define vectorcall IRAM_ATTR
+# elif defined (FOMU)
+# 	define vectorcall __attribute__((section(".ramtext")))
+# elif defined(HIFIVE1)
+#	include <metal/itim.h>
+#   define vectorcall
+#   define hotcall METAL_PLACE_IN_ITIM
 # else
 # 	define vectorcall
 # endif

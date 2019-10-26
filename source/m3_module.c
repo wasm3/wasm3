@@ -17,15 +17,15 @@ void  m3_FreeModule  (IM3Module i_module)
 		m3log (module, "freeing module: %s (funcs: %d; segments: %d)",
 			   i_module->name, i_module->numFunctions, i_module->numDataSegments);
 		
-		free (i_module->functions);
-		free (i_module->imports);
-		free (i_module->funcTypes);
-		free (i_module->dataSegments);
+		m3Free (i_module->functions);
+		m3Free (i_module->imports);
+		m3Free (i_module->funcTypes);
+		m3Free (i_module->dataSegments);
 		
 		// TODO: free importinfo
-		free (i_module->globals);
+		m3Free (i_module->globals);
 		
-		free (i_module);
+		m3Free (i_module);
 	}
 }
 
