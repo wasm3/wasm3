@@ -41,20 +41,6 @@ Espruino    x64   2v04             >20m
 Linux      armv7l gcc 8.3        23.78s
 ```
 
-# Performance on MCUs
-
-```log
-Function:                                fib(24)   fib64(24)      comments
-----------------------------------------------------------------------------------------------------
-ESP8266             LX106 @ 160MHz         288ms       299ms      no TCO
-ESP32                 LX6 @ 240MHz         410ms       430ms      no TCO
-WM W600            Arm M3 @ 80MHz          716ms       782ms      TCO, stack used: 1952
-WM W600            Arm M3 @ 80MHz          846ms       914ms      no TCO, stack used: 8168
-Arduino MKR1000   Arm M0+ @ 48MHz          1.93s       2.06s      no TCO
-HiFive1 FE310    rv32imac @ 320MHz         9.10s       9.82s
-```
-
-
 ## Running
 
 ```sh
