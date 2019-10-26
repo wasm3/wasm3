@@ -67,9 +67,12 @@ endif()
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1 -ggdb -O0")
 
 if(EMSCRIPTEN)
-  set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -w -Wfatal-errors -Xclang -target-feature -Xclang +tail-call")
+  set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -w -Wfatal-errors")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 --lto-O3 --closure 1 --strip-all --gc-sections") # --emrun
+  if(WASM_TCO)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Xclang -target-feature -Xclang +tail-call")
+  endif()
 elseif(WIN32)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
@@ -85,7 +88,7 @@ else()
   if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(OPT_FLAGS "-O3")
   else()
-    set(OPT_FLAGS "-Oz") # -Ofast
+    set(OPT_FLAGS "-Ofast")
   endif()
 
   set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
