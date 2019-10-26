@@ -94,7 +94,7 @@ d_m3OpDecl  (DumpStack)
 
 
 
-// TODO: Ok, this needs some explanation here ;0
+// TODO: OK, this needs some explanation here ;0
 
 #define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OP, ...) \
 d_m3Op(TYPE##_##NAME##_sr)								\

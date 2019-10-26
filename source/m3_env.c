@@ -155,7 +155,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 	i_module->runtime = & rt;
 
 	M3Compilation o = { & rt, i_module, * io_bytes, i_end };
-	o.block.depth = -1;  // so that root complation depth = 0
+	o.block.depth = -1;  // so that root compilation depth = 0
 
 	IM3CodePage page = o.page = AcquireCodePage (& rt);
 
@@ -193,12 +193,6 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 	* io_bytes = o.wasm;
 
 	return result;
-}
-
-
-M3Result  EvaluateExpression_i32  (IM3Module i_module, i32 * o_expressed, bytes_t * i_bytes, cbytes_t i_end)
-{
-	return EvaluateExpression (i_module, o_expressed, c_m3Type_i32, i_bytes, i_end);
 }
 
 
@@ -257,7 +251,7 @@ M3Result  InitDataSegments  (IM3Module io_module)
 
 		i32 segmentOffset;
 		bytes_t start = segment->initExpr;
-_		(EvaluateExpression_i32 (io_module, & segmentOffset, & start, segment->initExpr + segment->initExprSize));
+_		(EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
 
 		u32 minMemorySize = segment->size + segmentOffset + 1;						m3log (runtime, "loading data segment: %d  offset: %d", i, segmentOffset);
 _		(Module_EnsureMemorySize (io_module, & io_module->memory, minMemorySize));
@@ -284,7 +278,7 @@ _		(ReadLEB_u32 (& index, & bytes, end));
 		if (index == 0)
 		{
 			i32 offset;
-_			(EvaluateExpression_i32 (io_module, & offset, & bytes, end));
+_			(EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end));
 
 			u32 numElements;
 _			(ReadLEB_u32 (& numElements, & bytes, end));
@@ -391,7 +385,7 @@ M3Result  m3_Call  (IM3Function i_function)
 }
 
 
-M3Result  m3_CallWithArgs  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv)
+M3Result  m3_CallWithArgs  (IM3Function i_function, int32_t i_argc, const char * const * i_argv)
 {
 	M3Result result = c_m3Err_none;
 
@@ -463,7 +457,7 @@ _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs
 	_catch: return result;
 }
 
-M3Result  m3_CallMain  (IM3Function i_function, i32 i_argc, ccstr_t * i_argv)
+M3Result  m3_CallMain  (IM3Function i_function, int32_t i_argc, const char * const * i_argv)
 {
 	M3Result result = c_m3Err_none;
 

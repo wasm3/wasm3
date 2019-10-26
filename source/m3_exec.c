@@ -36,10 +36,10 @@ d_m3OpDef  (Call)
 	
 	m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
 	
-	if (r == 0)
-		r = nextOp ();
+	if (r != 0)
+		return r;
 	
-	return r;
+	return nextOp ();
 }
 
 
@@ -126,8 +126,7 @@ d_m3OpDef  (Entry)
 
 	m3ret_t r = nextOp ();
 	
-	if (d_m3Log_exec)
-	{
+#if d_m3Log_exec
 		u8 returnType = function->funcType->returnType;
 	
 		char str [100] = { '!', 0 };
@@ -136,7 +135,7 @@ d_m3OpDef  (Entry)
 			SPrintArg (str, 99, _sp, function->funcType->returnType);
 			
 		m3log (exec, " exit < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
-	}
+#endif
 
 	return r;
 }

@@ -110,7 +110,7 @@ d_m3ErrorConst	(mallocFailed, 					"memory allocation failed")
 // parse errors
 d_m3ErrorConst	(incompatibleWasmVersion,	 	"incompatible WASM binary version")
 d_m3ErrorConst	(wasmMalformed, 				"malformed WASM binary")
-d_m3ErrorConst	(misorderedWasmSection, 		"out of ordr WASM section")
+d_m3ErrorConst	(misorderedWasmSection, 		"out of order WASM section")
 d_m3ErrorConst	(wasmUnderrun, 					"underrun while parsing WASM binary")
 d_m3ErrorConst	(wasmOverrun, 					"overrun while parsing WASM binary")
 d_m3ErrorConst	(wasmMissingInitExpr, 			"missing init_expr in WASM binary")
@@ -128,8 +128,8 @@ d_m3ErrorConst	(functionImportMissing,			"missing imported function");
 // compilation errors
 d_m3ErrorConst	(noCompiler, 					"no compiler found for opcode")
 d_m3ErrorConst	(unknownOpcode, 				"unknown opcode")
-d_m3ErrorConst	(functionStackOverflow, 		"compiling function overran its stack height limit")
-d_m3ErrorConst	(functionStackUnderrun,	 		"compiling function underran the stack")
+d_m3ErrorConst	(functionStackOverflow, 		"compiling function overrun its stack height limit")
+d_m3ErrorConst	(functionStackUnderrun,	 		"compiling function underrun the stack")
 d_m3ErrorConst	(mallocFailedCodePage, 			"memory allocation failed when acquiring a new M3 code page")
 d_m3ErrorConst	(optimizerFailed, 				"optimizer failed")	// not a fatal error. a result,
 

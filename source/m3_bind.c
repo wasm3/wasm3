@@ -22,7 +22,7 @@ typedef struct M3State
 M3State;
 
 
-// This binding code only work'n for System V AMD64 ABI calling convention (macOS & Linux)
+// TODO: This binding code only work'n for System V AMD64 ABI calling convention (macOS & Linux)
 // Needs work for MS cdecl
 
 #define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, f64 _f0, f64 _f1, f64 _f2, f64 _f3
@@ -48,9 +48,9 @@ m3ret_t PushArg_p##INDEX (d_m3BindingArgList, M3State * _state) 		\
 	i32 offset = (u32) * (_state->sp++);								\
 	_i##INDEX = (i64) (_state->mem + offset);							\
 	M3ArgPusher pusher = (M3ArgPusher)(* _state->pc++);					\
-	if (0) printf ("push ptr: r%d off: %d\n", INDEX, offset);			\
 	return pusher (d_m3BindingArgs, _state);							\
 }
+//printf ("push ptr: r%d off: %d\n", INDEX, offset);
 
 //printf ("push [%d]: %lld\n", INDEX, _i##INDEX);
 #define d_argPusherInt(INDEX) 											\
@@ -61,7 +61,7 @@ m3ret_t PushArg_i##INDEX (d_m3BindingArgList, M3State * _state)			\
 	return pusher (d_m3BindingArgs, _state);							\
 }
 
-//	printf ("push [%d]: %lf\n", INDEX, * (TYPE *) (_state->sp)); \
+//printf ("push [%d]: %lf\n", INDEX, * (TYPE *) (_state->sp));
 
 #define d_argPusherFloat(INDEX,TYPE) 									\
 m3ret_t PushArg_##TYPE##_##INDEX (d_m3BindingArgList, M3State * _state)	\
@@ -255,7 +255,7 @@ M3Result  m3_RegisterFunction  (IM3Runtime io_runtime,  const char * const i_fun
 }
 
 
-M3Result  m3_LinkFunction  (IM3Module io_module,  ccstr_t i_functionName,  ccstr_t i_signature,  const void * i_function)
+M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionName,  const char * const i_signature,  const void * i_function)
 {
 	M3Result result = c_m3Err_none;
 	
