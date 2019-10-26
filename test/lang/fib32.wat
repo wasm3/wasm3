@@ -1,5 +1,5 @@
 (module
- (export "_fib" (func $fib))
+ (export "fib" (func $fib))
  (func $fib (param $n i32) (result i32)
   (if
    (i32.lt_u

@@ -12,6 +12,8 @@ struct ff_spi *spi;
 char *ltoa(long N, char *str, int base);
 
 void uart_write(const char *str, unsigned len) {
+    if (!usb_can_putc()) return;
+
     while (len) {
         while (!usb_can_putc())
             usb_poll();
@@ -25,22 +27,20 @@ int puts(const char *str) {
     uart_write(str, strlen(str));
 }
 
-#define printf(msg, ...) puts(msg)
-#define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return false; }
+#define FATAL(msg, ...) { puts("Fatal: " msg "\n"); return false; }
 
 #include "m3/m3.h"
 #include "m3/m3_env.h"
-
-#include "fib.wasm.h"
+#include "m3/extra/fib32.wasm.h"
 
 bool run_wasm()
 {
     M3Result result = c_m3Err_none;
 
-    uint8_t* wasm = (uint8_t*)fib_wasm;
-    uint32_t fsize = fib_wasm_len-1;
+    uint8_t* wasm = (uint8_t*)fib32_wasm;
+    uint32_t fsize = fib32_wasm_len-1;
 
-    printf("Loading WebAssembly...\n");
+    puts("Loading WebAssembly...\n");
 
     IM3Module module;
     result = m3_ParseModule (& module, wasm, fsize);
@@ -53,10 +53,10 @@ bool run_wasm()
     if (result) FATAL("m3_LoadModule: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, env, "_fib");
+    result = m3_FindFunction (&f, env, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
-    printf("Running...\n");
+    puts("Running...\n");
 
     const char* i_argv[2] = { "24", NULL };
     result = m3_CallWithArgs (f, 1, i_argv);
@@ -67,9 +67,9 @@ bool run_wasm()
     char buff[32];
     ltoa(value, buff, 10);
 
-    printf("Result: ");
-    printf(buff);
-    printf("\n");
+    puts("Result: ");
+    puts(buff);
+    puts("\n");
 
     return true;
 }
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
         msleep(1);
     }
 
-    printf("\nwasm3 on Fomu, build " __DATE__ " " __TIME__ "\n");
+    puts("\nwasm3 on Fomu, build " __DATE__ " " __TIME__ "\n");
 
     rgb_set(0, 0, 255);
     if (run_wasm()) {

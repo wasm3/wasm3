@@ -1,7 +1,7 @@
 
 #include "m3/m3.hpp"
 
-#include "fib.wasm.h"
+#include "m3/extra/fib32.wasm.h"
 
 #include <jee.h>
 
@@ -11,8 +11,8 @@ void run_wasm()
 {
     M3Result result = c_m3Err_none;
 
-    u8* wasm = (u8*)fib_wasm;
-    u32 fsize = fib_wasm_len-1;
+    u8* wasm = (u8*)fib32_wasm;
+    u32 fsize = fib32_wasm_len-1;
 
     puts("Loading WebAssembly...\n");
 
@@ -27,7 +27,7 @@ void run_wasm()
     if (result) FATAL("m3_LoadModule: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, env, "_fib");
+    result = m3_FindFunction (&f, env, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
     puts("Running...\n");
