@@ -1,5 +1,7 @@
 ## Build using Emscripten
 
+In root:
+
 ```sh
 source /opt/emsdk/emsdk_env.sh --build=Release
 mkdir -p build
@@ -8,15 +10,26 @@ cmake -GNinja -DEMSCRIPTEN=1 ..
 ninja
 ```
 
-**Note:** the build uses tail-call WebAssembly extension.
+**Note:**
 
-You can convert the generated wasm to wat:
+To enable `tail-call` WebAssembly extension:
+```sh
+cmake -GNinja -DEMSCRIPTEN=1 -DWASM_TCO=1 ..
+```
+
+You can convert the generated wasm to wat to see the effect:
 ```sh
 wasm2wat --enable-tail-call wasm3.wasm > wasm3.wat
 ```
 
+Running `tail-call` version will require Chrome with experimental flags:
 ```sh
 emrun --no_browser --no_emrun_detect --port 8080 .
-chromium-browser --js-flags="--experimental-wasm-return-call --wasm-opt --wasm-no-bounds-checks --wasm-no-stack-checks" http://localhost:8080/wasm3.html
+chrome --js-flags="--experimental-wasm-return-call --wasm-opt --wasm-no-bounds-checks --wasm-no-stack-checks" http://localhost:8080/wasm3.html
+```
+
+Or use Node.js:
+```sh
+node --experimental-wasm-return-call --wasm-opt ./wasm3.js
 ```
 
