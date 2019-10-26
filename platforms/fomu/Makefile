@@ -51,12 +51,12 @@ LFLAGS     := $(CFLAGS) $(ADD_LFLAGS) -L$(LD_DIR) \
 
 OBJ_DIR    := .obj
 
-CSOURCES   := $(wildcard $(SRC_DIR)/*.c)
-CPPSOURCES := $(wildcard $(SRC_DIR)/*.cpp)
-ASOURCES   := $(wildcard $(SRC_DIR)/*.S)
-COBJS      := $(addprefix $(OBJ_DIR)/, $(notdir $(CSOURCES:.c=.o)))
-CXXOBJS    := $(addprefix $(OBJ_DIR)/, $(notdir $(CPPSOURCES:.cpp=.o)))
-AOBJS      := $(addprefix $(OBJ_DIR)/, $(notdir $(ASOURCES:.S=.o)))
+CSOURCES   := $(shell find -L $(SRC_DIR) -type f -name '*.c')
+CPPSOURCES := $(shell find -L $(SRC_DIR) -type f -name '*.cpp')
+ASOURCES   := $(shell find -L $(SRC_DIR) -type f -name '*.S')
+COBJS      := $(addprefix $(OBJ_DIR)/,$(CSOURCES:.c=.o))
+CXXOBJS    := $(addprefix $(OBJ_DIR)/,$(CPPSOURCES:.cpp=.o))
+AOBJS      := $(addprefix $(OBJ_DIR)/,$(ASOURCES:.S=.o))
 OBJECTS    := $(COBJS) $(CXXOBJS) $(AOBJS)
 VPATH      := $(SRC_DIR)
 
@@ -68,7 +68,7 @@ CLEAN      := clean
 
 $(ALL): $(TARGET) $(PACKAGE).bin $(PACKAGE).ihex $(PACKAGE).dfu
 
-$(OBJECTS): | $(OBJ_DIR)
+#$(OBJECTS): | $(OBJ_DIR)
 
 $(TARGET): $(OBJECTS) $(LDSCRIPTS)
 	$(QUIET) echo "  LD       $@"
@@ -97,25 +97,24 @@ $(OBJ_DIR):
 	$(QUIET) mkdir $(OBJ_DIR)
 
 $(COBJS) : $(OBJ_DIR)/%.o : %.c $(BASE_DIR)/Makefile
-	$(QUIET) echo "  CC       $<	$(notdir $@)"
+	$(QUIET) mkdir -p $(@D)
+	$(QUIET) echo "  CC       $<	$@"
 	$(QUIET) $(CC) -c $< $(CFLAGS) -o $@ -MMD
 
 $(OBJ_DIR)/%.o: %.cpp
-	$(QUIET) echo "  CXX      $<	$(notdir $@)"
+	$(QUIET) mkdir -p $(@D)
+	$(QUIET) echo "  CXX      $<	$@"
 	$(QUIET) $(CXX) -c $< $(CXXFLAGS) -o $@ -MMD
 
 $(OBJ_DIR)/%.o: %.S
-	$(QUIET) echo "  AS       $<	$(notdir $@)"
+	$(QUIET) mkdir -p $(@D)
+	$(QUIET) echo "  AS       $<	$@"
 	$(QUIET) $(CC) -x assembler-with-cpp -c $< $(CFLAGS) -o $@ -MMD
 
 .PHONY: clean
 
 clean:
-	$(QUIET) echo "  RM      $(subst /,$(PATH_SEP),$(wildcard $(OBJ_DIR)/*.d))"
-	-$(QUIET) $(RM) $(subst /,$(PATH_SEP),$(wildcard $(OBJ_DIR)/*.d))
-	$(QUIET) echo "  RM      $(subst /,$(PATH_SEP),$(wildcard $(OBJ_DIR)/*.d))"
-	-$(QUIET) $(RM) $(subst /,$(PATH_SEP),$(wildcard $(OBJ_DIR)/*.o))
-	$(QUIET) echo "  RM      $(TARGET) $(PACKAGE).bin $(PACKAGE).symbol $(PACKAGE).ihex $(PACKAGE).dfu"
-	-$(QUIET) $(RM) $(TARGET) $(PACKAGE).bin $(PACKAGE).symbol $(PACKAGE).ihex $(PACKAGE).dfu
+	- $(RM) -rf $(OBJ_DIR)
+	- $(RM) $(TARGET) $(PACKAGE).bin $(PACKAGE).symbol $(PACKAGE).ihex $(PACKAGE).dfu
 
-include $(wildcard $(OBJ_DIR)/*.d)
+-include $(OBJECTS:.o=.d)
