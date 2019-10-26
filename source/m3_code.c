@@ -14,11 +14,11 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
 {
 	static u32 s_sequence = 0;
 	
+	IM3CodePage page;
+	
 	u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
 
-	pageSize = (pageSize + 4095) & ~4095; // align to 4kB
-	
-	IM3CodePage page;
+	pageSize = (pageSize + (d_m3CodePageSize-1)) & ~(d_m3CodePageSize-1); // align
 	m3Malloc ((void **) & page, pageSize);
 	
 	if (page)
