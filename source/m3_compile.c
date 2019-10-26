@@ -1272,9 +1272,11 @@ const M3OpInfo c_operations [] =
 	M3OP( "return",				 0,	any,	d_emptyOpList(),				Compile_Return ),		// 0x0f
 	M3OP( "call",				 0,	any,	d_emptyOpList(),				Compile_Call ),			// 0x10
 	M3OP( "call_indirect",		 0,	any,	d_emptyOpList(),				Compile_CallIndirect ),	// 0x11
+	M3OP( "return_call",		 0,	any,	d_emptyOpList(),				Compile_Call ),			// 0x12 TODO: Optimize
+	M3OP( "return_call_indirect",0,	any,	d_emptyOpList(),				Compile_CallIndirect ),	// 0x13
 
-	M3OP_RESERVED,	M3OP_RESERVED,	M3OP_RESERVED,	M3OP_RESERVED,										// 0x12 - 0x15
-	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,										// 0x16 - 0x19
+	M3OP_RESERVED,	M3OP_RESERVED,																	// 0x14 - 0x15
+	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,									// 0x16 - 0x19
 
 	M3OP( "drop",				-1,	none,	d_emptyOpList(),				Compile_Drop ),			// 0x1a
 	M3OP( "select",				-2,	any,	d_emptyOpList(),				Compile_Select	),		// 0x1b
