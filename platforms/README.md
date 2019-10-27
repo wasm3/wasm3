@@ -16,6 +16,10 @@ Linux                                        22.97s
 ### Orange Pi Zero Plus2 H5 aarch64 (A53 @ 1GHz)
 Native C implementation                       2.55s
 Linux                                        50.00s
+
+### VoCore2  (MT7628 @ 580 MHz)
+Native C implementation                       6.21s
+OpenWRT                                      2m 38s
 ```
 
 ## wasm3 on MCUs
