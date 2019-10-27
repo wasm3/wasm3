@@ -5,15 +5,16 @@
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
 #include "m3/m3.hpp"
+#include "m3/m3_env.h"
 
-#include "fib.wasm.h"
+#include "m3/extra/fib32.wasm.h"
 
 void run_wasm()
 {
     M3Result result = c_m3Err_none;
 
-    u8* wasm = (u8*)fib_wasm;
-    u32 fsize = fib_wasm_len-1;
+    u8* wasm = (u8*)fib32_wasm;
+    u32 fsize = fib32_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
 
@@ -28,7 +29,7 @@ void run_wasm()
     if (result) FATAL("m3_LoadModule: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, env, "_fib");
+    result = m3_FindFunction (&f, env, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
     printf("Running...\n");
@@ -37,13 +38,17 @@ void run_wasm()
     result = m3_CallWithArgs (f, 1, i_argv);
 
     if (result) FATAL("m3_CallWithArgs: %s", result);
+
+    long value = *(uint64_t*)(env->stack);
+
+    Serial.print("Result: ");
+    Serial.println(value);
 }
 
 void setup()
 {
   Serial.begin(115200);
   delay(10);
-  while (!Serial) {}
 
   Serial.print("\nwasm3 on ESP8266, build " __DATE__ " " __TIME__ "\n");
 
