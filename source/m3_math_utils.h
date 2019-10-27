@@ -47,6 +47,13 @@ static inline int __builtin_clzll(unsigned long long x) {
 
 #endif
 
+// TODO: not sure why, signbit is actually defined in math.h
+#if defined(ESP8266)
+#define signbit(__x) \
+	((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : \
+		__signbitd(__x))
+#endif
+
 /*
  * Rotr, Rotl
  */
