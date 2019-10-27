@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "m3.hpp"
+#include "m3.h"
 
 #include "extra/fib32.wasm.h"
 
@@ -12,8 +12,8 @@ void run_wasm()
 {
     M3Result result = c_m3Err_none;
 
-    u8* wasm = (u8*)fib32_wasm;
-    u32 fsize = fib32_wasm_len-1;
+    uint8_t* wasm = (uint8_t*)fib32_wasm;
+    size_t fsize = fib32_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
 
