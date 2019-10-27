@@ -1,4 +1,4 @@
-build*
+./build*
 test/core
 test/*.log
 test/tailcall/*.S
