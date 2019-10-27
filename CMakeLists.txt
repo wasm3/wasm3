@@ -63,11 +63,11 @@ if((CMAKE_C_COMPILER_ID MATCHES "GNU") OR
   add_definitions(-DM3_COMPILED_AS_CPP=1)
 endif()
 
-
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wstrict-aliasing -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1 -ggdb -O0")
 
 if(EMSCRIPTEN)
-  set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -w -Wfatal-errors")
+  set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -Wfatal-errors")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 --lto-O3 --closure 1 --strip-all --gc-sections") # --emrun
   if(WASM_TCO)
@@ -91,7 +91,7 @@ else()
     set(OPT_FLAGS "-Ofast")
   endif()
 
-  set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -fomit-frame-pointer -march=native -w -Wfatal-errors") #-fno-inline
+  set(CMAKE_C_FLAGS_RELEASE "${OPT_FLAGS} -march=native -Wfatal-errors -fstrict-aliasing") #-fno-inline
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 endif()
