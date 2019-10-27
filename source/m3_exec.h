@@ -32,35 +32,25 @@
 
 # define slot(TYPE)					* (TYPE *) (_sp + immediate (i32))
 
+#define nextOpDirect()				((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
+#define jumpOpDirect(PC)			((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
+
 # if d_m3EnableOpProfiling
 # 	define nextOp()					profileOp (d_m3OpAllArgs, __PRETTY_FUNCTION__)
-# endif
-
-# if d_m3TraceExec
+# elif d_m3TraceExec
 # 	define nextOp()					debugOp (d_m3OpAllArgs, __PRETTY_FUNCTION__)
+# else
+# 	define nextOp()					nextOpDirect()
 # endif
 
-# ifndef nextOp
-# 	define nextOp()					((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
-# endif
-
-#define d_call(PC)					Call ((pc_t)PC, d_m3OpArgs)
-
-#define d_else(PC)					Else ((pc_t)PC, d_m3OpArgs)
-
+#define jumpOp(PC)					jumpOpDirect((pc_t)PC)
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
 	m3Yield ();
-	IM3Operation operation = (IM3Operation)(* _pc);
-	return operation (_pc + 1, d_m3OpArgs);
+	return nextOpDirect();
 }
 
-d_m3RetSig  Else  (d_m3OpSig)
-{
-	IM3Operation operation = (IM3Operation)(* _pc);
-	return operation (_pc + 1, d_m3OpArgs);
-}
 
 d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 {
@@ -69,7 +59,7 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 	* strstr (name, "(") = 0;
 
 	printf ("%s\n", name);
-	return ((IM3Operation)(* _pc))(d_m3OpAllArgs);
+	return nextOpDirect();
 }
 
 static const u32 c_m3ProfilerSlotMask = 0xFFFF;
@@ -87,7 +77,7 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
 	ProfileHit (i_operationName);
 
-	return ((IM3Operation)(* _pc))(d_m3OpAllArgs);
+	return nextOpDirect();
 }
 
 #if d_m3RuntimeStackDumps
@@ -453,13 +443,13 @@ d_m3Op  (Return)
 
 d_m3Op  (Branch)
 {
-	return d_call (* _pc);
+	return jumpOp (* _pc);
 }
 
 
 d_m3Op  (Bridge)
 {
-	return d_call (* _pc);
+	return jumpOp (* _pc);
 }
 
 
@@ -470,7 +460,7 @@ d_m3Op  (BranchIf)
 
 	if (condition)
 	{
-		return d_call (branch);
+		return jumpOp (branch);
 	}
 	else return nextOp ();
 }
@@ -486,7 +476,7 @@ d_m3Op  (BranchTable)
 	if (index < 0 or index > numTargets)
 		index = numTargets;	// the default index
 
-	return d_call (branches [index]);
+	return jumpOp (branches [index]);
 }
 
 

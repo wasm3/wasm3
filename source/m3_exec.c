@@ -168,7 +168,7 @@ d_m3OpDef  (DumpStack)
 	}
 	printf ("---------------------------------------------------------------------------------------------------------\n");
 	
-	return Op (_pc, d_m3OpArgs);
+	return nextOpDirect();
 }
 #endif
 
@@ -239,7 +239,7 @@ d_m3OpDef  (If_r)
 	if (condition)
 		return nextOp ();
 	else
-		return d_else (elsePC);
+		return jumpOp (elsePC);
 }
 
 
@@ -254,7 +254,7 @@ d_m3OpDef  (If_s)
 	if (condition)
 		return nextOp ();
 	else
-		return d_else (elsePC);
+		return jumpOp (elsePC);
 }
 
 
@@ -262,12 +262,13 @@ d_m3OpDef  (IfPreserve)
 {
 	i32 condition = (i32) _r0;
 	
-	d_call (immediate (pc_t));
+	pc_t p = immediate (pc_t);
+	jumpOp (p);
 	
 	pc_t elsePC = immediate (pc_t);			//printf ("else: %p\n", elsePC);
 	
 	if (condition)
 		return nextOp ();
 	else
-		return d_else (elsePC);
+		return jumpOp (elsePC);
 }
