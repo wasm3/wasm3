@@ -1,18 +1,23 @@
 # Performance
 
 ```log
-Function:                                   fib(40)
+                                            fib(40)
 ----------------------------------------------------------------------------------------------------
-reference (native)  i5-8250U @ 1.6GHz+        0.23s
-----------------------------------------------------------------------------------------------------
-Linux               i5-8250U @ 1.6GHz+        4.23s
-Win 10              i5-8250U @ 1.6GHz+        5.35s
-Linux RPi 4 (BCM2711B0)  A72 @ 1.5GHz        23.78s
-M3 under V8 (wasm)  i5-8250U @ 1.6GHz+       30.42s
+### Intel i5-8250U (1.6-3.4GHz) 64-bit
+Native C implementation                       0.23s
+Linux                                         3.83s
+Win 10                                        5.35s
+wasm3 on V8 (via Emscripten 1.38)            30.42s
+
+### Raspberry Pi 4 (A72 @ 1.5GHz) BCM2711B0 32-bit
+Native C implementation                       ----s
+Linux                                        23.78s
 ```
 
+## wasm3 on MCUs
+
 ```log
-Function:                                 fib32(24)   fib64(24)      comments
+                                          fib32(24)   fib64(24)      comments
 ----------------------------------------------------------------------------------------------------
 Maix (K210)        rv64imafc @ 400MHz          77ms        77ms
 ESP8266                LX106 @ 160MHz         288ms       299ms      no TCO
@@ -27,4 +32,29 @@ TinyBLE (nRF51)       Arm M0 @ 16MHz          5.58s       5.93s      no TCO, 16 
 BluePill              Arm M3 @ 72MHz          7.62s       8.20s
 HiFive1 (FE310)     rv32imac @ 320MHz         9.10s       9.82s   <- something wrong here?
 Fomu                   rv32i @ 12MHz         25.20s      26.10s
+```
+
+
+## Other wasm engines
+
+This is how different engines run the same function on Intel i5-8250U (1.6-3.4GHz):
+
+```log
+                                             fib(40)
+----------------------------------------------------------------------------------------------------
+WAVM               jit                         0.62s
+wasmer             jit                         0.70s
+V8 (Node.js        jit                         0.74s
+SpiderMonkey       jit                         0.93s
+iwasm              interp                     25.70s
+wac                interp                     37.11s
+
+### other languages
+LuaJIT             jit                         1.15s
+Node v10.15        jit                         2.97s
+Lua 5.1            interp                     16.65s
+Python 2.7         interp                     34.08s
+Python 3.4         interp                     35.67s
+Micropython v1.11  interp                     85,00s
+Espruino 2v04      interp                       >20m
 ```
