@@ -245,7 +245,7 @@ M3Result  Read_u8  (u8 * o_value, bytes_t  * io_bytes, cbytes_t i_end)
 }
 
 
-M3Result  ReadLebUnsigned  (u64 * o_value, i32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end)
 {
 	M3Result result = c_m3Err_wasmUnderrun;
 	
@@ -281,7 +281,7 @@ M3Result  ReadLebUnsigned  (u64 * o_value, i32 i_maxNumBits, bytes_t * io_bytes,
 }
 
 
-M3Result  ReadLebSigned  (i64 * o_value, i32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end)
 {
 	M3Result result = c_m3Err_wasmUnderrun;
 	

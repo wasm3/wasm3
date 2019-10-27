@@ -284,7 +284,7 @@ _			(ReadLEB_u32 (& numElements, & bytes, end));
 
 			u32 endElement = numElements + offset;
 
-			if (endElement > offset)
+			if (endElement > offset) // TODO: check this, endElement depends on offset
 			{
 				io_module->table0 = (IM3Function*)m3RellocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
 
@@ -384,7 +384,7 @@ M3Result  m3_Call  (IM3Function i_function)
 }
 
 
-M3Result  m3_CallWithArgs  (IM3Function i_function, int32_t i_argc, const char * const * i_argv)
+M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
 	M3Result result = c_m3Err_none;
 
@@ -410,7 +410,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, int32_t i_argc, const char *
 
 		// The format is currently not user-friendly by default,
 		// as this is used in spec tests
-		for (int i = 0; i < ftype->numArgs; ++i)
+		for (u32 i = 0; i < ftype->numArgs; ++i)
 		{
 			m3stack_t s = &stack[i];
 			ccstr_t str = i_argv[i];
@@ -462,7 +462,7 @@ _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs
 	_catch: return result;
 }
 
-M3Result  m3_CallMain  (IM3Function i_function, int32_t i_argc, const char * const * i_argv)
+M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
 	M3Result result = c_m3Err_none;
 
@@ -486,7 +486,7 @@ _		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
 
 			i32 * pointers = (i32 *) (memory->wasmPages + offset);
 
-			for (i32 i = 0; i < i_argc; ++i)
+			for (u32 i = 0; i < i_argc; ++i)
 			{
 				size_t argLength = strlen (i_argv [i]) + 1;
 

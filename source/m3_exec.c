@@ -54,7 +54,7 @@ d_m3OpDef  (CallIndirect)
 
 	i32 tableIndex = * (i32 *) (sp + type->numArgs);
 	
-	if (tableIndex >= 0 and tableIndex < module->table0Size)
+	if (tableIndex >= 0 and (u32)tableIndex < module->table0Size)
 	{
 		m3ret_t r = c_m3Err_none;
 		

@@ -232,8 +232,8 @@ M3Result	Read_u64				(u64 * o_value, const u8 ** io_bytes, cbytes_t i_end);
 M3Result 	Read_u32				(u32 * o_value, const u8 ** io_bytes, cbytes_t i_end);
 M3Result	Read_u8					(u8 * o_value, const u8 ** io_bytes, cbytes_t i_end);
 
-M3Result	ReadLebUnsigned			(u64 * o_value, i32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
-M3Result	ReadLebSigned			(i64 * o_value, i32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
+M3Result	ReadLebUnsigned			(u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
+M3Result	ReadLebSigned			(i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
 M3Result	ReadLEB_u32				(u32 * o_value, bytes_t* io_bytes, cbytes_t i_end);
 M3Result	ReadLEB_u7				(u8 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result	ReadLEB_i7				(i8 * o_value, bytes_t * io_bytes, cbytes_t i_end);

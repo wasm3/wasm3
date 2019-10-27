@@ -71,7 +71,7 @@ void  PrintFuncTypeSignature  (IM3FuncType i_funcType)
 
 size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
 {
-	size_t len = 0;
+	int len = 0;
 	
 	* o_string = 0;
 	

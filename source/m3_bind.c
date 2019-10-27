@@ -332,7 +332,7 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
 
 				EmitWord (page, callerOp);
 				
-				for (i32 j = 0; j < i; ++j)
+				for (u32 j = 0; j < i; ++j)
 					EmitWord (page, pushers [j]);
 				
 				EmitWord (page, i_function);
