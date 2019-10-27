@@ -7,10 +7,11 @@ PKG_RELEASE:=1
 PKG_MAINTAINER:=Volodymyr Shymanskyy
 PKG_LICENSE:=MIT
 
-PKG_SOURCE_URL:=file:///home/vshymanskyy/_Projects/_experiments/Wasm/vsh-m3
-#PKG_SOURCE_PROTO:=git
-#PKG_SOURCE_URL:=git://github.com/vshymanskyy/m3.git
-#PKG_SOURCE_VERSION:=master
+#PKG_SOURCE_URL:=file:///path/to/local/m3/
+
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=git://github.com/vshymanskyy/m3.git
+PKG_SOURCE_VERSION:=master
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 
