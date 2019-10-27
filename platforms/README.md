@@ -3,15 +3,19 @@
 ```log
                                             fib(40)
 ----------------------------------------------------------------------------------------------------
-### Intel i5-8250U (1.6-3.4GHz) 64-bit
+### Intel i5-8250U x64 (1.6-3.4GHz)
 Native C implementation                       0.23s
 Linux                                         3.83s
 Win 10                                        5.35s
 wasm3 on V8 (via Emscripten 1.38)            30.42s
 
-### Raspberry Pi 4 (A72 @ 1.5GHz) BCM2711B0 32-bit
-Native C implementation                       ----s
-Linux                                        23.78s
+### Raspberry Pi 4 BCM2711B0 armv7l (A72 @ 1.5GHz)
+Native C implementation                       1.11s
+Linux                                        22.97s
+
+### Orange Pi Zero Plus2 H5 aarch64 (A53 @ 1GHz)
+Native C implementation                       2.55s
+Linux                                        50.00s
 ```
 
 ## wasm3 on MCUs
