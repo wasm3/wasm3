@@ -92,11 +92,10 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
 
 ccstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 {
-	const u32 bufferSize = 1000;
-	static char string [bufferSize];
+	static char string [256];
 	
 	char * s = string;
-	ccstr_t e = string + bufferSize - 1;
+	ccstr_t e = string + sizeof(string) - 1;
 	
 	s += max (0, snprintf (s, e-s, "("));
 	

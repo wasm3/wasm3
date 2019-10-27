@@ -40,16 +40,15 @@ typedef i64 arch_i;
 
 
 //---------------------------------------------------------------------------------------------------------------
-static const i64 c_m3NumIntRegisters = 1;
-static const i64 c_m3NumFpRegisters = 1;
+#define c_m3NumIntRegisters 1
+#define c_m3NumFpRegisters  1
+#define c_m3NumRegisters    (c_m3NumIntRegisters + c_m3NumFpRegisters)
 
 #	define d_m3OpSig 				pc_t _pc, u64 * _sp, u8 * _mem, m3reg_t _r0, f64 _fp0
 #	define d_m3OpArgs	 			_sp, _mem, _r0, _fp0
 #	define d_m3OpAllArgs	 		_pc, _sp, _mem, _r0, _fp0
 #	define d_m3OpDefaultArgs		666, NAN
 
-
-static const i64 c_m3NumRegisters = c_m3NumIntRegisters + c_m3NumFpRegisters;
 
 typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 

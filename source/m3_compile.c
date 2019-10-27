@@ -79,13 +79,12 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 //-------------------------------------------------------------------------------------------------------------------------
 
 // just want less letter and numbers to stare at down the way in the compiler table
-const u8 	i_32 	= c_m3Type_i32,
-			i_64 	= c_m3Type_i64,
-			f_32 	= c_m3Type_f32,
-			f_64 	= c_m3Type_f64,
-			none 	= c_m3Type_none,
-			any		= -1
-			;
+#define	i_32 	c_m3Type_i32
+#define	i_64 	c_m3Type_i64
+#define	f_32 	c_m3Type_f32
+#define	f_64 	c_m3Type_f64
+#define	none 	c_m3Type_none
+#define	any		(u8)-1
 
 
 bool  IsRegisterLocation		(i16 i_location)	{ return (i_location >= c_m3Reg0Id); }

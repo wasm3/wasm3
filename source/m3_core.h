@@ -171,28 +171,27 @@ typedef struct M3CodePageInfo
 M3CodePageHeader;
 
 
-static const u32	c_m3CodePageFreeLinesThreshold 	= 10;
+#define	c_m3CodePageFreeLinesThreshold		10
 
-static const u32	c_m3MemPageSize					= 65536;
-static const u32	c_m3MaxFunctionStackHeight		= d_m3MaxFunctionStackHeight;
-static const u32 	c_m3MaxFunctionLocals			= 512;
+#define	c_m3MemPageSize						65536
+#define	c_m3MaxFunctionStackHeight			d_m3MaxFunctionStackHeight
+#define	c_m3MaxFunctionLocals				512
 
-static const u32	c_m3Reg0Id						= c_m3MaxFunctionStackHeight + 1;
-static const u32	c_m3Fp0Id						= c_m3MaxFunctionStackHeight + 2;
+#define	c_m3Reg0Id							c_m3MaxFunctionStackHeight + 1
+#define	c_m3Fp0Id							c_m3MaxFunctionStackHeight + 2
 
-static const u32	c_m3MaxNumFunctionConstants 	= 60;
+#define	c_m3MaxNumFunctionConstants 		60
 
-static const bool	c_m3AlignWasmMemoryToPages		= d_m3AlignWasmMemoryToPages;
+#define	c_m3AlignWasmMemoryToPages			d_m3AlignWasmMemoryToPages
 
-//static const u32	c_m3MaxSaneWasmSize				= 1000000000;
-static const u32	c_m3MaxSaneUtf8Length 			= 2000;
-static const u32	c_m3MaxNumFunctionArgs			= d_m3MaxNumFunctionArgs;
+//#define	c_m3MaxSaneWasmSize				1000000000
+#define	c_m3MaxSaneUtf8Length 				2000
+#define	c_m3MaxNumFunctionArgs				d_m3MaxNumFunctionArgs
 
-static const u8 	c_externalKind_function 		= 0,
-					c_externalKind_table 			= 1,
-					c_externalKind_memory			= 2,
-					c_externalKind_global			= 3
-					;
+#define c_externalKind_function 			0
+#define c_externalKind_table 		 		1
+#define c_externalKind_memory				2
+#define c_externalKind_global				3
 
 static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
 
