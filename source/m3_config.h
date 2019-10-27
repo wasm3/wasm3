@@ -19,8 +19,8 @@
 #  warning "Compiler not detected"
 # endif
 
-# ifndef d_m3CodePageSize
-#	define d_m3MaxNumFunctionArgs				32
+# ifndef d_m3MaxNumFunctionArgs
+#	define d_m3MaxNumFunctionArgs				16
 # endif
 # ifndef d_m3CodePageSize
 #	define d_m3CodePageSize						4096
@@ -46,7 +46,8 @@
 # endif
 
 # ifndef d_m3FixedHeap
-#	define d_m3FixedHeap						0
+#	define d_m3FixedHeap						false
+//#	define d_m3FixedHeap						(32*1024)
 # endif
 
 # ifndef d_m3FixedHeapAlign

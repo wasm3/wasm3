@@ -90,7 +90,7 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
 }
 
 
-ccstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
+cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 {
 	static char string [256];
 	
@@ -173,7 +173,7 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
 		case 0xbf+1:
 		{
 			value = fetch (u64); offset = fetch (i32);
-			sprintf (o_string, " slot [%d] = %llu", offset, value);
+			sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
 			
 			break;
 		}

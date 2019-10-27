@@ -635,7 +635,7 @@ M3Result  Compile_Const_i32  (IM3Compilation o, u8 i_opcode)
 	M3Result result;
 
 	i32 value;
-_	(ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const i32 = %d)", GetIndentionString (o), value);
+_	(ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", GetIndentionString (o), value);
 
 _	(PushConst (o, value, c_m3Type_i32));
 
@@ -648,7 +648,7 @@ M3Result  Compile_Const_i64  (IM3Compilation o, u8 i_opcode)
 	M3Result result;
 
 	i64 value;
-_	(ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const i32 = %lld)", GetIndentionString (o), value);
+_	(ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", GetIndentionString (o), value);
 
 _	(PushConst (o, value, c_m3Type_i64));
 
@@ -661,12 +661,14 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
 	M3Result result;
 
 _try {
-	u32 value;
-_	(ReadLEB_u32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), * ((f32 *) & value));
+	union { u32 u; f32 f; } union32;
+	union { u64 u; f64 f; } union64;
 
-	// convert to double
-	f64 f = * (f32 *) & value;
-_	(PushConst (o, * (u64 *) & f, c_m3Type_f64));
+_	(ReadLEB_u32 (& union32.u, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), * ((f32 *) & value));
+
+	union64.f = union32.f; // convert to double
+
+_	(PushConst (o, union64.u, c_m3Type_f64));
 
 	} _catch: return result;
 }
@@ -1616,7 +1618,7 @@ _			(IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
 
 			if (preserveToSlot != i)
 			{
-				printf ("preserving local: %d to slot: %d\n", i, preserveToSlot);
+//				printf ("preserving local: %d to slot: %d\n", i, preserveToSlot);
 				m3NotImplemented();
 			}
 		}

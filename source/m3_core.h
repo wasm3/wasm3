@@ -86,56 +86,56 @@ static const char * m3LogTruncFilename (const char * i_file)
 #	if d_m3LogParse
 #		define m3log_parse(CATEGORY, FMT, ...) 			d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_parse(...)
+#		define m3log_parse(...) {}
 #	endif
 
 #	if d_m3LogCompile
 #		define m3log_compile(CATEGORY, FMT, ...) 		d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_compile(...)
+#		define m3log_compile(...) {}
 #	endif
 
 #	if d_m3LogStack
 #		define m3log_stack(CATEGORY, FMT, ...) 			d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_stack(...)
+#		define m3log_stack(...) {}
 #	endif
 
 #	if d_m3LogEmit
 #		define m3log_emit(CATEGORY, FMT, ...) 			d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_emit(...)
+#		define m3log_emit(...) {}
 #	endif
 
 #	if d_m3LogCodePages
 #		define m3log_code(CATEGORY, FMT, ...) 			d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_code(...)
+#		define m3log_code(...) {}
 #	endif
 
 #	if d_m3LogModule
 #		define m3log_module(CATEGORY, FMT, ...) 		d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_module(...)
+#		define m3log_module(...) {}
 #	endif
 
 #	if d_m3LogRuntime
 #		define m3log_runtime(CATEGORY, FMT, ...) 		d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_runtime(...)
+#		define m3log_runtime(...) {}
 #	endif
 
 #	if d_m3LogExec
 #		define m3log_exec(CATEGORY, FMT, ...) 			d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #	else
-#		define m3log_exec(...)
+#		define m3log_exec(...) {}
 #	endif
 
 #	define m3log(CATEGORY, FMT, ...)					m3log_##CATEGORY (CATEGORY, FMT "\n", ##__VA_ARGS__)
 #	define m3logif(CATEGORY, STATEMENT)					m3log_##CATEGORY (CATEGORY, ""); if (d_m3Log_##CATEGORY) { STATEMENT; printf ("\n"); }
 # else
-#	define m3log(CATEGORY, FMT, ...)
-#	define m3logif(CATEGORY, STATEMENT)
+#	define m3log(CATEGORY, FMT, ...)					{}
+#	define m3logif(CATEGORY, STATEMENT)					{}
 # endif
 
 

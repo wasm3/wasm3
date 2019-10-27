@@ -15,7 +15,7 @@ m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 	M3MemoryHeader * info = (M3MemoryHeader *) (i_mem - sizeof (M3MemoryHeader));
 	u8 * mem8 = i_mem + i_offset;
 	
-	ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %lld bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
+	ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
 	
 	return c_m3Err_trapOutOfBoundsMemoryAccess;
 }
@@ -151,7 +151,7 @@ d_m3OpDef  (DumpStack)
 	cstr_t funcName = (function) ? function->name : "";
 	
 	printf (" %4d ", opcodeIndex);
-	printf (" %-25s     r0: 0x%016llx  i:%lld  u:%llu  \n", funcName, _r0, _r0, _r0);
+	printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
 	printf ("                                     fp0: %lf  \n", _fp0);
 	
 	u64 * sp = _sp;
@@ -162,7 +162,7 @@ d_m3OpDef  (DumpStack)
 		
 		cstr_t kind = "";
 		
-		printf ("%5s  %2d: 0x%llx %lld\n", kind, i, (u64) *(sp), (i64) *sp);
+		printf ("%5s  %2d: 0x%" PRIx64 " %" PRIi64 "\n", kind, i, (u64) *(sp), (i64) *sp);
 		
 		++sp;
 	}
@@ -232,7 +232,7 @@ d_m3OpDef  (If_r)
 {
 	i32 condition = (i32) _r0;
 	
-	immediate (pc_t);						// empty preservation chain
+	skip_immediate (pc_t);						// empty preservation chain
 	
 	pc_t elsePC = immediate (pc_t);
 	
@@ -247,7 +247,7 @@ d_m3OpDef  (If_s)
 {
 	i32 condition = slot (i32);
 	
-	immediate (pc_t);						// empty preservation chain
+	skip_immediate (pc_t);						// empty preservation chain
 	
 	pc_t elsePC = immediate (pc_t);
 	

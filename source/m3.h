@@ -34,6 +34,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 typedef const char *	M3Result;
 
@@ -54,7 +55,7 @@ typedef struct M3ErrorInfo
 	const char *	file;
 	uint32_t		line;
 
-	char 			message 		[1024];
+	char 			message 		[256];
 }
 M3ErrorInfo;
 

@@ -15,7 +15,7 @@
 #include "m3_exec.h"
 #include "m3_exception.h"
 
-ccstr_t  GetFunctionName  (IM3Function i_function)
+cstr_t  GetFunctionName  (IM3Function i_function)
 {
 	return (i_function->name) ? i_function->name : ".unnamed";
 }
@@ -172,11 +172,11 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 			{
 				if (SizeOfType (i_type) == sizeof (u32))
 				{
-					* (u32 *) o_expressed = * (u32 *) stack;
+					* (u32 *) o_expressed = *stack & 0xFFFFFFFF;
 				}
 				else if (SizeOfType (i_type) == sizeof (u64))
 				{
-					* (u64 *) o_expressed = * (u64 *) stack;
+					* (u64 *) o_expressed = *stack;
 				}
 			}
 		}
@@ -185,7 +185,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 	}
 	else result = c_m3Err_mallocFailedCodePage;
 
-	rt.stack = NULL; 				// prevent free(stack) in ReleaseRuntime ()
+	rt.stack = NULL; 				// prevent free(stack) in ReleaseRuntime
 	ReleaseRuntime (& rt);
 	i_module->runtime = savedRuntime;
 
@@ -435,21 +435,27 @@ _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs
 		switch (ftype->returnType) {
 		case c_m3Type_none: break;
 #ifdef USE_HUMAN_FRIENDLY_ARGS
-		case c_m3Type_i32:  printf("Result: %ld\n",  *(i32*)(stack));  break;
-		case c_m3Type_i64:  printf("Result: %lld\n", *(i64*)(stack));  break;
+		case c_m3Type_i32:  printf("Result: %" PRIi32 "\n", *(i32*)(stack));  break;
+		case c_m3Type_i64:  printf("Result: %" PRIi64 "\n", *(i64*)(stack));  break;
 		case c_m3Type_f32:  printf("Result: %f\n",   *(f32*)(stack));  break;
 		case c_m3Type_f64:  printf("Result: %lf\n",  *(f64*)(stack));  break;
 #else
 		case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
-		case c_m3Type_i64:  printf("Result: %llu\n", *(u64*)(stack));  break;
-		case c_m3Type_f32:  { f32 val = *(f64*)(stack); printf("Result: %u\n", *(u32*)&val ); }  break;
-		case c_m3Type_f64:  printf("Result: %llu\n", *(u64*)(stack));  break;
+		case c_m3Type_f32:  {
+			union { u32 u; f32 f; } union32;
+			union32.f = *(f64*)(stack);
+			printf("Result: %u\n", union32.u );
+			break;
+		}
+		case c_m3Type_i64:
+		case c_m3Type_f64:
+			printf("Result: %" PRIu64 "\n", *(u64*)(stack));  break;
 #endif
 		default: _throw("unknown return type");
 		}
 
 		//u64 value = * (u64 *) (stack);
-		//m3log (runtime, "return64: %llu return32: %u", value, (u32) value);
+		//m3log (runtime, "return64: %" PRIu64 " return32: %u", value, (u32) value);
 	}
 	else _throw (c_m3Err_missingCompiledCode);
 
@@ -500,8 +506,8 @@ _		(Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
 
 _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 
-		u64 value = * (u64 *) (stack);
-		m3log (runtime, "return64: %llu return32: %u", value, (u32) value);
+		//u64 value = * (u64 *) (stack);
+		//m3log (runtime, "return64: % " PRIu64 " return32: %" PRIu32, value, (u32) value);
 	}
 	else _throw (c_m3Err_missingCompiledCode);
 
@@ -574,7 +580,7 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 
 		va_list args;
 		va_start (args, i_errorMessage);
-		vsnprintf (info.message, 1023, i_errorMessage, args);
+		vsnprintf (info.message, sizeof(info.message), i_errorMessage, args);
 		va_end (args);
 
 		i_runtime->error = info;

@@ -28,6 +28,7 @@
 # define d_m3OpDecl(NAME)			d_m3OpDef (NAME);
 
 # define immediate(TYPE) 			* ((TYPE *) _pc++)
+# define skip_immediate(TYPE) 		(void)* ((TYPE *) _pc++)
 
 # define slot(TYPE)					* (TYPE *) (_sp + immediate (i32))
 
@@ -328,16 +329,17 @@ d_m3FpToFpConvertOp (f32, Demote)
 #define d_m3ReinterpretOp(REG, TO, SRC, FROM, CAST)			\
 d_m3Op(TO##_Reinterpret_##CAST##_r)							\
 { 															\
-	const CAST copy = (FROM)SRC;							\
-	REG = *(TO*)&copy;										\
+	union { CAST c; TO t; } u;								\
+	u.c = (FROM)SRC;										\
+	REG = u.t;												\
 	return nextOp ();										\
 } 															\
 															\
 d_m3Op(TO##_Reinterpret_##CAST##_s)							\
 { 															\
-	FROM * stack = (FROM *) (_sp + immediate (i32));		\
-	const CAST copy = (* stack);							\
-	REG = *(TO*)&copy;										\
+	union { CAST c; TO t; } u;								\
+	u.c = *(FROM *) (_sp + immediate (i32));				\
+	REG = u.t;												\
 	return nextOp ();										\
 }
 
@@ -545,7 +547,7 @@ d_m3Op  (GetGlobal)
 {
 	i64 * global = immediate (i64 *);
 
-//	printf ("get global: %p %lld\n", global, *global);
+//	printf ("get global: %p %" PRIi64 "\n", global, *global);
 
 	i32 offset 	= immediate (i32);
 	* (_sp + offset) = * global;
@@ -569,7 +571,7 @@ d_m3Op  (SetGlobal_i)
 	i64 * global = immediate (i64 *);
 	* global = _r0;
 
-//	printf ("set global: %p %lld\n", global, _r0);
+//	printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
 	return nextOp ();
 }
@@ -589,7 +591,7 @@ d_m3Op (CopySlot)
 	u64 * dst = _sp + immediate (i32);
 	u64 * src = _sp + immediate (i32);
 
-	* dst = * src;					// printf ("copy: %p <- %lld <- %p\n", dst, * dst, src);
+	* dst = * src;					// printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
 	return nextOp ();
 }

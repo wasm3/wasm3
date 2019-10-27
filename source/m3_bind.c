@@ -52,7 +52,7 @@ m3ret_t PushArg_p##INDEX (d_m3BindingArgList, M3State * _state) 		\
 }
 //printf ("push ptr: r%d off: %d\n", INDEX, offset);
 
-//printf ("push [%d]: %lld\n", INDEX, _i##INDEX);
+//printf ("push [%d]: %" PRId64 "\n", INDEX, _i##INDEX);
 #define d_argPusherInt(INDEX) 											\
 m3ret_t PushArg_i##INDEX (d_m3BindingArgList, M3State * _state)			\
 {																		\

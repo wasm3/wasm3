@@ -58,14 +58,14 @@ M3Function;
 typedef M3Function * 		IM3Function;
 
 
-ccstr_t		GetFunctionName				(IM3Function i_function);
+cstr_t		GetFunctionName				(IM3Function i_function);
 u32			GetFunctionNumArgs			(IM3Function i_function);
 u32			GetFunctionNumReturns		(IM3Function i_function);
 u8			GetFunctionReturnType		(IM3Function i_function);
 
 u32			GetFunctionNumArgsAndLocals	(IM3Function i_function);
 
-ccstr_t		SPrintFunctionArgList		(IM3Function i_function, m3stack_t i_sp);
+cstr_t		SPrintFunctionArgList		(IM3Function i_function, m3stack_t i_sp);
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
