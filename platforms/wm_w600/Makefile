@@ -91,7 +91,8 @@ endif
 #
 
 DEFINES =  -w -DWM_W600 -Os -flto
-#-fno-optimize-sibling-calls
+#			-Dd_m3FixedHeap=8192
+#			-fno-optimize-sibling-calls
 
 LINKFLAGS_$(TARGET) += $(DEFINES)
 
