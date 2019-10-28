@@ -4,7 +4,7 @@ M3_SRC_DIR := ../../../source
 SOURCES    := ../../app/main.c \
               $(shell find $(M3_SRC_DIR) -type f -name '*.c')
 
-override CFLAGS += -std=c99 -O3 -flto -Wfatal-errors -fstrict-aliasing -I$(M3_SRC_DIR)
+override CFLAGS += -std=c99 -O3 -flto -Wno-error=format-security -Wfatal-errors -fstrict-aliasing -I$(M3_SRC_DIR)
 
 all: wasm3
 

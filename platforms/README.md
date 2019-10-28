@@ -17,9 +17,13 @@ Linux                                        22.97s
 Native C implementation                       2.55s
 Linux                                        50.00s
 
-### VoCore2  (MT7628AN @ 580 MHz)
+### VoCore2 mips32r2 (MT7628AN @ 580MHz)
 Native C implementation                       6.21s
 OpenWRT                                      2m 38s
+
+### Xiaomi Mi Router 3G mips32r2 (MT7621AT @ 880MHz)
+Native C implementation                       8.83s
+OpenWRT                                      3m 20s
 ```
 
 ## wasm3 on MCUs

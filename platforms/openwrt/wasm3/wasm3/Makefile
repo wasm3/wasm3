@@ -25,7 +25,6 @@ define Package/wasm3
   CATEGORY:=Languages
   TITLE:=Fast WASM interpreter
   URL:=https://github.com/vshymanskyy/m3
-#  DEPENDS:=+libpthread
 endef
 
 define Package/wasm3/description
@@ -37,10 +36,6 @@ MAKE_PATH := platforms/openwrt/build
 MAKE_FLAGS += LD="$(TARGET_CC)"
 MAKE_FLAGS += RELEASE=1
 MAKE_FLAGS += OPENWRT_UCLIBC=1
-
-#define Package/hello/Build/Compile
-#	$(MAKE) -C $(PKG_BUILD_DIR) hello
-#endef
 
 define Package/wasm3/install
 	$(INSTALL_DIR) $(1)/usr/bin
