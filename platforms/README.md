@@ -17,7 +17,7 @@ Linux                                        22.97s
 Native C implementation                       2.55s
 Linux                                        50.00s
 
-### VoCore2  (MT7628 @ 580 MHz)
+### VoCore2  (MT7628AN @ 580 MHz)
 Native C implementation                       6.21s
 OpenWRT                                      2m 38s
 ```

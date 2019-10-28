@@ -7,7 +7,7 @@ This is **wasm3** package for **OpenWRT**.
 ## Build from source
 
 ```bash
-echo "src-git wasm3 git://github.com/vshymanskyy/OpenWRT-wasm3-packages.git" >> ./feeds.conf
+echo "src-link wasm3 $(M3_ROOT)/platforms/openwrt/" >> ./feeds.conf
 ./scripts/feeds update -a
 ./scripts/feeds install -p wasm3 -a
 make menuconfig
