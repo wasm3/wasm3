@@ -57,22 +57,10 @@ void wasm3_task(void *data)
     u32 end = millis();
 
     printf("Elapsed: %d ms\n", (end - start));
-
-    for (int i=0; i<USER_TASK_STK_SIZE; i++) {
-      if (user_task_stk[i] != 0xA5) {
-        printf("Stack used: %d\n", USER_TASK_STK_SIZE-i);
-        break;
-      }
-    }
 }
 
 void UserMain(void)
 {
-    /* paint the stack */
-    for (int i=0; i<USER_TASK_STK_SIZE; i++) {
-      user_task_stk[i] = 0xA5;
-    }
-
     /* create task */
     tls_os_task_create(NULL,
             "wasm3",
