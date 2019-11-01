@@ -437,6 +437,7 @@ d_m3Op  (Select_f)
 
 d_m3Op  (Return)
 {
+	m3StackCheck();
 	return 0;
 }
 
@@ -522,12 +523,14 @@ d_m3Op  (Const)
 
 d_m3Op  (Trap)
 {													m3log (exec, "*** trapping ***");
+	m3StackCheck();
 	return c_m3Err_runtimeTrap;
 }
 
 
 d_m3Op  (End)
 {
+	m3StackCheck();
 	return 0;
 }
 

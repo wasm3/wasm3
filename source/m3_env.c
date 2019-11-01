@@ -430,6 +430,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
 			}
 		}
 
+		m3StackCheckInit();
 _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 
 		switch (ftype->returnType) {
@@ -453,6 +454,11 @@ _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs
 #endif
 		default: _throw("unknown return type");
 		}
+
+#if d_m3LogNativeStack
+		size_t stackUsed = 	m3StackGetMax();
+		printf("Native stack used: %d\n", stackUsed);
+#endif
 
 		//u64 value = * (u64 *) (stack);
 		//m3log (runtime, "return64: %" PRIu64 " return32: %u", value, (u32) value);

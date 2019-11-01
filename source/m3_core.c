@@ -155,6 +155,32 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 //--------------------------------------------------------------------------------------------
 
+#if d_m3LogNativeStack
+
+static size_t stack_start;
+static size_t stack_end;
+
+void		m3StackCheckInit ()
+{
+	char stack;
+	stack_end = stack_start = (size_t)&stack;
+}
+
+void		m3StackCheck ()
+{
+	char stack;
+	size_t addr = (size_t)&stack;
+	stack_end = min(stack_end, addr);
+}
+
+size_t		m3StackGetMax  ()
+{
+	return stack_start - stack_end;
+}
+
+#endif
+
+//--------------------------------------------------------------------------------------------
 
 bool  IsFpType  (u8 i_m3Type)
 {

@@ -212,6 +212,16 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 #define max(A,B) (A > B) ? A : B
 #endif
 
+#if d_m3LogNativeStack
+void		m3StackCheckInit		();
+void		m3StackCheck			();
+size_t		m3StackGetMax			();
+#else
+#define		m3StackCheckInit()
+#define		m3StackCheck()
+#define		m3StackGetMax()			0
+#endif
+
 void		m3NotImplemented		();
 void		m3AbortIfNot			(bool condition);
 

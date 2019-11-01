@@ -72,7 +72,7 @@
 # define d_m3LogModule			0
 # define d_m3LogRuntime			0
 # define d_m3LogExec			0
-
+# define d_m3LogNativeStack		0
 
 
 #endif /* m3_config_h */
