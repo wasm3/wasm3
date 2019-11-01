@@ -66,6 +66,8 @@ endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wstrict-aliasing -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1 -ggdb -O0")
 
+#-fno-optimize-sibling-calls
+
 if(EMSCRIPTEN)
   set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -Wfatal-errors")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
