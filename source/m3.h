@@ -14,14 +14,14 @@
  	FIX:
  		- function types need to move to the runtime structure so that all modules can share types
  			then type equality can be a simple pointer compare for indirect call checks
- 
+
  	TODO:
  		- assumes little-endian CPU
  		- needs work for a 32-bit architecture
  			- e.g. m3 code stream should be 32-bit aligned, but still needs to handle 64-bit constants
- 
+
  	POSSIBLE FUTURE FEATURES:
- 		- segmented stack 
+ 		- segmented stack
  		- M3 stack that lives on the C stack (this might be useful in a memory constrained environment)
         - i32, f32 could occupy 4 bytes on M3 stack
         - support of tail calls wasm extension
@@ -36,6 +36,10 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef const char *	M3Result;
 
 struct M3Runtime;		typedef struct M3Runtime *		IM3Runtime;
@@ -46,11 +50,11 @@ struct M3Function;		typedef struct M3Function *		IM3Function;
 typedef struct M3ErrorInfo
 {
 	M3Result		result;
-	
+
 	IM3Runtime		runtime;
 	IM3Module		module;
 	IM3Function		function;
-	
+
 	// compilation constants
 	const char *	file;
 	uint32_t		line;
@@ -68,11 +72,11 @@ enum // EWaTypes
 	c_m3Type_i64	= 2,
 	c_m3Type_f32	= 3,
 	c_m3Type_f64	= 4,
-	
+
 	c_m3Type_void,
 	c_m3Type_ptr,
 	c_m3Type_trap,
-	
+
 	c_m3Type_module
 };
 
@@ -81,7 +85,7 @@ typedef struct M3ImportInfo
 {
 	const char *	moduleUtf8;
 	const char *	fieldUtf8;
-	
+
 //	unsigned char	type;
 }
 M3ImportInfo;
@@ -116,7 +120,7 @@ d_m3ErrorConst	(wasmUnderrun, 					"underrun while parsing WASM binary")
 d_m3ErrorConst	(wasmOverrun, 					"overrun while parsing WASM binary")
 d_m3ErrorConst	(wasmMissingInitExpr, 			"missing init_expr in WASM binary")
 d_m3ErrorConst	(lebOverflow, 					"LEB encoded value overflow")
-d_m3ErrorConst	(missingUTF8, 					"zero length UTF-8 string")
+d_m3ErrorConst	(missingUTF8, 					"invalid length UTF-8 string")
 d_m3ErrorConst	(wasmSectionUnderrun, 			"section underrun while parsing WASM binary")
 d_m3ErrorConst	(wasmSectionOverrun, 			"section overrun while parsing WASM binary")
 d_m3ErrorConst	(invalidTypeId, 				"unknown value_type")
@@ -145,7 +149,7 @@ d_m3ErrorConst	(trapOutOfBoundsMemoryAccess,	"[trap] out of bounds memory access
 d_m3ErrorConst	(trapDivisionByZero,			"[trap] integer divide by zero")
 d_m3ErrorConst	(trapIntegerOverflow,			"[trap] integer overflow")
 d_m3ErrorConst	(trapIntegerConversion,			"[trap] invalid conversion to integer")
-d_m3ErrorConst	(trapTableIndexOutOfRange,		"[trap] table index is out of range")
+d_m3ErrorConst	(trapTableIndexOutOfRange,		"[trap] undefined element")
 d_m3ErrorConst	(trapExit,						"[trap] program called exit")
 d_m3ErrorConst	(runtimeTrap,					"[trap] unspecified runtime trap")
 
@@ -253,5 +257,8 @@ typedef int64_t	(* M3Callback)	(IM3Function i_currentFunction, void * i_ref);
 	void				m3_PrintM3Info				(void);
 	void				m3_PrintProfilerInfo		(void);
 
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* m3_h */
