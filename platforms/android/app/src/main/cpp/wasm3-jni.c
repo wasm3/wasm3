@@ -42,7 +42,7 @@
 #endif
 
 /*
- * Override printf
+ * Override printf, puts, putchar
  */
 
 static char gBuffer[16*1024] = {};
@@ -118,7 +118,8 @@ JNIEXPORT jstring JNICALL
 Java_com_example_hellojni_HelloJni_stringFromJNI( JNIEnv* env,
                                                   jobject thiz )
 {
-    printf("wasm3 on Android (" ABI "), build " __DATE__ " " __TIME__ "\n");
+    printf("wasm3 on Android (" ABI ")\n");
+    printf("Build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
     run_wasm();

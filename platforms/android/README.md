@@ -14,4 +14,8 @@ export SDKMANAGER_OPTS="-XX:+IgnoreUnrecognizedVMOptions --add-modules java.se.e
 sdkmanager --install ndk-bundle
 ```
 
-adb install  ./app/build/outputs/apk/debug/app-debug.apk
+Install on device:
+```
+adb install -r ./app/build/outputs/apk/debug/app-debug.apk
+```
+
