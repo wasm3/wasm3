@@ -7,7 +7,7 @@
 Native C implementation                       0.23s
 Linux                                         3.83s
 Win 10                                        5.35s
-wasm3 on V8 (via Emscripten 1.38)            30.42s
+wasm3 on V8 (Emscripten 1.38, node v13.0.1)  17.98s
 
 ### Raspberry Pi 4 BCM2711B0 armv7l (A72 @ 1.5GHz)
 Native C implementation                       1.11s
