@@ -13,26 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.example.hellojni;
+package com.example.wasm3;
 
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.Keep;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.TextView;
 
-public class HelloJni extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity {
+
+    TextView tv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_hello_jni);
-        TextView tv = (TextView)findViewById(R.id.hello_textview);
-        tv.setText( stringFromJNI() );
+        setContentView(R.layout.activity_main);
+        tv = (TextView)findViewById(R.id.console);
+
+        runMain();
     }
 
-    public native String  stringFromJNI();
+    @Keep
+    private void outputText(final String s) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                MainActivity.this.tv.append(s);
+            }
+        });
+    }
 
     static {
         System.loadLibrary("wasm3-jni");
     }
+    public native void runMain();
 }
+

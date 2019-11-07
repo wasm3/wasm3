@@ -4,7 +4,7 @@ add_definitions(-DANDROID -Wno-format-security -O3
                 #-fno-optimize-sibling-calls
                 -fstrict-aliasing -flto -fno-fat-lto-objects)
 
-file(GLOB M3_SRC FOLLOW_SYMLINKS "m3/*.c" "wasm3-jni.c")
+file(GLOB M3_SRC FOLLOW_SYMLINKS "m3/*.c" "*.c")
 
 add_library(wasm3-jni SHARED ${M3_SRC})
 
