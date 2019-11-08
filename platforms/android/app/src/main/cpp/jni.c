@@ -3,6 +3,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <jni.h>
 
 extern int main();
@@ -15,60 +16,47 @@ JavaVM* javaVM;
 JNIEnv* jniEnv;
 jclass  activityClz;
 jobject activityObj;
-jmethodID outputTextId;
 
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     if ((*vm)->GetEnv(vm, (void**)&jniEnv, JNI_VERSION_1_6) != JNI_OK) {
-        return JNI_ERR; // JNI version not supported.
+        return JNI_ERR; // JNI version not supported
     }
     javaVM = vm;
     return  JNI_VERSION_1_6;
 }
 
-void callOutputText(const char* text) {
-    JNIEnv *env = jniEnv;
+static int pfd[2];
+static pthread_t pumpThread;
+static pthread_t mainThread;
 
-    jstring javaMsg = (*env)->NewStringUTF(env, text);
-    (*env)->CallVoidMethod(env, activityObj, outputTextId, javaMsg);
-    (*env)->DeleteLocalRef(env, javaMsg);
-}
-
-/*
- * Override printf, puts, putchar
- */
-
-int printf(const char * format, ... )
+static void* runOutputPump(void* ctx)
 {
-    char buff[256] = {};
+    int readSize;
+    char buff[128];
 
-    va_list args;
-    va_start (args, format);
-    const int result = vsnprintf(buff, sizeof(buff), format, args);
-    va_end (args);
+    JNIEnv* env;
+    (*javaVM)->AttachCurrentThread(javaVM, &env, NULL);
 
-    if (result > 0) {
-        callOutputText(buff);
+    jmethodID outputTextId = (*env)->GetMethodID(env, activityClz,
+                                                 "outputText",
+                                                 "(Ljava/lang/String;)V");
+
+    while ((readSize = read(pfd[0], buff, sizeof(buff) - 1)) > 0)
+    {
+        buff[readSize] = '\0';
+
+        jstring javaMsg = (*env)->NewStringUTF(env, buff);
+        (*env)->CallVoidMethod(env, activityObj, outputTextId, javaMsg);
+        (*env)->DeleteLocalRef(env, javaMsg);
     }
-    return result;
+
+    return 0;
 }
 
-int puts(const char *s)
+static void* runMain(void* ctx)
 {
-    callOutputText(s);
-    callOutputText("\n");
-    return strlen(s);
-}
-
-int putchar(int c)
-{
-    char buff[2] = { c, '\0' };
-    callOutputText(buff);
-    return c;
-}
-
-void* runner(void* context) {
     (*javaVM)->AttachCurrentThread(javaVM, &jniEnv, NULL);
     main();
     return NULL;
@@ -77,20 +65,25 @@ void* runner(void* context) {
 JNIEXPORT void JNICALL
 Java_com_example_wasm3_MainActivity_runMain(JNIEnv* env, jobject instance)
 {
+    setvbuf(stdout, 0, _IOLBF, 0); // stdout: line-buffered
+    setvbuf(stderr, 0, _IONBF, 0); // stderr: unbuffered
+
+    // create the pipe and redirect stdout and stderr
+    pipe(pfd);
+    dup2(pfd[1], 1);
+    dup2(pfd[1], 2);
+
     jclass clz = (*env)->GetObjectClass(env, instance);
     activityClz = (*env)->NewGlobalRef(env, clz);
     activityObj = (*env)->NewGlobalRef(env, instance);
-
-    outputTextId = (*env)->GetMethodID(env, activityClz,
-                                       "outputText",
-                                       "(Ljava/lang/String;)V");
 
     pthread_attr_t  threadAttr;
     pthread_attr_init(&threadAttr);
     pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_DETACHED);
 
-    pthread_t       threadInfo;
-    pthread_create( &threadInfo, &threadAttr, runner, NULL);
+    pthread_create( &pumpThread, &threadAttr, runOutputPump, NULL);
+
+    pthread_create( &mainThread, &threadAttr, runMain, NULL);
 
     pthread_attr_destroy(&threadAttr);
 }
