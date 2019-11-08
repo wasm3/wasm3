@@ -21,7 +21,7 @@ Currently `wasm3` runs on:
 
 Minimum system requirements: **~64Kb** for code and **~10Kb** RAM.
 
-Wasm3 is built on top of **Steven Massey**'s novel interpreter topology, with
+`wasm3` is built on top of **Steven Massey**'s novel interpreter topology, with
 - Aim at Wasm 1.0 spec conformance (not there yet)
 - Lot's of fixes
 - Portability improvements
