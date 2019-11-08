@@ -13,11 +13,12 @@ Currently `wasm3` runs on:
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/linux.svg" width="18" height="18" /> Linux,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/windows.svg" width="18" height="18" /> Windows,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X
-- SBCs (Raspberry Pi and the likes)
-- Microcontrollers: ESP32, ESP8266, nRF52, nRF51, Blue Pill, Kendryte 210, FOMU, MXChip AZ3166, Arduino Due,
+- <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/android.svg" width="18" height="18" /> Android
+- <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi and other **SBC**s
+- **MCU**s: ESP32, ESP8266, nRF52, nRF51, Blue Pill, Kendryte 210, FOMU, MXChip AZ3166, Arduino Due,
 Arduino MKR*, etc.  
 - Routers (via OpenWRT)
-- Browsers... yes, using WebAssembly itself!
+- <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 
 Minimum system requirements: **~64Kb** for code and **~10Kb** RAM.
 
