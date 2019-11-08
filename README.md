@@ -9,6 +9,9 @@ This is an (experimental) high performance WebAssembly interpreter written in C.
 ~ 10-15х slower that native execution  
 
 ## Status
+
+This is **experimental**.
+
 Currently `wasm3` runs on:
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/linux.svg" width="18" height="18" /> Linux,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/windows.svg" width="18" height="18" /> Windows,
@@ -19,7 +22,7 @@ Currently `wasm3` runs on:
 - **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 
-Minimum system requirements: **~64Kb** for code and **~10Kb** RAM.
+Minimum system requirements: **~64Kb** for code and **~10Kb** RAM
 
 `wasm3` is built on top of **Steven Massey**'s novel interpreter topology, with
 - Aim at Wasm 1.0 spec conformance (not there yet)
