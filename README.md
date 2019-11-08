@@ -6,11 +6,9 @@
 # Wasm3
 This is an (experimental) high performance WebAssembly interpreter written in C.  
 
-**∼ 10x faster** than common wasm interpreters, like `wac`,  
-`wasm-micro-runtime`, `life`  
+**∼ 10x faster** than other wasm interpreters (`wasm-micro-runtime`,`wac`,`life`)  
 **∼ 5-6x slower** than state of the art wasm `JIT` engines, like `liftoff`  
 **∼ 10-15х slower** than native execution  
-
 <sub>* Your mileage may vary</sub>
 
 ## Status
@@ -27,7 +25,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 
-`wasm3` is built on top of [Steven Massey](https://github.com/soundandform)'s novel interpreter topology, with
+`wasm3` is built on top of [Steven Massey](https://github.com/soundandform)'s novel [interpreter topology](/source/README.md), with:
 - Aim at Wasm 1.0 spec conformance (not there yet)
 - Lot's of bugfixes
 - Portability improvements
