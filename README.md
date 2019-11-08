@@ -4,8 +4,7 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vshymanskyy/wasm3)
 
 # Wasm3
-This is an (experimental) high performance WebAssembly interpreter written in C.
-
+This is an (experimental) high performance WebAssembly interpreter written in C.  
 `wasm3` is built on top of [Steven Massey](https://github.com/soundandform)'s novel interpreter topology, with
 - Aim at Wasm 1.0 spec conformance (not there yet)
 - Lot's of bugfixes
