@@ -12,7 +12,7 @@ This is an (experimental) high performance WebAssembly interpreter written in C.
 
 This is **experimental**.
 
-Currently `wasm3` runs on:
+`wasm3` was tested and runs on:
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/linux.svg" width="18" height="18" /> Linux,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/windows.svg" width="18" height="18" /> Windows,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X
