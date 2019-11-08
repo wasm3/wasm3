@@ -1,0 +1,43 @@
+
+/*
+ * Override printf, puts, putchar
+ */
+
+JNIEnv* jniEnv;
+
+void callOutputText(const char* text) {
+    JNIEnv *env = jniEnv;
+
+    jstring javaMsg = (*env)->NewStringUTF(env, text);
+    (*env)->CallVoidMethod(env, activityObj, outputTextId, javaMsg);
+    (*env)->DeleteLocalRef(env, javaMsg);
+}
+
+int printf(const char * format, ... )
+{
+    char buff[256] = {};
+
+    va_list args;
+    va_start (args, format);
+    const int result = vsnprintf(buff, sizeof(buff), format, args);
+    va_end (args);
+
+    if (result > 0) {
+        callOutputText(buff);
+    }
+    return result;
+}
+
+int puts(const char *s)
+{
+    callOutputText(s);
+    callOutputText("\n");
+    return strlen(s);
+}
+
+int putchar(int c)
+{
+    char buff[2] = { c, '\0' };
+    callOutputText(buff);
+    return c;
+}
