@@ -24,7 +24,7 @@ This is **experimental**.
 - **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 
-Minimum system requirements: **~64Kb** for code and **~10Kb** RAM
+Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 `wasm3` is built on top of **Steven Massey**'s novel interpreter topology, with
 - Aim at Wasm 1.0 spec conformance (not there yet)
