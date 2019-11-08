@@ -8,6 +8,8 @@ This is an (experimental) high performance WebAssembly interpreter written in C.
 ~ 5-6x slower than fastest wasm `JIT` engines, like `liftoff`  
 ~ 10-15х slower that native execution  
 
+But your mileage may vary.
+
 ## Status
 
 This is **experimental**.
