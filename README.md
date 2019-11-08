@@ -6,7 +6,7 @@
 # Wasm3
 This is an (experimental) high performance WebAssembly interpreter written in C.  
 
-**∼ 10x faster** than other wasm interpreters (`wasm-micro-runtime`,`wac`,`life`)  
+**∼ 10x faster** than other wasm interpreters (`wasm-micro-runtime`, `wac`, `life`)  
 **∼ 5-6x slower** than state of the art wasm `JIT` engines, like `liftoff`  
 **∼ 10-15х slower** than native execution  
 <sub>* Your mileage may vary</sub>
