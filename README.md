@@ -15,9 +15,8 @@ Currently `wasm3` runs on:
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/android.svg" width="18" height="18" /> Android
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi and other **SBC**s
-- **MCU**s: ESP32, ESP8266, nRF52, nRF51, Blue Pill, Kendryte 210, FOMU, MXChip AZ3166, Arduino Due,
-Arduino MKR*, etc.  
-- Routers (via OpenWRT)
+- **MCU**s: ESP32, ESP8266, nRF52, nRF51, Blue Pill, K210, FOMU, MXChip AZ3166, Arduino Due, Arduino MKR*, etc.
+- **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 
 Minimum system requirements: **~64Kb** for code and **~10Kb** RAM.
@@ -26,7 +25,3 @@ Wasm3 is built on top of **Steven Massey**'s novel interpreter topology, with
 - Aim at Wasm 1.0 spec conformance (not there yet)
 - Lot's of fixes
 - Portability improvements
-
-## Performance
-
-`TODO`
