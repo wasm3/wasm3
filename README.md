@@ -21,7 +21,8 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/android.svg" width="18" height="18" /> Android
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi, Orange Pi and other **SBC**s
-- **MCU**s: ESP32, ESP8266, W600, nRF52, nRF51, Blue Pill, K210, FOMU, MXChip AZ3166, Arduino Due, Arduino MKR*, etc.
+- **MCU**s: ESP8266, ESP32, W600, nRF52, nRF51, Blue Pill, MXChip AZ3166,  
+ K210, Fomu, Arduino Due, Arduino MKR*, etc.
 - **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 - `TODO:` run on `wasm3` (should be self-hosting)
