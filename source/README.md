@@ -44,12 +44,6 @@ C code lifted from: https://github.com/ColinEberhardt/wasm-mandelbrot
 
 In general, the M3 strategy seems capable of executing code around 4-15X slower than compiled code on a modern x86 processor.   (Older CPUs don't fare as well. I suspect branch predictor differences.)  I have yet to test on anything ARM.
 
-## Building
-
-See [DEV.md](./DEV.md)
-
-
-
 ## M3: Massey Meta Machine
 
 Over the years, I've mucked around with creating my own personal programming language. It's called Gestalt. The yet unreleased repository will be here: https://github.com/soundandform/gestalt
