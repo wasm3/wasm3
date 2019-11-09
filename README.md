@@ -34,3 +34,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - Aim at Wasm 1.0 spec conformance (not there yet)
 - Lot's of bugfixes
 - Portability improvements
+
+## Building
+
+See [DEV.md](./DEV.md)
