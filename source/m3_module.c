@@ -100,8 +100,9 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
 {
 	M3Result result = c_m3Err_none;
 	
-	if (i_memorySize <= io_memory->virtualSize)
-	{
+	// TODO: Handle case when memory is not there at all
+	//if (i_memorySize <= io_memory->virtualSize)
+	//{
 		size_t actualSize = 0;
 		
 		if (io_memory->mallocated)
@@ -149,8 +150,8 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
 			}
 			else result = c_m3Err_mallocFailed;
 		}
-	}
-	else result = c_m3Err_wasmMemoryOverflow;
+	//}
+	//else result = c_m3Err_wasmMemoryOverflow;
 	
 	return result;
 }
