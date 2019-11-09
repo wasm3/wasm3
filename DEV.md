@@ -85,7 +85,7 @@ ninja
 
 ## Build for microcontrollers
 
-In `./platforms/` folder there are a bunch of projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.
+In `./platforms/` folder you can find projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.
 
 ## Running WebAssembly spec tests
 
