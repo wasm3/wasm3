@@ -4,6 +4,7 @@
 
 #include "m3.h"
 #include "m3_host.h"
+#include "m3_env.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return 1; }
 
@@ -51,7 +52,7 @@ int  main  (int i_argc, const char * i_argv [])
     m3_LinkFunction (module, "_TestReturn", "F(i)", (void *) TestReturn);
 
     m3_LinkFunction (module, "abortStackOverflow",    "v(i)",        (void *) m3_abort);
-    
+
     result = m3_LinkCStd (module); if (result) FATAL("m3_LinkCStd: %s", result);
 
     m3_PrintRuntimeInfo (env);
@@ -77,6 +78,9 @@ int  main  (int i_argc, const char * i_argv [])
         i_argc -= 2;
         i_argv += 2;
         result = m3_CallMain (func, i_argc, i_argv);
+
+        m3stack_t stack = (m3stack_t)(env->stack);
+        return stack[0];
     } else {
         i_argc -= 3;
         i_argv += 3;
