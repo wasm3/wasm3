@@ -1,4 +1,4 @@
-# M3/Wasm development notes
+# Wasm3 development notes
 
 M3/Wasm project uses CMake. It can also be easily integarted into any build system.
 General build steps look like:
@@ -82,6 +82,10 @@ MSBuild /p:Configuration=Release wasm3.sln
 cmake -GNinja ..
 ninja
 ```
+
+## Build for microcontrollers
+
+In `./platforms/` folder there are a bunch of projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.
 
 ## Running WebAssembly spec tests
 
