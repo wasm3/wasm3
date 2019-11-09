@@ -24,7 +24,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - **MCU**s: ESP32, ESP8266, nRF52, nRF51, Blue Pill, K210, FOMU, MXChip AZ3166, Arduino Due, Arduino MKR*, etc.
 - **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
-- `TODO:` run on `wasm3` (should be self-interpretable)
+- `TODO:` run on `wasm3` (should be self-hosting)
 
 `wasm3` is built on top of [Steven Massey](https://github.com/soundandform)'s novel [interpreter topology](/source/README.md), with:
 - Aim at Wasm 1.0 spec conformance (not there yet)
