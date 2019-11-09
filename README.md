@@ -3,7 +3,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/vshymanskyy/wasm3.svg)](https://github.com/vshymanskyy/wasm3/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vshymanskyy/wasm3)
 
-<h1><img src="extra/wasm-symbol.svg" width="28" height="28" /> Wasm3</h1>
+# <img src="extra/wasm-symbol.svg" width="26" height="26" /> Wasm3
 This is an (experimental) high performance WebAssembly interpreter written in C.  
 
 **∼ 10x faster** than other wasm interpreters (`wasm-micro-runtime`, `wac`, `life`)  
