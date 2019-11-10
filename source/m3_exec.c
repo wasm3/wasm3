@@ -43,7 +43,7 @@ d_m3OpDef  (Call)
 }
 
 
-// TODO: type not checked.
+// TODO: should trap "indirect call type mismatch"
 d_m3OpDef  (CallIndirect)
 {
 	IM3Module module			= immediate (IM3Module);
