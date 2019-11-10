@@ -772,8 +772,8 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_sr)				\
 }														\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_rs)				\
 {														\
-	u32 operand = (u32) _r0;							\
 	SRC_TYPE value = slot (SRC_TYPE);					\
+	u32 operand = (u32) _r0;							\
 	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
@@ -789,8 +789,8 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_rs)				\
 }														\
 d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_ss)				\
 {														\
-	u32 operand = slot (u32);							\
 	SRC_TYPE value = slot (SRC_TYPE);					\
+	u32 operand = slot (u32);							\
 	u32 offset = immediate (u32);						\
 	operand += offset;									\
 														\
