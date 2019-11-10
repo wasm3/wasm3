@@ -9,6 +9,12 @@
 #ifndef m3_config_h
 #define m3_config_h
 
+//TODO: move to a separate file
+# if defined(PARTICLE)
+#	define d_m3LogOutput						false
+#	define d_m3MaxFunctionStackHeight			256
+# endif
+
 # if defined(__clang__)
 #  define M3_COMPILER_CLANG 1
 # elif defined(__GNUC__) || defined(__GNUG__)
