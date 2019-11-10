@@ -660,17 +660,16 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
-_try {
-	union { u32 u; f32 f; } union32;
+	f32 value;
 	union { u64 u; f64 f; } union64;
 
-_	(ReadLEB_u32 (& union32.u, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), * ((f32 *) & value));
+_	(Read_f32 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), value);
 
-	union64.f = union32.f; // convert to double
+	union64.f = value;
 
 _	(PushConst (o, union64.u, c_m3Type_f64));
 
-	} _catch: return result;
+	_catch: return result;
 }
 
 
@@ -678,10 +677,14 @@ M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
 {
 	M3Result result;
 
-	u64 value;
-_	(Read_u64 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f64 = %lf)", GetIndentionString (o), * ((f64 *) & value));
+	f64 value;
+	union { u64 u; f64 f; } union64;
 
-_	(PushConst (o, value, c_m3Type_f64));
+_	(Read_f64 (& value, & o->wasm, o->wasmEnd));				m3log (compile, d_indent "%s (const f64 = %lf)", GetIndentionString (o), value);
+
+	union64.f = value;
+
+_	(PushConst (o, union64.u, c_m3Type_f64));
 
 	_catch: return result;
 }
@@ -1282,7 +1285,7 @@ const M3OpInfo c_operations [] =
 	M3OP( "drop",				-1,	none,	d_emptyOpList(),				Compile_Drop ),			// 0x1a
 	M3OP( "select",				-2,	any,	d_emptyOpList(),				Compile_Select	),		// 0x1b
 
-	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,										// 0x1c - 0x1f
+	M3OP_RESERVED,	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,									// 0x1c - 0x1f
 
 	M3OP( "local.get",			1,	any,	d_emptyOpList(),				Compile_GetLocal ),		// 0x20
 	M3OP( "local.set",			1,	none,	d_emptyOpList(),				Compile_SetLocal ),		// 0x21
@@ -1324,10 +1327,10 @@ const M3OpInfo c_operations [] =
 	M3OP( "current_memory",		1,	i_64,	NULL, 			NULL, NULL  ),		// 0x3f		// TODO!! don't know about these stck offs
 	M3OP( "grow_memory",		-1,	i_64,	NULL, 			NULL, NULL  ),		// 0x40
 
-	M3OP( "i32.const",			1,	i_32,	NULL, 			NULL, NULL,				Compile_Const_i32 ),			// 0x41
-	M3OP( "i64.const",			1,	i_64,	NULL,			NULL, NULL,				Compile_Const_i64 ),			// 0x42
-	M3OP( "f32.const",			1,	f_32,	NULL, 			NULL, NULL,				Compile_Const_f32 ),			// 0x43
-	M3OP( "f64.const",			1,	f_64,	NULL, 			NULL, NULL,				Compile_Const_f64 ),			// 0x44
+	M3OP( "i32.const",			1,	i_32,	d_emptyOpList(),				Compile_Const_i32 ),			// 0x41
+	M3OP( "i64.const",			1,	i_64,	d_emptyOpList(),				Compile_Const_i64 ),			// 0x42
+	M3OP( "f32.const",			1,	f_32,	d_emptyOpList(),				Compile_Const_f32 ),			// 0x43
+	M3OP( "f64.const",			1,	f_64,	d_emptyOpList(),				Compile_Const_f64 ),			// 0x44
 
 	M3OP( "i32.eqz",			0,	i_32,	d_unaryOpList (i32, EqualToZero)		),			// 0x45
 	M3OP( "i32.eq",				-1,	i_32,	d_commutativeBinOpList (i32, Equal) 	),			// 0x46
@@ -1537,7 +1540,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
 		o->stackIndex = initStackIndex;
 	}
 
-	_catch: d_m3Assert (not result);
+	_catch: //d_m3Assert (not result);
 
 	return result;
 }

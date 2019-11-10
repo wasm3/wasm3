@@ -254,6 +254,35 @@ M3Result  Read_u32  (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 	else return c_m3Err_wasmUnderrun;
 }
 
+M3Result  Read_f64  (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
+{
+	const u8 * ptr = * io_bytes;
+	ptr += sizeof (f64);
+
+	if (ptr <= i_end)
+	{
+		* o_value = * ((f64 *) * io_bytes);
+		* io_bytes = ptr;
+		return c_m3Err_none;
+	}
+	else return c_m3Err_wasmUnderrun;
+}
+
+
+M3Result  Read_f32  (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
+{
+	const u8 * ptr = * io_bytes;
+	ptr += sizeof (f32);
+
+	if (ptr <= i_end)
+	{
+		* o_value = * ((f32 *) * io_bytes);
+		* io_bytes = ptr;
+		return c_m3Err_none;
+	}
+	else return c_m3Err_wasmUnderrun;
+}
+
 
 M3Result  Read_u8  (u8 * o_value, bytes_t  * io_bytes, cbytes_t i_end)
 {
