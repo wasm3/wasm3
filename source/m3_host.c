@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#if !defined(WIN32) && !defined(PLATFORMIO) && !defined(WM_W600)
+#if !defined(WIN32) && !defined(PLATFORMIO) && !defined(WM_W600) && !defined(ANDROID) && !defined(PARTICLE)
 #include <unistd.h>
 #include <sys/ioctl.h>
 #endif
@@ -159,7 +159,7 @@ i32  m3_fwrite  (void * i_ptr, i32 i_size, i32 i_count, FILE * i_file)
 
 i32  m3_write  (i32 i_fd, const void * i_data, i32 i_count)
 {
-#if !defined(WIN32) && !defined(PLATFORMIO) && !defined(WM_W600)
+#if !defined(WIN32) && !defined(PLATFORMIO) && !defined(WM_W600) && !defined(ANDROID) && !defined(PARTICLE)
 	return (i32) write (i_fd, i_data, i_count);
 #endif
 	return 0;
@@ -254,7 +254,7 @@ _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_fwrite",				"i(*ii*)",	(
 
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_write",				"i(i*i)",	(void *) m3_write)));
 
-#if !defined(WIN32) && !defined(PLATFORMIO) && !defined(WM_W600)
+#if !defined(WIN32) && !defined(PLATFORMIO) && !defined(WM_W600) && !defined(ANDROID) && !defined(PARTICLE)
 _	(SuppressLookupFailure (m3_LinkFunction (io_module, "_ioctl",				"i(ii*)",	(void *) ioctl)));
 #endif
 
