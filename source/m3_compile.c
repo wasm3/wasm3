@@ -1213,7 +1213,7 @@ _			(PreserveRegisterIfOccupied (o, op->type));
 	if (operation)
 	{
 		// TODO: Skip Nops?
-		//if (operation == op_Nop) return result;
+		if (operation == op_Nop) return result;
 
 _		(EmitOp (o, operation));
 
@@ -1465,7 +1465,7 @@ const M3OpInfo c_operations [] =
 	M3OP( "f64.convert_u/i32",	0,	f_64,	d_unaryOpList(f64, Convert_u32)			),			// 0xb8
 	M3OP( "f64.convert_s/i64",	0,	f_64,	d_unaryOpList(f64, Convert_i64)			),			// 0xb9
 	M3OP( "f64.convert_u/i64",	0,	f_64,	d_unaryOpList(f64, Convert_u64)			),			// 0xba
-	M3OP( "f64.promote/f32",	0,	f_64,	op_Nop,	op_Nop, NULL ),			// 0xbb
+	M3OP( "f64.promote/f32",	0,	f_64,	op_Nop,	op_Nop, NULL					),			// 0xbb
 
 	M3OP( "i32.reinterpret/f32", 0,	i_32,	d_unaryOpList(i32, Reinterpret_f32)		),			// 0xbc
 	M3OP( "i64.reinterpret/f64", 0,	i_64,	d_unaryOpList(i64, Reinterpret_f64)		),			// 0xbd
