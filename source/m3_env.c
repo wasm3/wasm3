@@ -433,6 +433,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
 		m3StackCheckInit();
 _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
 
+#if d_m3LogOutput
 		switch (ftype->returnType) {
 		case c_m3Type_none: break;
 #ifdef USE_HUMAN_FRIENDLY_ARGS
@@ -451,14 +452,16 @@ _		((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs
 		case c_m3Type_i64:
 		case c_m3Type_f64:
 			printf("Result: %" PRIu64 "\n", *(u64*)(stack));  break;
-#endif
+#endif // USE_HUMAN_FRIENDLY_ARGS
 		default: _throw("unknown return type");
 		}
 
 #if d_m3LogNativeStack
 		size_t stackUsed = 	m3StackGetMax();
 		printf("Native stack used: %d\n", stackUsed);
-#endif
+#endif // d_m3LogNativeStack
+
+#endif // d_m3LogOutput
 
 		//u64 value = * (u64 *) (stack);
 		//m3log (runtime, "return64: %" PRIu64 " return32: %u", value, (u32) value);
@@ -576,7 +579,7 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 //	ReleaseCodePage (i_runtime, i_codePage);
 //}
 
-
+#ifdef DEBUG
 M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
 					const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...)
 {
@@ -594,7 +597,7 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 
 	return i_result;
 }
-
+#endif
 
 M3ErrorInfo  m3_GetErrorInfo  (IM3Runtime i_runtime)
 {

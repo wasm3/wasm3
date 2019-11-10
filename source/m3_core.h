@@ -52,13 +52,6 @@ const void * const	cvptr_t;
 # 	define M3_WEAK __attribute__((weak))
 # endif
 
-# ifdef DEBUG
-#	define M3_FILE __FILE__
-#	define M3_LINE __LINE__
-#else
-#	define M3_FILE ""
-#	define M3_LINE 0
-#endif
 
 static const char * m3LogTruncFilename (const char * i_file)
 {
@@ -145,7 +138,7 @@ static const char * m3LogTruncFilename (const char * i_file)
 # endif
 
 
-# if DEBUG
+# ifdef DEBUG
 #	define d_m3Assert(ASS)		assert (ASS)
 #	define d_m3AssertFatal(ASS)	assert (ASS)
 # else
@@ -205,11 +198,15 @@ static const char * const c_waTypes [] 				= { "nil", "i32", "i64", "f32", "f64"
 #define m3Alloc(OPTR, STRUCT, NUM) m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
 #define m3RellocArray(PTR, STRUCT, NEW, OLD) m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 
+#ifdef DEBUG
 #define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...)	m3Error (RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ##__VA_ARGS__)
+#else
+#define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...)	(RESULT)
+#endif
 
-#define ErrorModule(RESULT, MOD, FORMAT, ...)	_m3Error (RESULT, MOD->runtime, MOD, NULL,	M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
-#define ErrorCompile(RESULT, COMP, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
-//#define ErrorExec(RESULT, MODULE, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, M3_FILE, M3_LINE, FORMAT, ##__VA_ARGS__)
+#define ErrorModule(RESULT, MOD, FORMAT, ...)	_m3Error (RESULT, MOD->runtime, MOD, NULL,	__FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
+#define ErrorCompile(RESULT, COMP, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
+//#define ErrorExec(RESULT, MODULE, FORMAT, ...)	_m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 
 #ifndef min
 #define min(A,B) (A < B) ? A : B

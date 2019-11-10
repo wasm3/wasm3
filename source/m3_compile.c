@@ -739,7 +739,7 @@ _	(ReadLEB_u32 (& localSlot, & o->wasm, o->wasmEnd));				//	printf ("--- set loc
 _		(IsLocalReferencedWithCurrentBlock (o, & preserveSlot, localSlot));  // preserve will be different than local, if referenced
 
 		// increment modify count. modification count is just debug info
-		#if DEBUG
+		#ifdef DEBUG
 			o->wasmStack [localSlot] ++;
 			if (o->wasmStack [localSlot] == 0)
 				o->wasmStack [localSlot] --;
@@ -1230,7 +1230,7 @@ _				(EmitTopSlotAndPop (o));
 	}
 	else
 	{
-		result = "no operation";
+		result = ErrorCompile ("no operation", o, "'%s'", op->name);
 	}
 
 	_catch: return result;
