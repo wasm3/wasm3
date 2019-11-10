@@ -99,7 +99,7 @@ typedef struct
 	u64					constants					[c_m3MaxNumFunctionConstants];
 	
 	// for args/locals this wasmStack tracks write counts. for the dynamic portion of the stack, the array holds slot locations
-	u16					wasmStack						[c_m3MaxFunctionStackHeight];
+	u16					wasmStack					[c_m3MaxFunctionStackHeight];
 	u8					typeStack					[c_m3MaxFunctionStackHeight];
 
 	// this array just contains single bit allocation flags.  could be fused with the typeStack to conserve space
@@ -109,7 +109,7 @@ typedef struct
 
 	u16					regStackIndexPlusOne		[2];
 	
-	bool				enableOptimizations;		// no longer used. currently implementation is highly pre-optimized. 
+	//bool				enableOptimizations;		// no longer used. currently implementation is highly pre-optimized.
 	
 	u8					previousOpcode;
 }
