@@ -38,13 +38,19 @@ typedef u64 *					m3stack_t;
 typedef
 const void * const	cvptr_t;
 
-# if !defined(__cplusplus) || defined(M3_COMPILER_MSVC)
+# if !defined(__cplusplus)
 # 	define not 		!
 # 	define and 		&&
 # 	define or		||
 # endif
 
 #define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+
+# if defined(M3_COMPILER_MSVC)
+# 	define M3_WEAK
+# else
+# 	define M3_WEAK __attribute__((weak))
+# endif
 
 # ifdef DEBUG
 #	define M3_FILE __FILE__

@@ -21,7 +21,7 @@ void m3AbortIfNot(bool condition) {
 	}
 }
 
-__attribute__((weak))
+M3_WEAK
 void m3Yield ()
 {
 }
