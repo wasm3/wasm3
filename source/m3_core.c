@@ -439,7 +439,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 	
 	if (not result)
 	{
-		if (utf8Length and utf8Length <= c_m3MaxSaneUtf8Length)
+		if (utf8Length <= c_m3MaxSaneUtf8Length)
 		{
 			const u8 * ptr = * io_bytes;
 			const u8 * end = ptr + utf8Length;
