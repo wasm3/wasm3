@@ -35,7 +35,8 @@ Maix (K210)        rv64imafc @ 400MHz          77ms        77ms
 ESP8266                LX106 @ 160MHz         288ms       299ms      TCO failed,   stack used: 9024
 ESP32                    LX6 @ 240MHz         410ms       430ms      TCO failed,   stack used: 10600
 ESP32-s2 (beta)          LX6 @ 240MHz         440ms       460ms      TCO failed
-MXChip AZ3166         Arm M4 @ 100Mhz         651ms       713ms
+Particle Photon       Arm M3 @ 120MHz         525ms       562ms
+MXChip AZ3166         Arm M4 @ 100MHz         651ms       713ms
 WM W600               Arm M3 @ 80MHz          710ms       782ms      TCO enabled,  stack used: 1325
 WM W600               Arm M3 @ 80MHz          836ms       914ms      TCO disabled, stack used: 8109
 Arduino DUE (SAM3X8E) Arm M3 @ 84MHz          754ms       813ms
