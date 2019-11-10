@@ -352,6 +352,7 @@ _ 		(ReadLEB_u32 (& segment->size, & i_bytes, i_end));
 
 		segment->data = i_bytes;													m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
 																					   i, segment->memoryRegion, segment->initExprSize, segment->size);
+		i_bytes += segment->size;
 	}
 
 	_catch:
@@ -411,6 +412,7 @@ _	(Read_utf8 (& name, & i_bytes, i_end));
 _		(ReadLEB_u7 (& nameType, & i_bytes, i_end));
 _		(ReadLEB_u32 (& payloadLength, & i_bytes, i_end));
 		
+		bytes_t start = i_bytes;
 		if (nameType == 1)
 		{
 			u32 numNames;
@@ -436,7 +438,7 @@ _				(Read_utf8 (& name, & i_bytes, i_end));
 			}
 		}
 		
-		i_bytes += payloadLength;
+		i_bytes = start + payloadLength;
 	}
 	
 	_catch: return result;
