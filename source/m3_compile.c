@@ -1728,16 +1728,21 @@ M3Result  Compile_Function  (IM3Function io_function)
 																		   io_function->name, (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function), c_waTypes [GetFunctionReturnType (io_function)]);
 	IM3Runtime rt = io_function->module->runtime;
 
-	M3Compilation o = { rt, io_function->module, io_function->wasm, io_function->wasmEnd };
+	IM3Compilation o = NULL;
+_	(m3Malloc (& o, sizeof(M3Compilation)));
 
-	o.page = AcquireCodePage (rt);
+	o->runtime = rt;
+	o->module =  io_function->module;
+	o->wasm =    io_function->wasm;
+	o->wasmEnd = io_function->wasmEnd;
+	o->page =    AcquireCodePage (rt);
 
-	if (o.page)
+	if (o->page)
 	{
-		pc_t pc = GetPagePC (o.page);
+		pc_t pc = GetPagePC (o->page);
 
-		o.block.type = GetFunctionReturnType (io_function);
-		o.function = io_function;
+		o->block.type = GetFunctionReturnType (io_function);
+		o->function = io_function;
 
 		// push the arg types to the type stack
 		M3FuncType * ft = io_function->funcType;
@@ -1745,46 +1750,47 @@ M3Result  Compile_Function  (IM3Function io_function)
 		for (u32 i = 0; i < GetFunctionNumArgs (io_function); ++i)
 		{
 			u8 type = ft->argTypes [i];
-_			(PushAllocatedSlot (& o, type));
+_			(PushAllocatedSlot (o, type));
 		}
 
-_		(CompileLocals (& o));
+_		(CompileLocals (o));
 
 		// the stack for args/locals is used to track # of Sets
-		for (u32 i = 0; i < o.stackIndex; ++i)
-			o.wasmStack [i] = 0;
+		for (u32 i = 0; i < o->stackIndex; ++i)
+			o->wasmStack [i] = 0;
 
-_		(Compile_ReserveConstants (& o));
+_		(Compile_ReserveConstants (o));
 
-		o.numAllocatedExecSlots = 0;				// this var only tracks dynamic slots so clear local+constant allocations
-		o.block.initStackIndex = o.stackIndex;
+		o->numAllocatedExecSlots = 0;				// this var only tracks dynamic slots so clear local+constant allocations
+		o->block.initStackIndex = o->stackIndex;
 
-		pc_t pc2 = GetPagePC (o.page);
+		pc_t pc2 = GetPagePC (o->page);
 		d_m3AssertFatal (pc2 == pc);
 
-_		(EmitOp (& o, op_Entry));//, comp.stackIndex);
-		EmitPointer (& o, io_function);
+_		(EmitOp (o, op_Entry));//, comp.stackIndex);
+		EmitPointer (o, io_function);
 
-_		(Compile_BlockStatements (& o));
+_		(Compile_BlockStatements (o));
 
 		io_function->compiled = pc;
 
-		u32 numConstants = o.constSlotIndex - o.firstConstSlotIndex;
+		u32 numConstants = o->constSlotIndex - o->firstConstSlotIndex;
 
-		io_function->numConstants = numConstants;					m3log (compile, "unique constants: %d; unused slots: %d", numConstants, o.firstSlotIndex - o.constSlotIndex);
+		io_function->numConstants = numConstants;					m3log (compile, "unique constants: %d; unused slots: %d", numConstants, o->firstSlotIndex - o->constSlotIndex);
 
 		if (numConstants)
 		{
 _			(m3Alloc (& io_function->constants, u64, numConstants));
 
-			memcpy (io_function->constants, o.constants, sizeof (u64) * numConstants);
+			memcpy (io_function->constants, o->constants, sizeof (u64) * numConstants);
 		}
 	}
 	else _throw (c_m3Err_mallocFailedCodePage);
 
 	_catch:
 	{
-		ReleaseCodePage (rt, o.page);
+		ReleaseCodePage (rt, o->page);
+		m3Free(o);
 	}
 
 	return result;

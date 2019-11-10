@@ -78,8 +78,8 @@ typedef struct
 	IM3Runtime			runtime;
 	IM3Module			module;
 	
-	const u8 *			wasm;
-	cbytes_t			wasmEnd;
+	bytes_t				wasm;
+	bytes_t				wasmEnd;
 
 	M3CompilationScope	block;
 
@@ -144,12 +144,13 @@ typedef const M3OpInfo *	IM3OpInfo;
 extern const M3OpInfo c_operations [];
 
 #ifdef DEBUG
-	#define M3OP(...) { __VA_ARGS__ }
-	#define M3OP_RESERVED { "reserved" }
+	#define M3OP(...)       { __VA_ARGS__ }
+	#define M3OP_RESERVED   { "reserved" }
 #else
 	#define M3OP(name, ...) { __VA_ARGS__ }
-	#define M3OP_RESERVED { }
+	#define M3OP_RESERVED   { 0 }
 #endif
+
 //-----------------------------------------------------------------------------------------------------------------------------------
 
 
