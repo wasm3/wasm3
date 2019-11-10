@@ -22,7 +22,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/android.svg" width="18" height="18" /> Android
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi, Orange Pi and other **SBC**s
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/cpu.svg" width="18" height="18" /> **MCU**s:  
- Arduino MKR*, Arduino Due,  
+ Arduino MKR*, Arduino Due, Particle Photon,  
  ESP8266, ESP32, Air602 (W600), nRF52, nRF51,  
  Blue Pill (STM32F103C8T6), MXChip AZ3166 (EMW3166),  
  Maix (K210), HiFive1 (E310), Fomu (ICE40UP5K), etc.
