@@ -3,7 +3,6 @@
 
 #include "m3.h"
 #include "m3_env.h"
-#include "m3_compile.h"
 
 #include "extra/fib32.wasm.h"
 
@@ -54,8 +53,6 @@ void setup()
   delay(10);
 
   Serial.println("wasm3 on Particle, build " __DATE__ " " __TIME__);
-
-  Serial.println(sizeof(M3Compilation));
 
   u32 start = millis();
   run_wasm();
