@@ -146,7 +146,9 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 	u64 stack [c_m3MaxFunctionStackHeight];	// stack on the stack
 
 	// create a temporary runtime context
-	M3Runtime rt = {};
+	M3Runtime rt;
+	M3_INIT(rt);
+
 	rt.numStackSlots = c_m3MaxFunctionStackHeight;
 	rt.stack = & stack;
 
@@ -603,7 +605,9 @@ M3ErrorInfo  m3_GetErrorInfo  (IM3Runtime i_runtime)
 {
 	M3ErrorInfo info = i_runtime->error;
 
-	M3ErrorInfo reset = {};
+	M3ErrorInfo reset;
+	M3_INIT(reset);
+
 	i_runtime->error = reset;
 
 	return info;

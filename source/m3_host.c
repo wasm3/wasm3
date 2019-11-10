@@ -22,12 +22,11 @@
 
 void m3_printf (cstr_t i_format, const void * i_varArgs)
 {
-	const size_t c_bufferLength = 1000;
-	char format [c_bufferLength];
-	char output [c_bufferLength];
+	char format [256];
+	char output [256];
 
 	size_t formatLength = strlen (i_format) + 1;
-	char * buffer = formatLength <= c_bufferLength ? format : (char*)malloc (formatLength);
+	char * buffer = formatLength <= sizeof(format) ? format : (char*)malloc (formatLength);
 	
 	size_t numArgs = 0;
 	char * p = 0;

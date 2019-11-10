@@ -135,7 +135,8 @@ OpInfo;
 
 OpInfo FindOperationInfo  (IM3Operation i_operation)
 {
-	OpInfo opInfo = {};
+	OpInfo opInfo;
+	M3_INIT(opInfo);
 	
 	for (u32 i = 0; i <= 0xff; ++i)
 	{

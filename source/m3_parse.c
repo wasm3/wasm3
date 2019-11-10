@@ -109,7 +109,9 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 {
 	M3Result result = c_m3Err_none;
 	
-	M3ImportInfo import = {}, clearImport = {};
+	M3ImportInfo import, clearImport;
+	M3_INIT(import);
+	M3_INIT(clearImport);
 	
 	u32 numImports;
 _	(ReadLEB_u32 (& numImports, & i_bytes, i_end));									m3log (parse, "** Import [%d]", numImports);

@@ -52,6 +52,7 @@ const void * const	cvptr_t;
 # 	define M3_WEAK __attribute__((weak))
 # endif
 
+#define M3_INIT(field) memset(&field, 0, sizeof(field))
 
 static const char * m3LogTruncFilename (const char * i_file)
 {

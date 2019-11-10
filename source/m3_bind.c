@@ -262,6 +262,9 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
 	M3ArgPusher pushers [c_m3MaxNumFunctionArgs + 1];
 	u8 signature [1 /* return */ + c_m3MaxNumFunctionArgs + 2];
 	
+	M3_INIT(pushers);
+	M3_INIT(signature);
+	
 	IM3Function func = (IM3Function) v_FindFunction (io_module, i_functionName);
 	if (func)
 	{
