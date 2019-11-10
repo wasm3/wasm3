@@ -56,9 +56,12 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 {
 	char name [100];
 	strcpy (name, strstr (i_opcode, "op_") + 3);
-	* strstr (name, "(") = 0;
+	char * bracket = strstr (name, "(");
+	if (bracket) {
+		*bracket  = 0;
+	}
 
-	printf ("%s\n", name);
+	puts (name);
 	return nextOpDirect();
 }
 
