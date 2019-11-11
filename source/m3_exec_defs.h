@@ -15,23 +15,23 @@
 // 4 args passed through registers but its enhanced __vectorcall calling convention does.
 
 # if defined (M3_COMPILER_MSVC)
-# 	define	vectorcall
+#   define  vectorcall
 # elif defined(WIN32)
-# 	define	vectorcall __vectorcall
+#   define  vectorcall __vectorcall
 # elif defined (ESP8266)
-#	include <c_types.h>
-#	define vectorcall //ICACHE_FLASH_ATTR
+#   include <c_types.h>
+#   define vectorcall //ICACHE_FLASH_ATTR
 # elif defined (ESP32)
-# 	include "esp_system.h"
-# 	define vectorcall IRAM_ATTR
+#   include "esp_system.h"
+#   define vectorcall IRAM_ATTR
 # elif defined (FOMU)
-# 	define vectorcall __attribute__((section(".ramtext")))
+#   define vectorcall __attribute__((section(".ramtext")))
 # elif defined(HIFIVE1)
-#	include <metal/itim.h>
+#   include <metal/itim.h>
 #   define vectorcall
 #   define hotcall METAL_PLACE_IN_ITIM
 # else
-# 	define vectorcall
+#   define vectorcall
 # endif
 
 
@@ -44,10 +44,10 @@ typedef i64 arch_i;
 #define c_m3NumFpRegisters  1
 #define c_m3NumRegisters    (c_m3NumIntRegisters + c_m3NumFpRegisters)
 
-#	define d_m3OpSig 				pc_t _pc, u64 * _sp, u8 * _mem, m3reg_t _r0, f64 _fp0
-#	define d_m3OpArgs	 			_sp, _mem, _r0, _fp0
-#	define d_m3OpAllArgs	 		_pc, _sp, _mem, _r0, _fp0
-#	define d_m3OpDefaultArgs		666, NAN
+#   define d_m3OpSig                pc_t _pc, u64 * _sp, u8 * _mem, m3reg_t _r0, f64 _fp0
+#   define d_m3OpArgs               _sp, _mem, _r0, _fp0
+#   define d_m3OpAllArgs            _pc, _sp, _mem, _r0, _fp0
+#   define d_m3OpDefaultArgs        666, NAN
 
 
 typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);

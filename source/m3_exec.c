@@ -12,72 +12,72 @@
 
 m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 {
-	M3MemoryHeader * info = (M3MemoryHeader *) (i_mem - sizeof (M3MemoryHeader));
-	u8 * mem8 = i_mem + i_offset;
-	
-	ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
-	
-	return c_m3Err_trapOutOfBoundsMemoryAccess;
+    M3MemoryHeader * info = (M3MemoryHeader *) (i_mem - sizeof (M3MemoryHeader));
+    u8 * mem8 = i_mem + i_offset;
+
+    ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
+
+    return c_m3Err_trapOutOfBoundsMemoryAccess;
 }
 
 
 void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 {
-	i_function->module->runtime->runtimeError = (M3Result)i_result;
+    i_function->module->runtime->runtimeError = (M3Result)i_result;
 }
 
 
 d_m3OpDef  (Call)
 {
-	pc_t callPC 				= immediate (pc_t);
-	i32 stackOffset				= immediate (i32);
+    pc_t callPC                 = immediate (pc_t);
+    i32 stackOffset             = immediate (i32);
 
-	m3stack_t sp = _sp + stackOffset;
-	
-	m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
-	
-	if (r != 0)
-		return r;
-	
-	return nextOp ();
+    m3stack_t sp = _sp + stackOffset;
+
+    m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+
+    if (r != 0)
+        return r;
+
+    return nextOp ();
 }
 
 
 // TODO: should trap "indirect call type mismatch"
 d_m3OpDef  (CallIndirect)
 {
-	IM3Module module			= immediate (IM3Module);
-	IM3FuncType type			= immediate (IM3FuncType);
-	i32 stackOffset				= immediate (i32);
+    IM3Module module            = immediate (IM3Module);
+    IM3FuncType type            = immediate (IM3FuncType);
+    i32 stackOffset             = immediate (i32);
 
-	m3stack_t sp = _sp + stackOffset;
+    m3stack_t sp = _sp + stackOffset;
 
-	i32 tableIndex = * (i32 *) (sp + type->numArgs);
-	
-	if (tableIndex >= 0 and (u32)tableIndex < module->table0Size)
-	{
-		m3ret_t r = c_m3Err_none;
-		
-		IM3Function function = module->table0 [tableIndex];
-		
-		if (function)
-		{
-			if (not function->compiled)
-				r = Compile_Function (function);
+    i32 tableIndex = * (i32 *) (sp + type->numArgs);
 
-			if (not r)
-			{
-				r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
-				
-				if (not r)
-					r = nextOp ();
-			}
-		}
-		else r = "trap: table element is null";
-			
-		return r;
-	}
-	else return c_m3Err_trapTableIndexOutOfRange;
+    if (tableIndex >= 0 and (u32)tableIndex < module->table0Size)
+    {
+        m3ret_t r = c_m3Err_none;
+
+        IM3Function function = module->table0 [tableIndex];
+
+        if (function)
+        {
+            if (not function->compiled)
+                r = Compile_Function (function);
+
+            if (not r)
+            {
+                r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+
+                if (not r)
+                    r = nextOp ();
+            }
+        }
+        else r = "trap: table element is null";
+
+        return r;
+    }
+    else return c_m3Err_trapTableIndexOutOfRange;
 }
 
 
@@ -88,87 +88,87 @@ d_m3OpDef  (CallIndirect)
 // do both.
 d_m3OpDef  (Compile)
 {
-	rewrite (op_Call);
-	
-	IM3Function function		= immediate (IM3Function);
+    rewrite (op_Call);
 
-	m3ret_t result = c_m3Err_none;
-	
-	if (not function->compiled)	// check to see if function was compiled since this operation was emitted.
-		result = Compile_Function (function);
-	
-	if (not result)
-	{
-		// patch up compiled pc and call rewriten op_Call
-		*((size_t *) --_pc) = (size_t) (function->compiled);
-		--_pc;
-		result = nextOp ();
-	}
-	else ReportError2 (function, result);
-	
-	return result;
+    IM3Function function        = immediate (IM3Function);
+
+    m3ret_t result = c_m3Err_none;
+
+    if (not function->compiled) // check to see if function was compiled since this operation was emitted.
+        result = Compile_Function (function);
+
+    if (not result)
+    {
+        // patch up compiled pc and call rewriten op_Call
+        *((size_t *) --_pc) = (size_t) (function->compiled);
+        --_pc;
+        result = nextOp ();
+    }
+    else ReportError2 (function, result);
+
+    return result;
 }
 
 
 
 d_m3OpDef  (Entry)
 {
-	IM3Function function = immediate (IM3Function);
-	function->hits++;										m3log (exec, " enter > %s %s", function->name, SPrintFunctionArgList (function, _sp));
+    IM3Function function = immediate (IM3Function);
+    function->hits++;                                       m3log (exec, " enter > %s %s", function->name, SPrintFunctionArgList (function, _sp));
 
-	u32 numLocals = function->numLocals;
-	
-	m3stack_t stack = _sp + GetFunctionNumArgs (function);
-	while (numLocals--)										// it seems locals need to init to zero (at least for optimized Wasm code)
-		* (stack++) = 0;
-	
-	memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+    u32 numLocals = function->numLocals;
 
-	m3ret_t r = nextOp ();
-	
+    m3stack_t stack = _sp + GetFunctionNumArgs (function);
+    while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
+        * (stack++) = 0;
+
+    memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+
+    m3ret_t r = nextOp ();
+
 #if d_m3Log_exec
-		u8 returnType = function->funcType->returnType;
-	
-		char str [100] = { '!', 0 };
-		
-		if (not r)
-			SPrintArg (str, 99, _sp, function->funcType->returnType);
-			
-		m3log (exec, " exit < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
+        u8 returnType = function->funcType->returnType;
+
+        char str [100] = { '!', 0 };
+
+        if (not r)
+            SPrintArg (str, 99, _sp, function->funcType->returnType);
+
+        m3log (exec, " exit < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
 #endif
 
-	return r;
+    return r;
 }
 
 
 #if d_m3RuntimeStackDumps
 d_m3OpDef  (DumpStack)
 {
-	u32 opcodeIndex			= immediate (u32);
-	u64 stackHeight 		= immediate (u64);
-	IM3Function function	= immediate (IM3Function);
-	
-	cstr_t funcName = (function) ? function->name : "";
-	
-	printf (" %4d ", opcodeIndex);
-	printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
-	printf ("                                     fp0: %lf  \n", _fp0);
-	
-	u64 * sp = _sp;
-	
-	for (u32 i = 0; i < stackHeight; ++i)
-	{
-		printf ("%016llx  ", (u64) sp);
-		
-		cstr_t kind = "";
-		
-		printf ("%5s  %2d: 0x%" PRIx64 " %" PRIi64 "\n", kind, i, (u64) *(sp), (i64) *sp);
-		
-		++sp;
-	}
-	printf ("---------------------------------------------------------------------------------------------------------\n");
-	
-	return nextOpDirect();
+    u32 opcodeIndex         = immediate (u32);
+    u64 stackHeight         = immediate (u64);
+    IM3Function function    = immediate (IM3Function);
+
+    cstr_t funcName = (function) ? function->name : "";
+
+    printf (" %4d ", opcodeIndex);
+    printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
+    printf ("                                     fp0: %lf  \n", _fp0);
+
+    u64 * sp = _sp;
+
+    for (u32 i = 0; i < stackHeight; ++i)
+    {
+        printf ("%016llx  ", (u64) sp);
+
+        cstr_t kind = "";
+
+        printf ("%5s  %2d: 0x%" PRIx64 " %" PRIi64 "\n", kind, i, (u64) *(sp), (i64) *sp);
+
+        ++sp;
+    }
+    printf ("---------------------------------------------------------------------------------------------------------\n");
+
+    return nextOpDirect();
 }
 #endif
 
@@ -180,95 +180,95 @@ M3ProfilerSlot s_opProfilerCounts [c_m3ProfilerSlotMask] = {};
 
 void  ProfileHit  (cstr_t i_operationName)
 {
-	u64 ptr = (u64) i_operationName;
-	
-	M3ProfilerSlot * slot = & s_opProfilerCounts [ptr & c_m3ProfilerSlotMask];
-	
-	if (slot->opName)
-	{
-		if (slot->opName != i_operationName)
-		{
-			printf ("**** profiler slot collision; increase mask width\n");
-			m3NotImplemented ();
-		}
-	}
-	
-	slot->opName = i_operationName;
-	slot->hitCount++;
+    u64 ptr = (u64) i_operationName;
+
+    M3ProfilerSlot * slot = & s_opProfilerCounts [ptr & c_m3ProfilerSlotMask];
+
+    if (slot->opName)
+    {
+        if (slot->opName != i_operationName)
+        {
+            printf ("**** profiler slot collision; increase mask width\n");
+            m3NotImplemented ();
+        }
+    }
+
+    slot->opName = i_operationName;
+    slot->hitCount++;
 }
 # endif
 
 
 void  m3_PrintProfilerInfo  ()
 {
-	# if d_m3EnableOpProfiling
-		for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
-		{
-			M3ProfilerSlot * slot = & s_opProfilerCounts [i];
-			
-			if (slot->opName)
-				printf ("%13llu  %s\n", slot->hitCount, slot->opName);
-		}
-	# endif
+    # if d_m3EnableOpProfiling
+        for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
+        {
+            M3ProfilerSlot * slot = & s_opProfilerCounts [i];
+
+            if (slot->opName)
+                printf ("%13llu  %s\n", slot->hitCount, slot->opName);
+        }
+    # endif
 }
 
 
 
 d_m3OpDef  (Loop)
 {
-	m3ret_t r;
-	
-	do
-	{
-		r = nextOp ();				// printf ("loop: %p\n", r);
-	}
-	while (r == _pc);
+    m3ret_t r;
 
-	return r;
+    do
+    {
+        r = nextOp ();              // printf ("loop: %p\n", r);
+    }
+    while (r == _pc);
+
+    return r;
 }
 
 
 d_m3OpDef  (If_r)
 {
-	i32 condition = (i32) _r0;
-	
-	skip_immediate (pc_t);						// empty preservation chain
-	
-	pc_t elsePC = immediate (pc_t);
-	
-	if (condition)
-		return nextOp ();
-	else
-		return jumpOp (elsePC);
+    i32 condition = (i32) _r0;
+
+    skip_immediate (pc_t);                      // empty preservation chain
+
+    pc_t elsePC = immediate (pc_t);
+
+    if (condition)
+        return nextOp ();
+    else
+        return jumpOp (elsePC);
 }
 
 
 d_m3OpDef  (If_s)
 {
-	i32 condition = slot (i32);
-	
-	skip_immediate (pc_t);						// empty preservation chain
-	
-	pc_t elsePC = immediate (pc_t);
-	
-	if (condition)
-		return nextOp ();
-	else
-		return jumpOp (elsePC);
+    i32 condition = slot (i32);
+
+    skip_immediate (pc_t);                      // empty preservation chain
+
+    pc_t elsePC = immediate (pc_t);
+
+    if (condition)
+        return nextOp ();
+    else
+        return jumpOp (elsePC);
 }
 
 
 d_m3OpDef  (IfPreserve)
 {
-	i32 condition = (i32) _r0;
-	
-	pc_t p = immediate (pc_t);
-	jumpOp (p);
-	
-	pc_t elsePC = immediate (pc_t);			//printf ("else: %p\n", elsePC);
-	
-	if (condition)
-		return nextOp ();
-	else
-		return jumpOp (elsePC);
+    i32 condition = (i32) _r0;
+
+    pc_t p = immediate (pc_t);
+    jumpOp (p);
+
+    pc_t elsePC = immediate (pc_t);         //printf ("else: %p\n", elsePC);
+
+    if (condition)
+        return nextOp ();
+    else
+        return jumpOp (elsePC);
 }

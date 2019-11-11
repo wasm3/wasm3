@@ -12,59 +12,59 @@
 #include "m3_config_platforms.h"
 
 # ifndef d_m3MaxNumFunctionArgs
-#	define d_m3MaxNumFunctionArgs				16
+#   define d_m3MaxNumFunctionArgs               16
 # endif
 # ifndef d_m3CodePageSize
-#	define d_m3CodePageSize						4096
+#   define d_m3CodePageSize                     4096
 # endif
 # ifndef d_m3AlignWasmMemoryToPages
-#	define d_m3AlignWasmMemoryToPages			false
+#   define d_m3AlignWasmMemoryToPages           false
 # endif
 # ifndef d_m3MaxFunctionStackHeight
-#	define d_m3MaxFunctionStackHeight			2000
+#   define d_m3MaxFunctionStackHeight           2000
 # endif
 # ifndef d_m3EnableOptimizations
-#	define d_m3EnableOptimizations				false
+#   define d_m3EnableOptimizations              false
 # endif
 # ifndef d_m3EnableFp32Maths
-#	define d_m3EnableFp32Maths					false
+#   define d_m3EnableFp32Maths                  false
 # endif
 # ifndef d_m3EnableFp64Maths
-#	define d_m3EnableFp64Maths					true
+#   define d_m3EnableFp64Maths                  true
 # endif
 
 # ifndef d_m3LogOutput
-#	define d_m3LogOutput						true
+#   define d_m3LogOutput                        true
 # endif
 
 # ifndef d_m3FixedHeap
-#	define d_m3FixedHeap						false
-//#	define d_m3FixedHeap						(32*1024)
+#   define d_m3FixedHeap                        false
+//# define d_m3FixedHeap                        (32*1024)
 # endif
 
 # ifndef d_m3FixedHeapAlign
-#	define d_m3FixedHeapAlign					16
+#   define d_m3FixedHeapAlign                   16
 # endif
 
 // logging ---------------------------------------------------------------------------
 
-# define d_m3EnableOpProfiling		0
-# define d_m3RuntimeStackDumps		0
+# define d_m3EnableOpProfiling      0
+# define d_m3RuntimeStackDumps      0
 
-# define d_m3TraceExec 				(1 && d_m3RuntimeStackDumps && DEBUG)
+# define d_m3TraceExec              (1 && d_m3RuntimeStackDumps && DEBUG)
 
 
 // m3log (...) --------------------------------------------------------------------
 
-# define d_m3LogParse			0
-# define d_m3LogCompile			0
-# define d_m3LogStack			0
-# define d_m3LogEmit			0
-# define d_m3LogCodePages		0
-# define d_m3LogModule			0
-# define d_m3LogRuntime			0
-# define d_m3LogExec			0
-# define d_m3LogNativeStack		0
+# define d_m3LogParse           0
+# define d_m3LogCompile         0
+# define d_m3LogStack           0
+# define d_m3LogEmit            0
+# define d_m3LogCodePages       0
+# define d_m3LogModule          0
+# define d_m3LogRuntime         0
+# define d_m3LogExec            0
+# define d_m3LogNativeStack     0
 
 
 #endif /* m3_config_h */

@@ -14,29 +14,29 @@
 
 typedef struct M3CodePage
 {
-	M3CodePageHeader		info;
-//	code_t					code				[c_m3CodePageNumSlots];
-	
-	code_t					code				[1];
+    M3CodePageHeader        info;
+//  code_t                  code                [c_m3CodePageNumSlots];
+
+    code_t                  code                [1];
 }
 M3CodePage;
 
-typedef M3CodePage *	IM3CodePage;
+typedef M3CodePage *    IM3CodePage;
 
 
-IM3CodePage				NewCodePage				(u32 i_minNumLines);
+IM3CodePage             NewCodePage             (u32 i_minNumLines);
 
-void					FreeCodePages			(IM3CodePage i_page);
-//void					CloseCodePage			(IM3CodePage i_page);
-u32						NumFreeLines			(IM3CodePage i_page);
-pc_t					GetPagePC				(IM3CodePage i_page);
-void					EmitWordImpl			(IM3CodePage i_page, const void * i_word);
+void                    FreeCodePages           (IM3CodePage i_page);
+//void                  CloseCodePage           (IM3CodePage i_page);
+u32                     NumFreeLines            (IM3CodePage i_page);
+pc_t                    GetPagePC               (IM3CodePage i_page);
+void                    EmitWordImpl            (IM3CodePage i_page, const void * i_word);
 
-void					PushCodePage			(IM3CodePage * i_list, IM3CodePage i_codePage);
-IM3CodePage				PopCodePage				(IM3CodePage * i_list);
+void                    PushCodePage            (IM3CodePage * i_list, IM3CodePage i_codePage);
+IM3CodePage             PopCodePage             (IM3CodePage * i_list);
 
-void					TestCodePageCapacity	(IM3CodePage i_page);
-void					DumpCodePage			(IM3CodePage i_codePage, pc_t i_startPC);
+void                    TestCodePageCapacity    (IM3CodePage i_page);
+void                    DumpCodePage            (IM3CodePage i_codePage, pc_t i_startPC);
 
 #define EmitWord(page, val) EmitWordImpl(page, (void*)(val))
 
