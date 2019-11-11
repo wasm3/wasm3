@@ -212,7 +212,7 @@ f64 max_f64(f64 a, f64 b) {
 
 static inline
 f32 nearest_f32(f32 a) {
-    if (UNLIKELY(a > 0.f and a <= 0.5f)) return 0.f;
+    if (UNLIKELY(a > 0.f and a <= 0.5f)) return 0.f;   // TODO: Unneded?
     if (UNLIKELY(a < 0.f and a >= -0.5f)) return -0.f;
     return rintf(a);
 }
