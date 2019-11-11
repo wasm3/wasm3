@@ -2,7 +2,7 @@
 
 #define FATAL(msg, ...) { Serial.println("Fatal: " msg "\n"); return; }
 
-#include "m3/m3.hpp"
+#include "m3/m3.h"
 #include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"

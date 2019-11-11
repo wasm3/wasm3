@@ -1,5 +1,5 @@
 
-#include "m3/m3.hpp"
+#include "m3/m3.h"
 
 #include "m3/extra/fib32.wasm.h"
 
