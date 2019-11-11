@@ -23,6 +23,14 @@ if(EMSCRIPTEN)
   set(APP_DIR            "platforms/emscripten")
 endif()
 
+if(WASIENV)
+  set(CMAKE_C_COMPILER   "wasicc")
+  set(CMAKE_CXX_COMPILER "wasic++")
+
+  set(OUT_FILE           "wasm3.wasm")
+  set(APP_DIR            "platforms/emscripten")
+endif()
+
 if(M EQUAL 32)
   set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -m32")
 endif()
