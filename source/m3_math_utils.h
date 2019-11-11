@@ -21,25 +21,29 @@
 #define __builtin_popcount    __popcnt
 #define __builtin_popcountll  __popcnt64
 
-static inline int __builtin_ctz(uint32_t x) {
+static inline
+int __builtin_ctz(uint32_t x) {
     unsigned long ret;
     _BitScanForward(&ret, x);
     return (int)ret;
 }
 
-static inline int __builtin_ctzll(unsigned long long x) {
+static inline
+int __builtin_ctzll(unsigned long long x) {
     unsigned long ret;
     _BitScanForward64(&ret, x);
     return (int)ret;
 }
 
-static inline int __builtin_clz(uint32_t x) {
+static inline
+int __builtin_clz(uint32_t x) {
     unsigned long ret;
     _BitScanReverse(&ret, x);
     return (int)(31 ^ ret);
 }
 
-static inline int __builtin_clzll(unsigned long long x) {
+static inline
+int __builtin_clzll(unsigned long long x) {
     unsigned long ret;
     _BitScanReverse64(&ret, x);
     return (int)(63 ^ ret);
@@ -48,18 +52,21 @@ static inline int __builtin_clzll(unsigned long long x) {
 #endif
 
 #if defined(M3_COMPILER_MSVC)
-#define UNLIKELY(x) (x)
-#define LIKELY(x) (x)
+
+	#define UNLIKELY(x) (x)
+	#define LIKELY(x) (x)
+
 #else
-#define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#define LIKELY(x) __builtin_expect(!!(x), 1)
+
+	#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+	#define LIKELY(x) __builtin_expect(!!(x), 1)
+
 #endif
 
 // TODO: not sure why, signbit is actually defined in math.h
 #if defined(ESP8266)
 #define signbit(__x) \
-	((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : \
-		__signbitd(__x))
+	((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : __signbitd(__x))
 #endif
 
 /*
@@ -68,41 +75,41 @@ static inline int __builtin_clzll(unsigned long long x) {
 
 static inline
 u32 rotl32(u32 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c &= mask & 31;
-  return (n<<c) | (n>>( (-c)&mask ));
+	const unsigned mask = CHAR_BIT * sizeof(n) - 1;
+	c &= mask & 31;
+	return (n << c) | (n >> ((-c) & mask));
 }
 
 static inline
 u32 rotr32(u32 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c &= mask & 31;
-  return (n>>c) | (n<<( (-c)&mask ));
+	const unsigned mask = CHAR_BIT * sizeof(n) - 1;
+	c &= mask & 31;
+	return (n >> c) | (n << ((-c) & mask));
 }
 
 static inline
 u64 rotl64(u64 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c &= mask & 63;
-  return (n<<c) | (n>>( (-c)&mask ));
+	const unsigned mask = CHAR_BIT * sizeof(n) - 1;
+	c &= mask & 63;
+	return (n << c) | (n >> ((-c) & mask));
 }
 
 static inline
 u64 rotr64(u64 n, unsigned c) {
-  const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c &= mask & 63;
-  return (n>>c) | (n<<( (-c)&mask ));
+	const unsigned mask = CHAR_BIT * sizeof(n) - 1;
+	c &= mask & 63;
+	return (n >> c) | (n << ((-c) & mask));
 }
 
 /*
  * Integer Div, Rem
  */
 
-#define OP_DIV_U(RES, A, B) 								 \
+#define OP_DIV_U(RES, A, B)									 \
 	if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
 	RES = A / B;
 
-#define OP_REM_U(RES, A, B) 								 \
+#define OP_REM_U(RES, A, B)									 \
 	if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
 	RES = A % B;
 
@@ -174,28 +181,28 @@ u64 rotr64(u64 n, unsigned c) {
 static inline
 f32 min_f32(f32 a, f32 b) {
 	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
-    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
+	if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
     return a > b ? b : a;
 }
 
 static inline
 f32 max_f32(f32 a, f32 b) {
 	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
-    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
+	if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
 	return a > b ? a : b;
 }
 
 static inline
 f64 min_f64(f64 a, f64 b) {
 	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
-    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
+	if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
     return a > b ? b : a;
 }
 
 static inline
 f64 max_f64(f64 a, f64 b) {
 	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
-    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
+	if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
 	return a > b ? a : b;
 }
 
