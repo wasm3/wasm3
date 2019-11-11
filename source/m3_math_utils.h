@@ -182,7 +182,7 @@ static inline
 f32 min_f32(f32 a, f32 b) {
 	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
 	if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
-    return a > b ? b : a;
+	return a > b ? b : a;
 }
 
 static inline
@@ -196,7 +196,7 @@ static inline
 f64 min_f64(f64 a, f64 b) {
 	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
 	if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
-    return a > b ? b : a;
+	return a > b ? b : a;
 }
 
 static inline
