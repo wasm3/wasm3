@@ -47,6 +47,14 @@ static inline int __builtin_clzll(unsigned long long x) {
 
 #endif
 
+#if defined(M3_COMPILER_MSVC)
+#define UNLIKELY(x) (x)
+#define LIKELY(x) (x)
+#else
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#endif
+
 // TODO: not sure why, signbit is actually defined in math.h
 #if defined(ESP8266)
 #define signbit(__x) \
@@ -61,32 +69,28 @@ static inline int __builtin_clzll(unsigned long long x) {
 static inline
 u32 rotl32(u32 n, unsigned c) {
   const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 32;
-  c &= mask;
+  c &= mask & 31;
   return (n<<c) | (n>>( (-c)&mask ));
 }
 
 static inline
 u32 rotr32(u32 n, unsigned c) {
   const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 32;
-  c &= mask;
+  c &= mask & 31;
   return (n>>c) | (n<<( (-c)&mask ));
 }
 
 static inline
 u64 rotl64(u64 n, unsigned c) {
   const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 64;
-  c &= mask;
+  c &= mask & 63;
   return (n<<c) | (n>>( (-c)&mask ));
 }
 
 static inline
 u64 rotr64(u64 n, unsigned c) {
   const unsigned mask = (CHAR_BIT*sizeof(n)-1);
-  c = c % 64;
-  c &= mask;
+  c &= mask & 63;
   return (n>>c) | (n<<( (-c)&mask ));
 }
 
@@ -94,25 +98,27 @@ u64 rotr64(u64 n, unsigned c) {
  * Integer Div, Rem
  */
 
-#define OP_DIV_U(RES, A, B) \
-	if (B == 0) return c_m3Err_trapDivisionByZero; \
+#define OP_DIV_U(RES, A, B) 								 \
+	if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
 	RES = A / B;
 
-#define OP_REM_U(RES, A, B) \
-	if (B == 0) return c_m3Err_trapDivisionByZero; \
+#define OP_REM_U(RES, A, B) 								 \
+	if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
 	RES = A % B;
 
 // 2's complement detection
 #if (INT_MIN != -INT_MAX)
 
-	#define OP_DIV_S(RES, A, B, TYPE_MIN) \
-		if (B == 0) return c_m3Err_trapDivisionByZero; \
-		if (B == -1 and A == TYPE_MIN) return c_m3Err_trapIntegerOverflow; \
+	#define OP_DIV_S(RES, A, B, TYPE_MIN)						 \
+		if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
+		if (UNLIKELY(B == -1 and A == TYPE_MIN)) {				 \
+			return c_m3Err_trapIntegerOverflow; 				 \
+		}														 \
 		RES = A / B;
 
-	#define OP_REM_S(RES, A, B, TYPE_MIN) \
-		if (B == 0) return c_m3Err_trapDivisionByZero; \
-		if (B == -1 and A == TYPE_MIN) RES = 0; \
+	#define OP_REM_S(RES, A, B, TYPE_MIN) 						 \
+		if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
+		if (UNLIKELY(B == -1 and A == TYPE_MIN)) RES = 0; 	     \
 		else RES = A % B;
 
 #else
@@ -127,29 +133,37 @@ u64 rotr64(u64 n, unsigned c) {
  */
 
 #define OP_TRUNC_I32(RES, A)								\
-	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
-	if (A < INT32_MIN or A >= INT32_MAX) {					\
+	if (UNLIKELY(isnan(A))) {								\
+		return c_m3Err_trapIntegerConversion;				\
+	}														\
+	if (UNLIKELY(A < INT32_MIN or A >= INT32_MAX)) {		\
 		return c_m3Err_trapIntegerOverflow;					\
 	}														\
 	RES = A;
 
 #define OP_TRUNC_U32(RES, A)								\
-	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
-	if (A <= -1 or A >= UINT32_MAX) {						\
+	if (UNLIKELY(isnan(A))) {								\
+		return c_m3Err_trapIntegerConversion;				\
+	}														\
+	if (UNLIKELY(A <= -1 or A >= UINT32_MAX)) {				\
 		return c_m3Err_trapIntegerOverflow;					\
 	}														\
 	RES = A;
 
 #define OP_TRUNC_I64(RES, A)								\
-	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
-	if (A < INT64_MIN or A >= INT64_MAX) {					\
+	if (UNLIKELY(isnan(A))) {                               \
+		return c_m3Err_trapIntegerConversion;		        \
+	}														\
+	if (UNLIKELY(A < INT64_MIN or A >= INT64_MAX)) {		\
 		return c_m3Err_trapIntegerOverflow;					\
 	}														\
 	RES = A;
 
 #define OP_TRUNC_U64(RES, A)								\
-	if (isnan(A)) return c_m3Err_trapIntegerConversion;		\
-	if (A <= -1 or A >= UINT64_MAX) {						\
+	if (UNLIKELY(isnan(A))) {								\
+		return c_m3Err_trapIntegerConversion;				\
+	}														\
+	if (UNLIKELY(A <= -1 or A >= UINT64_MAX)) {				\
 		return c_m3Err_trapIntegerOverflow;					\
 	}														\
 	RES = A;
@@ -159,38 +173,30 @@ u64 rotr64(u64 n, unsigned c) {
  */
 static inline
 f32 min_f32(f32 a, f32 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f32 c = fminf(a, b);
-    if (c==0 and a==b) { return signbit(a) ? a : b; }
-    return c;
+	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
+    return a > b ? b : a;
 }
 
 static inline
 f32 max_f32(f32 a, f32 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f32 c = fmaxf(a, b);
-    if (c==0 and a==b) { return signbit(a) ? b : a; }
-    return c;
+	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
+	return a > b ? a : b;
 }
 
 static inline
 f64 min_f64(f64 a, f64 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f64 c = fmin(a, b);
-    if (c==0 and a==b) { return signbit(a) ? a : b; }
-    return c;
+	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
+    return a > b ? b : a;
 }
 
 static inline
 f64 max_f64(f64 a, f64 b) {
-	if (isnan(a)) return a;
-	if (isnan(b)) return b;
-    f64 c = fmax(a, b);
-    if (c==0 and a==b) { return signbit(a) ? b : a; }
-    return c;
+	if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
+	return a > b ? a : b;
 }
 
 /*
@@ -199,15 +205,15 @@ f64 max_f64(f64 a, f64 b) {
 
 static inline
 f32 nearest_f32(f32 a) {
-	if (a > 0.f and a <= 0.5f) return 0.f;
-	if (a < 0.f and a >= -0.5f) return -0.f;
+	if (UNLIKELY(a > 0.f and a <= 0.5f)) return 0.f;
+	if (UNLIKELY(a < 0.f and a >= -0.5f)) return -0.f;
     return rintf(a);
 }
 
 static inline
 f64 nearest_f64(f64 a) {
-	if (a > 0.0 and a <= 0.5) return 0.0;
-	if (a < 0.0 and a >= -0.5) return -0.0;
+	if (UNLIKELY(a > 0.0 and a <= 0.5)) return 0.0;
+	if (UNLIKELY(a < 0.0 and a >= -0.5)) return -0.0;
     return rint(a);
 }
 
