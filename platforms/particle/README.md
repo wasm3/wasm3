@@ -11,5 +11,8 @@ Upload to device:
 ```
 particle list
 particle flash MyDevice1 ./firmware_*.bin
+
+# Or using USB:
+particle flash --usb firmware_*.bin
 ```
 
