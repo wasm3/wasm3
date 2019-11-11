@@ -1312,20 +1312,20 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.load32_s",       0,  i_64,   d_unaryOpList (i64, Load_i32),  Compile_Load_Store ),           // 0x34
     M3OP( "i64.load32_u",       0,  i_64,   d_unaryOpList (i64, Load_u32),  Compile_Load_Store ),           // 0x35
 
-    M3OP( "i32.store",          -2, none,   d_binOpList (i32, Store_i32),               Compile_Load_Store ),       // 0x36
-    M3OP( "i64.store",          -2, none,   NULL,       NULL, NULL ),       // 0x37
-    M3OP( "f32.store",          -2, none,   NULL,           NULL, NULL ),       // 0x38
-    M3OP( "f64.store",          -2, none,   op_f64_Store,       NULL, NULL,             Compile_Load_Store ),       // 0x39
+    M3OP( "i32.store",          -2, none,   d_binOpList (i32, Store_i32),   Compile_Load_Store ),           // 0x36
+    M3OP( "i64.store",          -2, none,   d_binOpList (i64, Store_i64),   Compile_Load_Store ),           // 0x37
+    M3OP( "f32.store",          -2, none,   NULL, NULL, NULL,               Compile_Load_Store ),           // 0x38  TODO
+    M3OP( "f64.store",          -2, none,   op_f64_Store,   NULL, NULL,     Compile_Load_Store ),           // 0x39
 
-    M3OP( "i32.store8",         -2, none,   d_binOpList (i32, Store_u8),                Compile_Load_Store ),       // 0x3a
-    M3OP( "i32.store16",        -2, none,   d_binOpList (i32, Store_i16),               Compile_Load_Store ),       // 0x3b
+    M3OP( "i32.store8",         -2, none,   d_binOpList (i32, Store_u8),    Compile_Load_Store ),           // 0x3a
+    M3OP( "i32.store16",        -2, none,   d_binOpList (i32, Store_i16),   Compile_Load_Store ),           // 0x3b
 
-    M3OP( "i64.store8",         -2, none,   NULL,           NULL, NULL  ),      // 0x3c
-    M3OP( "i64.store16",        -2, none,   NULL,           NULL, NULL  ),      // 0x3d
-    M3OP( "i64.store32",        -2, none,   NULL,           NULL, NULL  ),      // 0x3e
+    M3OP( "i64.store8",         -2, none,   d_binOpList (i64, Store_u8),    Compile_Load_Store ),           // 0x3c
+    M3OP( "i64.store16",        -2, none,   d_binOpList (i64, Store_i16),   Compile_Load_Store ),           // 0x3d
+    M3OP( "i64.store32",        -2, none,   d_binOpList (i64, Store_i32),   Compile_Load_Store ),           // 0x3e
 
-    M3OP( "current_memory",     1,  i_64,   NULL,           NULL, NULL  ),      // 0x3f     // TODO!! don't know about these stck offs
-    M3OP( "grow_memory",        -1, i_64,   NULL,           NULL, NULL  ),      // 0x40
+    M3OP( "current_memory",     1,  i_32,   d_emptyOpList(),                NULL               ),           // 0x3f  TODO
+    M3OP( "grow_memory",        0,  i_32,   d_emptyOpList(),                NULL               ),           // 0x40  TODO
 
     M3OP( "i32.const",          1,  i_32,   d_emptyOpList(),                Compile_Const_i32 ),            // 0x41
     M3OP( "i64.const",          1,  i_64,   d_emptyOpList(),                Compile_Const_i64 ),            // 0x42
@@ -1448,8 +1448,8 @@ const M3OpInfo c_operations [] =
     M3OP( "i32.trunc_s/f64",    0,  i_32,   d_unaryOpList(f64, Trunc_i32)           ),          // 0xaa
     M3OP( "i32.trunc_u/f64",    0,  i_32,   d_unaryOpList(f64, Trunc_u32)           ),          // 0xab
 
-    M3OP( "i64.extend_s/i32",   0,  i_64,   op_Extend_s,        NULL, NULL ),           // 0xac
-    M3OP( "i64.extend_u/i32",   0,  i_64,   op_Extend_u,        NULL, NULL  ),          // 0xad
+    M3OP( "i64.extend_s/i32",   0,  i_64,   d_unaryOpList(i32, Extend_s64)          ),          // 0xac  TODO
+    M3OP( "i64.extend_u/i32",   0,  i_64,   d_unaryOpList(i32, Extend_u64)          ),          // 0xad  TODO
     M3OP( "i64.trunc_s/f32",    0,  i_64,   d_unaryOpList(f32, Trunc_i64)           ),          // 0xae
     M3OP( "i64.trunc_u/f32",    0,  i_64,   d_unaryOpList(f32, Trunc_u64)           ),          // 0xaf
     M3OP( "i64.trunc_s/f64",    0,  i_64,   d_unaryOpList(f64, Trunc_i64)           ),          // 0xb0
@@ -1622,7 +1622,7 @@ _           (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
             if (preserveToSlot != i)
             {
 //              printf ("preserving local: %d to slot: %d\n", i, preserveToSlot);
-                m3NotImplemented();
+                m3NotImplemented(); // TODO
             }
         }
 

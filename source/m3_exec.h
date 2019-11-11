@@ -279,6 +279,15 @@ d_m3UnaryMacro(_r0, _fp0, f32, Trunc_u64, OP_TRUNC_U64)
 d_m3UnaryMacro(_r0, _fp0, f64, Trunc_i64, OP_TRUNC_I64)
 d_m3UnaryMacro(_r0, _fp0, f64, Trunc_u64, OP_TRUNC_U64)
 
+#define OP_EXTEND_U64(RES, A)                               \
+    RES = (u64)A;
+
+#define OP_EXTEND_S64(RES, A)                               \
+    RES = (i64)A;
+
+d_m3UnaryMacro(_r0, _r0, i32, Extend_u64, OP_EXTEND_U64)
+d_m3UnaryMacro(_r0, _r0, i32, Extend_s64, OP_EXTEND_S64)
+
 
 #define d_m3IntToFpConvertOp(TO, NAME, FROM)                \
 d_m3Op(TO##_##NAME##_##FROM##_r)                            \
@@ -341,20 +350,6 @@ d_m3ReinterpretOp (_r0, i32, _fp0, f64, f32)
 d_m3ReinterpretOp (_r0, i64, _fp0, f64, f64)
 d_m3ReinterpretOp (_fp0, f32, _r0, i64, i32)
 d_m3ReinterpretOp (_fp0, f64, _r0, i64, i64)
-
-
-d_m3Op  (Extend_u)
-{
-    _r0 = (u32) _r0;
-    return nextOp ();
-}
-
-d_m3Op  (Extend_s)
-{
-    _r0 = (i32) _r0;
-    return nextOp ();
-}
-
 
 d_m3Op  (Nop)
 {
@@ -813,6 +808,10 @@ d_m3Store_i (i32, u8)
 d_m3Store_i (i32, i16)
 d_m3Store_i (i32, i32)
 
+d_m3Store_i (i64, u8)
+d_m3Store_i (i64, i16)
+d_m3Store_i (i64, i32)
+d_m3Store_i (i64, i64)
 
 //---------------------------------------------------------------------------------------------------------------------
 # if d_m3EnableOptimizations
