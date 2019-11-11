@@ -214,14 +214,14 @@ static inline
 f32 nearest_f32(f32 a) {
 	if (UNLIKELY(a > 0.f and a <= 0.5f)) return 0.f;
 	if (UNLIKELY(a < 0.f and a >= -0.5f)) return -0.f;
-    return rintf(a);
+	return rintf(a);
 }
 
 static inline
 f64 nearest_f64(f64 a) {
 	if (UNLIKELY(a > 0.0 and a <= 0.5)) return 0.0;
 	if (UNLIKELY(a < 0.0 and a >= -0.5)) return -0.0;
-    return rint(a);
+	return rint(a);
 }
 
 
