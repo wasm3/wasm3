@@ -437,7 +437,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
 
 #if d_m3LogOutput
         switch (ftype->returnType) {
-        case c_m3Type_none: break;
+        case c_m3Type_none: printf("Result: <Empty Stack>\n"); break;
 #ifdef USE_HUMAN_FRIENDLY_ARGS
         case c_m3Type_i32:  printf("Result: %" PRIi32 "\n", *(i32*)(stack));  break;
         case c_m3Type_i64:  printf("Result: %" PRIi64 "\n", *(i64*)(stack));  break;
