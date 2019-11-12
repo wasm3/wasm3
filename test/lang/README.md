@@ -18,14 +18,14 @@ Linux       x86   clang          15.37s  - no TCO
 
 ```sh
 # WAC
-time $ENGINES_PATH/wac/wac fib32.wasm fib 40
+time $(ENGINES_PATH)/wac/wac fib32.wasm fib 40
 
 # WAMR
-time $ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm -f fib fib32.wasm 40
+time $(ENGINES_PATH)/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm -f fib fib32.wasm 40
 
 # Wasmer
 time wasmer run --em-entrypoint fib fib32.wasm -- 40
 
 # WAVM
-time $ENGINES_PATH/wasm-jit-prototype/_build/bin/wavm run -f fib fib32.wasm 40
+time $(ENGINES_PATH)/wasm-jit-prototype/_build/bin/wavm run -f fib fib32.wasm 40
 ```
