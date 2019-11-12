@@ -1,7 +1,9 @@
-./build*
+/build*
+node_modules
 test/core
 test/*.log
 test/tailcall/*.S
 .project
 .cproject
 .settings
+.vscode
