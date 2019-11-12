@@ -91,9 +91,9 @@ def formatValueRaw(num, t):
     return str(num)
 
 def formatValueHex(num, t):
-    if t == "f32":
+    if t == "f32" or t == "i32":
         return "{0:#0{1}x}".format(int(num), 8+2)
-    elif t == "f64":
+    elif t == "f64" or t == "i64":
         return "{0:#0{1}x}".format(int(num), 16+2)
     else:
         return str(num)
@@ -217,8 +217,8 @@ def runInvoke(test):
             value = str(test.expected[0]['value'])
             expect = "result " + value
 
-            if actual_val != None and (t == "f32" or t == "f64"):
-                if (value == "<Canonical NaN>" or value == "<Arithmetic NaN>"):
+            if actual_val != None:
+                if (t == "f32" or t == "f64") and (value == "<Canonical NaN>" or value == "<Arithmetic NaN>"):
                     val = binaryToFloat(actual_val, t)
                     #warning(f"{actual_val} => {val}")
                     if math.isnan(val):
@@ -277,25 +277,38 @@ elif args.all:
     jsonFiles.sort()
 else:
     jsonFiles = list(map(lambda x : f"./core/{x}.json", [
-        #--- Complete ---
+        #--- 100% Complete ---
         "i32", "i64", "stack", "fac",
+        "f32", "f64",
         "f32_cmp", "f64_cmp",
         "f32_bitwise", "f64_bitwise",
-        "f32", "f64",
-        "float_misc",
-        "conversions",
-        #--- In progress ---
-        #"float_literals",
-        #"float_exprs",
-        #"endianness",
-        #"int_literals",
-        #"int_exprs",
+        "call", "break-drop",
+        "tee_local", "set_local",
+        "forward",
+        "func_ptrs",
+        #--- Almost ready ---
+        #"address", "align",
+        #"memory",
         #"if",
+        #"nop",
+        #"call_indirect",
+        #"float_literals",
+        #"float_misc",
+        #--- In progress ---
+        #"return",
+        #"endianness",
+        #"conversions",
+        #"globals",
+        #"func",
+        #"unreachable", "loop", "block", "br", "br_if", "br_table",
+        #--- Future ---
+        #"float_memory",
+        #"float_exprs",
+        #"int_literals",               # stack underflow
+        #"int_exprs",
         #"elem",
         #"switch",
-        #"call",
         #"get_local",
-        #"tee_local",
     ]))
 
 for fn in jsonFiles:
