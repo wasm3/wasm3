@@ -51,22 +51,10 @@ int __builtin_clzll(unsigned long long x) {
 
 #endif
 
-#if defined(M3_COMPILER_MSVC)
-
-    #define UNLIKELY(x) (x)
-    #define LIKELY(x) (x)
-
-#else
-
-    #define UNLIKELY(x) __builtin_expect(!!(x), 0)
-    #define LIKELY(x) __builtin_expect(!!(x), 1)
-
-#endif
-
 // TODO: not sure why, signbit is actually defined in math.h
 #if defined(ESP8266)
-#define signbit(__x) \
-    ((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : __signbitd(__x))
+    #define signbit(__x) \
+            ((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : __signbitd(__x))
 #endif
 
 /*
@@ -205,24 +193,5 @@ f64 max_f64(f64 a, f64 b) {
     if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
     return a > b ? a : b;
 }
-
-/*
- * Nearest
- */
-
-static inline
-f32 nearest_f32(f32 a) {
-    if (UNLIKELY(a > 0.f and a <= 0.5f)) return 0.f;   // TODO: Unneded?
-    if (UNLIKELY(a < 0.f and a >= -0.5f)) return -0.f;
-    return rintf(a);
-}
-
-static inline
-f64 nearest_f64(f64 a) {
-    if (UNLIKELY(a > 0.0 and a <= 0.5)) return 0.0;
-    if (UNLIKELY(a < 0.0 and a >= -0.5)) return -0.0;
-    return rint(a);
-}
-
 
 #endif /* m3_math_utils_h */

@@ -44,32 +44,30 @@ const void * const  cvptr_t;
 #   define or       ||
 # endif
 
-#define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
-
 # if defined(M3_COMPILER_MSVC)
 #   define M3_WEAK
 # else
 #   define M3_WEAK __attribute__((weak))
 # endif
 
+# if defined(M3_COMPILER_MSVC)
+#   define UNLIKELY(x) (x)
+#   define LIKELY(x)   (x)
+# else
+#   define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#   define LIKELY(x)   __builtin_expect(!!(x), 1)
+# endif
+
+# ifndef min
+#   define min(A,B) (A < B) ? A : B
+# endif
+# ifndef max
+#   define max(A,B) (A > B) ? A : B
+# endif
+
 #define M3_INIT(field) memset(&field, 0, sizeof(field))
 
-static const char * m3LogTruncFilename (const char * i_file)
-{
-    const char * file = i_file + strlen (i_file);
-
-    while (true)
-    {
-        char c = * (file - 1);
-        if (c == '/' or c == '\\')
-            break;
-
-        --file;
-    }
-
-    return file;
-}
-
+#define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 
 # define d_m3Log_parse d_m3LogParse         // required for m3logif
@@ -79,8 +77,6 @@ static const char * m3LogTruncFilename (const char * i_file)
 
 # if d_m3LogOutput
 
-// with filename:
-//# define d_m3Log(CATEGORY, FMT, ...)                  printf (" %-12s | %-8s |  " FMT, m3LogTruncFilename (M3_FILE), #CATEGORY, ##__VA_ARGS__);
 #   define d_m3Log(CATEGORY, FMT, ...)                  printf (" %8s  |  " FMT, #CATEGORY, ##__VA_ARGS__);
 
 #   if d_m3LogParse
@@ -196,8 +192,9 @@ M3CodePageHeader;
 static const char * const c_waTypes []              = { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
 
 
-#define m3Alloc(OPTR, STRUCT, NUM) m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
-#define m3RellocArray(PTR, STRUCT, NEW, OLD) m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define m3Alloc(OPTR, STRUCT, NUM)              m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
+#define m3RellocArray(PTR, STRUCT, NEW, OLD)    m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define m3Free(P)                               { m3Free_impl((void*)(P)); P = NULL; }
 
 #ifdef DEBUG
 #define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) m3Error (RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ##__VA_ARGS__)
@@ -209,12 +206,6 @@ static const char * const c_waTypes []              = { "nil", "i32", "i64", "f3
 #define ErrorCompile(RESULT, COMP, FORMAT, ...) _m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 //#define ErrorExec(RESULT, MODULE, FORMAT, ...)    _m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 
-#ifndef min
-#define min(A,B) (A < B) ? A : B
-#endif
-#ifndef max
-#define max(A,B) (A > B) ? A : B
-#endif
 
 #if d_m3LogNativeStack
 void        m3StackCheckInit        ();
@@ -234,8 +225,6 @@ void        m3Yield                 ();
 M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
 void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3Free_impl             (void * o_ptr);
-
-#define     m3Free(P)               { m3Free_impl((void*)(P)); P = NULL; }
 
 bool        IsIntType               (u8 i_wasmType);
 bool        IsFpType                (u8 i_wasmType);
@@ -260,13 +249,5 @@ M3Result    Read_utf8               (cstr_t * o_utf8, bytes_t * io_bytes, cbytes
 size_t      SPrintArg               (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type);
 
 void        ReportError             (IM3Runtime io_runtime, IM3Module i_module, IM3Function i_function, ccstr_t i_errorMessage, ccstr_t i_file, u32 i_lineNum);
-
-
-//static __inline__ unsigned long GetCC(void)
-//{
-//  unsigned a, d;
-//  asm volatile("rdtsc" : "=a" (a), "=d" (d));
-//  return ((unsigned long)a) | (((unsigned long)d) << 32);
-//}
 
 #endif
