@@ -294,33 +294,34 @@ else:
     jsonFiles = list(map(lambda x : f"./core/{x}.json", [
         #--- Complete ---
         "i32", "i64",
+        "int_exprs",
+
         "f32", "f32_cmp", "f32_bitwise",
         "f64", "f64_cmp", "f64_bitwise",
         "float_misc",
+
         "conversions",
         "stack", "fac",
         "call",
         "break-drop",
         "forward",
         "func_ptrs",
+        "endianness",
 
         #--- Almost ready ---
-        #"endianness",
-        #"address", "align",
-        #"call_indirect",
-        #"get_local", "set_local", "tee_local",
+        #"left-to-right",    -> need to implement float select
+        #"call_indirect",    -> need to add type-checking
+        #"int_literals",     -> stack underflow
 
         #--- TODO ---
-        #"int_literals",
+        #"address", "align", "memory",
+        #"get_local", "set_local", "tee_local",
         #"float_literals",
-        #"memory",
         #"globals",
         #"func",
-        #"left-to-right",
         #"if", "loop", "block", "br", "br_if", "br_table", "return",
         #"nop", "unreachable",
         #"float_exprs",
-        #"int_exprs",
         #"float_memory",
         #"elem",
         #"switch",
