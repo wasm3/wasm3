@@ -14,7 +14,7 @@ This is an (experimental) high performance WebAssembly interpreter written in C.
 
 ## Status
 
-WebAssembly Core Specification conformance: **92%**
+WebAssembly Core Specification conformance: **94%**
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
