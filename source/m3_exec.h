@@ -165,10 +165,6 @@ d_m3CompareOp_f (f32, LessThanOrEqual,      <=)     d_m3CompareOp_f (f64, LessTh
 d_m3CompareOp_f (f32, GreaterThanOrEqual,   >=)     d_m3CompareOp_f (f64, GreaterThanOrEqual,   >=)
 
 
-// are these supposed to trap? sounds like it
-// "Signed and unsigned operators trap whenever the result cannot be represented in the result type."
-// Maybe we can use __builtin_add_overflow, __builtin_mul_overflow here?
-
 d_m3CommutativeOp_i (i32, Add,              +)      d_m3CommutativeOp_i (i64, Add,              +)
 d_m3CommutativeOp_i (i32, Multiply,         *)      d_m3CommutativeOp_i (i64, Multiply,         *)
 
@@ -265,91 +261,89 @@ d_m3UnaryOp_i (u64, Ctz, OP_CTZ_64)
 d_m3UnaryOp_i (u32, Popcnt, __builtin_popcount)
 d_m3UnaryOp_i (u64, Popcnt, __builtin_popcountll)
 
-#define OP_WRAP_I64(X) (X) & 0x00000000ffffffff
+#define OP_WRAP_I64(X) ((X) & 0x00000000ffffffff)
 
 d_m3UnaryOp_i (i32, Wrap_i64, OP_WRAP_I64)
 
-d_m3UnaryMacro(_r0, _fp0, f32, Trunc_i32, OP_TRUNC_I32)
-d_m3UnaryMacro(_r0, _fp0, f32, Trunc_u32, OP_TRUNC_U32)
-d_m3UnaryMacro(_r0, _fp0, f64, Trunc_i32, OP_TRUNC_I32)
-d_m3UnaryMacro(_r0, _fp0, f64, Trunc_u32, OP_TRUNC_U32)
 
-d_m3UnaryMacro(_r0, _fp0, f32, Trunc_i64, OP_TRUNC_I64)
-d_m3UnaryMacro(_r0, _fp0, f32, Trunc_u64, OP_TRUNC_U64)
-d_m3UnaryMacro(_r0, _fp0, f64, Trunc_i64, OP_TRUNC_I64)
-d_m3UnaryMacro(_r0, _fp0, f64, Trunc_u64, OP_TRUNC_U64)
+#define d_m3TruncMacro(RES, REG, TYPE, NAME, FROM, OP, ...)   \
+d_m3Op(TYPE##_##NAME##_##FROM##_r)                           \
+{                                                   \
+    OP((RES), (FROM) REG, ##__VA_ARGS__);           \
+    return nextOp ();                               \
+}                                                   \
+d_m3Op(TYPE##_##NAME##_##FROM##_s)                  \
+{                                                   \
+	FROM * stack = (FROM *) (_sp + immediate (i32));\
+    OP((RES), (* stack), ##__VA_ARGS__);            \
+    return nextOp ();                               \
+}
 
-#define OP_EXTEND_U64(RES, A)                               \
-    RES = (u64)A;
+d_m3TruncMacro(_r0, _fp0, i32, Trunc, f32, OP_I32_TRUNC_F32)
+d_m3TruncMacro(_r0, _fp0, u32, Trunc, f32, OP_U32_TRUNC_F32)
+d_m3TruncMacro(_r0, _fp0, i32, Trunc, f64, OP_I32_TRUNC_F64)
+d_m3TruncMacro(_r0, _fp0, u32, Trunc, f64, OP_U32_TRUNC_F64)
 
-#define OP_EXTEND_S64(RES, A)                               \
-    RES = (i64)A;
+d_m3TruncMacro(_r0, _fp0, i64, Trunc, f32, OP_I64_TRUNC_F32)
+d_m3TruncMacro(_r0, _fp0, u64, Trunc, f32, OP_U64_TRUNC_F32)
+d_m3TruncMacro(_r0, _fp0, i64, Trunc, f64, OP_I64_TRUNC_F64)
+d_m3TruncMacro(_r0, _fp0, u64, Trunc, f64, OP_U64_TRUNC_F64)
 
-d_m3UnaryMacro(_r0, _r0, i32, Extend_u64, OP_EXTEND_U64)
-d_m3UnaryMacro(_r0, _r0, i32, Extend_s64, OP_EXTEND_S64)
 
-
-#define d_m3IntToFpConvertOp(TO, NAME, FROM)                \
+#define d_m3TypeConvertOp(REG_TO, REG_FROM, TO, NAME, FROM) \
 d_m3Op(TO##_##NAME##_##FROM##_r)                            \
 {                                                           \
-    _fp0 = (TO) ((FROM) _r0);                               \
+	REG_TO = (TO) ((FROM) REG_FROM);                        \
     return nextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s)                            \
 {                                                           \
     FROM * stack = (FROM *) (_sp + immediate (i32));        \
-    _fp0 = (TO) (* stack);                                  \
+    REG_TO = (TO) (* stack);                                \
     return nextOp ();                                       \
 }
 
+// Int to int
+d_m3TypeConvertOp(_r0, _r0, i64, Extend, i32);
+d_m3TypeConvertOp(_r0, _r0, i64, Extend, u32);
 
-d_m3IntToFpConvertOp (f64, Convert, i32);
-d_m3IntToFpConvertOp (f64, Convert, u32);
-d_m3IntToFpConvertOp (f64, Convert, i64);
-d_m3IntToFpConvertOp (f64, Convert, u64);
+// Int to float
+d_m3TypeConvertOp(_fp0, _r0, f64, Convert, i32);
+d_m3TypeConvertOp(_fp0, _r0, f64, Convert, u32);
+d_m3TypeConvertOp(_fp0, _r0, f64, Convert, i64);
+d_m3TypeConvertOp(_fp0, _r0, f64, Convert, u64);
 
+d_m3TypeConvertOp(_fp0, _r0, f32, Convert, i32);
+d_m3TypeConvertOp(_fp0, _r0, f32, Convert, u32);
+d_m3TypeConvertOp(_fp0, _r0, f32, Convert, i64);
+d_m3TypeConvertOp(_fp0, _r0, f32, Convert, u64);
 
-#define d_m3FpToFpConvertOp(TO, NAME)                       \
-d_m3Op(TO##_##NAME##_r)                                     \
+// Float to float
+d_m3TypeConvertOp(_fp0, _fp0, f32, Demote, f64);
+d_m3TypeConvertOp(_fp0, _fp0, f64, Promote, f32);
+
+#define d_m3ReinterpretOp(REG, TO, SRC, FROM)               \
+d_m3Op(TO##_Reinterpret_##FROM##_r)                         \
 {                                                           \
-    _fp0 = (TO) _fp0;                                       \
-    return nextOp ();                                       \
-}                                                           \
-                                                            \
-d_m3Op(TO##_##NAME##_s)                                     \
-{                                                           \
-    f64 * stack = (f64 *) (_sp + immediate (i32));          \
-    _fp0 = (TO) (* stack);                                  \
-    return nextOp ();                                       \
-}
-
-
-d_m3FpToFpConvertOp (f32, Demote)
-
-
-#define d_m3ReinterpretOp(REG, TO, SRC, FROM, CAST)         \
-d_m3Op(TO##_Reinterpret_##CAST##_r)                         \
-{                                                           \
-    union { CAST c; TO t; } u;                              \
+    union { FROM c; TO t; } u;                              \
     u.c = (FROM)SRC;                                        \
     REG = u.t;                                              \
     return nextOp ();                                       \
 }                                                           \
                                                             \
-d_m3Op(TO##_Reinterpret_##CAST##_s)                         \
+d_m3Op(TO##_Reinterpret_##FROM##_s)                         \
 {                                                           \
-    union { CAST c; TO t; } u;                              \
+    union { FROM c; TO t; } u;                              \
     u.c = *(FROM *) (_sp + immediate (i32));                \
     REG = u.t;                                              \
     return nextOp ();                                       \
 }
 
-
-d_m3ReinterpretOp (_r0, i32, _fp0, f64, f32)
-d_m3ReinterpretOp (_r0, i64, _fp0, f64, f64)
-d_m3ReinterpretOp (_fp0, f32, _r0, i64, i32)
-d_m3ReinterpretOp (_fp0, f64, _r0, i64, i64)
+d_m3ReinterpretOp (_r0, i32, _fp0, f32)
+d_m3ReinterpretOp (_r0, i64, _fp0, f64)
+d_m3ReinterpretOp (_fp0, f32, _r0, i32)
+d_m3ReinterpretOp (_fp0, f64, _r0, i64)
 
 d_m3Op  (Nop)
 {

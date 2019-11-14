@@ -1443,29 +1443,29 @@ const M3OpInfo c_operations [] =
     M3OP( "f64.copysign",       -1, f_64,   d_binOpList (f64, CopySign)             ),          // 0xa6
 
     M3OP( "i32.wrap/i64",       0,  i_32,   d_unaryOpList(i32, Wrap_i64)            ),          // 0xa7
-    M3OP( "i32.trunc_s/f32",    0,  i_32,   d_unaryOpList(f32, Trunc_i32)           ),          // 0xa8
-    M3OP( "i32.trunc_u/f32",    0,  i_32,   d_unaryOpList(f32, Trunc_u32)           ),          // 0xa9
-    M3OP( "i32.trunc_s/f64",    0,  i_32,   d_unaryOpList(f64, Trunc_i32)           ),          // 0xaa
-    M3OP( "i32.trunc_u/f64",    0,  i_32,   d_unaryOpList(f64, Trunc_u32)           ),          // 0xab
+    M3OP( "i32.trunc_s/f32",    0,  i_32,   d_unaryOpList(i32, Trunc_f32)           ),          // 0xa8
+    M3OP( "i32.trunc_u/f32",    0,  i_32,   d_unaryOpList(u32, Trunc_f32)           ),          // 0xa9
+    M3OP( "i32.trunc_s/f64",    0,  i_32,   d_unaryOpList(i32, Trunc_f64)           ),          // 0xaa
+    M3OP( "i32.trunc_u/f64",    0,  i_32,   d_unaryOpList(u32, Trunc_f64)           ),          // 0xab
 
-    M3OP( "i64.extend_s/i32",   0,  i_64,   d_unaryOpList(i32, Extend_s64)          ),          // 0xac  TODO
-    M3OP( "i64.extend_u/i32",   0,  i_64,   d_unaryOpList(i32, Extend_u64)          ),          // 0xad  TODO
-    M3OP( "i64.trunc_s/f32",    0,  i_64,   d_unaryOpList(f32, Trunc_i64)           ),          // 0xae
-    M3OP( "i64.trunc_u/f32",    0,  i_64,   d_unaryOpList(f32, Trunc_u64)           ),          // 0xaf
-    M3OP( "i64.trunc_s/f64",    0,  i_64,   d_unaryOpList(f64, Trunc_i64)           ),          // 0xb0
-    M3OP( "i64.trunc_u/f64",    0,  i_64,   d_unaryOpList(f64, Trunc_u64)           ),          // 0xb1
+    M3OP( "i64.extend_s/i32",   0,  i_64,   d_unaryOpList(i64, Extend_i32)          ),          // 0xac
+    M3OP( "i64.extend_u/i32",   0,  i_64,   d_unaryOpList(i64, Extend_u32)          ),          // 0xad
+    M3OP( "i64.trunc_s/f32",    0,  i_64,   d_unaryOpList(i64, Trunc_f32)           ),          // 0xae
+    M3OP( "i64.trunc_u/f32",    0,  i_64,   d_unaryOpList(u64, Trunc_f32)           ),          // 0xaf
+    M3OP( "i64.trunc_s/f64",    0,  i_64,   d_unaryOpList(i64, Trunc_f64)           ),          // 0xb0
+    M3OP( "i64.trunc_u/f64",    0,  i_64,   d_unaryOpList(u64, Trunc_f64)           ),          // 0xb1
 
-    M3OP( "f32.convert_s/i32",  0,  f_32,   d_unaryOpList(f64, Convert_i32)         ),          // 0xb2
-    M3OP( "f32.convert_u/i32",  0,  f_32,   d_unaryOpList(f64, Convert_u32)         ),          // 0xb3
-    M3OP( "f32.convert_s/i64",  0,  f_32,   d_unaryOpList(f64, Convert_i64)         ),          // 0xb4
-    M3OP( "f32.convert_u/i64",  0,  f_32,   d_unaryOpList(f64, Convert_u64)         ),          // 0xb5
-    M3OP( "f32.demote/f64",     0,  f_32,   d_unaryOpList(f32, Demote)              ),          // 0xb6
+    M3OP( "f32.convert_s/i32",  0,  f_32,   d_unaryOpList(f32, Convert_i32)         ),          // 0xb2
+    M3OP( "f32.convert_u/i32",  0,  f_32,   d_unaryOpList(f32, Convert_u32)         ),          // 0xb3
+    M3OP( "f32.convert_s/i64",  0,  f_32,   d_unaryOpList(f32, Convert_i64)         ),          // 0xb4
+    M3OP( "f32.convert_u/i64",  0,  f_32,   d_unaryOpList(f32, Convert_u64)         ),          // 0xb5
+    M3OP( "f32.demote/f64",     0,  f_32,   d_unaryOpList(f32, Demote_f64)          ),          // 0xb6
 
     M3OP( "f64.convert_s/i32",  0,  f_64,   d_unaryOpList(f64, Convert_i32)         ),          // 0xb7
     M3OP( "f64.convert_u/i32",  0,  f_64,   d_unaryOpList(f64, Convert_u32)         ),          // 0xb8
     M3OP( "f64.convert_s/i64",  0,  f_64,   d_unaryOpList(f64, Convert_i64)         ),          // 0xb9
     M3OP( "f64.convert_u/i64",  0,  f_64,   d_unaryOpList(f64, Convert_u64)         ),          // 0xba
-    M3OP( "f64.promote/f32",    0,  f_64,   op_Nop, op_Nop, NULL                    ),          // 0xbb
+    M3OP( "f64.promote/f32",    0,  f_64,   d_unaryOpList(f64, Promote_f32)         ),          // 0xbb
 
     M3OP( "i32.reinterpret/f32", 0, i_32,   d_unaryOpList(i32, Reinterpret_f32)     ),          // 0xbc
     M3OP( "i64.reinterpret/f64", 0, i_64,   d_unaryOpList(i64, Reinterpret_f64)     ),          // 0xbd

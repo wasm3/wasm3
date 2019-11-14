@@ -127,41 +127,25 @@ u64 rotr64(u64 n, unsigned c) {
  * Trunc
  */
 
-#define OP_TRUNC_I32(RES, A)                                \
+#define OP_TRUNC(RES, A, TYPE, RMIN, RMAX)                  \
     if (UNLIKELY(isnan(A))) {                               \
         return c_m3Err_trapIntegerConversion;               \
     }                                                       \
-    if (UNLIKELY(A < INT32_MIN or A >= INT32_MAX)) {        \
+    if (UNLIKELY(A <= RMIN or A >= RMAX)) {                 \
         return c_m3Err_trapIntegerOverflow;                 \
     }                                                       \
-    RES = A;
+    RES = (TYPE)A;
 
-#define OP_TRUNC_U32(RES, A)                                \
-    if (UNLIKELY(isnan(A))) {                               \
-        return c_m3Err_trapIntegerConversion;               \
-    }                                                       \
-    if (UNLIKELY(A <= -1 or A >= UINT32_MAX)) {             \
-        return c_m3Err_trapIntegerOverflow;                 \
-    }                                                       \
-    RES = A;
 
-#define OP_TRUNC_I64(RES, A)                                \
-    if (UNLIKELY(isnan(A))) {                               \
-        return c_m3Err_trapIntegerConversion;               \
-    }                                                       \
-    if (UNLIKELY(A < INT64_MIN or A >= INT64_MAX)) {        \
-        return c_m3Err_trapIntegerOverflow;                 \
-    }                                                       \
-    RES = A;
+#define OP_I32_TRUNC_F32(RES, A)    OP_TRUNC(RES, A, i32, -2147483904.0f, 2147483648.0f)
+#define OP_U32_TRUNC_F32(RES, A)    OP_TRUNC(RES, A, u32,          -1.0f, 4294967296.0f)
+#define OP_I32_TRUNC_F64(RES, A)    OP_TRUNC(RES, A, i32, -2147483649.0 , 2147483648.0 )
+#define OP_U32_TRUNC_F64(RES, A)    OP_TRUNC(RES, A, u32,          -1.0 , 4294967296.0 )
 
-#define OP_TRUNC_U64(RES, A)                                \
-    if (UNLIKELY(isnan(A))) {                               \
-        return c_m3Err_trapIntegerConversion;               \
-    }                                                       \
-    if (UNLIKELY(A <= -1 or A >= UINT64_MAX)) {             \
-        return c_m3Err_trapIntegerOverflow;                 \
-    }                                                       \
-    RES = A;
+#define OP_I64_TRUNC_F32(RES, A)    OP_TRUNC(RES, A, i64, -9223373136366403584.0f,  9223372036854775808.0f)
+#define OP_U64_TRUNC_F32(RES, A)    OP_TRUNC(RES, A, u64,                   -1.0f, 18446744073709551616.0f)
+#define OP_I64_TRUNC_F64(RES, A)    OP_TRUNC(RES, A, i64, -9223372036854777856.0 ,  9223372036854775808.0 )
+#define OP_U64_TRUNC_F64(RES, A)    OP_TRUNC(RES, A, u64,                   -1.0 , 18446744073709551616.0 )
 
 /*
  * Min, Max
