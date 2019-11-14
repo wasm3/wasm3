@@ -1,4 +1,5 @@
 /build*
+/source-*
 node_modules
 test/core
 test/*.log
