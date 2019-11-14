@@ -8,6 +8,9 @@
 #   ./run-spec-test.py --exec ../custom_build/wasm3
 #
 
+# TODO Get more tests from:
+# https://github.com/microsoft/ChakraCore/tree/master/test/WasmSpec
+
 import argparse
 import os
 import os.path
@@ -308,17 +311,17 @@ else:
         #"get_local", "set_local", "tee_local",
 
         #--- TODO ---
+        #"int_literals",
+        #"float_literals",
         #"memory",
         #"globals",
         #"func",
         #"left-to-right",
         #"if", "loop", "block", "br", "br_if", "br_table", "return",
         #"nop", "unreachable",
-        #"float_literals",
         #"float_exprs",
-        #"float_memory", 
-        #"int_literals",
         #"int_exprs",
+        #"float_memory",
         #"elem",
         #"switch",
     ]))
