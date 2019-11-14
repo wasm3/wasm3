@@ -204,17 +204,17 @@ def runInvoke(test):
         actual = "<Crashed>"
     if not actual:
         result = re.findall(r'^Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
-        if len(result) == 1:
-            actual = "result " + result[0]
+        if len(result) > 0:
+            actual = "result " + result[-1]
             actual_val = result[0]
     if not actual:
         result = re.findall(r'^Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
-        if len(result) == 1:
-            actual = "trap " + result[0]
+        if len(result) > 0:
+            actual = "trap " + result[-1]
     if not actual:
         result = re.findall(r'^Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
-        if len(result) == 1:
-            actual = "error " + result[0]
+        if len(result) > 0:
+            actual = "error " + result[-1]
     if not actual:
         actual = "<No Result>"
 
@@ -314,13 +314,13 @@ else:
         #"int_literals",     -> stack underflow
 
         #--- TODO ---
-        #"address", "align", "memory",
         #"get_local", "set_local", "tee_local",
+        #"if", "loop", "block", "br", "br_if", "br_table", "return",
+        #"nop", "unreachable",
+        #"address", "align", "memory",
         #"float_literals",
         #"globals",
         #"func",
-        #"if", "loop", "block", "br", "br_if", "br_table", "return",
-        #"nop", "unreachable",
         #"float_exprs",
         #"float_memory",
         #"elem",
