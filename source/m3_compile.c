@@ -1314,8 +1314,8 @@ const M3OpInfo c_operations [] =
 
     M3OP( "i32.store",          -2, none,   d_binOpList (i32, Store_i32),   Compile_Load_Store ),           // 0x36
     M3OP( "i64.store",          -2, none,   d_binOpList (i64, Store_i64),   Compile_Load_Store ),           // 0x37
-    M3OP( "f32.store",          -2, none,   NULL, NULL, NULL,               Compile_Load_Store ),           // 0x38  TODO
-    M3OP( "f64.store",          -2, none,   op_f64_Store,   NULL, NULL,     Compile_Load_Store ),           // 0x39
+    M3OP( "f32.store",          -2, none,   d_binOpList (f32, Store_f32),   Compile_Load_Store ),           // 0x38
+    M3OP( "f64.store",          -2, none,   d_binOpList (f64, Store_f64),   Compile_Load_Store ),           // 0x39
 
     M3OP( "i32.store8",         -2, none,   d_binOpList (i32, Store_u8),    Compile_Load_Store ),           // 0x3a
     M3OP( "i32.store16",        -2, none,   d_binOpList (i32, Store_i16),   Compile_Load_Store ),           // 0x3b

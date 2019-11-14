@@ -110,7 +110,7 @@ d_m3Op(TYPE##_##NAME##_ss)                              \
 d_m3Op(TYPE##_##NAME##_rs)                              \
 {                                                       \
     TYPE * stack = (TYPE *) (_sp + immediate (i32));    \
-    OP((RES), (* stack), ((TYPE) REG), ##__VA_ARGS__);  \
+    OP((RES), ((TYPE) REG), (* stack), ##__VA_ARGS__);  \
     return nextOp ();                                   \
 }                                                       \
 d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
@@ -170,10 +170,11 @@ d_m3CommutativeOp_i (i32, Multiply,         *)      d_m3CommutativeOp_i (i64, Mu
 
 d_m3Op_i (i32, Subtract,                    -)      d_m3Op_i (i64, Subtract,                    -)
 
-#define OP_SHL_32(A,B) (A << (B % 32))
-#define OP_SHL_64(A,B) (A << (B % 64))
-#define OP_SHR_32(A,B) (A >> (B % 32))
-#define OP_SHR_64(A,B) (A >> (B % 64))
+// Note: For some reason modulo is needed for Clang
+#define OP_SHL_32(X,N) (X << (N % 32))
+#define OP_SHL_64(X,N) (X << (N % 64))
+#define OP_SHR_32(X,N) (X >> (N % 32))
+#define OP_SHR_64(X,N) (X >> (N % 64))
 
 d_m3OpFunc_i (i32, ShiftLeft,       OP_SHL_32)      d_m3OpFunc_i (i64, ShiftLeft,       OP_SHL_64)
 d_m3OpFunc_i (i32, ShiftRight,      OP_SHR_32)      d_m3OpFunc_i (i64, ShiftRight,      OP_SHR_64)
@@ -733,20 +734,8 @@ d_m3Load_i (i64, i32);
 d_m3Load_i (i64, u32);
 d_m3Load_i (i64, i64);
 
-
-d_m3Op  (f64_Store)
-{
-    u32 offset = immediate (u32);
-    u32 operand = (u32) _r0;                        //  printf ("store: %d\n", operand);
-    u8 * mem8 = (u8 *) (_mem + operand + offset);
-    * (f64 *) mem8 = _fp0;
-
-    return nextOp ();
-}
-
-
-#define d_m3Store_i(SRC_TYPE, SIZE_TYPE)                \
-d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_sr)             \
+#define d_m3Store(REG, SRC_TYPE, DEST_TYPE)             \
+d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
 {                                                       \
     u32 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
@@ -754,32 +743,30 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_sr)             \
                                                         \
     u8 * end = * ((u8 **) _mem - 1);                    \
     u8 * mem8 = (u8 *) (_mem + operand);                \
-                                                        \
-    if (mem8 + sizeof (SIZE_TYPE) <= end)               \
+    if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
-        * (SIZE_TYPE *) mem8 = (SIZE_TYPE) _r0;         \
+        * (DEST_TYPE *) mem8 = (DEST_TYPE) REG;         \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
 }                                                       \
-d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_rs)             \
+d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
 {                                                       \
     SRC_TYPE value = slot (SRC_TYPE);                   \
-    u32 operand = (u32) _r0;                            \
+    u32 operand = (u32) REG;                            \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
     u8 * end = * ((u8 **) _mem - 1);                    \
     u8 * mem8 = (u8 *) (_mem + operand);                \
-                                                        \
-    if (mem8 + sizeof (SIZE_TYPE) <= end)               \
+    if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
-        * (SIZE_TYPE *) mem8 = value;                   \
+        * (DEST_TYPE *) mem8 = value;                   \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
 }                                                       \
-d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_ss)             \
+d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
 {                                                       \
     SRC_TYPE value = slot (SRC_TYPE);                   \
     u32 operand = slot (u32);                           \
@@ -788,15 +775,19 @@ d_m3Op  (SRC_TYPE##_Store_##SIZE_TYPE##_ss)             \
                                                         \
     u8 * end = * ((u8 **) _mem - 1);                    \
     u8 * mem8 = (u8 *) (_mem + operand);                \
-                                                        \
-    if (mem8 + sizeof (SIZE_TYPE) <= end)               \
+    if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
-        * (SIZE_TYPE *) mem8 = value;                   \
+        * (DEST_TYPE *) mem8 = value;                   \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
 }
 
+#define d_m3Store_i(SRC_TYPE, DEST_TYPE) d_m3Store(_r0, SRC_TYPE, DEST_TYPE)
+#define d_m3Store_f(SRC_TYPE, DEST_TYPE) d_m3Store(_fp0, SRC_TYPE, DEST_TYPE)
+
+d_m3Store_f (f32, f32)
+d_m3Store_f (f64, f64)
 
 d_m3Store_i (i32, u8)
 d_m3Store_i (i32, i16)
