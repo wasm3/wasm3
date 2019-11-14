@@ -3,7 +3,8 @@
 The `coremark` files in this directory were produced by:
 
 ```sh
-$ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-O3 --llvm-lto 3 --closure 1"
+$ make compile PORT_DIR=linux CC=emcc EXE=-side.wasm XCFLAGS="-O3 -s SIDE_MODULE=1 --llvm-lto 3"
+$ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-O3 -g2 --llvm-lto 3 --closure 1"
 $ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm XCFLAGS="-Ofast -flto"
 ```
 
