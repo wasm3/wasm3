@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+# Author: Volodymyr Shymanskyy
+# Usage:
+#   ./run-spec-test.py
+#   ./run-spec-test.py ./core/i32.json
+#   ./run-spec-test.py ./core/float_exprs.json --line 2070
+#   ./run-spec-test.py --exec ../custom_build/wasm3
+#
+
 import argparse
 import os
 import os.path
@@ -19,18 +27,18 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
-parser.add_argument("--test", metavar="<source:line>")
+parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--skip-crashes", action="store_true")
-parser.add_argument("--format", choices=["raw", "hex", "fp"], default="raw")
+parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("file", nargs='*')
 
 args = parser.parse_args()
 
-if args.test:
+if args.line:
     args.show_logs = True
 
 #
@@ -177,7 +185,11 @@ def runInvoke(test):
     if args.verbose:
         print(f"Running {' '.join(cmd)}")
 
-    wasm3 = subprocess.run(cmd, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        wasm3 = subprocess.run(cmd, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except ValueError:
+        stats.skipped += 1
+        return
 
     output = (wasm3.stdout + wasm3.stderr).strip()
 
@@ -251,7 +263,7 @@ def runInvoke(test):
     if actual == expect:
         stats.success += 1
         log.write(f"OK: {actual}\n")
-        if args.test:
+        if args.line:
             showTestResult()
     else:
         stats.failed += 1
@@ -277,38 +289,38 @@ elif args.all:
     jsonFiles.sort()
 else:
     jsonFiles = list(map(lambda x : f"./core/{x}.json", [
-        #--- 100% Complete ---
-        "i32", "i64", "stack", "fac",
-        "f32", "f64",
-        "f32_cmp", "f64_cmp",
-        "f32_bitwise", "f64_bitwise",
-        "call", "break-drop",
-        "tee_local", "set_local",
+        #--- Complete ---
+        "i32", "i64",
+        "f32", "f32_cmp", "f32_bitwise",
+        "f64", "f64_cmp", "f64_bitwise",
+        "float_misc",
+        "conversions",
+        "stack", "fac",
+        "call",
+        "break-drop",
         "forward",
         "func_ptrs",
+
         #--- Almost ready ---
-        #"address", "align",
-        #"memory",
-        #"if",
-        #"nop",
-        #"call_indirect",
-        #"float_literals",
-        #"float_misc",
-        #--- In progress ---
-        #"return",
         #"endianness",
-        #"conversions",
+        #"address", "align",
+        #"call_indirect",
+        #"get_local", "set_local", "tee_local",
+
+        #--- TODO ---
+        #"memory",
         #"globals",
         #"func",
-        #"unreachable", "loop", "block", "br", "br_if", "br_table",
-        #--- Future ---
-        #"float_memory",
+        #"left-to-right",
+        #"if", "loop", "block", "br", "br_if", "br_table", "return",
+        #"nop", "unreachable",
+        #"float_literals",
         #"float_exprs",
-        #"int_literals",               # stack underflow
+        #"float_memory", 
+        #"int_literals",
         #"int_exprs",
         #"elem",
         #"switch",
-        #"get_local",
     ]))
 
 for fn in jsonFiles:
@@ -318,7 +330,7 @@ for fn in jsonFiles:
     wast_source = filename(data["source_filename"])
     wast_module = ""
 
-    if wast_source in ["linking.wast", "exports.wast"]:
+    if wast_source in ["linking.wast", "exports.wast", "names.wast"]:
         count = len(data["commands"])
         stats.skipped += count
         warning(f"Skipped {wast_source} ({count} tests)")
@@ -328,7 +340,8 @@ for fn in jsonFiles:
 
     for cmd in data["commands"]:
         test = dotdict()
-        test.source = wast_source + ":" + str(cmd["line"])
+        test.line = int(cmd["line"])
+        test.source = wast_source + ":" + str(test.line)
         test.module = wast_module
         test.type = cmd["type"]
 
@@ -342,7 +355,7 @@ for fn in jsonFiles:
                 test.type == "assert_return_canonical_nan" or
                 test.type == "assert_return_arithmetic_nan"):
 
-            if args.test and test.source != args.test:
+            if args.line and test.line != args.line:
                 continue
 
             if args.verbose:
