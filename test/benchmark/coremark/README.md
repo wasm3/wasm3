@@ -28,6 +28,10 @@ wasmer run coremark-wasi.wasm
 wapm upload
 coremark-wasi
 
+# Wasmer-JS (V8) - https://www.npmjs.com/package/@wasmer/cli
+wasmer-js run coremark-wasi.wasm
+
+
 # WAVM => 20273.009866
 $ENGINES_PATH/wasm-jit-prototype/_build/bin/wavm run coremark-wasi.wasm
 ```
