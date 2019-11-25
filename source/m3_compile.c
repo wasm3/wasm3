@@ -1161,9 +1161,9 @@ M3Result  Compile_Nop  (IM3Compilation o, u8 i_opcode)
 }
 
 
-M3Result  Compile_Trap  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Unreachable  (IM3Compilation o, u8 i_opcode)
 {
-    return EmitOp (o, op_Trap);
+    return EmitOp (o, op_Unreachable);
 }
 
 
@@ -1260,7 +1260,7 @@ _   (Compile_Operator (o, i_opcode));
 
 const M3OpInfo c_operations [] =
 {
-    M3OP( "unreachable",         0, none,   d_emptyOpList(),                Compile_Trap ),         // 0x00
+    M3OP( "unreachable",         0, none,   d_emptyOpList(),                Compile_Unreachable ),  // 0x00
     M3OP( "nop",                 0, none,   d_emptyOpList(),                Compile_Nop ),          // 0x01 .
     M3OP( "block",               0, none,   d_emptyOpList(),                Compile_LoopOrBlock ),  // 0x02
     M3OP( "loop",                0, none,   d_emptyOpList(),                Compile_LoopOrBlock ),  // 0x03

@@ -151,7 +151,7 @@ d_m3ErrorConst  (trapIntegerOverflow,           "[trap] integer overflow")
 d_m3ErrorConst  (trapIntegerConversion,         "[trap] invalid conversion to integer")
 d_m3ErrorConst  (trapTableIndexOutOfRange,      "[trap] undefined element")
 d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
-d_m3ErrorConst  (runtimeTrap,                   "[trap] unspecified runtime trap")
+d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
 
 
 typedef void    (* M3Free)      (const void * i_data, void * i_ref);

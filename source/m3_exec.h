@@ -514,10 +514,10 @@ d_m3Op  (Const)
 }
 
 
-d_m3Op  (Trap)
+d_m3Op  (Unreachable)
 {                                                   m3log (exec, "*** trapping ***");
     m3StackCheck();
-    return c_m3Err_runtimeTrap;
+    return c_m3Err_trapUnreachable;
 }
 
 
