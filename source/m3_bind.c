@@ -25,8 +25,8 @@ M3State;
 // TODO: This binding code only work'n for System V AMD64 ABI calling convention (macOS & Linux)
 // Needs work for MS cdecl
 
-#define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, f64 _f0, f64 _f1, f64 _f2, f64 _f3
-#define d_m3BindingArgs _i0, _i1, _i2, _i3, _f0, _f1, _f2, _f3
+#define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, i64 _i4, f64 _f0, f64 _f1, f64 _f2, f64 _f3, f64 _f4
+#define d_m3BindingArgs _i0, _i1, _i2, _i3, _i4, _f0, _f1, _f2, _f3, _f4
 
 typedef m3ret_t (* M3ArgPusher) (d_m3BindingArgList, M3State * i_state);
 typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
@@ -79,11 +79,15 @@ d_argPusherInt      (0)         d_argPusherInt      (1)         d_argPusherInt  
 d_argPusherFloat    (0, f32)    d_argPusherFloat    (1, f32)    d_argPusherFloat    (2, f32)    d_argPusherFloat    (3, f32)
 d_argPusherFloat    (0, f64)    d_argPusherFloat    (1, f64)    d_argPusherFloat    (2, f64)    d_argPusherFloat    (3, f64)
 
+d_argPusherPointer  (4)
+d_argPusherInt      (4)
+d_argPusherFloat    (4, f32)
+d_argPusherFloat    (4, f64)
 
-M3ArgPusher c_m3PointerPushers  [] = { PushArg_p0, PushArg_p1, PushArg_p2, PushArg_p3, NULL };      // one dummy is required
-M3ArgPusher c_m3IntPushers      [] = { PushArg_i0, PushArg_i1, PushArg_i2, PushArg_i3, NULL };
-M3ArgPusher c_m3Float32Pushers  [] = { PushArg_f32_0, PushArg_f32_1, PushArg_f32_2, PushArg_f32_3, NULL };
-M3ArgPusher c_m3Float64Pushers  [] = { PushArg_f64_0, PushArg_f64_1, PushArg_f64_2, PushArg_f64_3, NULL };
+M3ArgPusher c_m3PointerPushers  [] = { PushArg_p0, PushArg_p1, PushArg_p2, PushArg_p3, PushArg_p4, NULL };      // one dummy is required
+M3ArgPusher c_m3IntPushers      [] = { PushArg_i0, PushArg_i1, PushArg_i2, PushArg_i3, PushArg_i4, NULL };
+M3ArgPusher c_m3Float32Pushers  [] = { PushArg_f32_0, PushArg_f32_1, PushArg_f32_2, PushArg_f32_3, PushArg_f32_4, NULL };
+M3ArgPusher c_m3Float64Pushers  [] = { PushArg_f64_0, PushArg_f64_1, PushArg_f64_2, PushArg_f64_3, PushArg_f64_4, NULL };
 
 
 
@@ -92,7 +96,7 @@ d_m3RetSig  CallTrappingCFunction_void  (d_m3OpSig)
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    m3ret_t r = (m3ret_t) pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+    m3ret_t r = (m3ret_t) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
 
     return r;
 }
@@ -103,7 +107,7 @@ d_m3RetSig  CallCFunction_i64  (d_m3OpSig)
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    i64 r = (i64) pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+    i64 r = (i64) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
     * _sp = r;
 
     return 0;
@@ -115,7 +119,7 @@ d_m3RetSig  CallCFunction_f64  (d_m3OpSig)
     M3ArgPusherFpReturn pusher = (M3ArgPusherFpReturn) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    f64 r = (f64) pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+    f64 r = (f64) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
     * (f64 *) (_sp) = r;
 
     return 0;
@@ -127,7 +131,7 @@ d_m3RetSig  CallCFunction_f32  (d_m3OpSig)
     M3ArgPusherFpReturn pusher = (M3ArgPusherFpReturn) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    f32 r = (f32) pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+    f32 r = (f32) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
     * (f32 *) (_sp) = r;
 
     return 0;
@@ -139,7 +143,7 @@ d_m3RetSig  CallCFunction_ptr  (d_m3OpSig)
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    const u8 * r = (const u8*)pusher (0, 0, 0, 0, 0., 0., 0., 0., & state);
+    const u8 * r = (const u8*)pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
 
     void ** ptr = (void **) _mem;
     IM3Module module = (IM3Module)(* (ptr - 2));
