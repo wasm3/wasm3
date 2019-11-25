@@ -3,9 +3,9 @@
 The `coremark` files in this directory were produced by:
 
 ```sh
-$ make compile PORT_DIR=linux CC=emcc EXE=-side.wasm XCFLAGS="-O3 -s SIDE_MODULE=1 --llvm-lto 3"
-$ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-O3 -g2 --llvm-lto 3 --closure 1"
-$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm XCFLAGS="-Ofast -flto"
+$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm
+$ make compile PORT_DIR=linux CC=emcc EXE=-side.wasm XCFLAGS="-s SIDE_MODULE=1"
+$ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-g2"
 ```
 
 ### Running WASI version
@@ -13,18 +13,18 @@ $ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm XCFLAGS="-Ofast -flto"
 ```sh
 export ENGINES_PATH=/opt/wasm_engines
 
-# WAC => 101.895252
+# WAC => 158.215331
 $ENGINES_PATH/wac/wax coremark-wasi.wasm
 
 # wasm-micro-runtime => [fails]
 #$ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
 
-# Wasmer => 7126.660188
+# Wasmer => 7026.509103
 wasmer run coremark-wasi.wasm
 
 # Webassembly.sh
-#   Chrome =>  7652.865998
-#   Firefox => 7847.445656
+#   Chrome =>  7472.724555
+#   Firefox => 7945.967422
 wapm upload
 coremark-wasi
 
@@ -32,7 +32,7 @@ coremark-wasi
 wasmer-js run coremark-wasi.wasm
 
 
-# WAVM => 20273.009866
+# WAVM => 14650.941323
 $ENGINES_PATH/wasm-jit-prototype/_build/bin/wavm run coremark-wasi.wasm
 ```
 
@@ -46,8 +46,12 @@ node ./coremark.js
 ### Running native version
 
 ```sh
-# Native on the same machine => 26704.052340
-make compile PORT_DIR=linux64 CC=gcc EXE=.elf XCFLAGS="-O3 -flto"
+# Native on the same machine => 17849.705480
+make compile PORT_DIR=linux CC=gcc EXE=.elf XCFLAGS="-m32"
+./coremark.elf
+
+# Native on the same machine => 20202.020202
+make compile PORT_DIR=linux64 CC=gcc EXE=.elf
 ./coremark.elf
 ```
 
