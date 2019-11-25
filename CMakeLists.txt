@@ -65,6 +65,7 @@ include_directories("./source/")
 
 #-fno-optimize-sibling-calls
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3AllocateLinearMemory=1")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1")
 
 if(EMSCRIPTEN)

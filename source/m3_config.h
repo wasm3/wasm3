@@ -42,6 +42,13 @@
 //# define d_m3FixedHeap                        (32*1024)
 # endif
 
+// TODO: This flag is temporary
+// It's enabled by default for Linux, OS X, Win32 and Android builds
+// and disabled on other platforms, i.e. microcontrollers
+# ifndef d_m3AllocateLinearMemory
+#   define d_m3AllocateLinearMemory             false
+# endif
+
 # ifndef d_m3FixedHeapAlign
 #   define d_m3FixedHeapAlign                   16
 # endif
