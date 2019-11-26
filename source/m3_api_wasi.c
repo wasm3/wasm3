@@ -38,16 +38,17 @@ typedef struct Preopen {
     unsigned   path_len;
 } Preopen;
 
-#define PREOPEN_CNT 7
+//TODO
+#define PREOPEN_CNT 3
 
 Preopen      preopen[PREOPEN_CNT] = {
     { .path = "<stdin>",  .path_len = 7, },
     { .path = "<stdout>", .path_len = 8, },
     { .path = "<stderr>", .path_len = 8, },
-    { .path = "./",       .path_len = 2, },
-    { .path = "../",      .path_len = 3, },
-    { .path = "/",        .path_len = 1, },
-    { .path = "/tmp",     .path_len = 4, },
+    //{ .path = "./",       .path_len = 2, }, //TODO
+    //{ .path = "../",      .path_len = 3, },
+    //{ .path = "/",        .path_len = 1, },
+    //{ .path = "/tmp",     .path_len = 4, },
 };
 
 static
