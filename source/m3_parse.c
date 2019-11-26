@@ -239,6 +239,23 @@ M3Result  Parse_InitExpr  (M3Module * io_module, bytes_t * io_bytes, cbytes_t i_
     return result;
 }
 
+// TODO
+M3Result  ParseSection_Memory  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
+{
+    M3Result result = c_m3Err_none;
+
+    u32 numSegments;
+    result = ReadLEB_u32 (& numSegments, & i_bytes, i_end);                         m3log (parse, "** Memory [%d]", numSegments);
+
+    if (not result)
+    {
+        io_module->memorySection = i_bytes;
+        io_module->memorySectionEnd = i_end;
+    }
+    else result = "error parsing Memory section";
+
+    return result;
+}
 
 
 M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
@@ -460,7 +477,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Import,    // 2
         ParseSection_Function,  // 3
         NULL,                   // 4: table
-        NULL,                   // 5: memory
+		ParseSection_Memory,    // 5
         ParseSection_Global,    // 6
         ParseSection_Export,    // 7
         NULL,                   // 8: start
