@@ -226,7 +226,7 @@ m3ret_t m3_exit (i32 i_code)
     return c_m3Err_trapExit;
 }
 
-
+static
 M3Result  SuppressLookupFailure (M3Result i_result)
 {
     if (i_result == c_m3Err_functionLookupFailed)
