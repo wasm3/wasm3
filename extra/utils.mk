@@ -18,4 +18,6 @@ preprocess: preprocess_restore
 
 preprocess_restore:
 	-mv source/m3_compile.c.bak source/m3_compile.c
+	touch source/m3_compile.c
+
 
