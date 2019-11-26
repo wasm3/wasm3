@@ -8,7 +8,13 @@ $ make compile PORT_DIR=linux CC=emcc EXE=-side.wasm XCFLAGS="-s SIDE_MODULE=1"
 $ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-g2"
 ```
 
-### Running WASI version
+### Running WASI version in Wasm3
+
+```sh
+../../../build/wasm3 coremark-wasi.wasm _start
+```
+
+### Running WASI version on other engines
 
 ```sh
 export ENGINES_PATH=/opt/wasm_engines
