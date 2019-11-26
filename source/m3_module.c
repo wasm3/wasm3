@@ -103,46 +103,25 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
     // TODO: Handle case when memory is not there at all
     //if (i_memorySize <= io_memory->virtualSize)
     //{
+    	const size_t i_memorySizeFull = i_memorySize + sizeof (M3MemoryHeader);
         size_t actualSize = 0;
 
         if (io_memory->mallocated)
             actualSize = (u8 *) io_memory->mallocated->end - (u8 *) io_memory->mallocated;
 
-        if (i_memorySize > actualSize)
+        if (i_memorySizeFull > actualSize)
         {
-            i_memorySize = io_memory->virtualSize; // hack
+            io_memory->mallocated = (M3MemoryHeader *)m3Realloc (io_memory->mallocated, i_memorySizeFull, actualSize);
 
-            //          m3word_t alignedSize = i_memorySize + sizeof (void *) * 2; // end pointer + module ptr
-
-            // HACK: this is all hacked 'cause I don't understand the Wasm memory. Or it doesn't understand me.
-            // Just get'n some tests/benchmarks going for now:
-            i32 pages = 2;
-
-            size_t extra = c_m3MemPageSize * pages + 900000 * 4 + sizeof (M3MemoryHeader);
-
-            size_t alignedSize = i_memorySize + extra;
-
-            if (c_m3AlignWasmMemoryToPages)
-            {
-                size_t aligner = c_m3MemPageSize - 1;
-                alignedSize += aligner;
-                alignedSize &= ~aligner;
-            }
-
-            io_memory->mallocated = (M3MemoryHeader *)m3Realloc (io_memory->mallocated, alignedSize, actualSize);
-
-            m3log (runtime, "resized WASM linear memory to %llu bytes (%p)", alignedSize, io_memory->mallocated);
+            m3log (runtime, "resized WASM linear memory to %lu bytes (%p)", i_memorySize, io_memory->mallocated);
 
             if (io_memory->mallocated)
             {
-                void * end = (u8 *) io_memory->mallocated + alignedSize;
-                u8 * ptr = (u8 *) (io_memory->mallocated + 1);
-
-                io_memory->wasmPages = ptr;
-
                 // store pointer to module and end of memory. gives the runtime access to this info.
                 io_memory->mallocated->module = i_module;
-                io_memory->mallocated->end = end;
+                io_memory->mallocated->end = (u8 *)(io_memory->mallocated) + i_memorySizeFull;
+
+                io_memory->wasmPages = (u8 *) (io_memory->mallocated + 1);
 
 //              printf ("start= %p  end= %p \n", ptr, end);
 
