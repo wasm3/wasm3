@@ -686,7 +686,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
     u32 operand = (u32) _r0;                            \
                                                         \
     u8 * src8 = _mem + operand + offset;                \
-    u8 * end = * ((u8 **) _mem - 1);                    \
+    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
                                                         \
     if (src8 + sizeof (SRC_TYPE) <= end)                \
     {                                                   \
@@ -701,7 +701,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     u32 offset = immediate (u32);                       \
                                                         \
     u8 * src8 = _mem + operand + offset;                \
-    u8 * end = * ((u8 **) _mem - 1);                    \
+    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
                                                         \
     if (src8 + sizeof (SRC_TYPE) <= end)                \
     {                                                   \
@@ -741,7 +741,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    u8 * end = * ((u8 **) _mem - 1);                    \
+    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
     u8 * mem8 = (u8 *) (_mem + operand);                \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
@@ -757,7 +757,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    u8 * end = * ((u8 **) _mem - 1);                    \
+    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
     u8 * mem8 = (u8 *) (_mem + operand);                \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
@@ -773,7 +773,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    u8 * end = * ((u8 **) _mem - 1);                    \
+    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
     u8 * mem8 = (u8 *) (_mem + operand);                \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
