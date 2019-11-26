@@ -154,6 +154,8 @@ typedef struct M3Module                 // TODO add env owner? also discriminate
     u32                     table0Size;
 
     M3Memory                memory;
+    bytes_t                 memorySection;
+    bytes_t                 memorySectionEnd;
 
 //  m3reg_t *               globalMemory;
 
