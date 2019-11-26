@@ -29,8 +29,8 @@ typedef uint32_t wasi_size_t;
 
 struct wasi_iovec
 {
-	wasi_size_t iov_base;
-	wasi_size_t iov_len;
+    wasi_size_t iov_base;
+    wasi_size_t iov_len;
 };
 
 typedef struct Preopen {
@@ -117,20 +117,18 @@ void copy_iov_to_host(struct iovec* host_iov, IM3Module m, uint32_t iov_offset, 
  */
 
 uint32_t m3_wasi_unstable_args_get(IM3Module    module,
-		                           uint32_t argv_offset,
+                                   uint32_t argv_offset,
                                    uint32_t argv_buf_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
     return __WASI_ESUCCESS;
 }
 
 uint32_t m3_wasi_unstable_args_sizes_get(IM3Module    module,
-		                                 uint32_t argc_offset,
+                                         uint32_t argc_offset,
                                          uint32_t argv_buf_size_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
-	wasi_size_t *argc          = offset2addr(module, argc_offset);
-	wasi_size_t *argv_buf_size = offset2addr(module, argv_buf_size_offset);
+    wasi_size_t *argc          = offset2addr(module, argc_offset);
+    wasi_size_t *argv_buf_size = offset2addr(module, argv_buf_size_offset);
 
     *argc = 0;
     *argv_buf_size = 0;
@@ -138,27 +136,25 @@ uint32_t m3_wasi_unstable_args_sizes_get(IM3Module    module,
 }
 
 uint32_t m3_wasi_unstable_environ_get(IM3Module    module,
-		                              uint32_t environ_ptrs_offset,
+                                      uint32_t environ_ptrs_offset,
                                       uint32_t environ_strs_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
     return __WASI_ESUCCESS;
 }
 
 uint32_t m3_wasi_unstable_environ_sizes_get(IM3Module    module,
-		                                    uint32_t environ_count_offset,
+                                            uint32_t environ_count_offset,
                                             uint32_t environ_buf_size_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
-	wasi_size_t *environ_count    = offset2addr(module, environ_count_offset);
-	wasi_size_t *environ_buf_size = offset2addr(module, environ_buf_size_offset);
+    wasi_size_t *environ_count    = offset2addr(module, environ_count_offset);
+    wasi_size_t *environ_buf_size = offset2addr(module, environ_buf_size_offset);
     *environ_count = 0;
     *environ_buf_size = 0;
     return __WASI_ESUCCESS;
 }
 
 uint32_t m3_wasi_unstable_fd_prestat_dir_name(IM3Module    module,
-		                                      uint32_t fd,
+                                              uint32_t fd,
                                               uint32_t path_offset,
                                               uint32_t path_len)
 {
@@ -169,7 +165,7 @@ uint32_t m3_wasi_unstable_fd_prestat_dir_name(IM3Module    module,
 }
 
 uint32_t m3_wasi_unstable_fd_prestat_get(IM3Module    module,
-		                                 uint32_t fd,
+                                         uint32_t fd,
                                          uint32_t buf_offset)
 {
     if (fd < 3 || fd >= PREOPEN_CNT) { return __WASI_EBADF; }
@@ -179,10 +175,9 @@ uint32_t m3_wasi_unstable_fd_prestat_get(IM3Module    module,
 }
 
 uint32_t m3_wasi_unstable_fd_fdstat_get(IM3Module    module,
-		                                __wasi_fd_t fd,
+                                        __wasi_fd_t fd,
                                         uint32_t fdstat_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
     struct stat fd_stat;
     __wasi_fdstat_t *fdstat = offset2addr(module, fdstat_offset);
     int fl = fcntl(fd, F_GETFL);
@@ -206,12 +201,11 @@ uint32_t m3_wasi_unstable_fd_fdstat_get(IM3Module    module,
 }
 
 uint32_t m3_wasi_unstable_fd_seek(IM3Module    module,
-		                          __wasi_fd_t         fd,
+                                  __wasi_fd_t         fd,
                                   __wasi_filedelta_t  offset,
                                   __wasi_whence_t     whence,
                                   uint32_t            newoffset_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
     __wasi_filesize_t *result = offset2addr(module, newoffset_offset);
 
     int wasi_whence = whence == __WASI_WHENCE_END ? SEEK_END :
@@ -228,9 +222,8 @@ uint32_t m3_wasi_unstable_fd_read(IM3Module    module,
                                   size_t       iovs_len,
                                   uint32_t     nread_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
-	struct iovec iovs[iovs_len];
-	copy_iov_to_host(iovs, module, iovs_offset, iovs_len);
+    struct iovec iovs[iovs_len];
+    copy_iov_to_host(iovs, module, iovs_offset, iovs_len);
     size_t *nread      = offset2addr(module, nread_offset);
 
     ssize_t ret = readv(fd, iovs, iovs_len);
@@ -245,8 +238,7 @@ uint32_t m3_wasi_unstable_fd_write(IM3Module    module,
                                    size_t       iovs_len,
                                    uint32_t     nwritten_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
-	struct iovec iovs[iovs_len];
+    struct iovec iovs[iovs_len];
     copy_iov_to_host(iovs, module, iovs_offset, iovs_len);
     size_t *nwritten   = offset2addr(module, nwritten_offset);
 
@@ -258,24 +250,21 @@ uint32_t m3_wasi_unstable_fd_write(IM3Module    module,
 
 uint32_t m3_wasi_unstable_fd_close(uint32_t fd)
 {
-	printf("=> %s\n", __FUNCTION__);
     int ret = close(fd);
     return ret == 0 ? __WASI_ESUCCESS : ret;
 }
 
 uint32_t m3_wasi_unstable_fd_datasync(uint32_t fd)
 {
-	printf("=> %s\n", __FUNCTION__);
     int ret = fdatasync(fd);
     return ret == 0 ? __WASI_ESUCCESS : ret;
 }
 
 uint32_t m3_wasi_unstable_clock_time_get(IM3Module    module,
-		                                 uint32_t clock_id,
+                                         uint32_t clock_id,
                                          uint64_t precision,
                                          uint32_t time_offset)
 {
-	printf("=> %s\n", __FUNCTION__);
     uint64_t *time = offset2addr(module, time_offset);
     struct timespec tp;
     clock_gettime(clock_id, &tp);
@@ -285,7 +274,6 @@ uint32_t m3_wasi_unstable_clock_time_get(IM3Module    module,
 
 uint32_t m3_wasi_unstable_proc_exit(uint32_t code)
 {
-	printf("=> %s\n", __FUNCTION__);
     exit(code);
 }
 
