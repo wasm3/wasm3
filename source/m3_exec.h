@@ -503,6 +503,8 @@ d_m3OpDecl  (Call)
 d_m3OpDecl  (CallIndirect)
 d_m3OpDecl  (Entry)
 
+d_m3OpDecl  (MemCurrent)
+d_m3OpDecl  (MemGrow)
 
 d_m3Op  (Const)
 {

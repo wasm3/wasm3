@@ -12,7 +12,7 @@
 
 m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 {
-    M3MemoryHeader * info = (M3MemoryHeader *) (i_mem - sizeof (M3MemoryHeader));
+    M3MemoryHeader * info = (M3MemoryHeader*)(i_mem) - 1;
     u8 * mem8 = i_mem + i_offset;
 
     ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
@@ -80,6 +80,37 @@ d_m3OpDef  (CallIndirect)
     else return c_m3Err_trapTableIndexOutOfRange;
 }
 
+
+d_m3OpDef  (MemCurrent)
+{
+    IM3Module module            = immediate (IM3Module);
+
+    IM3Memory io_memory = &module->memory;
+    size_t actualSize = io_memory->virtualSize; //(u8 *) memory->mallocated->end - (u8 *) memory->wasmPages;
+
+    _r0 = actualSize / c_m3MemPageSize;
+
+    return nextOp ();
+}
+
+d_m3OpDef  (MemGrow)
+{
+    IM3Module module            = immediate (IM3Module);
+
+    IM3Memory io_memory = &module->memory;
+    size_t actualSize = io_memory->virtualSize;
+
+    size_t requiredSize = actualSize + (_r0 * c_m3MemPageSize);
+
+    io_memory->virtualSize = requiredSize;
+
+    _r0 = actualSize / c_m3MemPageSize;
+
+    // TODO: cannot do an actual reallocation here, as _mem will only be affected in subsequent operations
+    // i.e. return ((IM3Operation)(* _pc))(_pc + 1, _sp, io_memory->wasmPages, _r0, _fp0);
+
+    return nextOp ();
+}
 
 // it's a debate: should the compilation be trigger be the caller or callee page.
 // it's a much easier to put it in the caller pager. if it's in the callee, either the entire page

@@ -920,7 +920,7 @@ _       (GetBlockScope (o, & scope, target));
 
         if (scope->opcode == c_waOp_loop)
         {
-            m3NotImplemented();
+            m3NotImplemented(); // TODO
         }
         else
         {
@@ -1035,6 +1035,32 @@ _       (EmitOp     (o, op_CallIndirect));
         EmitOffset  (o, execTop);
     }
     else _throw ("function type index out of range");
+
+    _catch: return result;
+}
+
+M3Result  Compile_Memory_Current  (IM3Compilation o, u8 i_opcode)
+{
+    M3Result result;
+
+    i8 reserved;
+_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+
+_   (EmitOp     (o, op_MemCurrent));
+    EmitPointer (o, o->module);
+
+    _catch: return result;
+}
+
+M3Result  Compile_Memory_Grow  (IM3Compilation o, u8 i_opcode)
+{
+    M3Result result;
+
+    i8 reserved;
+_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+
+_   (EmitOp     (o, op_MemGrow));
+    EmitPointer (o, o->module);
 
     _catch: return result;
 }
@@ -1324,8 +1350,8 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.store16",        -2, none,   d_binOpList (i64, Store_i16),   Compile_Load_Store ),           // 0x3d
     M3OP( "i64.store32",        -2, none,   d_binOpList (i64, Store_i32),   Compile_Load_Store ),           // 0x3e
 
-    M3OP( "current_memory",     1,  i_32,   d_emptyOpList(),                NULL               ),           // 0x3f  TODO
-    M3OP( "grow_memory",        0,  i_32,   d_emptyOpList(),                NULL               ),           // 0x40  TODO
+    M3OP( "memory.current",     1,  i_32,   d_emptyOpList(),                Compile_Memory_Current ),       // 0x3f
+    M3OP( "memory.grow",        0,  i_32,   d_emptyOpList(),                Compile_Memory_Grow ),          // 0x40
 
     M3OP( "i32.const",          1,  i_32,   d_emptyOpList(),                Compile_Const_i32 ),            // 0x41
     M3OP( "i64.const",          1,  i_64,   d_emptyOpList(),                Compile_Const_i64 ),            // 0x42
