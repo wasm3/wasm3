@@ -3,7 +3,7 @@
 The `coremark` files in this directory were produced by:
 
 ```sh
-$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm
+$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm XCFLAGS="-O3"
 $ make compile PORT_DIR=linux CC=emcc EXE=-side.wasm XCFLAGS="-s SIDE_MODULE=1"
 $ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-g2"
 ```
@@ -22,8 +22,8 @@ export ENGINES_PATH=/opt/wasm_engines
 # WAC => 158.215331
 $ENGINES_PATH/wac/wax coremark-wasi.wasm
 
-# wasm-micro-runtime => [fails]
-#$ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
+# wasm-micro-runtime => 51.813472
+$ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
 
 # Wasmer => 7026.509103
 wasmer run coremark-wasi.wasm
@@ -34,7 +34,8 @@ wasmer run coremark-wasi.wasm
 wapm upload
 coremark-wasi
 
-# Wasmer-JS (V8) - https://www.npmjs.com/package/@wasmer/cli
+# Wasmer-JS (V8) => 9883.376161
+# https://www.npmjs.com/package/@wasmer/cli
 wasmer-js run coremark-wasi.wasm
 
 
