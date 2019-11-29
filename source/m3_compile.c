@@ -1132,22 +1132,22 @@ _       (Compile_ElseBlock (o, pc, blockType));
     } _catch: return result;
 }
 
+static const IM3Operation ops_Select_i [] = { op_Select_i_ssr, op_Select_i_srs, op_Select_i_rss, op_Select_i_sss };
+static const IM3Operation ops_Select_f [] = { op_Select_f_ssr, op_Select_f_srs, op_Select_f_rss, op_Select_f_sss };
 
 M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result = c_m3Err_none;
 
-    IM3Operation ops [] = { op_Select_i_ssr, op_Select_i_srs, op_Select_i_rss };
-
     u16 slots [3] = { 0xffff, 0xffff, 0xffff };
 
-    IM3Operation op = op_Select_i_sss;
+    int opIdx = 3;  // op_Select_*_sss
 
     u8 type = 0;
     for (u32 i = 0; i < 3; i++)
     {
         if (IsStackTopInRegister (o))
-            op = ops [i];
+            opIdx = i;
         else
             slots [i] = GetStackTopExecSlot (o);
 
@@ -1155,13 +1155,17 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 _       (Pop (o));
     }
 
-    d_m3AssertFatal (IsIntType (type));     // TODO: fp unimplemented
-
     // this operation doesn't consume a register, so might have to protected its contents
-    if (op == op_Select_i_sss)
+    if (opIdx == 3) {
 _       (PreserveRegisterIfOccupied (o, type));
+    }
 
-_   (EmitOp (o, op));
+    if (IsIntType (type)) {
+_       (EmitOp (o, ops_Select_i[opIdx]));
+    } else {
+_       (EmitOp (o, ops_Select_f[opIdx]));
+    }
+
 
     for (u32 i = 0; i < 3; i++)
     {

@@ -303,13 +303,13 @@ else:
         "conversions",
         "stack", "fac",
         "call", "call_indirect",
+        "left-to-right",
         "break-drop",
         "forward",
         "func_ptrs",
         "endianness",
 
         #--- Almost ready ---
-        #"left-to-right",    -> need to implement float select
         #"int_literals",     -> stack underflow
         #"memory_trap", "address",     -> init memory size + track memory bounds
         #"float_memory",

@@ -414,19 +414,55 @@ d_m3Op  (Select_i_sss)
     return nextOp ();
 }
 
-
-d_m3Op  (Select_f)
+d_m3Op  (Select_f_ssr)
 {
     i32 condition = (i32) _r0;
 
-    f64 operand2 = * (f64 *) (_sp + immediate (i32));
-    f64 operand1 = * (f64 *) (_sp + immediate (i32));
+    f64 operand2 = * (f64*)(_sp + immediate (i32));
+    f64 operand1 = * (f64*)(_sp + immediate (i32));
 
     _fp0 = (condition) ? operand1 : operand2;
 
     return nextOp ();
 }
 
+d_m3Op  (Select_f_srs)
+{
+    i32 condition = (i32) * (_sp + immediate (i32));
+
+    f64 operand2 = _fp0;
+    f64 operand1 = * (f64*)(_sp + immediate (i32));
+
+    _fp0 = (condition) ? operand1 : operand2;
+
+    return nextOp ();
+}
+
+
+d_m3Op  (Select_f_rss)
+{
+    i32 condition = (i32) * (_sp + immediate (i32));
+
+    f64 operand2 = * (f64*)(_sp + immediate (i32));
+    f64 operand1 = _fp0;
+
+    _fp0 = (condition) ? operand1 : operand2;
+
+    return nextOp ();
+}
+
+
+d_m3Op  (Select_f_sss)
+{
+    i32 condition = (i32) * (_sp + immediate (i32));
+
+    f64 operand2 = * (f64*)(_sp + immediate (i32));
+    f64 operand1 = * (f64*)(_sp + immediate (i32));
+
+    _fp0 = (condition) ? operand1 : operand2;
+
+    return nextOp ();
+}
 
 d_m3Op  (Return)
 {
