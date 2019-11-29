@@ -8,6 +8,12 @@ $ make compile PORT_DIR=barebones CC=emcc   EXE=-emcc.wasm
 $ make compile PORT_DIR=barebones CC=emcc   EXE=.html
 ```
 
+**Note:** do not forget to update your SDK
+```sh
+emsdk install latest # or latest-fastcomp
+emsdk activate latest
+```
+
 ### Running WASI version in Wasm3
 
 ```sh
