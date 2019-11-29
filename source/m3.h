@@ -149,6 +149,7 @@ d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory acc
 d_m3ErrorConst  (trapDivisionByZero,            "[trap] integer divide by zero")
 d_m3ErrorConst  (trapIntegerOverflow,           "[trap] integer overflow")
 d_m3ErrorConst  (trapIntegerConversion,         "[trap] invalid conversion to integer")
+d_m3ErrorConst  (trapIndirectCallTypeMismatch,  "[trap] indirect call type mismatch")
 d_m3ErrorConst  (trapTableIndexOutOfRange,      "[trap] undefined element")
 d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
