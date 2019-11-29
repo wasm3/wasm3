@@ -40,7 +40,7 @@ int  main  (int i_argc, const char * i_argv [])
     if (result) FATAL("m3_ParseModule: %s", result);
 
     // TODO: Detect stack exhaustion
-    IM3Runtime env = m3_NewRuntime (4096);
+    IM3Runtime env = m3_NewRuntime (8*1024);
     if (!env) FATAL("m3_NewRuntime");
 
     result = m3_LoadModule (env, module);
