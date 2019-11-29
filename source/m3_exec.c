@@ -15,7 +15,9 @@ m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
     M3MemoryHeader * info = (M3MemoryHeader*)(i_mem) - 1;
     u8 * mem8 = i_mem + i_offset;
 
-    ErrorModule (c_m3Err_trapOutOfBoundsMemoryAccess, info->module, "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes", i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
+    ErrorRuntime (c_m3Err_trapOutOfBoundsMemoryAccess, info->runtime,
+				  "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes",
+				  i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
 
     return c_m3Err_trapOutOfBoundsMemoryAccess;
 }
@@ -83,32 +85,34 @@ d_m3OpDef  (CallIndirect)
 
 d_m3OpDef  (MemCurrent)
 {
-    IM3Module module            = immediate (IM3Module);
+    IM3Runtime runtime            = immediate (IM3Runtime);
 
-    IM3Memory io_memory = &module->memory;
-    size_t actualSize = io_memory->virtualSize; //(u8 *) memory->mallocated->end - (u8 *) memory->wasmPages;
-
-    _r0 = actualSize / c_m3MemPageSize;
+    _r0 = runtime->memory.numPages;
 
     return nextOp ();
 }
 
+
 d_m3OpDef  (MemGrow)
 {
-    IM3Module module            = immediate (IM3Module);
+    IM3Runtime runtime            = immediate (IM3Runtime);
 
-    IM3Memory io_memory = &module->memory;
-    size_t actualSize = io_memory->virtualSize;
+    IM3Memory memory = & runtime->memory;
 
-    size_t requiredSize = actualSize + (_r0 * c_m3MemPageSize);
+    size_t requiredPages = memory->numPages + _r0;
 
-    io_memory->virtualSize = requiredSize;
+    _r0 = memory->numPages;
 
-    _r0 = actualSize / c_m3MemPageSize;
+	// FIX/FINISH (smassey): reallocation does need to occur here. and, op_Loop needs to refresh _mem arg from runtime
+	
+	/* m3ret_t r = ResizeMemory (& _mem, runtime, requiredPages);
 
-    // TODO: cannot do an actual reallocation here, as _mem will only be affected in subsequent operations
-    // i.e. return ((IM3Operation)(* _pc))(_pc + 1, _sp, io_memory->wasmPages, _r0, _fp0);
-
+	 if (r)
+		returrn r;
+	 else
+	 
+	*/
+	
     return nextOp ();
 }
 

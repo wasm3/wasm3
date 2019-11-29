@@ -74,18 +74,18 @@ void  m3_abort  (i32 i_dunno)
 
 
 
-i32  m3_malloc  (IM3Module i_module, i32 i_size)
+i32  m3_malloc  (IM3Runtime i_runtime, i32 i_size)
 {
-    i32 heapOffset = AllocateHeap (& i_module->memory, i_size);
-    printf ("malloc module: %s size: %d off: %d %p\n", i_module->name, i_size, heapOffset, i_module->memory.wasmPages + heapOffset);
+    i32 heapOffset = AllocatePrivateHeap (& i_runtime->memory, i_size);
+//    printf ("malloc module: %s size: %d off: %d %p\n", i_module->name, i_size, heapOffset, i_runtime->memory.wasmPages + heapOffset);
 
     return heapOffset;
 }
 
 
-void  m3_free  (IM3Module i_module, i32 i_data)
+void  m3_free  (IM3Runtime i_runtime, i32 i_data)
 {
-    printf ("malloc free: %s\n", i_module->name);
+//    printf ("malloc free: %s\n", i_module->name);
 }
 
 
@@ -102,7 +102,7 @@ void *  m3_memcpy  (void * o_dst, void * i_src, i32 i_size)
 }
 
 
-i32  m3_fopen  (IM3Module i_module, ccstr_t i_path, ccstr_t i_mode)
+i32  m3_fopen  (IM3Runtime i_runtime, ccstr_t i_path, ccstr_t i_mode)
 {
     i32 offset = 0;
 
@@ -112,9 +112,9 @@ i32  m3_fopen  (IM3Module i_module, ccstr_t i_path, ccstr_t i_mode)
 
     if (file)
     {
-        offset = AllocateHeap (& i_module->memory, sizeof (FILE *));
+        offset = AllocatePrivateHeap (& i_runtime->memory, sizeof (FILE *));
 
-        void ** ptr = (void **) (i_module->memory.wasmPages + offset);
+        void ** ptr = (void **) (i_runtime->memory.wasmPages + offset);
         * ptr = file;
     }
 
@@ -123,15 +123,15 @@ i32  m3_fopen  (IM3Module i_module, ccstr_t i_path, ccstr_t i_mode)
 
 
 // HACK: just getting some code running.  stderr pointer needs to be statically placed at init
-i32 m3_getStderr (IM3Module i_module)
+i32 m3_getStderr (IM3Runtime i_runtime)
 {
-    i32 std = AllocateHeap (& i_module->memory, sizeof (FILE *));
-    i32 offset = AllocateHeap (& i_module->memory, sizeof (i32));
+    i32 std = AllocatePrivateHeap (& i_runtime->memory, sizeof (FILE *));
+    i32 offset = AllocatePrivateHeap (& i_runtime->memory, sizeof (i32));
 
-    i32 * ptr = (i32 *) (i_module->memory.wasmPages + offset);
+    i32 * ptr = (i32 *) (i_runtime->memory.wasmPages + offset);
     * ptr = std;
 
-    void ** file = (void **) (i_module->memory.wasmPages + std);
+    void ** file = (void **) (i_runtime->memory.wasmPages + std);
     *file = stderr;
 
     return offset;

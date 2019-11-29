@@ -26,8 +26,8 @@ extern "C" {
 
     void        m3_abort        (i32 i_dunno);
 
-    i32         m3_malloc       (IM3Module i_module, i32 i_size);
-    void        m3_free         (IM3Module i_module, i32 i_data);
+    i32         m3_malloc       (IM3Runtime i_runtime, i32 i_size);
+    void        m3_free         (IM3Runtime i_runtime, i32 i_data);
     void *      m3_memset       (void * i_ptr, i32 i_value, i32 i_size);
     void *      m3_memcpy       (void * o_dst, void * i_src, i32 i_size);
 
@@ -35,7 +35,7 @@ extern "C" {
 
     m3ret_t     m3_exit         (i32 i_code);
 
-    i32         m3_fopen        (IM3Module i_module, ccstr_t i_path, ccstr_t i_mode);
+    i32         m3_fopen        (IM3Runtime i_runtime, ccstr_t i_path, ccstr_t i_mode);
 
 
     M3Result    m3_LinkCStd     (IM3Module io_module);

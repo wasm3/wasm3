@@ -146,9 +146,9 @@ d_m3RetSig  CallCFunction_ptr  (d_m3OpSig)
     const u8 * r = (const u8*)pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
 
     void ** ptr = (void **) _mem;
-    IM3Module module = (IM3Module)(* (ptr - 2));
+    IM3Runtime runtime = (IM3Runtime) (* (ptr - 2));
 
-    size_t offset = r - (const u8 *) module->memory.wasmPages;
+    size_t offset = r - (const u8 *) runtime->memory.wasmPages;
 
     * (i32 *) (_sp) = (i32) offset;
 

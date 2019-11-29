@@ -149,7 +149,7 @@ typedef code_t const * /*__restrict__*/     pc_t;
 
 typedef struct M3MemoryHeader
 {
-    IM3Module       module;
+    IM3Runtime      runtime;
     void *          end;
 }
 M3MemoryHeader;
@@ -196,12 +196,15 @@ static const char * const c_waTypes []              = { "nil", "i32", "i64", "f3
 #define m3RellocArray(PTR, STRUCT, NEW, OLD)    m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define m3Free(P)                               { m3Free_impl((void*)(P)); P = NULL; }
 
+// smassey: FIX: this wasn't intended to be a debug-only macro. it pushes useful WebAssembly runtime failure info to the runtime object; things that
+// can occur in production code.
 #ifdef DEBUG
 #define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) m3Error (RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ##__VA_ARGS__)
 #else
 #define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) (RESULT)
 #endif
 
+#define ErrorRuntime(RESULT, RUNTIME, FORMAT, ...)   _m3Error (RESULT, RUNTIME, NULL, NULL,  __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 #define ErrorModule(RESULT, MOD, FORMAT, ...)   _m3Error (RESULT, MOD->runtime, MOD, NULL,  __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 #define ErrorCompile(RESULT, COMP, FORMAT, ...) _m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 //#define ErrorExec(RESULT, MODULE, FORMAT, ...)    _m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)

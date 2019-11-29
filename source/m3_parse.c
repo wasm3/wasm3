@@ -20,6 +20,23 @@ M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end
 }
 
 
+M3Result  ParseType_Memory  (M3MemoryInfo * o_memory, bytes_t * io_bytes, cbytes_t i_end)
+{
+    M3Result result = c_m3Err_none;
+    
+	u8 flag;
+	
+_   (ReadLEB_u7 (& flag, io_bytes, i_end));  				  // really a u1
+_   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
+
+	o_memory->maxPages = 0;
+	if (flag)
+_       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
+
+	_catch: return result;
+}
+
+
 M3Result  ParseSection_Type  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     M3Result result = c_m3Err_none;
@@ -145,16 +162,8 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
 
             case c_externalKind_memory:
             {
-                u8 flag;
-                u32 pages, maxPages = 0;
-
-_               (ReadLEB_u7 (& flag, & i_bytes, i_end));    // really a u1
-_               (ReadLEB_u32 (& pages, & i_bytes, i_end));
-
-                if (flag)
-_                   (ReadLEB_u32 (& maxPages, & i_bytes, i_end));
-
-                io_module->memory.virtualSize = pages * c_m3MemPageSize;            m3log (parse, "     memory: pages: %d max: %d", pages, maxPages);
+_				(ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
+				io_module->memoryImported = true;
             }
             break;
 
@@ -239,23 +248,6 @@ M3Result  Parse_InitExpr  (M3Module * io_module, bytes_t * io_bytes, cbytes_t i_
     return result;
 }
 
-// TODO
-M3Result  ParseSection_Memory  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
-{
-    M3Result result = c_m3Err_none;
-
-    u32 numSegments;
-    result = ReadLEB_u32 (& numSegments, & i_bytes, i_end);                         m3log (parse, "** Memory [%d]", numSegments);
-
-    if (not result)
-    {
-        io_module->memorySection = i_bytes;
-        io_module->memorySectionEnd = i_end;
-    }
-    else result = "error parsing Memory section";
-
-    return result;
-}
 
 
 M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
@@ -378,6 +370,25 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
     // TODO failure cleanup
 
     return result;
+}
+
+
+M3Result  ParseSection_Memory  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
+{
+    M3Result result = c_m3Err_none;
+	
+	// TODO: MVP; assert no memory imported
+
+    u32 numMemories;
+_   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));  							 m3log (parse, "** Memory [%d]", numMemories);
+    
+    if (numMemories == 1)
+    {
+		ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
+    }
+    else _throw (c_m3Err_tooManyMemorySections);
+
+    _catch: return result;
 }
 
 
