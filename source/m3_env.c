@@ -372,7 +372,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
                 function = NULL;
         }
     }
-    else result = c_m3Err_functionLookupFailed;
+    else result = ErrorModule (c_m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
 
     * o_function = function;
 
@@ -399,7 +399,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         IM3FuncType ftype = i_function->funcType;
 
 #if d_m3AllocateLinearMemory
-_       (Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
+_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
 #endif
 
         u8 * linearMemory = module->memory.wasmPages;
@@ -486,7 +486,7 @@ M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * co
         IM3Runtime env = module->runtime;
 
 #if d_m3AllocateLinearMemory
-_       (Module_EnsureMemorySize (module, & i_function->module->memory, 3000000));
+_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
 #endif
 
         u8 * linearMemory = module->memory.wasmPages;
