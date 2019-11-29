@@ -924,11 +924,11 @@ _       (GetBlockScope (o, & scope, target));
         }
         else
         {
-            IM3BranchPatch patch = scope->patches;
+            IM3BranchPatch prev_patch = scope->patches;
 _           (m3Alloc (& scope->patches, M3BranchPatch, 1));
 
             scope->patches->location = (pc_t*)ReservePointer (o);
-            scope->patches->next = patch;
+            scope->patches->next = prev_patch;
         }
     }
 
