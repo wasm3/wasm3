@@ -42,7 +42,9 @@ int main()
   struct timespec delta = timespec_diff(start, finish);
 
   printf("Finished in: %lu ms\n", (delta.tv_sec*1000) + (delta.tv_nsec/1000000));
-  //printf("ms: %lf\n", delta_s*1000.0 + delta_ns/1000000.0);
+
+  // TODO: this fails for some reason
+  //printf("Finished in: %lf ms\n", delta.tv_sec*1000.0 + delta.tv_nsec/1000000.0);
 
   return 0;
 }
