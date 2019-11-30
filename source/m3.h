@@ -146,6 +146,7 @@ d_m3ErrorConst  (globaIndexOutOfBounds,         "global index is too large")
 
 // traps
 d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory access")
+d_m3ErrorConst  (trapCallStackExhausted,        "[trap] call stack exhausted")
 d_m3ErrorConst  (trapDivisionByZero,            "[trap] integer divide by zero")
 d_m3ErrorConst  (trapIntegerOverflow,           "[trap] integer overflow")
 d_m3ErrorConst  (trapIntegerConversion,         "[trap] invalid conversion to integer")

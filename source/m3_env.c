@@ -167,7 +167,9 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
         if (not result)
         {
+            current_env_stack_top = &stack[c_m3MaxFunctionStackHeight];
             m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
+            current_env_stack_top = NULL;
             result = rt.runtimeError;
 
             if (r == 0 and not result)
@@ -435,7 +437,9 @@ _       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216
         }
 
         m3StackCheckInit();
+        current_env_stack_top = &stack[env->numStackSlots];
 _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
+        current_env_stack_top = NULL;
 
 #if d_m3LogOutput
         switch (ftype->returnType) {
@@ -519,7 +523,9 @@ _       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216
             stack [1] = offset;
         }
 
+        current_env_stack_top = &stack[env->numStackSlots];
 _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
+        current_env_stack_top = NULL;
 
         //u64 value = * (u64 *) (stack);
         //m3log (runtime, "return64: % " PRIu64 " return32: %" PRIu32, value, (u32) value);

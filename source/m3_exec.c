@@ -10,6 +10,10 @@
 #include "m3_compile.h"
 
 
+u64* current_env_stack_top = NULL;
+u32 current_op_call_stack_depth = 0;
+
+
 m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 {
     M3MemoryHeader * info = (M3MemoryHeader*)(i_mem) - 1;
@@ -34,7 +38,20 @@ d_m3OpDef  (Call)
 
     m3stack_t sp = _sp + stackOffset;
 
+    if (sp >= current_env_stack_top)
+    {
+        return c_m3Err_trapCallStackExhausted;
+    }
+
+    ++current_op_call_stack_depth;
+    if (current_op_call_stack_depth > kOP_CALL_STACK_MAX_DEPTH)
+    {
+        return c_m3Err_trapCallStackExhausted;
+    }
+
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+
+    --current_op_call_stack_depth;
 
     if (r != 0)
         return r;
@@ -50,6 +67,11 @@ d_m3OpDef  (CallIndirect)
     i32 stackOffset             = immediate (i32);
 
     m3stack_t sp = _sp + stackOffset;
+
+    if ((sp + type->numArgs) >= current_env_stack_top)
+    {
+        return c_m3Err_trapCallStackExhausted;
+    }
 
     i32 tableIndex = * (i32 *) (sp + type->numArgs);
 
@@ -84,7 +106,15 @@ d_m3OpDef  (CallIndirect)
 
             if (not r)
             {
+                ++current_op_call_stack_depth;
+                if (current_op_call_stack_depth > kOP_CALL_STACK_MAX_DEPTH)
+                {
+                    return c_m3Err_trapCallStackExhausted;
+                }
+
                 r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+
+                --current_op_call_stack_depth;
 
                 if (not r)
                     r = nextOp ();
@@ -167,6 +197,12 @@ d_m3OpDef  (Entry)
     u32 numLocals = function->numLocals;
 
     m3stack_t stack = _sp + GetFunctionNumArgs (function);
+
+    if (stack >= current_env_stack_top)
+    {
+        return c_m3Err_trapCallStackExhausted;
+    }
+
     while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
         * (stack++) = 0;
 

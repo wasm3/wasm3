@@ -19,6 +19,11 @@
 #include <math.h>
 #include <limits.h>
 
+extern u64* current_env_stack_top;
+extern u32 current_op_call_stack_depth;
+# define kOP_CALL_STACK_MAX_DEPTH 4096
+
+
 # define rewrite(NAME)              * ((void **) (_pc-1)) = (void*)(NAME)
 
 # define d_m3RetSig                 static inline m3ret_t vectorcall
