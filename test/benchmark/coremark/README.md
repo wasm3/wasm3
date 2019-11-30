@@ -3,9 +3,15 @@
 The `coremark` files in this directory were produced by:
 
 ```sh
-$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm
-$ make compile PORT_DIR=linux CC=emcc EXE=-side.wasm XCFLAGS="-s SIDE_MODULE=1"
-$ make compile PORT_DIR=linux CC=emcc EXE=.html XCFLAGS="-g2"
+$ make compile PORT_DIR=barebones CC=wasicc EXE=-wasi.wasm
+$ make compile PORT_DIR=barebones CC=emcc   EXE=-emcc.wasm
+$ make compile PORT_DIR=barebones CC=emcc   EXE=.html
+```
+
+**Note:** do not forget to update your SDK
+```sh
+emsdk install latest # or latest-fastcomp
+emsdk activate latest
 ```
 
 ### Running WASI version in Wasm3
@@ -22,8 +28,8 @@ export ENGINES_PATH=/opt/wasm_engines
 # WAC => 158.215331
 $ENGINES_PATH/wac/wax coremark-wasi.wasm
 
-# wasm-micro-runtime => [fails]
-#$ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
+# wasm-micro-runtime => 51.813472
+$ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
 
 # Wasmer => 7026.509103
 wasmer run coremark-wasi.wasm
@@ -34,11 +40,12 @@ wasmer run coremark-wasi.wasm
 wapm upload
 coremark-wasi
 
-# Wasmer-JS (V8) - https://www.npmjs.com/package/@wasmer/cli
+# Wasmer-JS (V8) => 10024.057739
+# https://www.npmjs.com/package/@wasmer/cli
 wasmer-js run coremark-wasi.wasm
 
 
-# WAVM => 14650.941323
+# WAVM => 14781.966001
 $ENGINES_PATH/wasm-jit-prototype/_build/bin/wavm run coremark-wasi.wasm
 ```
 

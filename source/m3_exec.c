@@ -45,7 +45,6 @@ d_m3OpDef  (Call)
 }
 
 
-// TODO: should trap "indirect call type mismatch"
 d_m3OpDef  (CallIndirect)
 {
     IM3Module module            = immediate (IM3Module);
@@ -64,6 +63,24 @@ d_m3OpDef  (CallIndirect)
 
         if (function)
         {
+            if (type->numArgs != function->funcType->numArgs)
+            {
+                return c_m3Err_trapIndirectCallTypeMismatch;
+            }
+
+            if (type->returnType != function->funcType->returnType)
+            {
+                return c_m3Err_trapIndirectCallTypeMismatch;
+            }
+
+            for (u32 argIndex = 0; argIndex < type->numArgs; ++argIndex)
+            {
+                if (type->argTypes[argIndex] != function->funcType->argTypes[argIndex])
+                {
+                    return c_m3Err_trapIndirectCallTypeMismatch;
+                }
+            }
+
             if (not function->compiled)
                 r = Compile_Function (function);
 
