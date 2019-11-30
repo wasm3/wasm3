@@ -716,7 +716,11 @@ M3Result  Compile_Else_End  (IM3Compilation o, u8 i_opcode)
     if (o->block.depth == 0)
     {
         if (o->block.type)
-_           (ReturnStackTop (o));
+        {
+            // expression block w/ implicit return
+            if (GetStackTopType (o) != c_m3Type_none)
+_             (ReturnStackTop (o));
+        }
 
 _       (EmitOp (o, op_End));
     }
@@ -1047,7 +1051,7 @@ M3Result  Compile_Memory_Current  (IM3Compilation o, u8 i_opcode)
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
 _   (EmitOp     (o, op_MemCurrent));
-    EmitPointer (o, o->module);
+    EmitPointer (o, o->runtime);
 
     _catch: return result;
 }
@@ -1059,8 +1063,10 @@ M3Result  Compile_Memory_Grow  (IM3Compilation o, u8 i_opcode)
     i8 reserved;
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
+	// FIX: stack top needs to be moved to a register or need stack-flavor of MemGrow
+	
 _   (EmitOp     (o, op_MemGrow));
-    EmitPointer (o, o->module);
+    EmitPointer (o, o->runtime);
 
     _catch: return result;
 }
@@ -1617,7 +1623,6 @@ M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
 {                                                                                       d_m3Assert (not IsRegisterAllocated (o, 0));
     M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 1));
 
-
     u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
 
     // save and clear the locals modification slots
@@ -1816,8 +1821,9 @@ _           (m3Alloc (& io_function->constants, u64, numConstants));
     _catch:
     {
         ReleaseCodePage (rt, o->page);
-        m3Free(o);
     }
+
+    m3Free (o);
 
     return result;
 }
