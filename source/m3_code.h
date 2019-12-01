@@ -15,8 +15,6 @@
 typedef struct M3CodePage
 {
     M3CodePageHeader        info;
-//  code_t                  code                [c_m3CodePageNumSlots];
-
     code_t                  code                [1];
 }
 M3CodePage;
@@ -29,6 +27,7 @@ IM3CodePage             NewCodePage             (u32 i_minNumLines);
 void                    FreeCodePages           (IM3CodePage i_page);
 //void                  CloseCodePage           (IM3CodePage i_page);
 u32                     NumFreeLines            (IM3CodePage i_page);
+pc_t                    GetPageStartPC          (IM3CodePage i_page);
 pc_t                    GetPagePC               (IM3CodePage i_page);
 void                    EmitWordImpl            (IM3CodePage i_page, const void * i_word);
 

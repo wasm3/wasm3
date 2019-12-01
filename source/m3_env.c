@@ -455,6 +455,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         {
             m3stack_t s = &stack[i];
             ccstr_t str = i_argv[i];
+            
             switch (ftype->argTypes[i]) {
 #ifdef USE_HUMAN_FRIENDLY_ARGS
             case c_m3Type_i32:  *(i32*)(s) = atol(str);  break;
@@ -486,7 +487,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
         case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
         case c_m3Type_f32:  {
             union { u32 u; f32 f; } union32;
-            union32.f = *(f64*)(stack);
+            union32.f = * (f32 *)(stack);
             printf("Result: %u\n", union32.u );
             break;
         }
@@ -601,7 +602,7 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
-//  DumpCodePage (i_codePage, /* startPC: */ NULL);
+    DumpCodePage (i_codePage, /* startPC: */ NULL);
 
     if (i_codePage)
     {

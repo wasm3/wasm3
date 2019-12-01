@@ -155,7 +155,7 @@ typedef struct M3MemoryHeader
 M3MemoryHeader;
 
 
-typedef struct M3CodePageInfo
+typedef struct M3CodePageHeader
 {
     struct M3CodePage *     next;
 

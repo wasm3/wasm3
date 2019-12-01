@@ -80,7 +80,7 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
     else if (i_type == c_m3Type_i64)
         len = snprintf (o_string, i_n, "%ld", * i_sp);
     else if (i_type == c_m3Type_f32)
-        len = snprintf (o_string, i_n, "%f",  * (f64 *) i_sp); // f32 value in 64-bit register
+        len = snprintf (o_string, i_n, "%f",  * (f32 *) i_sp);
     else if (i_type == c_m3Type_f64)
         len = snprintf (o_string, i_n, "%lf", * (f64 *) i_sp);
 
@@ -159,6 +159,7 @@ OpInfo FindOperationInfo  (IM3Operation i_operation)
     return opInfo;
 }
 
+
 void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
     pc_t pc = * o_pc;
@@ -188,16 +189,19 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
 
 void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 {
-    if (d_m3LogCodePages)
-    {                                                                       m3log (code, "code page seq: %d", i_codePage->info.sequence);
-        pc_t pc = i_startPC ? i_startPC : (pc_t) i_codePage;
+#   if defined (DEBUG) && d_m3LogCodePages
+        
+        m3log (code, "code page seq: %d", i_codePage->info.sequence);
+    
+        pc_t pc = i_startPC ? i_startPC : GetPageStartPC (i_codePage);
         pc_t end = GetPagePC (i_codePage);
 
         m3log (code, "---------------------------------------------------");
 
+        // TODO: this isn't fully implemented. blindly assumes each word is a Operation pointer
         while (pc < end)
         {
-            IM3Operation op = (IM3Operation)(* pc++);
+            IM3Operation op = (IM3Operation) (* pc++);
 
             if (op)
             {
@@ -208,19 +212,15 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
                     char infoString [1000] = { 0 };
                     DecodeOperation (infoString, i.opcode, i.info, & pc);
 
-#ifdef DEBUG
-                    m3log (code, "%p: %15s %-20s", pc - 1, i.info->name, infoString);
-#else
-                    m3log (code, "%p: %15s %-20s", pc - 1, "---", infoString);
-#endif
+                    m3log (code, "%p | %20s %-20s", pc - 1, i.info->name, infoString);
                 }
-                else break;
+//                else break;
             }
-            else break;
+//            else break;
         }
 
         m3log (code, "---------------------------------------------------");
-    }
+#   endif
 }
 
 

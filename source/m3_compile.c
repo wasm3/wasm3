@@ -78,6 +78,8 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 
 //-------------------------------------------------------------------------------------------------------------------------
 
+static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i64, op_SetSlot_f32, op_SetSlot_f64 };
+
 // just want less letter and numbers to stare at down the way in the compiler table
 #define i_32    c_m3Type_i32
 #define i_64    c_m3Type_i64
@@ -486,8 +488,8 @@ M3Result CopyTopSlot (IM3Compilation o, u16 i_destSlot)
 
     if (IsStackTopInRegister (o))
     {
-        bool isFp = IsStackTopTypeFp (o);
-        op = isFp ? op_SetSlot_f64 : op_SetSlot_i64;
+        u8 type = GetStackTopType (o);
+        op = c_setSetOps [type];
     }
     else op = op_CopySlot;
 
@@ -539,7 +541,9 @@ M3Result  MoveStackTopToRegister  (IM3Compilation o)
     {
         u8 type = GetStackTopType (o);
 
-        IM3Operation op = IsFpType (type) ? op_SetRegister_f64 : op_SetRegister_i64;
+        static const IM3Operation setRegisterOps [] = { NULL, op_SetRegister_i32, op_SetRegister_i64, op_SetRegister_f32, op_SetRegister_f64 };
+
+        IM3Operation op = setRegisterOps [type];
 
 _       (EmitOp (o, op));
 _       (EmitTopSlotAndPop (o));
@@ -659,7 +663,7 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     f32 value;
-    union { u64 u; f64 f; } union64;
+    union { u64 u; f32 f; } union64;
 
 _   (Read_f32 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), value);
 
@@ -1424,9 +1428,9 @@ const M3OpInfo c_operations [] =
     M3OP( "i32.rotl",           -1, i_32,   d_binOpList (u32, Rotl)                 ),          // 0x77
     M3OP( "i32.rotr",           -1, i_32,   d_binOpList (u32, Rotr)                 ),          // 0x78
 
-    M3OP( "i64.clz",            0,  i_32,   d_unaryOpList (u64, Clz)                ),          // 0x79
-    M3OP( "i64.ctz",            0,  i_32,   d_unaryOpList (u64, Ctz)                ),          // 0x7a
-    M3OP( "i64.popcnt",         0,  i_32,   d_unaryOpList (u64, Popcnt)             ),          // 0x7b
+    M3OP( "i64.clz",            0,  i_64,   d_unaryOpList (u64, Clz)                ),          // 0x79
+    M3OP( "i64.ctz",            0,  i_64,   d_unaryOpList (u64, Ctz)                ),          // 0x7a
+    M3OP( "i64.popcnt",         0,  i_64,   d_unaryOpList (u64, Popcnt)             ),          // 0x7b
 
     M3OP( "i64.add",            -1, i_64,   d_commutativeBinOpList (i64, Add)       ),          // 0x7c
     M3OP( "i64.sub",            -1, i_64,   d_binOpList (i64, Subtract)             ),          // 0x7d
@@ -1506,9 +1510,17 @@ const M3OpInfo c_operations [] =
     M3OP( "f32.reinterpret/i32", 0, f_32,   d_unaryOpList(f32, Reinterpret_i32)     ),          // 0xbe
     M3OP( "f64.reinterpret/i64", 0, f_64,   d_unaryOpList(f64, Reinterpret_i64)     ),          // 0xbf
 
-    // for code logging
-    M3OP( "Const",              1,  any,    op_Const ),
-    M3OP( "termination",        0,  c_m3Type_void )                     // termination for FindOperationInfo ()
+# ifdef DEBUG // for code logging:
+    M3OP( "m3.const",              1,  any,     op_Const ),
+    M3OP( "m3.entry",              0,  none,    op_Entry ),
+    M3OP( "i32.m3.setslot",        0,  none,    op_SetSlot_i32),
+    M3OP( "i64.m3.setslot",        0,  none,    op_SetSlot_i64),
+    M3OP( "f32.m3.setslot",        0,  none,    op_SetSlot_f32),
+    M3OP( "f64.m3.setslot",        0,  none,    op_SetSlot_f64),
+    M3OP( "m3.end",                0,  none,    op_End ),
+# endif
+
+    M3OP( "termination",           0,  c_m3Type_void )                     // termination for FindOperationInfo ()
 };
 
 
@@ -1629,11 +1641,14 @@ M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
 
     // save and clear the locals modification slots
 #if defined(M3_COMPILER_MSVC)
-    assert (numArgsAndLocals <= 128);
-    u16 locals [128];
+    u16 locals [128];               // hmm, heap allocate?...
+    
+    if (numArgsAndLocals > 128)
+        _throw ("argument/local count overflow");
 #else
     u16 locals [numArgsAndLocals];
 #endif
+    
     memcpy (locals, o->wasmStack, numArgsAndLocals * sizeof (u16));
     for (u32 i = 0; i < numArgsAndLocals; ++i)
     {
@@ -1663,7 +1678,6 @@ _           (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
 
 //      printf ("local usage: [%d] = %d\n", i, o->wasmStack [i]);
     }
-
 
     _catch: return result;
 }
@@ -1759,16 +1773,16 @@ M3Result  Compile_Function  (IM3Function io_function)
 {
     M3Result result = c_m3Err_none;                                     m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
                                                                            io_function->name, (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function), c_waTypes [GetFunctionReturnType (io_function)]);
-    IM3Runtime rt = io_function->module->runtime;
+    IM3Runtime runtime = io_function->module->runtime;
 
     IM3Compilation o = NULL;
-_   (m3Malloc (& o, sizeof(M3Compilation)));
+_   (m3Alloc (& o, M3Compilation, 1));  // TODO: i think an M3Compilation object could just live in M3Runtime. only one function is compiled at a time.
 
-    o->runtime = rt;
+    o->runtime = runtime;
     o->module =  io_function->module;
     o->wasm =    io_function->wasm;
     o->wasmEnd = io_function->wasmEnd;
-    o->page =    AcquireCodePage (rt);
+    o->page =    AcquireCodePage (runtime);
 
     if (o->page)
     {
@@ -1821,10 +1835,8 @@ _           (m3Alloc (& io_function->constants, u64, numConstants));
     else _throw (c_m3Err_mallocFailedCodePage);
 
     _catch:
-    {
-        ReleaseCodePage (rt, o->page);
-    }
-
+    
+    ReleaseCodePage (runtime, o->page);
     m3Free (o);
 
     return result;
