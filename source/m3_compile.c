@@ -247,7 +247,6 @@ u16  GetRegisterStackIndex  (IM3Compilation o, u32 i_register)
 }
 
 
-
 u16  GetMaxExecSlot  (IM3Compilation o)
 {
     u16 i = o->firstSlotIndex;
@@ -286,7 +285,7 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_type)
         {
             o->wasmStack [stackIndex] = slot;
 
-_           (EmitOp (o, regSelect ? op_SetSlot_f : op_SetSlot_i));
+_           (EmitOp (o, regSelect ? op_SetSlot_f64 : op_SetSlot_i64));
             EmitConstant (o, slot);
         }
         else _throw (c_m3Err_functionStackOverflow);
@@ -435,6 +434,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_m3Type)
 
     u32 numConstants = o->constSlotIndex - o->firstConstSlotIndex;
 
+    // search for duplicate matching constant slot to reuse
     for (u32 i = 0; i < numConstants; ++i)
     {
         if (o->constants [i] == i_word)
@@ -487,7 +487,7 @@ M3Result CopyTopSlot (IM3Compilation o, u16 i_destSlot)
     if (IsStackTopInRegister (o))
     {
         bool isFp = IsStackTopTypeFp (o);
-        op = isFp ? op_SetSlot_f : op_SetSlot_i;
+        op = isFp ? op_SetSlot_f64 : op_SetSlot_i64;
     }
     else op = op_CopySlot;
 
@@ -514,7 +514,7 @@ M3Result  PreservedCopyTopSlot  (IM3Compilation o, u16 i_destSlot, u16 i_preserv
     if (IsStackTopInRegister (o))
     {
         bool isFp = IsStackTopTypeFp (o);
-        op = isFp ? op_PreserveSetSlot_f : op_PreserveSetSlot_i;
+        op = isFp ? op_PreserveSetSlot_f64 : op_PreserveSetSlot_i64;
     }
     else op = op_PreserveCopySlot;
 
@@ -539,9 +539,7 @@ M3Result  MoveStackTopToRegister  (IM3Compilation o)
     {
         u8 type = GetStackTopType (o);
 
-//      if (
-
-        IM3Operation op = IsFpType (type) ? op_SetRegister_f : op_SetRegister_i;
+        IM3Operation op = IsFpType (type) ? op_SetRegister_f64 : op_SetRegister_i64;
 
 _       (EmitOp (o, op));
 _       (EmitTopSlotAndPop (o));
@@ -799,7 +797,7 @@ M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
     IM3Operation op;
 
     if (IsStackTopInRegister (o))
-        op = IsStackTopTypeFp (o) ? op_SetGlobal_f : op_SetGlobal_i;
+        op = IsStackTopTypeFp (o) ? op_SetGlobal_f64 : op_SetGlobal_i;
     else
         op = op_SetGlobal_s;
 
@@ -1138,8 +1136,8 @@ _       (Compile_ElseBlock (o, pc, blockType));
     } _catch: return result;
 }
 
-static const IM3Operation ops_Select_i [] = { op_Select_i_ssr, op_Select_i_srs, op_Select_i_rss, op_Select_i_sss };
-static const IM3Operation ops_Select_f [] = { op_Select_f_ssr, op_Select_f_srs, op_Select_f_rss, op_Select_f_sss };
+static const IM3Operation ops_Select_i [] = { op_Select_i64_ssr, op_Select_i64_srs, op_Select_i64_rss, op_Select_i64_sss };
+static const IM3Operation ops_Select_f [] = { op_Select_f64_ssr, op_Select_f64_srs, op_Select_f64_rss, op_Select_f64_sss };
 
 M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 {
