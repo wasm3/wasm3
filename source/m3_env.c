@@ -643,16 +643,22 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 }
 #endif
 
+
 M3ErrorInfo  m3_GetErrorInfo  (IM3Runtime i_runtime)
 {
     M3ErrorInfo info = i_runtime->error;
 
-    M3ErrorInfo reset;
-    M3_INIT(reset);
-
-    i_runtime->error = reset;
+    m3_IgnoreErrorInfo (i_runtime);
 
     return info;
 }
 
+
+void m3_IgnoreErrorInfo (IM3Runtime i_runtime)
+{
+    M3ErrorInfo reset;
+    M3_INIT(reset);
+
+    i_runtime->error = reset;
+}
 

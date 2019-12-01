@@ -10,7 +10,11 @@
 
 int  main  (int i_argc, const char * i_argv [])
 {
+//    m3_PrintM3Info ();
+    
     M3Result result = c_m3Err_none;
+
+    IM3Runtime env = NULL;
 
     if (i_argc < 3) FATAL("not enough arguments");
 
@@ -40,7 +44,7 @@ int  main  (int i_argc, const char * i_argv [])
     if (result) FATAL("m3_ParseModule: %s", result);
 
     // TODO: Detect stack exhaustion
-    IM3Runtime env = m3_NewRuntime (8*1024);
+    env = m3_NewRuntime (8*1024);
     if (!env) FATAL("m3_NewRuntime");
 
     result = m3_LoadModule (env, module);
@@ -57,6 +61,7 @@ int  main  (int i_argc, const char * i_argv [])
         result = m3_Call (func);
         if (result) FATAL("__post_instantiate failed: %s", result);
     }
+    else m3_IgnoreErrorInfo (env);
 
     const char* fname = i_argv[2];
 

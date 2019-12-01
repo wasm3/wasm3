@@ -270,11 +270,11 @@ u16  GetMaxExecSlot  (IM3Compilation o)
 }
 
 
-M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_type)
+M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_registerType)
 {
     M3Result result = c_m3Err_none;
 
-    u32 regSelect = IsFpType (i_type);
+    u32 regSelect = IsFpType (i_registerType);
 
     if (IsRegisterAllocated (o, regSelect))
     {
@@ -286,8 +286,10 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_type)
         if (AllocateExecSlot (o, & slot))
         {
             o->wasmStack [stackIndex] = slot;
+            
+            u8 type = o->typeStack [stackIndex];
 
-_           (EmitOp (o, regSelect ? op_SetSlot_f64 : op_SetSlot_i64));
+_           (EmitOp (o, c_setSetOps [type]));
             EmitConstant (o, slot);
         }
         else _throw (c_m3Err_functionStackOverflow);
@@ -794,6 +796,7 @@ _   (PushAllocatedSlotAndEmit (o, i_global->type));
 }
 
 
+// TODO: enforce mutability
 M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
 {
     M3Result result = c_m3Err_none;
@@ -1511,13 +1514,20 @@ const M3OpInfo c_operations [] =
     M3OP( "f64.reinterpret/i64", 0, f_64,   d_unaryOpList(f64, Reinterpret_i64)     ),          // 0xbf
 
 # ifdef DEBUG // for code logging:
-    M3OP( "m3.const",              1,  any,     op_Const ),
-    M3OP( "m3.entry",              0,  none,    op_Entry ),
-    M3OP( "i32.m3.setslot",        0,  none,    op_SetSlot_i32),
-    M3OP( "i64.m3.setslot",        0,  none,    op_SetSlot_i64),
-    M3OP( "f32.m3.setslot",        0,  none,    op_SetSlot_f32),
-    M3OP( "f64.m3.setslot",        0,  none,    op_SetSlot_f64),
-    M3OP( "m3.end",                0,  none,    op_End ),
+    M3OP( "Const",                  1,  any,     op_Const ),
+    M3OP( "Entry",                  0,  none,    op_Entry ),
+    M3OP( "unreachable",            0,  none,    op_Unreachable ),
+    M3OP( "br",                     0,  none,    op_Branch ),
+    M3OP( "br_table",               0,  none,    op_BranchTable ),
+
+    M3OP( "SetGlobal_s",            0,  none,    op_SetGlobal_s),
+
+    M3OP( "SetSlot_i32",            0,  none,    op_SetSlot_i32),
+    M3OP( "SetSlot_i64",            0,  none,    op_SetSlot_i64),
+    M3OP( "SetSlot_f32",            0,  none,    op_SetSlot_f32),
+    M3OP( "SetSlot_f64",            0,  none,    op_SetSlot_f64),
+    
+    M3OP( "End",                    0,  none,    op_End ),
 # endif
 
     M3OP( "termination",           0,  c_m3Type_void )                     // termination for FindOperationInfo ()

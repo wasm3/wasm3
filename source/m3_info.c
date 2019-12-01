@@ -187,6 +187,8 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
 }
 
 
+// WARNING/TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
+// and, if an operation happens to missing from the c_operations table it won't be recognized here
 void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 {
 #   if defined (DEBUG) && d_m3LogCodePages
@@ -196,9 +198,8 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
         pc_t pc = i_startPC ? i_startPC : GetPageStartPC (i_codePage);
         pc_t end = GetPagePC (i_codePage);
 
-        m3log (code, "---------------------------------------------------");
+        m3log (code, "---------------------------------------------------------------------------------------");
 
-        // TODO: this isn't fully implemented. blindly assumes each word is a Operation pointer
         while (pc < end)
         {
             IM3Operation op = (IM3Operation) (* pc++);
@@ -219,7 +220,7 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 //            else break;
         }
 
-        m3log (code, "---------------------------------------------------");
+        m3log (code, "---------------------------------------------------------------------------------------");
 #   endif
 }
 

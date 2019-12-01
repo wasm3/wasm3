@@ -527,11 +527,7 @@ d_m3Op  (End)
 d_m3Op  (GetGlobal)
 {
     i64 * global = immediate (i64 *);
-
-//  printf ("get global: %p %" PRIi64 "\n", global, *global);
-
-    i32 offset  = immediate (i32);
-    * (_sp + offset) = * global;
+    slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
 
     return nextOp ();
 }
@@ -540,8 +536,7 @@ d_m3Op  (GetGlobal)
 d_m3Op  (SetGlobal_s)
 {
     i64 * global = immediate (i64 *);
-    i32 offset  = immediate (i32);
-    * global = * (_sp + offset);
+    * global = slot (i64);
 
     return nextOp ();
 }
@@ -550,9 +545,7 @@ d_m3Op  (SetGlobal_s)
 d_m3Op  (SetGlobal_i)
 {
     i64 * global = immediate (i64 *);
-    * global = _r0;
-
-//  printf ("set global: %p %" PRIi64 "\n", global, _r0);
+    * global = _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
     return nextOp ();
 }
@@ -598,8 +591,6 @@ d_m3Op (PreserveCopySlot)
 
     return nextOp ();
 }
-
-
 
 
 //d_m3Op  (SwapRegister_i)

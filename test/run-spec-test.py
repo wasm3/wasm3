@@ -308,9 +308,9 @@ else:
         "forward",
         "func_ptrs",
         "endianness",
+        "int_literals",
 
         #--- Almost ready ---
-        #"int_literals",     -> stack underflow
         #"memory_trap", "address",     -> init memory size + track memory bounds
         #"float_memory",
         #"memory_redundancy", "memory_grow",

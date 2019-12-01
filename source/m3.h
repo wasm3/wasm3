@@ -249,8 +249,8 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 
-
     M3ErrorInfo         m3_GetErrorInfo             (IM3Runtime i_runtime);
+    void                m3_IgnoreErrorInfo          (IM3Runtime i_runtime);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  debug info
