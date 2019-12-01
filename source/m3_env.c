@@ -242,10 +242,6 @@ M3Result  InitGlobals  (IM3Module io_module)
             {
                 M3Global * g = & io_module->globals [i];                        m3log (runtime, "initializing global: %d", i);
 
-                // global fp types are coerced to double
-                if (g->type == c_m3Type_f32)
-                    g->type = c_m3Type_f64;
-
                 if (g->initExpr)
                 {
                     bytes_t start = g->initExpr;
@@ -253,7 +249,7 @@ M3Result  InitGlobals  (IM3Module io_module)
 
                     if (not result)
                     {
-                        //                      io_module->globalMemory [i] = initValue;
+                        // io_module->globalMemory [i] = initValue;
                     }
                     else break;
                 }
