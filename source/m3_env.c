@@ -598,7 +598,9 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
-    DumpCodePage (i_codePage, /* startPC: */ NULL);
+#   if defined (DEBUG) && d_m3LogCodePages
+        DumpCodePage (i_codePage, /* startPC: */ NULL);
+#   endif
 
     if (i_codePage)
     {

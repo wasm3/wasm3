@@ -671,7 +671,7 @@ _   (Read_f32 (& value, & o->wasm, o->wasmEnd));                m3log (compile, 
 
     union64.f = value;
 
-_   (PushConst (o, union64.u, c_m3Type_f64));
+_   (PushConst (o, union64.u, c_m3Type_f32));
 
     _catch: return result;
 }
@@ -1520,12 +1520,20 @@ const M3OpInfo c_operations [] =
     M3OP( "br",                     0,  none,    op_Branch ),
     M3OP( "br_table",               0,  none,    op_BranchTable ),
 
+    M3OP( "Call",                   0,  none,    op_Call),
+    M3OP( "Compile",                0,  none,    op_Compile),
+    
     M3OP( "SetGlobal_s",            0,  none,    op_SetGlobal_s),
 
     M3OP( "SetSlot_i32",            0,  none,    op_SetSlot_i32),
     M3OP( "SetSlot_i64",            0,  none,    op_SetSlot_i64),
     M3OP( "SetSlot_f32",            0,  none,    op_SetSlot_f32),
     M3OP( "SetSlot_f64",            0,  none,    op_SetSlot_f64),
+    
+    M3OP( "SetRegister_i32",        0,  none,    op_SetRegister_i32),
+    M3OP( "SetRegister_i64",        0,  none,    op_SetRegister_i64),
+    M3OP( "SetRegister_f32",        0,  none,    op_SetRegister_f32),
+    M3OP( "SetRegister_f64",        0,  none,    op_SetRegister_f64),
     
     M3OP( "End",                    0,  none,    op_End ),
 # endif
@@ -1712,6 +1720,8 @@ _       (EmitOp (o, op_Branch));
         EmitPointer (o, GetPagePC (savedPage));
 
         o->page = savedPage;
+        
+        ReleaseCodePage (o->runtime, elsePage);
     }
     else _throw (c_m3Err_mallocFailedCodePage);
 

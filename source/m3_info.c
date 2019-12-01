@@ -187,12 +187,11 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
 }
 
 
+# ifdef DEBUG
 // WARNING/TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
 // and, if an operation happens to missing from the c_operations table it won't be recognized here
 void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 {
-#   if defined (DEBUG) && d_m3LogCodePages
-        
         m3log (code, "code page seq: %d", i_codePage->info.sequence);
     
         pc_t pc = i_startPC ? i_startPC : GetPageStartPC (i_codePage);
@@ -221,9 +220,8 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
         }
 
         m3log (code, "---------------------------------------------------------------------------------------");
-#   endif
 }
-
+# endif
 
 
 
