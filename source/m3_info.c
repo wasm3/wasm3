@@ -168,17 +168,28 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
     #define fetch(TYPE) (*(TYPE *) (pc++))
 
     i32 offset;
-    u64 value;
-
-    switch (i_opcode)
+    
+    if (i_opcode == c_waOp_branchTable)
     {
-        case 0xbf+1:
-        {
-            value = fetch (u64); offset = fetch (i32);
-            sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
+        m3reg_t targets = fetch (m3reg_t);
+        
+        char str [1000];
 
-            break;
+        for (m3reg_t i = 0; i <targets; ++i)
+        {
+            pc_t addr = fetch (pc_t);
+            sprintf (str, "%" PRIu64 ": %p, ", i, addr);
+            strcat (o_string, str);
         }
+        
+        pc_t addr = fetch (pc_t);
+        sprintf (str, "def: %p ", addr);
+        strcat (o_string, str);
+    }
+    else if (i_opcode == 0xbf+1) // const
+    {
+        u64 value = fetch (u64); offset = fetch (i32);
+        sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
     }
 
     #undef fetch
@@ -212,7 +223,7 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
                     char infoString [1000] = { 0 };
                     DecodeOperation (infoString, i.opcode, i.info, & pc);
 
-                    m3log (code, "%p | %20s %-20s", pc - 1, i.info->name, infoString);
+                    m3log (code, "%p | %20s  %s", pc - 1, i.info->name, infoString);
                 }
 //                else break;
             }

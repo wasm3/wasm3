@@ -130,6 +130,30 @@ u8  GetStackTopType  (IM3Compilation o)
 }
 
 
+u8  GetStackType  (IM3Compilation o, u16 i_offset)
+{
+    u8 type = c_m3Type_none;
+
+    ++i_offset;
+    if (o->stackIndex > i_offset)
+        type = o->typeStack [o->stackIndex - i_offset];
+
+    return type;
+}
+
+
+u8  GetBlockType  (IM3Compilation o)
+{
+    return o->block.type;
+}
+
+
+bool  BlockHasType  (IM3Compilation o)
+{
+    return GetBlockType (o) != c_m3Type_none;
+}
+
+
 bool  IsStackTopTypeInt  (IM3Compilation o)
 {
     return IsIntType (GetStackTopType (o));
@@ -141,6 +165,10 @@ bool  IsStackTopTypeFp  (IM3Compilation o)
     return IsFpType (GetStackTopType (o));
 }
 
+i16  GetNumBlockValues  (IM3Compilation o)
+{
+    return o->stackIndex - o->block.initStackIndex;
+}
 
 bool  IsStackTopInRegister  (IM3Compilation o)
 {
@@ -368,6 +396,8 @@ void  PushRegister  (IM3Compilation o, u8 i_m3Type)
 
 M3Result  Pop  (IM3Compilation o)
 {
+    // TODO: multivalue changes this constraint, but this should check underrunning the current block?
+    
     M3Result result = c_m3Err_none;
 
     if (o->stackIndex)
@@ -848,14 +878,14 @@ M3Result  Compile_Branch  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     u32 depth;
-_   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
-
-//      printf ("depth: %d \n", depth);
+_   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));         //      printf ("depth: %d \n", depth);
+    
     IM3CompilationScope scope;
 _   (GetBlockScope (o, & scope, depth));
 
     IM3Operation op;
 
+    // branch target is a loop (continue)
     if (scope->opcode == c_waOp_loop)
     {
         if (i_opcode == c_waOp_branchIf)
@@ -902,18 +932,23 @@ M3Result  Compile_BranchTable  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
+    _throw ("branching needs more work");
+    
 _try {
+    
     u32 targetCount;
 _   (ReadLEB_u32 (& targetCount, & o->wasm, o->wasmEnd));
 
     u32 numCodeLines = targetCount + 3; // 3 => IM3Operation + target_count + default_target
-
 _   (EnsureCodePageNumLines (o, numCodeLines));
 
-_   (MoveStackTopToRegister (o));
+    // MoveStackTopToSlot ();  // move stack top to slot, if necessary
 _   (Pop (o));
 
-_   (PreserveRegisters (o));
+    if (BlockHasType (o) and GetNumBlockValues (o) > 0)
+    {
+_      (MoveStackTopToRegister (o));
+    }
 
 _   (EmitOp (o, op_BranchTable));
     EmitConstant (o, targetCount);
@@ -936,7 +971,7 @@ _       (GetBlockScope (o, & scope, target));
             IM3BranchPatch prev_patch = scope->patches;
 _           (m3Alloc (& scope->patches, M3BranchPatch, 1));
 
-            scope->patches->location = (pc_t*)ReservePointer (o);
+            scope->patches->location = (pc_t *) ReservePointer (o);
             scope->patches->next = prev_patch;
         }
     }
@@ -1121,8 +1156,8 @@ _   (EmitTopSlotAndPop (o));
 
     i32 stackIndex = o->stackIndex;
 
-    pc_t * preservations = (pc_t*)ReservePointer (o);
-    pc_t * pc = (pc_t*)ReservePointer (o);
+    pc_t * preservations = (pc_t *) ReservePointer (o);
+    pc_t * pc = (pc_t *) ReservePointer (o);
 
     u8 blockType;
 _   (ReadBlockType (o, & blockType));
@@ -1143,48 +1178,51 @@ _       (Compile_ElseBlock (o, pc, blockType));
     } _catch: return result;
 }
 
-static const IM3Operation ops_Select_i [] = { op_Select_i64_ssr, op_Select_i64_srs, op_Select_i64_rss, op_Select_i64_sss };
-static const IM3Operation ops_Select_f [] = { op_Select_f64_ssr, op_Select_f64_srs, op_Select_f64_rss, op_Select_f64_sss };
 
 M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 {
+    static const IM3Operation selectOps [2] [4] = { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
+                                                    { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
+
     M3Result result = c_m3Err_none;
 
     u16 slots [3] = { 0xffff, 0xffff, 0xffff };
 
-    int opIdx = 3;  // op_Select_*_sss
-
-    u8 type = 0;
-    for (u32 i = 0; i < 3; i++)
+    u8 type = GetStackType (o, 1); // get type of selection
+    
+    if (IsFpType (type))
+        _throw ("FP select unimplemented");  // smassey: working on this. fp select is a tad more complex than int case.
+    
+    if (type != c_m3Type_none)
     {
-        if (IsStackTopInRegister (o))
-            opIdx = i;
-        else
-            slots [i] = GetStackTopExecSlot (o);
+        int opIndex = 3;  // op_Select_*_sss
 
-        type = GetStackTopType (o);
-_       (Pop (o));
+        for (u32 i = 0; i < 3; i++)
+        {
+            if (IsStackTopInRegister (o))
+                opIndex = i;
+            else
+                slots [i] = GetStackTopExecSlot (o);
+
+_          (Pop (o));
+        }
+
+        // 'sss' operation doesn't consume a register, so might have to protected its contents
+        if (opIndex == 3) {
+_          (PreserveRegisterIfOccupied (o, type));
+        }
+        
+        EmitOp (o, selectOps [type] [opIndex]);
+
+        for (u32 i = 0; i < 3; i++)
+        {
+            if (slots [i] != 0xffff)
+                EmitConstant (o, slots [i]);
+        }
+
+        PushRegister (o, type);
     }
-
-    // this operation doesn't consume a register, so might have to protected its contents
-    if (opIdx == 3) {
-_       (PreserveRegisterIfOccupied (o, type));
-    }
-
-    if (IsIntType (type)) {
-_       (EmitOp (o, ops_Select_i[opIdx]));
-    } else {
-_       (EmitOp (o, ops_Select_f[opIdx]));
-    }
-
-
-    for (u32 i = 0; i < 3; i++)
-    {
-        if (slots [i] != 0xffff)
-            EmitConstant (o, slots [i]);
-    }
-
-    PushRegister (o, type);
+    else result = c_m3Err_functionStackUnderrun;
 
     _catch: return result;
 }
@@ -1293,6 +1331,8 @@ _   (Compile_Operator (o, i_opcode));
     _catch: return result;
 }
 
+
+#define d_singleOp(OP) OP, NULL, NULL       // these aren't actually used by the compiler, just codepage logging
 #define d_emptyOpList() NULL, NULL, NULL
 #define d_unaryOpList(TYPE, NAME) op_##TYPE##_##NAME##_r, op_##TYPE##_##NAME##_s, NULL
 #define d_binOpList(TYPE, NAME) op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss
@@ -1311,9 +1351,9 @@ const M3OpInfo c_operations [] =
     M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                      // 0x06 - 0x0a
 
     M3OP( "end",                 0, none,   d_emptyOpList(),                Compile_Else_End ),     // 0x0b
-    M3OP( "br",                  0, none,   d_emptyOpList(),                Compile_Branch ),       // 0x0c
+    M3OP( "br",                  0, none,   d_singleOp (op_Branch),         Compile_Branch ),       // 0x0c
     M3OP( "br_if",              -1, none,   d_emptyOpList(),                Compile_Branch ),       // 0x0d
-    M3OP( "br_table",           -1, none,   d_emptyOpList(),                Compile_BranchTable ),  // 0x0e
+    M3OP( "br_table",           -1, none,   d_singleOp (op_BranchTable),    Compile_BranchTable ),  // 0x0e
     M3OP( "return",              0, any,    d_emptyOpList(),                Compile_Return ),       // 0x0f
     M3OP( "call",                0, any,    d_emptyOpList(),                Compile_Call ),         // 0x10
     M3OP( "call_indirect",       0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x11
@@ -1517,8 +1557,6 @@ const M3OpInfo c_operations [] =
     M3OP( "Const",                  1,  any,     op_Const ),
     M3OP( "Entry",                  0,  none,    op_Entry ),
     M3OP( "unreachable",            0,  none,    op_Unreachable ),
-    M3OP( "br",                     0,  none,    op_Branch ),
-    M3OP( "br_table",               0,  none,    op_BranchTable ),
 
     M3OP( "Call",                   0,  none,    op_Call),
     M3OP( "Compile",                0,  none,    op_Compile),
@@ -1560,6 +1598,9 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
             result = (* compiler) (o, opcode);
         else
             result = c_m3Err_noCompiler;
+        
+//        if (opcode == c_waOp_branch or opcode == c_waOp_branchTable)
+            
 
         o->previousOpcode = opcode;                             //                      m3logif (stack, dump_type_stack (o))
 

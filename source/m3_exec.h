@@ -365,8 +365,8 @@ d_m3OpDecl  (If_r)
 d_m3OpDecl  (If_s)
 
 
-#define d_m3Select(TYPE, REG)                   \
-d_m3Op  (Select_##TYPE##_ssr)                   \
+#define d_m3Select_i(TYPE, REG)                 \
+d_m3Op  (Select_##TYPE##_rss)                   \
 {                                               \
     i32 condition = (i32) _r0;                  \
                                                 \
@@ -390,7 +390,7 @@ d_m3Op  (Select_##TYPE##_srs)                   \
     return nextOp ();                           \
 }                                               \
                                                 \
-d_m3Op  (Select_##TYPE##_rss)                   \
+d_m3Op  (Select_##TYPE##_ssr)                   \
 {                                               \
     i32 condition = slot (i32);                 \
                                                 \
@@ -414,10 +414,54 @@ d_m3Op  (Select_##TYPE##_sss)                   \
     return nextOp ();                           \
 }
 
-d_m3Select (i32, _r0)
-d_m3Select (i64, _r0)
-d_m3Select (f32, _fp0)
-d_m3Select (f64, _fp0)
+
+d_m3Select_i (i32, _r0)
+d_m3Select_i (i64, _r0)
+
+
+#define d_m3Select_f(TYPE, REG, LABEL, SELECTOR)  \
+d_m3Op  (Select_##TYPE##_##LABEL##ss)           \
+{                                               \
+    i32 condition = (i32) SELECTOR;             \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_##LABEL##rs)           \
+{                                               \
+    i32 condition = (i32) SELECTOR;             \
+                                                \
+    TYPE operand2 = (TYPE) REG;                 \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_##LABEL##sr)           \
+{                                               \
+    i32 condition = (i32) SELECTOR;             \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = (TYPE) REG;                 \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}
+
+
+d_m3Select_f (f32, _fp0, r, _r0)
+d_m3Select_f (f32, _fp0, s, slot (i32))
+
+d_m3Select_f (f64, _fp0, r, _r0)
+d_m3Select_f (f64, _fp0, s, slot (i32))
 
 
 d_m3Op  (Return)
@@ -454,15 +498,16 @@ d_m3Op  (BranchIf)
 
 d_m3Op  (BranchTable)
 {
-    i32 index       = (i32) _r0;
+    i32 branchIndex = slot (i32);           // branch index is always in a slot
+    
     u32 numTargets  = immediate (u32);
 
     pc_t * branches = (pc_t *) _pc;
 
-    if (index < 0 or index > numTargets)
-        index = numTargets; // the default index
+    if (branchIndex < 0 or branchIndex > numTargets)
+        branchIndex = numTargets; // the default index
 
-    return jumpOp (branches [index]);
+    return jumpOp (branches [branchIndex]);
 }
 
 
