@@ -1,11 +1,33 @@
 # CoreMark 1.0
 
-The `coremark` files in this directory were produced by:
+### Results
+
+```log
+Node v13.0.1 (interpreter)       28     51.0x
+wasm-micro-runtime               54     26.4x
+wac (wax)                       105     13.6x ▲ slower
+wasm3                          1428      1.0
+Wasmer 0.11.0 singlepass       4285      3.0x ▼ faster
+wasmtime 0.7.0 (--optimize)    4615      3.2x
+Webassembly.sh (Chromium 78)   6111      4.3x
+Webassembly.sh (Firefox 70)    6470      4.5x
+Wasmer 0.11.0 cranelift        6875      4.8x
+wasmer-js (Node v13.0.1)       9090      6.4x
+Wasmer 0.11.0 llvm            10526      7.4x
+WAVM                          15384     10.8x
+Native (GCC 7.4.0, 32-bit)    17647     12.4x
+```
+
+### Building
+
+The `coremark` files in this directory are produced by:
 
 ```sh
-$ make compile PORT_DIR=barebones CC=wasicc EXE=-wasi.wasm
-$ make compile PORT_DIR=barebones CC=emcc   EXE=-emcc.wasm
-$ make compile PORT_DIR=barebones CC=emcc   EXE=.html
+source /opt/emsdk/emsdk_env.sh --build=Release
+
+$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi-nofp.wasm XCFLAGS="-DHAS_FLOAT=0"
+$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm
+$ make compile PORT_DIR=linux CC=emcc   EXE=.html
 ```
 
 **Note:** do not forget to update your SDK
@@ -14,39 +36,34 @@ emsdk install latest # or latest-fastcomp
 emsdk activate latest
 ```
 
-### Running WASI version in Wasm3
-
-```sh
-../../../build/wasm3 coremark-wasi.wasm _start
-```
-
-### Running WASI version on other engines
+### Running
 
 ```sh
 export ENGINES_PATH=/opt/wasm_engines
 
-# WAC => 158.215331
+# Wasm3
+../../../build/wasm3 coremark-wasi.wasm _start
+
+# WAC
 $ENGINES_PATH/wac/wax coremark-wasi.wasm
 
-# wasm-micro-runtime => 51.813472
+# wasm-micro-runtime
 $ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
 
-# Wasmer => 7026.509103
+# Wasmer
 wasmer run coremark-wasi.wasm
 
 # Webassembly.sh
-#   Chrome =>  7472.724555
-#   Firefox => 7945.967422
 wapm upload
 coremark-wasi
 
-# Wasmer-JS (V8) => 10024.057739
+# Wasmer-JS (V8)
 # https://www.npmjs.com/package/@wasmer/cli
 wasmer-js run coremark-wasi.wasm
 
 
-# WAVM => 14781.966001
-$ENGINES_PATH/wasm-jit-prototype/_build/bin/wavm run coremark-wasi.wasm
+# WAVM
+$ENGINES_PATH/WAVM/Release/bin/wavm run coremark-wasi.wasm
 ```
 
 ### Running EMCC version
