@@ -678,12 +678,16 @@ d_m3SetRegisterSetSlot (f32, _fp0)
 d_m3SetRegisterSetSlot (f64, _fp0)
 
 
-#define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
+#ifdef DEBUG
 
-m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
+  m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
+  #define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
 
-//#define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
+#else
 
+  #define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
+
+#endif
 
 #define d_m3Load(REG,DEST_TYPE,SRC_TYPE)                \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
