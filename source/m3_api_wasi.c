@@ -5,7 +5,8 @@
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
 //
 
-#include "m3_host.h"
+#include "m3_api_wasi.h"
+
 #include "m3_core.h"
 #include "m3_env.h"
 #include "m3_module.h"
@@ -21,16 +22,15 @@
 #include <sys/uio.h>
 #include <fcntl.h>
 #include <time.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
 
-typedef uint32_t wasi_size_t;
+typedef uint32_t __wasi_size_t;
 
 struct wasi_iovec
 {
-    wasi_size_t iov_base;
-    wasi_size_t iov_len;
+    __wasi_size_t iov_base;
+    __wasi_size_t iov_len;
 };
 
 typedef struct Preopen {
@@ -128,8 +128,8 @@ uint32_t m3_wasi_unstable_args_sizes_get(IM3Runtime   runtime,
                                          uint32_t argc_offset,
                                          uint32_t argv_buf_size_offset)
 {
-    wasi_size_t *argc          = offset2addr(runtime, argc_offset);
-    wasi_size_t *argv_buf_size = offset2addr(runtime, argv_buf_size_offset);
+    __wasi_size_t *argc          = offset2addr(runtime, argc_offset);
+    __wasi_size_t *argv_buf_size = offset2addr(runtime, argv_buf_size_offset);
 
     *argc = 0;
     *argv_buf_size = 0;
@@ -147,8 +147,8 @@ uint32_t m3_wasi_unstable_environ_sizes_get(IM3Runtime    runtime,
                                             uint32_t environ_count_offset,
                                             uint32_t environ_buf_size_offset)
 {
-    wasi_size_t *environ_count    = offset2addr(runtime, environ_count_offset);
-    wasi_size_t *environ_buf_size = offset2addr(runtime, environ_buf_size_offset);
+    __wasi_size_t *environ_count    = offset2addr(runtime, environ_count_offset);
+    __wasi_size_t *environ_buf_size = offset2addr(runtime, environ_buf_size_offset);
     *environ_count = 0;
     *environ_buf_size = 0;
     return __WASI_ESUCCESS;
@@ -177,10 +177,9 @@ uint32_t m3_wasi_unstable_fd_prestat_get(IM3Runtime    runtime,
 
 uint32_t m3_wasi_unstable_fd_fdstat_get(IM3Runtime    runtime,
                                         __wasi_fd_t fd,
-                                        uint32_t fdstat_offset)
+                                        __wasi_fdstat_t* fdstat)
 {
     struct stat fd_stat;
-    __wasi_fdstat_t *fdstat = offset2addr(runtime, fdstat_offset);
     int fl = fcntl(fd, F_GETFL);
     if (fl < 0) { return errno_to_wasi(errno); }
     fstat(fd, &fd_stat);
@@ -205,10 +204,8 @@ uint32_t m3_wasi_unstable_fd_seek(IM3Runtime    runtime,
                                   __wasi_fd_t         fd,
                                   __wasi_filedelta_t  offset,
                                   __wasi_whence_t     whence,
-                                  uint32_t            newoffset_offset)
+                                  __wasi_filesize_t*  result)
 {
-    __wasi_filesize_t *result = offset2addr(runtime, newoffset_offset);
-
     int wasi_whence = whence == __WASI_WHENCE_END ? SEEK_END :
                                 __WASI_WHENCE_CUR ? SEEK_CUR : 0;
     int64_t ret = lseek(fd, offset, wasi_whence);
@@ -218,14 +215,13 @@ uint32_t m3_wasi_unstable_fd_seek(IM3Runtime    runtime,
 }
 
 uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
-                                  __wasi_fd_t  fd,
-                                  uint32_t     iovs_offset,
-                                  size_t       iovs_len,
-                                  uint32_t     nread_offset)
+                                  __wasi_fd_t   fd,
+                                  uint32_t      iovs_offset,
+                                  __wasi_size_t iovs_len,
+                                  __wasi_size_t* nread)
 {
     struct iovec iovs[iovs_len];
     copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
-    size_t *nread      = offset2addr(runtime, nread_offset);
 
     ssize_t ret = readv(fd, iovs, iovs_len);
     if (ret < 0) { return errno_to_wasi(errno); }
@@ -234,14 +230,13 @@ uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
 }
 
 uint32_t m3_wasi_unstable_fd_write(IM3Runtime    runtime,
-                                   __wasi_fd_t  fd,
-                                   uint32_t     iovs_offset,
-                                   size_t       iovs_len,
-                                   uint32_t     nwritten_offset)
+                                   __wasi_fd_t   fd,
+                                   uint32_t      iovs_offset,
+                                   __wasi_size_t iovs_len,
+                                   __wasi_size_t* nwritten)
 {
     struct iovec iovs[iovs_len];
     copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
-    size_t *nwritten   = offset2addr(runtime, nwritten_offset);
 
     ssize_t ret = writev(fd, iovs, iovs_len);
     if (ret < 0) { return errno_to_wasi(errno); }
@@ -264,9 +259,8 @@ uint32_t m3_wasi_unstable_fd_datasync(uint32_t fd)
 uint32_t m3_wasi_unstable_clock_time_get(IM3Runtime    runtime,
                                          uint32_t clock_id,
                                          uint64_t precision,
-                                         uint32_t time_offset)
+                                         uint64_t* time)
 {
-    uint64_t *time = offset2addr(runtime, time_offset);
     struct timespec tp;
     clock_gettime(clock_id, &tp);
     *time = (uint64_t)tp.tv_sec * 1000000000 + tp.tv_nsec;
@@ -301,14 +295,14 @@ _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_get",       "i(Mii
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_dir_name",  "i(Miii)",  &m3_wasi_unstable_fd_prestat_dir_name)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_get",       "i(Mii)",   &m3_wasi_unstable_fd_prestat_get)));
 
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_fdstat_get",  "i(Mii)",   &m3_wasi_unstable_fd_fdstat_get)));
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_write",       "i(Miiii)", &m3_wasi_unstable_fd_write)));
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_read",        "i(Miiii)", &m3_wasi_unstable_fd_read)));
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_seek",        "i(Miiii)", &m3_wasi_unstable_fd_seek)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_fdstat_get",  "i(Mi*)",   &m3_wasi_unstable_fd_fdstat_get)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_write",       "i(Miii*)", &m3_wasi_unstable_fd_write)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_read",        "i(Miii*)", &m3_wasi_unstable_fd_read)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_seek",        "i(Miii*)", &m3_wasi_unstable_fd_seek)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_datasync",    "i(i)",     &m3_wasi_unstable_fd_datasync)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_close",       "i(i)",     &m3_wasi_unstable_fd_close)));
 
-_   (SuppressLookupFailure (m3_LinkFunction (module, "clock_time_get", "v(MiIi)",  &m3_wasi_unstable_clock_time_get)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "clock_time_get", "v(MiI*)",  &m3_wasi_unstable_clock_time_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "proc_exit",      "v(i)",     &m3_wasi_unstable_proc_exit)));
 
     _catch: return result;
