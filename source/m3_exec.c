@@ -129,6 +129,7 @@ d_m3OpDef  (MemGrow)
 	// FIX/FINISH (smassey): reallocation does need to occur here. and, op_Loop needs to refresh _mem arg from runtime
     // for now, grow memory virtually
     runtime->memory.numPages = requiredPages;
+    runtime->memory.mallocated->end = memory->wasmPages + (runtime->memory.numPages * c_m3MemPageSize);
 
 	/* m3ret_t r = ResizeMemory (& _mem, runtime, requiredPages);
 

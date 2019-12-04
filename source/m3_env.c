@@ -206,9 +206,9 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
         M3Memory * memory = & io_runtime->memory;
         
         // TODO: allocate only required memory when Grow is implemented
-		size_t numPageBytes = 256 * c_m3MemPageSize; //i_module->memoryInfo.initPages * c_m3MemPageSize;
+		size_t numPageBytes = 256 * c_m3MemPageSize; //TODO: i_module->memoryInfo.initPages * c_m3MemPageSize;
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
-        
+
         memory->mallocated = (M3MemoryHeader *) m3Realloc (memory->mallocated, numBytes, 0);
 		
 		if (memory->mallocated)
@@ -217,7 +217,7 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 			memory->maxPages = i_module->memoryInfo.maxPages;
 			memory->wasmPages = (u8 *) (memory->mallocated + 1);
 			
-			memory->mallocated->end = memory->wasmPages + numPageBytes;
+			memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize); //TODO: numPageBytes;
 			memory->mallocated->runtime = io_runtime;
 		}
 		else _throw (c_m3Err_mallocFailed);
