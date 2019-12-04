@@ -20,6 +20,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/random.h>
+
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
@@ -256,13 +258,21 @@ uint32_t m3_wasi_unstable_fd_datasync(uint32_t fd)
     return ret == 0 ? __WASI_ESUCCESS : ret;
 }
 
+uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
+{
+    getrandom(buf, buflen, GRND_RANDOM);
+    return __WASI_ESUCCESS;
+}
+
 uint32_t m3_wasi_unstable_clock_time_get(IM3Runtime    runtime,
-                                         uint32_t clock_id,
-                                         uint64_t precision,
-                                         uint64_t* time)
+                                         __wasi_clockid_t clock_id,
+                                         __wasi_timestamp_t precision,
+                                         __wasi_timestamp_t* time)
 {
     struct timespec tp;
     clock_gettime(clock_id, &tp);
+
+    //printf("=== time: %lu.%09u\n", tp.tv_sec, tp.tv_nsec);
     *time = (uint64_t)tp.tv_sec * 1000000000 + tp.tv_nsec;
     return __WASI_ESUCCESS;
 }
@@ -302,10 +312,16 @@ _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_seek",        "i(Miii*)
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_datasync",    "i(i)",     &m3_wasi_unstable_fd_datasync)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_close",       "i(i)",     &m3_wasi_unstable_fd_close)));
 
+//_   (SuppressLookupFailure (m3_LinkFunction (module, "sock_send",     "i(Miii*)",    &...)));
+//_   (SuppressLookupFailure (m3_LinkFunction (module, "sock_recv",     "i(Miii*)",    &...)));
+
+_   (SuppressLookupFailure (m3_LinkFunction (module, "random_get",     "v(*i)",    &m3_wasi_unstable_random_get)));
+
 _   (SuppressLookupFailure (m3_LinkFunction (module, "clock_time_get", "v(MiI*)",  &m3_wasi_unstable_clock_time_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "proc_exit",      "v(i)",     &m3_wasi_unstable_proc_exit)));
 
-    _catch: return result;
+_catch:
+    return result;
 }
 
 
