@@ -2,6 +2,8 @@
 
 ```sh
 wasicc -O3 wasi_printf.c -o wasi_printf.wasm
+wasm-opt -O3 wasi_printf.wasm -o wasi_printf.wasm
+wasm-strip wasi_printf.wasm
 ```
 
 ## Run
