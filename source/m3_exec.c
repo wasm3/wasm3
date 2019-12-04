@@ -118,14 +118,22 @@ d_m3OpDef  (MemGrow)
 
     size_t requiredPages = memory->numPages + _r0;
 
+    if (memory->maxPages && requiredPages > memory->maxPages)
+    {
+    	_r0 = -1;
+    	return nextOp ();
+    }
+
     _r0 = memory->numPages;
 
 	// FIX/FINISH (smassey): reallocation does need to occur here. and, op_Loop needs to refresh _mem arg from runtime
-	
+    // for now, grow memory virtually
+    runtime->memory.numPages = requiredPages;
+
 	/* m3ret_t r = ResizeMemory (& _mem, runtime, requiredPages);
 
 	 if (r)
-		returrn r;
+		return r;
 	 else
 	 
 	*/

@@ -84,11 +84,7 @@ typedef struct M3Memory
     u8 *                    wasmPages;                  // = mallocated + sizeof (M3MemoryHeader)
 
 	size_t					numPages;
-	
-//    size_t                  virtualSize;
-
-//    size_t                  heapOffset;
-//    size_t                  heapAllocated;
+	size_t					maxPages;
 }
 M3Memory;
 
