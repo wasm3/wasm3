@@ -159,7 +159,7 @@ int  main  (int i_argc, const char* i_argv[])
             return 1;
         }
         ARGV_SET(argFile);
-        if (!argFunc) argFunc = "_start";
+        if (!argFunc) ARGV_SET(argFunc); //argFunc = "_start"; //TODO: reverted for now
     }
 
     //printf("=== argFile: %s, argFunc: %s, args: %d\n", argFile, argFunc, i_argc);
