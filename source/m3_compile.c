@@ -1181,8 +1181,14 @@ _       (Compile_ElseBlock (o, pc, blockType));
 
 M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 {
-    static const IM3Operation selectOps [2] [4] = { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
-                                                    { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
+    static const IM3Operation intSelectOps [2] [4] =      { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
+                                                            { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
+
+    static const IM3Operation fpSelectOps [2] [2] [3] = { { { op_Select_f32_sss, op_Select_f32_srs, op_Select_f32_ssr },        // selector in slot
+                                                            { op_Select_f32_rss, op_Select_f32_rrs, op_Select_f32_rsr } },      // selector in reg
+                                                          { { op_Select_f64_sss, op_Select_f64_srs, op_Select_f64_ssr },        // selector in slot
+                                                            { op_Select_f64_rss, op_Select_f64_rrs, op_Select_f64_rsr } } };    // selector in reg
+
 
     M3Result result = c_m3Err_none;
 
@@ -1190,14 +1196,37 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 
     u8 type = GetStackType (o, 1); // get type of selection
     
-    if (IsFpType (type))
-        _throw ("FP select unimplemented");  // smassey: working on this. fp select is a tad more complex than int case.
+    IM3Operation op = NULL;
     
-    if (type != c_m3Type_none)
+    if (IsFpType (type))
     {
-        int opIndex = 3;  // op_Select_*_sss
+        bool selectorInReg = IsStackTopInRegister (o);
+        slots [0] = GetStackTopExecSlot (o);
+_       (Pop (o));
+        
+        u32 opIndex = 0;
 
-        for (u32 i = 0; i < 3; i++)
+        for (u32 i = 1; i <= 2; ++i)
+        {
+            if (IsStackTopInRegister (o))
+                opIndex = i;
+            else
+                slots [i] = GetStackTopExecSlot (o);
+
+_          (Pop (o));
+        }
+        
+        // not consuming a fp reg, so preserve
+        if (opIndex == 0)
+_          (PreserveRegisterIfOccupied (o, type));
+        
+        op = fpSelectOps [type - c_m3Type_f32] [selectorInReg] [opIndex];
+    }
+    else if (IsIntType (type))
+    {
+        u32 opIndex = 3;  // op_Select_*_sss
+
+        for (u32 i = 0; i < 3; ++i)
         {
             if (IsStackTopInRegister (o))
                 opIndex = i;
@@ -1208,21 +1237,20 @@ _          (Pop (o));
         }
 
         // 'sss' operation doesn't consume a register, so might have to protected its contents
-        if (opIndex == 3) {
+        if (opIndex == 3)
 _          (PreserveRegisterIfOccupied (o, type));
-        }
         
-        EmitOp (o, selectOps [type - 1] [opIndex]);
-
-        for (u32 i = 0; i < 3; i++)
-        {
-            if (slots [i] != 0xffff)
-                EmitConstant (o, slots [i]);
-        }
-
-        PushRegister (o, type);
+        op = intSelectOps [type - c_m3Type_i32] [opIndex];
     }
-    else result = c_m3Err_functionStackUnderrun;
+    else _throw (c_m3Err_functionStackUnderrun);
+    
+    EmitOp (o, op);
+    for (u32 i = 0; i < 3; i++)
+    {
+        if (slots [i] != 0xffff)
+            EmitConstant (o, slots [i]);
+    }
+    PushRegister (o, type);
 
     _catch: return result;
 }
