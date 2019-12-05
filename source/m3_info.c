@@ -160,12 +160,32 @@ OpInfo FindOperationInfo  (IM3Operation i_operation)
 }
 
 
+#define fetch2(TYPE) (*(TYPE *) ((*o_pc)++))
+
+void  Decode_Call  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+{
+    void * function = fetch2 (void *);
+    u16 stackOffset = fetch2 (u16);
+    
+    sprintf (o_string, "%p; stack-offset: %d", function, stackOffset);
+}
+
+
+void  Decode_Entry  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+{
+    IM3Function function = fetch2 (IM3Function);
+    
+    sprintf (o_string, "%s", function->name);
+}
+
+
+#undef fetch
+#define fetch(TYPE) (*(TYPE *) (pc++))
+
 void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
     pc_t pc = * o_pc;
 
-    #undef fetch
-    #define fetch(TYPE) (*(TYPE *) (pc++))
 
     i32 offset;
     
@@ -191,6 +211,12 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
         u64 value = fetch (u64); offset = fetch (i32);
         sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
     }
+    else if (i_opcode == 0xc1) // entry
+    {
+        Decode_Entry (o_string, i_opcode, i_opInfo, o_pc);
+    }
+    else if (i_opcode == c_waOp_call)
+        Decode_Call (o_string, i_opcode, i_opInfo, o_pc);
 
     #undef fetch
 

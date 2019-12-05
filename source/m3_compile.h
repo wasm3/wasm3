@@ -35,6 +35,7 @@ enum
     c_waOp_branch               = 0x0c,
     c_waOp_branchTable          = 0x0e,
     c_waOp_branchIf             = 0x0d,
+    c_waOp_call                 = 0x10,
     c_waOp_getLocal             = 0x20,
     c_waOp_setLocal             = 0x21,
     c_waOp_teeLocal             = 0x22,

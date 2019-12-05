@@ -1212,7 +1212,7 @@ _          (Pop (o));
 _          (PreserveRegisterIfOccupied (o, type));
         }
         
-        EmitOp (o, selectOps [type] [opIndex]);
+        EmitOp (o, selectOps [type - 1] [opIndex]);
 
         for (u32 i = 0; i < 3; i++)
         {
@@ -1355,7 +1355,7 @@ const M3OpInfo c_operations [] =
     M3OP( "br_if",              -1, none,   d_emptyOpList(),                Compile_Branch ),       // 0x0d
     M3OP( "br_table",           -1, none,   d_singleOp (op_BranchTable),    Compile_BranchTable ),  // 0x0e
     M3OP( "return",              0, any,    d_emptyOpList(),                Compile_Return ),       // 0x0f
-    M3OP( "call",                0, any,    d_emptyOpList(),                Compile_Call ),         // 0x10
+    M3OP( "call",                0, any,    d_singleOp (op_Call),           Compile_Call ),         // 0x10
     M3OP( "call_indirect",       0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x11
     M3OP( "return_call",         0, any,    d_emptyOpList(),                Compile_Call ),         // 0x12 TODO: Optimize
     M3OP( "return_call_indirect",0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x13
@@ -1558,7 +1558,6 @@ const M3OpInfo c_operations [] =
     M3OP( "Entry",                  0,  none,    op_Entry ),
     M3OP( "unreachable",            0,  none,    op_Unreachable ),
 
-    M3OP( "Call",                   0,  none,    op_Call),
     M3OP( "Compile",                0,  none,    op_Compile),
     
     M3OP( "SetGlobal_s",            0,  none,    op_SetGlobal_s),
