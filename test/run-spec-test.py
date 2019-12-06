@@ -85,9 +85,6 @@ def fatal(msg):
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
 
-def run(cmd):
-    return subprocess.check_output(cmd, shell=True)
-
 def filename(p):
     _, fn = os.path.split(p)
     return fn
@@ -281,8 +278,9 @@ specDir = "core/spec/"
 wasm3 = Wasm3(args.exec)
 
 blacklist = Blacklist([
-  "linking.wast:*",
-  "exports.wast:*",
+  "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
+  "*.wast:* *.wasm print32*",
+  "*.wast:* *.wasm print64*",
   "names.wast:*",
 ])
 
@@ -301,7 +299,7 @@ def runInvoke(test):
         test.cmd.append(arg['value'])
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
-    test_id = f"{test.source} -> {test.wasm} {' '.join(test.cmd)}"
+    test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
     if test_id in blacklist:
         warning(f"Skipping {test_id}")
         stats.skipped += 1
@@ -503,6 +501,13 @@ for fn in jsonFiles:
 
             test.action = dotdict(cmd["action"])
             if test.action.type == "invoke":
+
+                # TODO: invoking in modules not implemented
+                if test.action.module:
+                    stats.skipped += 1
+                    warning(f"Skipped {test.source} (invoke in module)")
+                    continue
+
                 runInvoke(test)
             else:
                 warning(f"Unknown action type '{test.action.type}'")
