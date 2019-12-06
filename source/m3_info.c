@@ -6,7 +6,7 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
-#include "m3_env.h"
+#include "m3_info.h"
 #include "m3_compile.h"
 
 #include <assert.h>
@@ -125,14 +125,6 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 }
 
 
-typedef struct OpInfo
-{
-    IM3OpInfo   info;
-    u8          opcode;
-}
-OpInfo;
-
-
 OpInfo FindOperationInfo  (IM3Operation i_operation)
 {
     OpInfo opInfo;
@@ -160,12 +152,13 @@ OpInfo FindOperationInfo  (IM3Operation i_operation)
 }
 
 
-#define fetch2(TYPE) (*(TYPE *) ((*o_pc)++))
+#undef fetch
+#define fetch(TYPE) (*(TYPE *) ((*o_pc)++))
 
 void  Decode_Call  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
-    void * function = fetch2 (void *);
-    u16 stackOffset = fetch2 (u16);
+    void * function = fetch (void *);
+    u16 stackOffset = fetch (u16);
     
     sprintf (o_string, "%p; stack-offset: %d", function, stackOffset);
 }
@@ -173,54 +166,65 @@ void  Decode_Call  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_p
 
 void  Decode_Entry  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
-    IM3Function function = fetch2 (IM3Function);
+    IM3Function function = fetch (IM3Function);
     
     sprintf (o_string, "%s", function->name);
 }
 
+#define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+
+d_m3Decoder  (Branch)
+{
+    void * target = fetch (void *);
+    sprintf (o_string, "%p", target);
+}
+
+void  Decode_BranchTable  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+{
+    u16 slot = fetch (u16);
+    
+    sprintf (o_string, "slot: %" PRIu16 "; targets: ", slot);
+    
+//    IM3Function function = fetch2 (IM3Function);
+    
+    m3reg_t targets = fetch (m3reg_t);
+    
+    char str [1000];
+    
+    for (m3reg_t i = 0; i <targets; ++i)
+    {
+        pc_t addr = fetch (pc_t);
+        sprintf (str, "%" PRIu64 "=%p, ", i, addr);
+        strcat (o_string, str);
+    }
+    
+    pc_t addr = fetch (pc_t);
+    sprintf (str, "def=%p ", addr);
+    strcat (o_string, str);
+}
+
+
+void  Decode_Const  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+{
+    u64 value = fetch (u64); i32 offset = fetch (i32);
+    sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
+}
+
 
 #undef fetch
-#define fetch(TYPE) (*(TYPE *) (pc++))
 
 void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
-    pc_t pc = * o_pc;
+    #define d_m3Decode(OPCODE, FUNC) case OPCODE: Decode_##FUNC (o_string, i_opcode, i_opInfo, o_pc); break;
 
-
-    i32 offset;
-    
-    if (i_opcode == c_waOp_branchTable)
+    switch (i_opcode)
     {
-        m3reg_t targets = fetch (m3reg_t);
-        
-        char str [1000];
-
-        for (m3reg_t i = 0; i <targets; ++i)
-        {
-            pc_t addr = fetch (pc_t);
-            sprintf (str, "%" PRIu64 ": %p, ", i, addr);
-            strcat (o_string, str);
-        }
-        
-        pc_t addr = fetch (pc_t);
-        sprintf (str, "def: %p ", addr);
-        strcat (o_string, str);
+        d_m3Decode (0xc0,                  Const)
+        d_m3Decode (0xc1,                  Entry)
+        d_m3Decode (c_waOp_call,           Call)
+        d_m3Decode (c_waOp_branch,         Branch)
+        d_m3Decode (c_waOp_branchTable,    BranchTable)
     }
-    else if (i_opcode == 0xbf+1) // const
-    {
-        u64 value = fetch (u64); offset = fetch (i32);
-        sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
-    }
-    else if (i_opcode == 0xc1) // entry
-    {
-        Decode_Entry (o_string, i_opcode, i_opInfo, o_pc);
-    }
-    else if (i_opcode == c_waOp_call)
-        Decode_Call (o_string, i_opcode, i_opInfo, o_pc);
-
-    #undef fetch
-
-    * o_pc = pc;
 }
 
 
@@ -238,6 +242,7 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 
         while (pc < end)
         {
+            pc_t operationPC = pc;
             IM3Operation op = (IM3Operation) (* pc++);
 
             if (op)
@@ -247,9 +252,10 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
                 if (i.info)
                 {
                     char infoString [1000] = { 0 };
+                    
                     DecodeOperation (infoString, i.opcode, i.info, & pc);
 
-                    m3log (code, "%p | %20s  %s", pc - 1, i.info->name, infoString);
+                    m3log (code, "%p | %20s  %s", operationPC, i.info->name, infoString);
                 }
 //                else break;
             }
