@@ -25,9 +25,9 @@ The `coremark` files in this directory are produced by:
 ```sh
 source /opt/emsdk/emsdk_env.sh --build=Release
 
-$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi-nofp.wasm XCFLAGS="-DHAS_FLOAT=0"
-$ make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm
-$ make compile PORT_DIR=linux CC=emcc   EXE=.html
+make compile PORT_DIR=linux CC=wasicc EXE=-wasi-nofp.wasm XCFLAGS="-DHAS_FLOAT=0"
+make compile PORT_DIR=linux CC=wasicc EXE=-wasi.wasm
+make compile PORT_DIR=linux CC=emcc   EXE=.html
 ```
 
 **Note:** do not forget to update your SDK
@@ -76,11 +76,10 @@ node ./coremark.js
 ### Running native version
 
 ```sh
-# Native on the same machine => 17849.705480
-make compile PORT_DIR=linux CC=gcc EXE=.elf XCFLAGS="-m32"
-./coremark.elf
+# Native on the same machine
+make compile PORT_DIR=linux CC=gcc EXE=-x86.elf XCFLAGS="-m32"
+./coremark-x86.elf
 
-# Native on the same machine => 20202.020202
 make compile PORT_DIR=linux64 CC=gcc EXE=.elf
 ./coremark.elf
 ```
