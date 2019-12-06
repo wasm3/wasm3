@@ -27,6 +27,10 @@
 #include <errno.h>
 #include <stdio.h>
 
+//TODO
+#define PREOPEN_CNT   3
+#define NANOS_PER_SEC 1000000000
+
 typedef uint32_t __wasi_size_t;
 
 struct wasi_iovec
@@ -39,9 +43,6 @@ typedef struct Preopen {
     char       *path;
     unsigned   path_len;
 } Preopen;
-
-//TODO
-#define PREOPEN_CNT 3
 
 Preopen      preopen[PREOPEN_CNT] = {
     { .path = "<stdin>",  .path_len = 7, },
@@ -267,21 +268,33 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
             return errno_to_wasi(errno);
         }
         if (retlen == buflen) { return __WASI_ESUCCESS; }
-        buf = (void *)((unsigned char *)buf + retlen);
+        buf = (void *)((uint8_t *)buf + retlen);
         buflen -= retlen;
     }
 }
 
-uint32_t m3_wasi_unstable_clock_time_get(IM3Runtime    runtime,
-                                         __wasi_clockid_t clock_id,
-                                         __wasi_timestamp_t precision,
+uint32_t m3_wasi_unstable_clock_res_get(IM3Runtime          runtime,
+                                        __wasi_clockid_t    clock_id,
+                                        __wasi_timestamp_t* resolution)
+{
+    struct timespec tp;
+    if (clock_getres(clock_id, &tp) != 0)
+        *resolution = 1000000;
+    else
+        *resolution = (tp.tv_sec * NANOS_PER_SEC) + tp.tv_nsec;
+    return __WASI_ESUCCESS;
+}
+
+uint32_t m3_wasi_unstable_clock_time_get(IM3Runtime          runtime,
+                                         __wasi_clockid_t    clock_id,
+                                         __wasi_timestamp_t  precision,
                                          __wasi_timestamp_t* time)
 {
     struct timespec tp;
-    clock_gettime(clock_id, &tp);
+    if (clock_gettime(clock_id, &tp) != 0) { return errno_to_wasi(errno); }
 
     //printf("=== time: %lu.%09u\n", tp.tv_sec, tp.tv_nsec);
-    *time = (uint64_t)tp.tv_sec * 1000000000 + tp.tv_nsec;
+    *time = (uint64_t)tp.tv_sec * NANOS_PER_SEC + tp.tv_nsec;
     return __WASI_ESUCCESS;
 }
 
@@ -325,6 +338,7 @@ _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_close",       "i(i)",  
 
 _   (SuppressLookupFailure (m3_LinkFunction (module, "random_get",     "v(*i)",    &m3_wasi_unstable_random_get)));
 
+_   (SuppressLookupFailure (m3_LinkFunction (module, "clock_res_get",  "v(Mi*)",   &m3_wasi_unstable_clock_res_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "clock_time_get", "v(MiI*)",  &m3_wasi_unstable_clock_time_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "proc_exit",      "v(i)",     &m3_wasi_unstable_proc_exit)));
 
