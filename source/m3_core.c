@@ -356,7 +356,7 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
         {
             result = c_m3Err_none;
 
-            if (byte & 0x40 and shift < 64)    // do sign extension
+            if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
                 u64 extend = 1;
                 extend <<= shift;
