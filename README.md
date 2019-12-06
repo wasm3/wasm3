@@ -10,11 +10,11 @@ This is an (experimental) high performance WebAssembly interpreter written in C.
 **∼ 13.5x faster** than other wasm interpreters (`wac`, `life`, `wasm-micro-runtime`)  
 **∼ 5..6x slower** than state of the art wasm `JIT` engines (`liftoff`, `cranelift`)  
 **∼ 12.5x slower** than native execution  
-<sub>* Based on **CoreMark 1.0** benchmark. Your mileage may vary.</sub>
+<sub>* Based on [**CoreMark 1.0** benchmark](/test/benchmark/coremark). Your mileage may vary.</sub>
 
 ## Status
 
-WebAssembly Core Specification conformance: **94%**
+WebAssembly Core Specification conformance: **96%**
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
