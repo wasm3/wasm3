@@ -13,13 +13,9 @@
 # - Fix "Empty Stack" check
 # - Check Canonical NaN and Arithmetic NaN separately
 # - Fix names.wast
-# - Detect timeout (hangs)
 
 import argparse
-import os
-import os.path
-import glob
-import sys
+import os, sys, glob, time
 import json
 import re
 import struct
@@ -186,14 +182,15 @@ class Wasm3():
     def __init__(self, executable):
         self.exe = executable
         self.p = None
+        self.timeout = 3.0
 
-    def load(self, wasm):
+    def load(self, fn):
         if self.p:
             self.terminate()
 
-        self.wasm = wasm
+        self.loaded = fn
         self.p = Popen(
-            [self.exe, "--repl", wasm],
+            [self.exe, "--repl", fn],
             shell = False,
             bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT
         )
@@ -212,26 +209,31 @@ class Wasm3():
         cmd = " ".join(map(str, cmd)) + "\n"
         self._flush_input()
         self._write(cmd)
-        res = self._read_until("\nwasm3> ")
-        #print("INVOKE", cmd, "=>", res)
-        return res
+        return self._read_until("\nwasm3> ")
 
     def _read_until(self, token):
         buff = ""
-        while True:
+        tout = time.time() + self.timeout
+        error = None
+
+        while time.time() < tout:
             try:
-                data = self.q.get(timeout=0.2)
+                data = self.q.get(timeout=0.1)
                 if data == None:
+                    error = "Crashed"
                     break
                 buff = buff + data.decode("utf-8")
-                if token in buff:
-                    return buff
+                idx = buff.rfind(token)
+                if idx >= 0:
+                    return buff[0:idx]
             except Empty:
                 pass
+        else:
+            error = "Timeout"
 
         # Crash => restart
-        self.load(self.wasm)
-        raise Exception("Crashed")
+        self.load(self.loaded)
+        raise Exception(error)
 
     def _write(self, data):
         if not self._is_running():
@@ -282,10 +284,9 @@ blacklist = Blacklist([
   "linking.wast:*",
   "exports.wast:*",
   "names.wast:*",
-  #"names.wast:608*",
 ])
 
-stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, success=0, missing=0)
+stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
 
 # Convert some trap names from the original spec
 trapmap = {
@@ -300,7 +301,7 @@ def runInvoke(test):
         test.cmd.append(arg['value'])
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
-    test_id = f"{test.source} {' '.join(test.cmd)}"
+    test_id = f"{test.source} -> {test.wasm} {' '.join(test.cmd)}"
     if test_id in blacklist:
         warning(f"Skipping {test_id}")
         stats.skipped += 1
@@ -317,7 +318,7 @@ def runInvoke(test):
     try:
         output = wasm3.invoke(test.cmd).strip()
     except Exception as e:
-        stats.crashed += 1
+        output = ""
         actual = f"<{e}>"
 
     # Parse the actual output
@@ -340,6 +341,10 @@ def runInvoke(test):
     if actual == "error no operation ()":
         actual = "<Not Implemented>"
         stats.missing += 1
+    elif actual == "<Crashed>":
+        stats.crashed += 1
+    elif actual == "<Timeout>":
+        stats.timeout += 1
 
     # Prepare the expected result
     expect = None
@@ -379,14 +384,13 @@ def runInvoke(test):
         print(" ----------------------")
         print(f"Test:     {ansi.HEADER}{test.source}{ansi.ENDC} -> {' '.join(test.cmd)}")
         print(f"Args:     {', '.join(displayArgs)}")
-        #print(f"RetCode:  {wasm3.returncode}")
         print(f"Expected: {ansi.OKGREEN}{expect}{ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
         if args.show_logs and len(output):
             print(f"Log:")
             print(output)
 
-    log.write(f"{test.source}\t|\t{filename(wasm)} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
+    log.write(f"{test.source}\t|\t{test.wasm} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
     if actual == expect or (expect == "<Anything>" and actual != "<Crashed>"):
         stats.success += 1
         log.write(f"OK: {actual}\n")
@@ -453,6 +457,7 @@ for fn in jsonFiles:
         data = json.load(f)
 
     wast_source = filename(data["source_filename"])
+    wast_module = ""
 
     print(f"Running {fn}")
 
@@ -460,13 +465,14 @@ for fn in jsonFiles:
         test = dotdict()
         test.line = int(cmd["line"])
         test.source = wast_source + ":" + str(test.line)
+        test.wasm = wast_module
         test.type = cmd["type"]
 
         if test.type == "module":
-            module = cmd["filename"]
+            wast_module = cmd["filename"]
 
-            wasm = os.path.relpath(os.path.join(coreDir, module), curDir)
-            wasm3.load(wasm)
+            fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
+            wasm3.load(fn)
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
