@@ -159,8 +159,8 @@ uint32_t m3_wasi_unstable_environ_sizes_get(IM3Runtime runtime,
     if (runtime == NULL) { return __WASI_EINVAL; }
     __wasi_size_t *environ_count    = offset2addr(runtime, environ_count_offset);
     __wasi_size_t *environ_buf_size = offset2addr(runtime, environ_buf_size_offset);
-    *environ_count = 0;
-    *environ_buf_size = 0;
+    *environ_count = 0; // TODO
+    *environ_buf_size = 0; // TODO
     return __WASI_ESUCCESS;
 }
 
@@ -224,7 +224,12 @@ uint32_t m3_wasi_unstable_fd_seek(IM3Runtime          runtime,
 
     int wasi_whence = whence == __WASI_WHENCE_END ? SEEK_END :
                                 __WASI_WHENCE_CUR ? SEEK_CUR : 0;
-    int64_t ret = lseek(fd, offset, wasi_whence);
+    int64_t ret;
+#if defined(M3_COMPILER_MSVC)
+    ret = _lseeki64(fd, offset, wasi_whence);
+#else
+    ret = lseek(fd, offset, wasi_whence);
+#endif
     if (ret < 0) { return errno_to_wasi(errno); }
     *result = ret;
     return __WASI_ESUCCESS;
