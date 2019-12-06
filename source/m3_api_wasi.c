@@ -260,8 +260,16 @@ uint32_t m3_wasi_unstable_fd_datasync(uint32_t fd)
 
 uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
 {
-    getrandom(buf, buflen, GRND_RANDOM);
-    return __WASI_ESUCCESS;
+    while (1) {
+        ssize_t retlen = getrandom(buf, buflen, 0);
+        if (retlen < 0) {
+            if (errno == EINTR) { continue; }
+            return errno_to_wasi(errno);
+        }
+        if (retlen == buflen) { return __WASI_ESUCCESS; }
+        buf = (void *)((unsigned char *)buf + retlen);
+        buflen -= retlen;
+    }
 }
 
 uint32_t m3_wasi_unstable_clock_time_get(IM3Runtime    runtime,
