@@ -2,8 +2,8 @@
 
 ```sh
 wasicc -O3 test.c -o test.wasm
-wasm-opt -O3 test.wasm -o test.wasm
-wasm-strip test.wasm
+wasm-opt -O3 test.wasm -o test-opt.wasm
+wasm-strip test-opt.wasm
 ```
 
 ## Run

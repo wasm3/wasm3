@@ -109,7 +109,7 @@ int main()
   test_constructor();
   test_printf();
   test_gettime();
-  //test_random();
+  test_random();
   test_fib10();
   test_perf_fib38();
   return 0;
