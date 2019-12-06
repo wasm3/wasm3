@@ -399,7 +399,12 @@ def runInvoke(test):
             print(output)
 
     log.write(f"{test.source}\t|\t{test.wasm} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
-    if actual != expect or force_fail:
+    if actual == expect or (expect == "<Anything>" and not force_fail):
+        stats.success += 1
+        log.write(f"OK: {actual}\n")
+        if args.line:
+            showTestResult()
+    else:
         stats.failed += 1
         log.write(f"FAIL: {actual}, should be: {expect}\n")
         if args.silent: return
@@ -407,11 +412,6 @@ def runInvoke(test):
 
         showTestResult()
         #sys.exit(1)
-    else:
-        stats.success += 1
-        log.write(f"OK: {actual}\n")
-        if args.line:
-            showTestResult()
 
 if not os.path.isdir(coreDir):
     if not os.path.isdir(specDir):
