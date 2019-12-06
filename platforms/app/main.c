@@ -104,16 +104,16 @@ int split_argv(char *str, const char** argv)
 }
 
 void print_version() {
-    printf("wasm3 v0.4.0\n");
+    puts("wasm3 v0.4.0");
 }
 
 void print_usage() {
-    printf("Usage:\n");
-    printf("  wasm3 <file> [args...]\n");
-    printf("  wasm3 --func <function> <file> [args...]\n");
-    printf("Repl usage:\n");
-    printf("  wasm3 --repl [file] [function] [args...]\n");
-    printf("  wasm3 --repl --func <function> <file> [args...]\n");
+    puts("Usage:");
+    puts("  wasm3 <file> [args...]");
+    puts("  wasm3 --func <function> <file> [args...]");
+    puts("Repl usage:");
+    puts("  wasm3 --repl [file] [function] [args...]");
+    puts("  wasm3 --repl --func <function> <file> [args...]");
 }
 
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
@@ -187,7 +187,7 @@ int  main  (int i_argc, const char* i_argv[])
     {
         char cmd_buff[128] = {};
         const char* argv[32] = {};
-        fprintf(stdout, "> ");
+        fprintf(stdout, "wasm3> ");
         fflush(stdout);
         if (!fgets(cmd_buff, sizeof(cmd_buff), stdin)) {
             return 0;
@@ -197,27 +197,23 @@ int  main  (int i_argc, const char* i_argv[])
             continue;
         }
         M3Result result = c_m3Err_none;
-        if (!strcmp("init", argv[0])) {
+        if (!strcmp(":init", argv[0])) {
             result = repl_init(&env);
-        } else if (!strcmp("exit", argv[0])) {
+        } else if (!strcmp(":exit", argv[0])) {
             repl_free(&env);
             return 0;
-        } else if (!strcmp("load", argv[0])) {
+        } else if (!strcmp(":load", argv[0])) {
             result = repl_load(env, argv[1]);
-        } else if (!strcmp("call", argv[0])) {
-            result = repl_call(env, argv[1], argc-2, argv+2);
-        } else {
+        } else if (argv[0][0] == ':') {
             result = "no such command";
+        } else {
+            result = repl_call(env, argv[0], argc-1, argv+1);
         }
 
         if (result) {
             printf ("Error: %s", result);
             M3ErrorInfo info = m3_GetErrorInfo (env);
-            if (strlen(info.message)) {
-                printf (" (%s)\n", info.message);
-            } else {
-                printf ("\n");
-            }
+            printf (" (%s)\n", info.message);
         }
     }
 

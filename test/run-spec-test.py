@@ -12,11 +12,11 @@
 # - Get more tests from: https://github.com/microsoft/ChakraCore/tree/master/test/WasmSpec
 # - Fix "Empty Stack" check
 # - Check Canonical NaN and Arithmetic NaN separately
+# - Fix names.wast
 
 import argparse
 import os
 import os.path
-import subprocess
 import glob
 import sys
 import json
@@ -167,6 +167,82 @@ def specTestsPreprocess():
         run(f"wast2json --debug-names -o {json_fn} {wast_fn}")
 
 #
+# Wasm3 REPL
+#
+
+from subprocess import Popen, STDOUT, PIPE
+from threading import Thread
+from queue import Queue, Empty
+
+class Wasm3():
+    def __init__(self, executable):
+        self.exe = executable
+        self.p = None
+
+    def load(self, wasm):
+        if self.p:
+            self.terminate()
+
+        self.wasm = wasm
+        self.p = Popen(
+            [self.exe, "--repl", wasm],
+            shell = False,
+            bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT
+        )
+
+        def _read_output(out, queue):
+            for data in iter(lambda: out.read(1024), b''):
+                queue.put(data)
+
+        self.q = Queue()
+        self.t = Thread(target=_read_output, args=(self.p.stdout, self.q))
+        self.t.daemon = True
+        self.t.start()
+
+    def invoke(self, cmd):
+        cmd = " ".join(map(str, cmd)) + "\n"
+        self._flush_input()
+        self._write(cmd)
+        res = self._read_until("\nwasm3> ")
+        #print("INVOKE", cmd, "=>", res)
+        return res
+
+    def _read_until(self, token):
+        buff = ""
+        while self._is_running():
+            try:
+                data = self.q.get(timeout=0.2).decode("utf-8")
+                buff = buff + data
+                if token in buff:
+                    return buff
+            except Empty:
+                pass
+
+        # Crash => restart
+        self.load(self.wasm)
+        raise Exception("Crashed")
+
+    def _write(self, data):
+        if not self._is_running():
+            raise Exception("Not running")
+        self.p.stdin.write(data.encode("utf-8"))
+        self.p.stdin.flush()
+
+    def _is_running(self):
+        return self.p and (self.p.poll() == None)
+
+    def _flush_input(self):
+        while not self.q.empty():
+            self.q.get_nowait()
+
+    def terminate(self):
+        self.p.stdin.close()
+        self.p.terminate()
+        self.p.wait(timeout=1.0)
+        self.p = None
+
+
+#
 # Actual test
 #
 
@@ -175,6 +251,7 @@ coreDir = os.path.join(curDir, "core")
 specDir = "core/spec/"
 
 
+wasm3 = Wasm3(args.exec)
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, success=0, missing=0)
 
@@ -184,8 +261,7 @@ trapmap = {
 }
 
 def runInvoke(test):
-    wasm = os.path.relpath(os.path.join(coreDir, test.module), curDir)
-    cmd = [args.exec, wasm, test.action.field]
+    cmd = [test.action.field]
 
     displayArgs = []
     for arg in test.action.args:
@@ -195,31 +271,27 @@ def runInvoke(test):
     if args.verbose:
         print(f"Running {' '.join(cmd)}")
 
-    try:
-        wasm3 = subprocess.run(cmd, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except ValueError:
-        stats.skipped += 1
-        return
-
-    output = (wasm3.stdout + wasm3.stderr).strip()
-
-    # Parse the actual output
     actual = None
     actual_val = None
-    if len(output) == 0 or wasm3.returncode < 0:
+
+    try:
+        output = wasm3.invoke(cmd).strip()
+    except Exception as e:
         stats.crashed += 1
-        actual = "<Crashed>"
+        actual = f"<{e}>"
+
+    # Parse the actual output
     if not actual:
-        result = re.findall(r'^Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(r'Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
             actual = "result " + result[-1]
             actual_val = result[0]
     if not actual:
-        result = re.findall(r'^Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(r'Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
             actual = "trap " + result[-1]
     if not actual:
-        result = re.findall(r'^Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(r'Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
             actual = "error " + result[-1]
     if not actual:
@@ -258,6 +330,8 @@ def runInvoke(test):
             test.expected_trap = trapmap[test.expected_trap]
 
         expect = "trap " + str(test.expected_trap)
+    elif "expected_anything" in test:
+        expect = "<Anything>"
     else:
         expect = "<Unknown>"
 
@@ -273,7 +347,7 @@ def runInvoke(test):
             print(output)
 
     log.write(f"{test.source}\t|\t{filename(wasm)} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
-    if actual == expect:
+    if actual == expect or (expect == "<Anything>" and actual != "<Crashed>"):
         stats.success += 1
         log.write(f"OK: {actual}\n")
         if args.line:
@@ -303,13 +377,19 @@ elif args.all:
 else:
     jsonFiles = list(map(lambda x : f"./core/{x}.json", [
         #--- Complete ---
+        "get_local", "set_local", "tee_local",
+        "globals",
+
+        "int_literals",
         "i32", "i64",
         "int_exprs",
 
+        "float_literals",
         "f32", "f32_cmp", "f32_bitwise",
         "f64", "f64_cmp", "f64_bitwise",
         "float_misc",
 
+        "select",
         "conversions",
         "stack", "fac",
         "call", "call_indirect",
@@ -317,23 +397,19 @@ else:
         "break-drop",
         "forward",
         "func_ptrs",
-        "endianness",
-        "int_literals",
 
-        #--- Almost ready ---
-        #"memory_trap", "address",     -> init memory size + track memory bounds
-        #"float_memory",
-        #"memory_redundancy", "memory_grow",
+        "address", "align", "endianness",
+        "memory_redundancy", "float_memory",
 
         #--- TODO ---
-        #"get_local", "set_local", "tee_local",
-        #"if", "loop", "labels", "block", "br", "br_if", "br_table", "return",
-        #"nop", "unreachable",
-        #"align", "memory",
-        #"float_literals",
-        #"globals",
-        #"func",
+        #"start",
+        #"if", "loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
         #"float_exprs",
+        #"memory_trap",
+        #"memory_grow",
+        #"nop", "unreachable",
+        #"memory",
+        #"func",
         #"elem",
         #"switch",
     ]))
@@ -343,7 +419,6 @@ for fn in jsonFiles:
         data = json.load(f)
 
     wast_source = filename(data["source_filename"])
-    wast_module = ""
 
     if wast_source in ["linking.wast", "exports.wast", "names.wast"]:
         count = len(data["commands"])
@@ -357,11 +432,13 @@ for fn in jsonFiles:
         test = dotdict()
         test.line = int(cmd["line"])
         test.source = wast_source + ":" + str(test.line)
-        test.module = wast_module
         test.type = cmd["type"]
 
         if test.type == "module":
-            wast_module = cmd["filename"]
+            module = cmd["filename"]
+
+            wasm = os.path.relpath(os.path.join(coreDir, module), curDir)
+            wasm3.load(wasm)
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
@@ -376,7 +453,9 @@ for fn in jsonFiles:
             if args.verbose:
                 print(f"Checking {test.source}")
 
-            if test.type == "assert_return":
+            if test.type == "action":
+                test.expected_anything = True
+            elif test.type == "assert_return":
                 test.expected = cmd["expected"]
             elif test.type == "assert_return_canonical_nan":
                 test.expected = cmd["expected"]
