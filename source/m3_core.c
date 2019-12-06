@@ -10,13 +10,13 @@
 #include "m3_core.h"
 
 void m3NotImplemented() {
-    puts("Not implemented\n");
+    puts("Error: Not implemented");
     abort();
 }
 
 void m3AbortIfNot(bool condition) {
     if (!condition) {
-        puts("Fatal error\n");
+        puts("Error: Fatal");
         abort();
     }
 }
