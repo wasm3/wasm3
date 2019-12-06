@@ -44,7 +44,7 @@ typedef struct Preopen {
     unsigned   path_len;
 } Preopen;
 
-Preopen      preopen[PREOPEN_CNT] = {
+Preopen preopen[PREOPEN_CNT] = {
     { .path = "<stdin>",  .path_len = 7, },
     { .path = "<stdout>", .path_len = 8, },
     { .path = "<stderr>", .path_len = 8, },
@@ -105,13 +105,13 @@ void *offset2addr(IM3Runtime m, uint32_t offset) {
 }
 
 static
-void copy_iov_to_host(struct iovec* host_iov, IM3Runtime m, uint32_t iov_offset, int32_t iovs_len)
+void copy_iov_to_host(struct iovec* host_iov, IM3Runtime runtime, uint32_t iov_offset, int32_t iovs_len)
 {
     // Convert wasi_memory offsets to host addresses
-    struct wasi_iovec *wasi_iov = offset2addr(m, iov_offset);
+    struct wasi_iovec *wasi_iov = offset2addr(runtime, iov_offset);
     for (int i = 0; i < iovs_len; i++) {
-        host_iov[i].iov_base = offset2addr(m, wasi_iov[i].iov_base);
-        host_iov[i].iov_len = wasi_iov[i].iov_len;
+        host_iov[i].iov_base = offset2addr(runtime, wasi_iov[i].iov_base);
+        host_iov[i].iov_len  = wasi_iov[i].iov_len;
     }
 }
 
@@ -120,17 +120,21 @@ void copy_iov_to_host(struct iovec* host_iov, IM3Runtime m, uint32_t iov_offset,
  * WASI API implementation
  */
 
-uint32_t m3_wasi_unstable_args_get(IM3Runtime   runtime,
-                                   uint32_t argv_offset,
-                                   uint32_t argv_buf_offset)
+uint32_t m3_wasi_unstable_args_get(IM3Runtime runtime,
+                                   uint32_t   argv_offset,
+                                   uint32_t   argv_buf_offset)
 {
+    if (runtime == NULL) { return __WASI_EINVAL; }
+    // TODO
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_args_sizes_get(IM3Runtime   runtime,
-                                         uint32_t argc_offset,
-                                         uint32_t argv_buf_size_offset)
+uint32_t m3_wasi_unstable_args_sizes_get(IM3Runtime runtime,
+                                         uint32_t   argc_offset,
+                                         uint32_t   argv_buf_size_offset)
 {
+    if (runtime == NULL) { return __WASI_EINVAL; }
+
     __wasi_size_t *argc          = offset2addr(runtime, argc_offset);
     __wasi_size_t *argv_buf_size = offset2addr(runtime, argv_buf_size_offset);
 
@@ -139,49 +143,56 @@ uint32_t m3_wasi_unstable_args_sizes_get(IM3Runtime   runtime,
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_environ_get(IM3Runtime    runtime,
-                                      uint32_t environ_ptrs_offset,
-                                      uint32_t environ_strs_offset)
+uint32_t m3_wasi_unstable_environ_get(IM3Runtime runtime,
+                                      uint32_t   environ_ptrs_offset,
+                                      uint32_t   environ_strs_offset)
 {
+    if (runtime == NULL) { return __WASI_EINVAL; }
+    // TODO
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_environ_sizes_get(IM3Runtime    runtime,
-                                            uint32_t environ_count_offset,
-                                            uint32_t environ_buf_size_offset)
+uint32_t m3_wasi_unstable_environ_sizes_get(IM3Runtime runtime,
+                                            uint32_t   environ_count_offset,
+                                            uint32_t   environ_buf_size_offset)
 {
+    if (runtime == NULL) { return __WASI_EINVAL; }
     __wasi_size_t *environ_count    = offset2addr(runtime, environ_count_offset);
     __wasi_size_t *environ_buf_size = offset2addr(runtime, environ_buf_size_offset);
-    *environ_count = 0;
-    *environ_buf_size = 0;
+    *environ_count = 0; // TODO
+    *environ_buf_size = 0; // TODO
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_fd_prestat_dir_name(IM3Runtime    runtime,
-                                              uint32_t fd,
-                                              uint32_t path_offset,
-                                              uint32_t path_len)
+uint32_t m3_wasi_unstable_fd_prestat_dir_name(IM3Runtime runtime,
+                                              uint32_t   fd,
+                                              uint32_t   path_offset,
+                                              uint32_t   path_len)
 {
+    if (runtime == NULL) { return __WASI_EINVAL; }
     if (fd < 3 || fd >= PREOPEN_CNT) { return __WASI_EBADF; }
     memmove((char *)offset2addr(runtime, path_offset), preopen[fd].path,
             min(preopen[fd].path_len, path_len));
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_fd_prestat_get(IM3Runtime    runtime,
-                                         uint32_t fd,
-                                         uint32_t buf_offset)
+uint32_t m3_wasi_unstable_fd_prestat_get(IM3Runtime runtime,
+                                         uint32_t   fd,
+                                         uint32_t   buf_offset)
 {
+    if (runtime == NULL) { return __WASI_EINVAL; }
     if (fd < 3 || fd >= PREOPEN_CNT) { return __WASI_EBADF; }
     *(uint32_t *)offset2addr(runtime, buf_offset) = __WASI_PREOPENTYPE_DIR;
     *(uint32_t *)offset2addr(runtime, buf_offset+4) = preopen[fd].path_len;
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_fd_fdstat_get(IM3Runtime    runtime,
-                                        __wasi_fd_t fd,
+uint32_t m3_wasi_unstable_fd_fdstat_get(IM3Runtime       runtime,
+                                        __wasi_fd_t      fd,
                                         __wasi_fdstat_t* fdstat)
 {
+    if (runtime == NULL || fdstat == NULL) { return __WASI_EINVAL; }
+
     struct stat fd_stat;
     int fl = fcntl(fd, F_GETFL);
     if (fl < 0) { return errno_to_wasi(errno); }
@@ -203,15 +214,22 @@ uint32_t m3_wasi_unstable_fd_fdstat_get(IM3Runtime    runtime,
     return __WASI_ESUCCESS;
 }
 
-uint32_t m3_wasi_unstable_fd_seek(IM3Runtime    runtime,
+uint32_t m3_wasi_unstable_fd_seek(IM3Runtime          runtime,
                                   __wasi_fd_t         fd,
                                   __wasi_filedelta_t  offset,
                                   __wasi_whence_t     whence,
                                   __wasi_filesize_t*  result)
 {
+    if (runtime == NULL || result == NULL) { return __WASI_EINVAL; }
+
     int wasi_whence = whence == __WASI_WHENCE_END ? SEEK_END :
                                 __WASI_WHENCE_CUR ? SEEK_CUR : 0;
-    int64_t ret = lseek(fd, offset, wasi_whence);
+    int64_t ret;
+#if defined(M3_COMPILER_MSVC)
+    ret = _lseeki64(fd, offset, wasi_whence);
+#else
+    ret = lseek(fd, offset, wasi_whence);
+#endif
     if (ret < 0) { return errno_to_wasi(errno); }
     *result = ret;
     return __WASI_ESUCCESS;
@@ -223,6 +241,8 @@ uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
                                   __wasi_size_t iovs_len,
                                   __wasi_size_t* nread)
 {
+    if (runtime == NULL || nread == NULL) { return __WASI_EINVAL; }
+
     struct iovec iovs[iovs_len];
     copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
 
@@ -238,6 +258,8 @@ uint32_t m3_wasi_unstable_fd_write(IM3Runtime    runtime,
                                    __wasi_size_t iovs_len,
                                    __wasi_size_t* nwritten)
 {
+    if (runtime == NULL || nwritten == NULL) { return __WASI_EINVAL; }
+
     struct iovec iovs[iovs_len];
     copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
 
@@ -277,6 +299,8 @@ uint32_t m3_wasi_unstable_clock_res_get(IM3Runtime          runtime,
                                         __wasi_clockid_t    clock_id,
                                         __wasi_timestamp_t* resolution)
 {
+    if (runtime == NULL || resolution == NULL) { return __WASI_EINVAL; }
+
     struct timespec tp;
     if (clock_getres(clock_id, &tp) != 0)
         *resolution = 1000000;
@@ -290,6 +314,8 @@ uint32_t m3_wasi_unstable_clock_time_get(IM3Runtime          runtime,
                                          __wasi_timestamp_t  precision,
                                          __wasi_timestamp_t* time)
 {
+    if (runtime == NULL || time == NULL) { return __WASI_EINVAL; }
+
     struct timespec tp;
     if (clock_gettime(clock_id, &tp) != 0) { return errno_to_wasi(errno); }
 
@@ -305,7 +331,7 @@ uint32_t m3_wasi_unstable_proc_exit(uint32_t code)
 
 
 static
-M3Result  SuppressLookupFailure (M3Result i_result)
+M3Result SuppressLookupFailure(M3Result i_result)
 {
     if (i_result == c_m3Err_functionLookupFailed)
         return c_m3Err_none;
