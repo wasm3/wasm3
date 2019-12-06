@@ -9,7 +9,7 @@ wasm-strip test-opt.wasm
 ## Run
 
 ```sh
-../../build/wasm3 test.wasm _start
+../../build/wasm3 test.wasm
 
 $ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm test.wasm
 
