@@ -36,6 +36,7 @@ extern u32 current_op_call_stack_depth;
 # define skip_immediate(TYPE)       (void)* ((TYPE *) _pc++)
 
 # define slot(TYPE)                 * (TYPE *) (_sp + immediate (i32))
+# define slot_ptr(TYPE)             (TYPE *) (_sp + immediate (i32))
 
 #define nextOpDirect()              ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 #define jumpOpDirect(PC)            ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
@@ -369,105 +370,104 @@ d_m3OpDecl  (If_r)
 d_m3OpDecl  (If_s)
 
 
-d_m3Op  (Select_i_ssr)
-{
-    i32 condition = (i32) _r0;
-
-    i64 operand2 = * (_sp + immediate (i32));
-    i64 operand1 = * (_sp + immediate (i32));
-
-    _r0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
-}
-
-d_m3Op  (Select_i_srs)
-{
-    i32 condition = (i32) * (_sp + immediate (i32));
-
-    i64 operand2 = _r0;
-    i64 operand1 = * (_sp + immediate (i32));
-
-    _r0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
-}
-
-
-d_m3Op  (Select_i_rss)
-{
-    i32 condition = (i32) * (_sp + immediate (i32));
-
-    i64 operand2 = * (_sp + immediate (i32));
-    i64 operand1 = _r0;
-
-    _r0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
-}
-
-
-d_m3Op  (Select_i_sss)
-{
-    i32 condition = (i32) * (_sp + immediate (i32));
-
-    i64 operand2 = * (_sp + immediate (i32));
-    i64 operand1 = * (_sp + immediate (i32));
-
-    _r0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
-}
-
-d_m3Op  (Select_f_ssr)
-{
-    i32 condition = (i32) _r0;
-
-    f64 operand2 = * (f64*)(_sp + immediate (i32));
-    f64 operand1 = * (f64*)(_sp + immediate (i32));
-
-    _fp0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
-}
-
-d_m3Op  (Select_f_srs)
-{
-    i32 condition = (i32) * (_sp + immediate (i32));
-
-    f64 operand2 = _fp0;
-    f64 operand1 = * (f64*)(_sp + immediate (i32));
-
-    _fp0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
+#define d_m3Select_i(TYPE, REG)                 \
+d_m3Op  (Select_##TYPE##_rss)                   \
+{                                               \
+    i32 condition = (i32) _r0;                  \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_srs)                   \
+{                                               \
+    i32 condition = slot (i32);                 \
+                                                \
+    TYPE operand2 = (TYPE) REG;                 \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_ssr)                   \
+{                                               \
+    i32 condition = slot (i32);                 \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = (TYPE) REG;                 \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_sss)                   \
+{                                               \
+    i32 condition = slot (i32);                 \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
 }
 
 
-d_m3Op  (Select_f_rss)
-{
-    i32 condition = (i32) * (_sp + immediate (i32));
+d_m3Select_i (i32, _r0)
+d_m3Select_i (i64, _r0)
 
-    f64 operand2 = * (f64*)(_sp + immediate (i32));
-    f64 operand1 = _fp0;
 
-    _fp0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
+#define d_m3Select_f(TYPE, REG, LABEL, SELECTOR)  \
+d_m3Op  (Select_##TYPE##_##LABEL##ss)           \
+{                                               \
+    i32 condition = (i32) SELECTOR;             \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_##LABEL##rs)           \
+{                                               \
+    i32 condition = (i32) SELECTOR;             \
+                                                \
+    TYPE operand2 = (TYPE) REG;                 \
+    TYPE operand1 = slot (TYPE);                \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
+}                                               \
+                                                \
+d_m3Op  (Select_##TYPE##_##LABEL##sr)           \
+{                                               \
+    i32 condition = (i32) SELECTOR;             \
+                                                \
+    TYPE operand2 = slot (TYPE);                \
+    TYPE operand1 = (TYPE) REG;                 \
+                                                \
+    REG = (condition) ? operand1 : operand2;    \
+                                                \
+    return nextOp ();                           \
 }
 
 
-d_m3Op  (Select_f_sss)
-{
-    i32 condition = (i32) * (_sp + immediate (i32));
+d_m3Select_f (f32, _fp0, r, _r0)
+d_m3Select_f (f32, _fp0, s, slot (i32))
 
-    f64 operand2 = * (f64*)(_sp + immediate (i32));
-    f64 operand1 = * (f64*)(_sp + immediate (i32));
+d_m3Select_f (f64, _fp0, r, _r0)
+d_m3Select_f (f64, _fp0, s, slot (i32))
 
-    _fp0 = (condition) ? operand1 : operand2;
-
-    return nextOp ();
-}
 
 d_m3Op  (Return)
 {
@@ -503,15 +503,16 @@ d_m3Op  (BranchIf)
 
 d_m3Op  (BranchTable)
 {
-    i32 index       = (i32) _r0;
+    i32 branchIndex = slot (i32);           // branch index is always in a slot
+    
     u32 numTargets  = immediate (u32);
 
     pc_t * branches = (pc_t *) _pc;
 
-    if (index < 0 or index > numTargets)
-        index = numTargets; // the default index
+    if (branchIndex < 0 or branchIndex > numTargets)
+        branchIndex = numTargets; // the default index
 
-    return jumpOp (branches [index]);
+    return jumpOp (branches [branchIndex]);
 }
 
 
@@ -547,10 +548,11 @@ d_m3OpDecl  (Entry)
 d_m3OpDecl  (MemCurrent)
 d_m3OpDecl  (MemGrow)
 
+
 d_m3Op  (Const)
 {
-    u64 constant = immediate (u64);
-    i32 offset = immediate (i32);
+    u64 constant    = immediate (u64);
+    i32 offset      = immediate (i32);
     * (_sp + offset) = constant;
 
     return nextOp ();
@@ -575,11 +577,7 @@ d_m3Op  (End)
 d_m3Op  (GetGlobal)
 {
     i64 * global = immediate (i64 *);
-
-//  printf ("get global: %p %" PRIi64 "\n", global, *global);
-
-    i32 offset  = immediate (i32);
-    * (_sp + offset) = * global;
+    slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
 
     return nextOp ();
 }
@@ -588,8 +586,7 @@ d_m3Op  (GetGlobal)
 d_m3Op  (SetGlobal_s)
 {
     i64 * global = immediate (i64 *);
-    i32 offset  = immediate (i32);
-    * global = * (_sp + offset);
+    * global = slot (i64);
 
     return nextOp ();
 }
@@ -598,15 +595,22 @@ d_m3Op  (SetGlobal_s)
 d_m3Op  (SetGlobal_i)
 {
     i64 * global = immediate (i64 *);
-    * global = _r0;
-
-//  printf ("set global: %p %" PRIi64 "\n", global, _r0);
+    * global = _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
     return nextOp ();
 }
 
 
-d_m3Op  (SetGlobal_f)
+d_m3Op  (SetGlobal_f32)
+{
+    f32 * global = immediate (f32 *);
+    * global = _fp0;
+
+    return nextOp ();
+}
+
+
+d_m3Op  (SetGlobal_f64)
 {
     f64 * global = immediate (f64 *);
     * global = _fp0;
@@ -617,9 +621,9 @@ d_m3Op  (SetGlobal_f)
 
 d_m3Op (CopySlot)
 {
-    u64 * dst = _sp + immediate (i32);
-    u64 * src = _sp + immediate (i32);
-
+    u64 * dst = slot_ptr (u64);
+    u64 * src = slot_ptr (u64);
+    
     * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
     return nextOp ();
@@ -628,9 +632,9 @@ d_m3Op (CopySlot)
 
 d_m3Op (PreserveCopySlot)
 {
-    u64 * dest = _sp + immediate (i32);
-    u64 * src = _sp + immediate (i32);
-    u64 * preserve = _sp + immediate (i32);
+    u64 * dest      = slot_ptr (u64);
+    u64 * src       = slot_ptr (u64);
+    u64 * preserve  = slot_ptr (u64);
 
     * preserve = * dest;
     * dest = * src;
@@ -639,88 +643,56 @@ d_m3Op (PreserveCopySlot)
 }
 
 
-d_m3Op  (SetRegister_i)
-{
-    i32 offset = immediate (i32);
+//d_m3Op  (SwapRegister_i)
+//{
+//    slot (u64) = _r0;
+//    _r0 = slot (u64);
+//
+//    return nextOp ();
+//}
 
-    u64 * stack = _sp + offset;
-    _r0 = * stack;
 
-    return nextOp ();
+#define d_m3SetRegisterSetSlot(TYPE, REG) \
+d_m3Op  (SetRegister_##TYPE)            \
+{                                       \
+    REG = slot (TYPE);                  \
+    return nextOp ();                   \
+}                                       \
+                                        \
+d_m3Op (SetSlot_##TYPE)                 \
+{                                       \
+    slot (TYPE) = (TYPE) REG;           \
+    return nextOp ();                   \
+}                                       \
+                                        \
+d_m3Op (PreserveSetSlot_##TYPE)         \
+{                                       \
+    TYPE * stack     = slot_ptr (TYPE); \
+    TYPE * preserve  = slot_ptr (TYPE); \
+                                        \
+    * preserve = * stack;               \
+    * stack = (TYPE) REG;               \
+                                        \
+    return nextOp ();                   \
 }
 
 
-d_m3Op  (SwapRegister_i)
-{
-    slot (u64) = _r0;
-    _r0 = slot (u64);
-
-    return nextOp ();
-}
+d_m3SetRegisterSetSlot (i32, _r0)
+d_m3SetRegisterSetSlot (i64, _r0)
+d_m3SetRegisterSetSlot (f32, _fp0)
+d_m3SetRegisterSetSlot (f64, _fp0)
 
 
-d_m3Op  (SetRegister_f)
-{
-    i32 offset = immediate (i32);
+#ifdef DEBUG
 
-    f64 * stack = (f64 *) _sp + offset;
-    _fp0 = * stack;
+  m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
+  #define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
 
-    return nextOp ();
-}
+#else
 
+  #define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
 
-d_m3Op (SetSlot_i)
-{
-    i32 offset = immediate (i32);
-
-//  printf ("setslot_i %d\n", offset);
-
-    u64 * stack = _sp + offset;
-    * stack = _r0;
-
-    return nextOp ();
-}
-
-
-d_m3Op (PreserveSetSlot_i)
-{
-    u64 * stack = (u64 *) _sp + immediate (i32);
-    u64 * preserve = (u64 *) _sp + immediate (i32);
-    * preserve = * stack;
-    * stack = _r0;
-
-    return nextOp ();
-}
-
-
-d_m3Op (SetSlot_f)
-{
-    i32 offset = immediate (i32);
-    f64 * stack = (f64 *) _sp + offset;
-    * stack = _fp0;
-
-    return nextOp ();
-}
-
-
-d_m3Op (PreserveSetSlot_f)
-{
-    f64 * stack = (f64 *) _sp + immediate (i32);
-    f64 * preserve = (f64 *) _sp + immediate (i32);
-    * preserve = * stack;
-    * stack = _fp0;
-
-    return nextOp ();
-}
-
-
-#define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
-
-m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
-
-//#define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
-
+#endif
 
 #define d_m3Load(REG,DEST_TYPE,SRC_TYPE)                \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \

@@ -96,6 +96,7 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 }
 
 
+#if 0
 M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, size_t i_memorySize)
 {
     M3Result result = c_m3Err_none;
@@ -118,7 +119,7 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
             if (io_memory->mallocated)
             {
                 // store pointer to module and end of memory. gives the runtime access to this info.
-                io_memory->mallocated->module = i_module;
+                io_memory->mallocated->runtime = i_module->runtime;
                 io_memory->mallocated->end = (u8 *)(io_memory->mallocated) + i_memorySizeFull;
 
                 io_memory->wasmPages = (u8 *) (io_memory->mallocated + 1);
@@ -134,10 +135,12 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
 
     return result;
 }
+#endif 
 
 
-i32  AllocateHeap  (M3Memory * io_memory, i32 i_size)
+i32  AllocatePrivateHeap  (M3Memory * io_memory, i32 i_size)
 {
+	/*
     i_size = (i_size + 7) & ~7;
     size_t ptrOffset = io_memory->heapOffset + (io_memory->heapAllocated += i_size);
 
@@ -145,7 +148,9 @@ i32  AllocateHeap  (M3Memory * io_memory, i32 i_size)
 
     d_m3AssertFatal (ptrOffset < size);
 
-    return (i32) ptrOffset;
+    return (i32) ptrOffset;*/
+	
+	return 0;
 }
 
 

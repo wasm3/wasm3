@@ -199,6 +199,36 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 }
 
 
+M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
+{
+    M3Result result = c_m3Err_none;                                     d_m3Assert (not io_runtime->memory.wasmPages);
+
+    if (i_module->memoryInfo.initPages and not i_module->memoryImported)
+    {
+        M3Memory * memory = & io_runtime->memory;
+
+        // TODO: allocate only required memory when Grow is implemented
+		size_t numPageBytes = 256 * c_m3MemPageSize; //TODO: i_module->memoryInfo.initPages * c_m3MemPageSize;
+        size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
+
+        memory->mallocated = (M3MemoryHeader *) m3Realloc (memory->mallocated, numBytes, 0);
+
+		if (memory->mallocated)
+		{
+			memory->numPages = i_module->memoryInfo.initPages;
+			memory->maxPages = i_module->memoryInfo.maxPages;
+			memory->wasmPages = (u8 *) (memory->mallocated + 1);
+
+			memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize); //TODO: numPageBytes;
+			memory->mallocated->runtime = io_runtime;
+		}
+		else _throw (c_m3Err_mallocFailed);
+    }
+
+    _catch: return result;
+}
+
+
 M3Result  InitGlobals  (IM3Module io_module)
 {
     M3Result result = c_m3Err_none;
@@ -216,10 +246,6 @@ M3Result  InitGlobals  (IM3Module io_module)
             {
                 M3Global * g = & io_module->globals [i];                        m3log (runtime, "initializing global: %d", i);
 
-                // global fp types are coerced to double
-                if (g->type == c_m3Type_f32)
-                    g->type = c_m3Type_f64;
-
                 if (g->initExpr)
                 {
                     bytes_t start = g->initExpr;
@@ -227,7 +253,7 @@ M3Result  InitGlobals  (IM3Module io_module)
 
                     if (not result)
                     {
-                        //                      io_module->globalMemory [i] = initValue;
+                        // io_module->globalMemory [i] = initValue;
                     }
                     else break;
                 }
@@ -244,7 +270,7 @@ M3Result  InitGlobals  (IM3Module io_module)
 }
 
 
-M3Result  InitDataSegments  (IM3Module io_module)
+M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
 {
     M3Result result = c_m3Err_none;
 
@@ -257,9 +283,12 @@ M3Result  InitDataSegments  (IM3Module io_module)
 _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
 
         u32 minMemorySize = segment->size + segmentOffset + 1;                      m3log (runtime, "loading data segment: %d  offset: %d", i, segmentOffset);
-_       (Module_EnsureMemorySize (io_module, & io_module->memory, minMemorySize));
 
-        memcpy (io_module->memory.wasmPages + segmentOffset, segment->data, segment->size);
+//		io_memory
+
+//_       (Module_EnsureMemorySize (io_module, io_memory, minMemorySize));
+
+        memcpy (io_memory->wasmPages + segmentOffset, segment->data, segment->size);
     }
 
     _catch: return result;
@@ -320,6 +349,7 @@ _                       (ReadLEB_u32 (& functionIndex, & bytes, end));
 }
 
 
+// TODO: deal with main + side-modules loading efforcement
 M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
 {
     M3Result result = c_m3Err_none;
@@ -328,8 +358,13 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
     {
 //      d_m3Assert (io_module->memory.actualSize == 0);
 
+		M3Memory * memory = & io_runtime->memory;
+
+# if d_m3AllocateLinearMemory
+_       (InitMemory (io_runtime, io_module));
+# endif
 _       (InitGlobals (io_module));
-_       (InitDataSegments (io_module));
+_       (InitDataSegments (memory, io_module));
 _       (InitElements (io_module));
 
         io_module->runtime = io_runtime;
@@ -362,6 +397,10 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
     M3Result result = c_m3Err_none;
+
+    if (!i_runtime->modules) {
+        return "no modules loaded";
+    }
 
     IM3Function function = (IM3Function)ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
 
@@ -396,17 +435,17 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
     {
         IM3Module module = i_function->module;
 
-        IM3Runtime env = module->runtime;
+        IM3Runtime runtime = module->runtime;
 
         IM3FuncType ftype = i_function->funcType;
 
-#if d_m3AllocateLinearMemory
-_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
-#endif
+//#if d_m3AllocateLinearMemory
+//_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
+//#endif
 
-        u8 * linearMemory = module->memory.wasmPages;
+        u8 * linearMemory = runtime->memory.wasmPages;
 
-        m3stack_t stack = (m3stack_t)(env->stack);
+        m3stack_t stack = (m3stack_t)(runtime->stack);
 
         m3logif (runtime, PrintFuncTypeSignature (ftype));
 
@@ -420,6 +459,7 @@ _       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216
         {
             m3stack_t s = &stack[i];
             ccstr_t str = i_argv[i];
+
             switch (ftype->argTypes[i]) {
 #ifdef USE_HUMAN_FRIENDLY_ARGS
             case c_m3Type_i32:  *(i32*)(s) = atol(str);  break;
@@ -453,7 +493,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
         case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
         case c_m3Type_f32:  {
             union { u32 u; f32 f; } union32;
-            union32.f = *(f64*)(stack);
+            union32.f = * (f32 *)(stack);
             printf("Result: %u\n", union32.u );
             break;
         }
@@ -487,21 +527,22 @@ M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * co
     {
         IM3Module module = i_function->module;
 
-        IM3Runtime env = module->runtime;
+        IM3Runtime runtime = module->runtime;
 
-#if d_m3AllocateLinearMemory
-_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
-#endif
+//#if d_m3AllocateLinearMemory
+//_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
+//#endif
 
-        u8 * linearMemory = module->memory.wasmPages;
+        u8 * linearMemory = runtime->memory.wasmPages;
 
-        m3stack_t stack = (m3stack_t)(env->stack);
+        m3stack_t stack = (m3stack_t) runtime->stack;
 
         if (i_argc)
         {
-            IM3Memory memory = & module->memory;
+            IM3Memory memory = & runtime->memory;
             // FIX: memory allocation in general
-            i32 offset = AllocateHeap (memory, sizeof (i32) * i_argc);
+
+            i32 offset = AllocatePrivateHeap (memory, sizeof (i32) * i_argc);
 
             i32 * pointers = (i32 *) (memory->wasmPages + offset);
 
@@ -511,7 +552,7 @@ _       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216
 
                 if (argLength < 4000)
                 {
-                    i32 o = AllocateHeap (memory, (i32) argLength);
+                    i32 o = AllocatePrivateHeap (memory, (i32) argLength);
                     memcpy (memory->wasmPages + o, i_argv [i], argLength);
 
                     * pointers++ = o;
@@ -569,7 +610,9 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
-//  DumpCodePage (i_codePage, /* startPC: */ NULL);
+#   if defined (DEBUG) && d_m3LogCodePages
+        DumpCodePage (i_codePage, /* startPC: */ NULL);
+#   endif
 
     if (i_codePage)
     {
@@ -591,6 +634,9 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 //  ReleaseCodePage (i_runtime, i_codePage);
 //}
 
+
+// smassey: FIX: this isn't supposed to be a debug only function. It produces WebAssembly failure info that can
+// occur in production code.
 #ifdef DEBUG
 M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
                     const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...)
@@ -611,16 +657,22 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 }
 #endif
 
+
 M3ErrorInfo  m3_GetErrorInfo  (IM3Runtime i_runtime)
 {
     M3ErrorInfo info = i_runtime->error;
 
-    M3ErrorInfo reset;
-    M3_INIT(reset);
-
-    i_runtime->error = reset;
+    m3_IgnoreErrorInfo (i_runtime);
 
     return info;
 }
 
+
+void m3_IgnoreErrorInfo (IM3Runtime i_runtime)
+{
+    M3ErrorInfo reset;
+    M3_INIT(reset);
+
+    i_runtime->error = reset;
+}
 

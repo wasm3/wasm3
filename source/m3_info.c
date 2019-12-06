@@ -80,7 +80,7 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
     else if (i_type == c_m3Type_i64)
         len = snprintf (o_string, i_n, "%ld", * i_sp);
     else if (i_type == c_m3Type_f32)
-        len = snprintf (o_string, i_n, "%f",  * (f64 *) i_sp); // f32 value in 64-bit register
+        len = snprintf (o_string, i_n, "%f",  * (f32 *) i_sp);
     else if (i_type == c_m3Type_f64)
         len = snprintf (o_string, i_n, "%lf", * (f64 *) i_sp);
 
@@ -159,26 +159,64 @@ OpInfo FindOperationInfo  (IM3Operation i_operation)
     return opInfo;
 }
 
+
+#define fetch2(TYPE) (*(TYPE *) ((*o_pc)++))
+
+void  Decode_Call  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+{
+    void * function = fetch2 (void *);
+    u16 stackOffset = fetch2 (u16);
+    
+    sprintf (o_string, "%p; stack-offset: %d", function, stackOffset);
+}
+
+
+void  Decode_Entry  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+{
+    IM3Function function = fetch2 (IM3Function);
+    
+    sprintf (o_string, "%s", function->name);
+}
+
+
+#undef fetch
+#define fetch(TYPE) (*(TYPE *) (pc++))
+
 void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
     pc_t pc = * o_pc;
 
-    #undef fetch
-    #define fetch(TYPE) (*(TYPE *) (pc++))
 
     i32 offset;
-    u64 value;
-
-    switch (i_opcode)
+    
+    if (i_opcode == c_waOp_branchTable)
     {
-        case 0xbf+1:
-        {
-            value = fetch (u64); offset = fetch (i32);
-            sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
+        m3reg_t targets = fetch (m3reg_t);
+        
+        char str [1000];
 
-            break;
+        for (m3reg_t i = 0; i <targets; ++i)
+        {
+            pc_t addr = fetch (pc_t);
+            sprintf (str, "%" PRIu64 ": %p, ", i, addr);
+            strcat (o_string, str);
         }
+        
+        pc_t addr = fetch (pc_t);
+        sprintf (str, "def: %p ", addr);
+        strcat (o_string, str);
     }
+    else if (i_opcode == 0xbf+1) // const
+    {
+        u64 value = fetch (u64); offset = fetch (i32);
+        sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
+    }
+    else if (i_opcode == 0xc1) // entry
+    {
+        Decode_Entry (o_string, i_opcode, i_opInfo, o_pc);
+    }
+    else if (i_opcode == c_waOp_call)
+        Decode_Call (o_string, i_opcode, i_opInfo, o_pc);
 
     #undef fetch
 
@@ -186,18 +224,21 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
 }
 
 
+# ifdef DEBUG
+// WARNING/TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
+// and, if an operation happens to missing from the c_operations table it won't be recognized here
 void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 {
-    if (d_m3LogCodePages)
-    {                                                                       m3log (code, "code page seq: %d", i_codePage->info.sequence);
-        pc_t pc = i_startPC ? i_startPC : (pc_t) i_codePage;
+        m3log (code, "code page seq: %d", i_codePage->info.sequence);
+    
+        pc_t pc = i_startPC ? i_startPC : GetPageStartPC (i_codePage);
         pc_t end = GetPagePC (i_codePage);
 
-        m3log (code, "---------------------------------------------------");
+        m3log (code, "---------------------------------------------------------------------------------------");
 
         while (pc < end)
         {
-            IM3Operation op = (IM3Operation)(* pc++);
+            IM3Operation op = (IM3Operation) (* pc++);
 
             if (op)
             {
@@ -208,21 +249,16 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
                     char infoString [1000] = { 0 };
                     DecodeOperation (infoString, i.opcode, i.info, & pc);
 
-#ifdef DEBUG
-                    m3log (code, "%p: %15s %-20s", pc - 1, i.info->name, infoString);
-#else
-                    m3log (code, "%p: %15s %-20s", pc - 1, "---", infoString);
-#endif
+                    m3log (code, "%p | %20s  %s", pc - 1, i.info->name, infoString);
                 }
-                else break;
+//                else break;
             }
-            else break;
+//            else break;
         }
 
-        m3log (code, "---------------------------------------------------");
-    }
+        m3log (code, "---------------------------------------------------------------------------------------");
 }
-
+# endif
 
 
 

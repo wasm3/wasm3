@@ -113,17 +113,19 @@ d_m3ErrorConst  (typeListOverflow,              "type list count exceeds 32 type
 d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
 
 // parse errors
-d_m3ErrorConst  (incompatibleWasmVersion,       "incompatible WASM binary version")
-d_m3ErrorConst  (wasmMalformed,                 "malformed WASM binary")
-d_m3ErrorConst  (misorderedWasmSection,         "out of order WASM section")
-d_m3ErrorConst  (wasmUnderrun,                  "underrun while parsing WASM binary")
-d_m3ErrorConst  (wasmOverrun,                   "overrun while parsing WASM binary")
-d_m3ErrorConst  (wasmMissingInitExpr,           "missing init_expr in WASM binary")
+d_m3ErrorConst  (incompatibleWasmVersion,       "incompatible Wasm binary version")
+d_m3ErrorConst  (wasmMalformed,                 "malformed Wasm binary")
+d_m3ErrorConst  (misorderedWasmSection,         "out of order Wasm section")
+d_m3ErrorConst  (wasmUnderrun,                  "underrun while parsing Wasm binary")
+d_m3ErrorConst  (wasmOverrun,                   "overrun while parsing Wasm binary")
+d_m3ErrorConst  (wasmMissingInitExpr,           "missing init_expr in Wasm binary")
 d_m3ErrorConst  (lebOverflow,                   "LEB encoded value overflow")
 d_m3ErrorConst  (missingUTF8,                   "invalid length UTF-8 string")
-d_m3ErrorConst  (wasmSectionUnderrun,           "section underrun while parsing WASM binary")
-d_m3ErrorConst  (wasmSectionOverrun,            "section overrun while parsing WASM binary")
+d_m3ErrorConst  (wasmSectionUnderrun,           "section underrun while parsing Wasm binary")
+d_m3ErrorConst  (wasmSectionOverrun,            "section overrun while parsing Wasm binary")
 d_m3ErrorConst  (invalidTypeId,                 "unknown value_type")
+d_m3ErrorConst  (tooManyMemorySections,         "Wasm MVP can only define one memory per module")
+
 
 // link errors
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
@@ -248,8 +250,8 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 
-
     M3ErrorInfo         m3_GetErrorInfo             (IM3Runtime i_runtime);
+    void                m3_IgnoreErrorInfo          (IM3Runtime i_runtime);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  debug info

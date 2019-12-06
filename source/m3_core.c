@@ -10,13 +10,13 @@
 #include "m3_core.h"
 
 void m3NotImplemented() {
-    puts("Not implemented\n");
+    puts("Error: Not implemented");
     abort();
 }
 
 void m3AbortIfNot(bool condition) {
     if (!condition) {
-        puts("Fatal error\n");
+        puts("Error: Fatal");
         abort();
     }
 }
@@ -356,7 +356,7 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
         {
             result = c_m3Err_none;
 
-            if (byte & 0x40)    // do sign extension
+            if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
                 u64 extend = 1;
                 extend <<= shift;

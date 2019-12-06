@@ -68,12 +68,18 @@ void  EmitWordImpl  (IM3CodePage i_page, const void * i_word)
 }
 
 
+pc_t  GetPageStartPC  (IM3CodePage i_page)
+{
+    return & i_page->code [0];
+}
+
+
 pc_t  GetPagePC  (IM3CodePage i_page)
 {
     if (i_page)
         return & i_page->code [i_page->info.lineIndex];
     else
-        return 0;
+        return NULL;
 }
 
 
