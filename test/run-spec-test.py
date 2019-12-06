@@ -314,14 +314,16 @@ def runInvoke(test):
 
     stats.total_run += 1
 
+    output = ""
     actual = None
     actual_val = None
+    force_fail = False
 
     try:
         output = wasm3.invoke(test.cmd).strip()
     except Exception as e:
-        output = ""
         actual = f"<{e}>"
+        force_fail = True
 
     # Parse the actual output
     if not actual:
@@ -339,14 +341,18 @@ def runInvoke(test):
             actual = "error " + result[-1]
     if not actual:
         actual = "<No Result>"
+        force_fail = True
 
     if actual == "error no operation ()":
         actual = "<Not Implemented>"
         stats.missing += 1
+        force_fail = True
     elif actual == "<Crashed>":
         stats.crashed += 1
+        force_fail = True
     elif actual == "<Timeout>":
         stats.timeout += 1
+        force_fail = True
 
     # Prepare the expected result
     expect = None
@@ -393,7 +399,7 @@ def runInvoke(test):
             print(output)
 
     log.write(f"{test.source}\t|\t{test.wasm} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
-    if actual == expect or (expect == "<Anything>" and actual != "<Crashed>"):
+    if actual == expect or (expect == "<Anything>" and not force_fail):
         stats.success += 1
         log.write(f"OK: {actual}\n")
         if args.line:
@@ -419,9 +425,10 @@ if args.file:
     jsonFiles = args.file
 elif args.all:
     jsonFiles = glob.glob(os.path.join(coreDir, "*.json"))
+    jsonFiles = list(map(lambda x: os.path.relpath(x, curDir), jsonFiles))
     jsonFiles.sort()
 else:
-    jsonFiles = list(map(lambda x : f"./core/{x}.json", [
+    jsonFiles = list(map(lambda x: f"core/{x}.json", [
         "get_local", "set_local", "tee_local",
         "globals",
 
