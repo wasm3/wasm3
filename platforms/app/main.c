@@ -44,6 +44,12 @@ M3Result repl_load  (IM3Runtime env, const char* fn)
 
 M3Result repl_call  (IM3Runtime env, const char* name, int argc, const char* argv[])
 {
+    M3Result result = c_m3Err_none;
+
+    IM3Function func;
+    result = m3_FindFunction (&func, env, name);
+    if (result) return result;
+
     // TODO
     if (argc) {
         if (!strcmp(name, "main") || !strcmp(name, "_main")) {
@@ -52,12 +58,6 @@ M3Result repl_call  (IM3Runtime env, const char* name, int argc, const char* arg
             return "passing arguments to wasi _start() not implemented";
         }
     }
-
-    M3Result result = c_m3Err_none;
-
-    IM3Function func;
-    result = m3_FindFunction (&func, env, name);
-    if (result) return result;
 
     result = m3_CallWithArgs (func, argc, argv);
     if (result) return result;
