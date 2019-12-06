@@ -16,6 +16,7 @@
 
 import argparse
 import os, sys, glob, time
+import subprocess
 import json
 import re
 import struct
@@ -84,6 +85,9 @@ def fatal(msg):
     log.flush()
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
+
+def run(cmd):
+    return subprocess.check_output(cmd, shell=True)
 
 def filename(p):
     _, fn = os.path.split(p)
