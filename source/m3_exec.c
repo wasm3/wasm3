@@ -333,3 +333,19 @@ d_m3OpDef  (IfPreserve)
     else
         return jumpOp (elsePC);
 }
+
+
+d_m3OpDef  (BranchTable)
+{
+    i32 branchIndex = slot (i32);           // branch index is always in a slot
+    
+    u32 numTargets  = immediate (u32);
+    
+    pc_t * branches = (pc_t *) _pc;
+    
+    if (branchIndex < 0 or branchIndex > numTargets)
+        branchIndex = numTargets; // the default index
+    
+    return jumpOp (branches [branchIndex]);
+}
+

@@ -74,8 +74,9 @@ const void * const  cvptr_t;
 # define d_m3Log_stack d_m3LogStack
 # define d_m3Log_runtime d_m3LogRuntime
 # define d_m3Log_exec d_m3LogExec
+# define d_m3Log_emit d_m3LogEmit
 
-# if d_m3LogOutput
+# if d_m3LogOutput && defined (DEBUG)
 
 #   define d_m3Log(CATEGORY, FMT, ...)                  printf (" %8s  |  " FMT, #CATEGORY, ##__VA_ARGS__);
 
@@ -173,8 +174,8 @@ M3CodePageHeader;
 #define c_m3MaxFunctionStackHeight          d_m3MaxFunctionStackHeight
 #define c_m3MaxFunctionLocals               512
 
-#define c_m3Reg0Id                          c_m3MaxFunctionStackHeight + 1
-#define c_m3Fp0Id                           c_m3MaxFunctionStackHeight + 2
+#define c_m3Reg0SlotAlias                   c_m3MaxFunctionStackHeight + 1
+#define c_m3Fp0SlotAlias                    c_m3MaxFunctionStackHeight + 2
 
 #define c_m3MaxNumFunctionConstants         60
 

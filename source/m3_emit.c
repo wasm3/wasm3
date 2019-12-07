@@ -7,7 +7,7 @@
 //
 
 #include "m3_emit.h"
-
+#include "m3_info.h"
 
 M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 {
@@ -21,7 +21,7 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 
         if (page)
         {
-            m3log (code, "bridging new code page from: %d (free slots: %d)", o->page->info.sequence, NumFreeLines (o->page));
+            m3log (emit, "bridging new code page from: %d (free slots: %d)", o->page->info.sequence, NumFreeLines (o->page));
 
             EmitWord (o->page, op_Bridge);
             EmitWord (o->page, GetPagePC (page));
@@ -44,6 +44,19 @@ M3Result  BridgeToNewPageIfNecessary  (IM3Compilation o)
 }
 
 
+void  log_emit  (IM3Operation i_operation)
+{
+# if DEBUG
+    OpInfo i = FindOperationInfo (i_operation);
+    
+    if (i.info)
+    {
+        printf ("%s", i.info->name);
+    }
+# endif
+}
+
+
 M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 {
     M3Result result = c_m3Err_none;
@@ -51,15 +64,17 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
     // it's OK for page to be null; when compile-walking the bytecode without emitting
     if (o->page)
     {
-#if d_m3RuntimeStackDumps
+#   if d_m3RuntimeStackDumps
         if (i_operation != op_DumpStack)
-#endif
+#   endif
             o->numEmits++;
 
         result = BridgeToNewPageIfNecessary (o);
 
         if (not result)
+        {                                                           m3logif (emit, log_emit (i_operation))
             EmitWord (o->page, i_operation);
+        }
     }
 
     return result;

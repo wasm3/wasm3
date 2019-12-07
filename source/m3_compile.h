@@ -155,6 +155,7 @@ extern const M3OpInfo c_operations [];
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
+bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
 
 M3Result    EmitOp                      (IM3Compilation o, IM3Operation i_operation);
 void        EmitConstant                (IM3Compilation o, const u64 immediate);

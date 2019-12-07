@@ -453,6 +453,8 @@ else:
         "address", "align", "endianness",
         "memory_redundancy", "float_memory",
 
+		"switch"
+
         #--- TODO ---
         #"start",
         #"if", "loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
