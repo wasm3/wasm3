@@ -187,7 +187,7 @@ d_m3OpDef  (Entry)
 
     m3ret_t r = nextOp ();
 
-#if d_m3Log_exec
+#if d_m3LogExec
         u8 returnType = function->funcType->returnType;
 
         char str [100] = { '!', 0 };

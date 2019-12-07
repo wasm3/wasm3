@@ -96,21 +96,76 @@ bool  IsIntRegisterLocation     (i16 i_location)    { return (i_location == c_m3
 
 void  dump_type_stack  (IM3Compilation o)
 {
+    /* Reminders about how the stack works! :)
+        -- args & locals remain on the type stack for duration of the function. Denoted with a constant 'A' and 'L' in this dump.
+            -- the intial stack dumps originate from the CompileLocals () function, so these identifiers won't/can't be
+            applied until this compilation stage is finished
+        -- constants are not statically represented in the type stack (like args & constants) since they don't have/need
+            write counts
+        -- the number shown for static args and locals (value in wasmStack [i]) represents the write count for the variable
+            -- (does Wasm ever write to an arg? I dunno/don't remember.)
+        -- the number for the dynamic stack values represents the slot number.
+        -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'
+     
+     */
+    
 #   if d_m3LogOutput
+    
+    // for the assert at end of dump:
+    i32 regAllocated [2] = { (i32) IsRegisterAllocated (o, 0), (i32) IsRegisterAllocated (o, 1) };
+    
+    // display whether r0 or fp0 is allocated. these should then also be reflected somewhere in the stack too.
     printf ("                                                        ");
-    printf ("r0:[%s] fp0:[%s]    ", IsRegisterAllocated (o, 0) ? "*" : " ", IsRegisterAllocated (o, 1) ? "*" : " ");
+    printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
+    
+    u32 numArgs = GetFunctionNumArgs (o->function);
+    
     for (u32 i = 0; i < o->stackIndex; ++i)
     {
-        u16 s = o->wasmStack [i];
+        if (i == o->firstConstSlotIndex)
+            printf (" | ");                     // divide the static & dynamic portion of the stack
+        
+//        printf (" %d:%s.", i, c_waTypes [o->typeStack [i]]);
+        printf (" %s.", c_waTypes [o->typeStack [i]]);
+        if (i < o->firstConstSlotIndex)
+        {
+            u16 writeCount = o->wasmStack [i];
 
-        if (IsRegisterLocation (s))
-            printf ("%s", IsFpRegisterLocation (s) ? "fp0" : "r0");
+            printf ((i < numArgs) ? "A" : "L");     // arg / local
+            printf ("%d", (i32) writeCount);        // writeCount
+        }
         else
-            printf ("%d", (i32) s);
-
-        printf ("|%s ", c_waTypes [o->typeStack [i]]);
+        {
+            u16 slot = o->wasmStack [i];
+            
+            if (IsRegisterLocation (slot))
+            {
+                bool isFp = IsFpRegisterLocation (slot);
+                printf ("%s", isFp ? "f0" : "r0");
+                
+                regAllocated [isFp]--;
+            }
+            else
+            {
+                if (slot < o->firstSlotIndex)
+                {
+                    if (slot >= o->firstConstSlotIndex)
+                        printf ("c");
+                    else if (slot >= numArgs)
+                        printf ("l");
+                    else
+                        printf ("a");
+                }
+                
+                printf ("%d", (i32) slot);  // slot
+            }
+        }
+        
+        printf (" ");
     }
     
+    for (u32 r = 0; r < 2; ++r)
+        d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
     
 #   endif
 }
@@ -241,7 +296,7 @@ bool  AllocateExecSlot  (IM3Compilation o, u16 * o_execSlot)
 }
 
 
-void DeallocateExecSlot (IM3Compilation o, i16 i_slotIndex)
+void DeallocateSlot (IM3Compilation o, i16 i_slotIndex)
 {                                                                                       d_m3Assert (i_slotIndex >= o->firstSlotIndex);
     o->numAllocatedExecSlots--;                                                         d_m3Assert (o->m3Slots [i_slotIndex]);
     o->m3Slots [i_slotIndex] = 0;
@@ -414,7 +469,7 @@ M3Result  Pop  (IM3Compilation o)
         }
         else if (location >= o->firstSlotIndex)
         {
-            DeallocateExecSlot (o, location);
+            DeallocateSlot (o, location);
         }
 
         m3logif (stack, dump_type_stack (o))
@@ -422,6 +477,24 @@ M3Result  Pop  (IM3Compilation o)
     else result = c_m3Err_functionStackUnderrun;
 
     return result;
+}
+
+
+M3Result  UnwindBlockStack  (IM3Compilation o)
+{
+    M3Result result = c_m3Err_none;
+    
+    i16 initStackIndex = o->block.initStackIndex;
+
+    if (o->stackIndex > initStackIndex)
+    {
+        m3log (compile, "reseting stack top");
+        
+        while (o->stackIndex > initStackIndex )
+_           (Pop (o));
+    }
+    
+    _catch: return result;
 }
 
 
@@ -904,8 +977,6 @@ _       (EmitOp (o, op));
     }
     else
     {
-
-        
         if (i_opcode == c_waOp_branchIf)
         {
 _           (MoveStackTopToRegister (o));
@@ -918,9 +989,13 @@ _           (Pop (o));
 _               (MoveStackTopToRegister (o));
             
             op = op_Branch;
+            // smassey: some of the spec tests have opcodes after a unconditional branch.
+            // why? i don't know. i would consider this malformed Wasm code.
+            // but, so the compiler doesn't barf, we need to unwind the entire stack here.
+_           (UnwindBlockStack (o));
+            
+            o->block.isPolymorphic = true;
         }
-
-//_       (PreserveRegisters (o));
 
 _       (EmitOp (o, op));
 
@@ -929,7 +1004,7 @@ _       (EmitOp (o, op));
 _       (m3Alloc (& scope->patches, M3BranchPatch, 1));
 
 //                  printf ("scope: %p -- attach patch: %p to %p \n", scope, scope->patches, patch);
-        scope->patches->location = (pc_t*)ReservePointer (o);
+        scope->patches->location = (pc_t *) ReservePointer (o);
         scope->patches->next = patch;
     }
 
@@ -984,6 +1059,8 @@ _           (m3Alloc (& scope->patches, M3BranchPatch, 1));
             scope->patches->next = prev_patch;
         }
     }
+
+_   (UnwindBlockStack (o));
 
     _catch: return result;
 }
@@ -1659,29 +1736,29 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
 
     * o_copyStackTopToRegister = false;
 
-    i16 initStackIndex = o->block.initStackIndex;
-
     if (o->block.type != c_m3Type_none)
     {
-        if (o->block.depth > 0 and initStackIndex != o->stackIndex)
+        if (o->block.isPolymorphic)
         {
-            if (o->stackIndex == initStackIndex + 1)
+_           (UnwindBlockStack (o));
+            PushRegister (o, o->block.type);
+        }
+        else
+        {
+            i16 initStackIndex = o->block.initStackIndex;
+            
+            if (o->block.depth > 0 and initStackIndex != o->stackIndex)
             {
-                * o_copyStackTopToRegister = not IsStackTopInRegister (o);
+                if (o->stackIndex == initStackIndex + 1)
+                {
+                    * o_copyStackTopToRegister = not IsStackTopInRegister (o);
+                }
+                else _throw ("unexpected block stack offset");
             }
-            else _throw ("unexpected block stack offset");
         }
     }
     else
-    {
-        if (initStackIndex != o->stackIndex)
-        {
-            m3log (compile, "reseting stack top");
-            
-            while (initStackIndex != o->stackIndex)
-_               (Pop (o));
-        }
-    }
+_       (UnwindBlockStack (o));
 
     _catch: //d_m3Assert (not result);
 
@@ -1825,7 +1902,7 @@ _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 _       (ReadLEB_u32 (& varCount, & o->wasm, o->wasmEnd));
 _       (ReadLEB_i7 (& waType, & o->wasm, o->wasmEnd));
 _       (NormalizeType (& localType, waType));
-                                                                                                m3log (compile, "%d locals: %s", varCount, c_waTypes [localType]);
+                                                                                                m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
         while (varCount--)
 _           (PushAllocatedSlot (o, localType));
     }

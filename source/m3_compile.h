@@ -67,6 +67,7 @@ typedef struct M3CompilationScope
     i16                             initStackIndex;
     u8                              type;
     u8                              opcode;
+    bool                            isPolymorphic;
 }
 M3CompilationScope;
 

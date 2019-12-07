@@ -25,8 +25,11 @@ u32  GetFunctionNumArgs  (IM3Function i_function)
 {
     u32 numArgs = 0;
 
-    if (i_function->funcType)
-        numArgs = i_function->funcType->numArgs;
+    if (i_function)
+    {
+        if (i_function->funcType)
+            numArgs = i_function->funcType->numArgs;
+    }
 
     return numArgs;
 }
