@@ -97,6 +97,10 @@ void test_perf_fib38() {
   struct timespec delta = timespec_diff(start, finish);
   unsigned ms = (delta.tv_sec*1000) + (delta.tv_nsec/1000000);
   printf("%d [%u ms]\n", result, ms);
+
+  // TODO: this fails
+  //double fms = (delta.tv_sec*1000.0) + (delta.tv_nsec/1000000.0);
+  //printf("%d [%f ms]\n", result, fms);
 }
 
 /*
