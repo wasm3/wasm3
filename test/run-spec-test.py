@@ -452,15 +452,16 @@ else:
 
         "address", "align", "endianness",
         "memory_redundancy", "float_memory",
+        "memory", "memory_trap", "memory_grow",
 
-		"switch", "if"
+		"switch", "if",
+		"nop"
 
         #--- TODO ---
         #"start",
         #"loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
         #"float_exprs",
-        #"nop", "unreachable",
-        #"memory", "memory_trap", "memory_grow",
+        #"unreachable",
     ]))
 
 for fn in jsonFiles:
