@@ -231,7 +231,7 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
 # ifdef DEBUG
 // WARNING/TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
 // and, if an operation happens to missing from the c_operations table it won't be recognized here
-void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
+void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
 {
         m3log (code, "code page seq: %d", i_codePage->info.sequence);
     
@@ -266,6 +266,82 @@ void  DumpCodePage  (IM3CodePage i_codePage, pc_t i_startPC)
 }
 # endif
 
+
+void  dump_type_stack  (IM3Compilation o)
+{
+    /* Reminders about how the stack works! :)
+     -- args & locals remain on the type stack for duration of the function. Denoted with a constant 'A' and 'L' in this dump.
+     -- the intial stack dumps originate from the CompileLocals () function, so these identifiers won't/can't be
+     applied until this compilation stage is finished
+     -- constants are not statically represented in the type stack (like args & constants) since they don't have/need
+     write counts
+     -- the number shown for static args and locals (value in wasmStack [i]) represents the write count for the variable
+     -- (does Wasm ever write to an arg? I dunno/don't remember.)
+     -- the number for the dynamic stack values represents the slot number.
+     -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'
+     
+     */
+    
+#   if d_m3LogOutput
+    
+    // for the assert at end of dump:
+    i32 regAllocated [2] = { (i32) IsRegisterAllocated (o, 0), (i32) IsRegisterAllocated (o, 1) };
+    
+    // display whether r0 or fp0 is allocated. these should then also be reflected somewhere in the stack too.
+    printf ("                                                        ");
+    printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
+    
+    u32 numArgs = GetFunctionNumArgs (o->function);
+    
+    for (u32 i = 0; i < o->stackIndex; ++i)
+    {
+        if (i == o->firstConstSlotIndex)
+            printf (" | ");                     // divide the static & dynamic portion of the stack
+        
+        //        printf (" %d:%s.", i, c_waTypes [o->typeStack [i]]);
+        printf (" %s.", c_waTypes [o->typeStack [i]]);
+        if (i < o->firstConstSlotIndex)
+        {
+            u16 writeCount = o->wasmStack [i];
+            
+            printf ((i < numArgs) ? "A" : "L");     // arg / local
+            printf ("%d", (i32) writeCount);        // writeCount
+        }
+        else
+        {
+            u16 slot = o->wasmStack [i];
+            
+            if (IsRegisterLocation (slot))
+            {
+                bool isFp = IsFpRegisterLocation (slot);
+                printf ("%s", isFp ? "f0" : "r0");
+                
+                regAllocated [isFp]--;
+            }
+            else
+            {
+                if (slot < o->firstSlotIndex)
+                {
+                    if (slot >= o->firstConstSlotIndex)
+                        printf ("c");
+                    else if (slot >= numArgs)
+                        printf ("l");
+                    else
+                        printf ("a");
+                }
+                
+                printf ("%d", (i32) slot);  // slot
+            }
+        }
+        
+        printf (" ");
+    }
+    
+    for (u32 r = 0; r < 2; ++r)
+        d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
+    
+#   endif
+}
 
 
 

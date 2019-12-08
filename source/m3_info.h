@@ -23,4 +23,7 @@ OpInfo;
 OpInfo FindOperationInfo  (IM3Operation i_operation);
 
 
+void  dump_type_stack  (IM3Compilation o);
+
+
 #endif /* m3_info_h */

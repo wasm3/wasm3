@@ -12,7 +12,7 @@
 #include "m3_emit.h"
 #include "m3_exec.h"
 #include "m3_exception.h"
-
+#include "m3_info.h"
 
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -92,83 +92,6 @@ static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i6
 bool  IsRegisterLocation        (i16 i_location)    { return (i_location >= c_m3Reg0SlotAlias); }
 bool  IsFpRegisterLocation      (i16 i_location)    { return (i_location == c_m3Fp0SlotAlias);  }
 bool  IsIntRegisterLocation     (i16 i_location)    { return (i_location == c_m3Reg0SlotAlias); }
-
-
-void  dump_type_stack  (IM3Compilation o)
-{
-    /* Reminders about how the stack works! :)
-        -- args & locals remain on the type stack for duration of the function. Denoted with a constant 'A' and 'L' in this dump.
-            -- the intial stack dumps originate from the CompileLocals () function, so these identifiers won't/can't be
-            applied until this compilation stage is finished
-        -- constants are not statically represented in the type stack (like args & constants) since they don't have/need
-            write counts
-        -- the number shown for static args and locals (value in wasmStack [i]) represents the write count for the variable
-            -- (does Wasm ever write to an arg? I dunno/don't remember.)
-        -- the number for the dynamic stack values represents the slot number.
-        -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'
-     
-     */
-    
-#   if d_m3LogOutput
-    
-    // for the assert at end of dump:
-    i32 regAllocated [2] = { (i32) IsRegisterAllocated (o, 0), (i32) IsRegisterAllocated (o, 1) };
-    
-    // display whether r0 or fp0 is allocated. these should then also be reflected somewhere in the stack too.
-    printf ("                                                        ");
-    printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
-    
-    u32 numArgs = GetFunctionNumArgs (o->function);
-    
-    for (u32 i = 0; i < o->stackIndex; ++i)
-    {
-        if (i == o->firstConstSlotIndex)
-            printf (" | ");                     // divide the static & dynamic portion of the stack
-        
-//        printf (" %d:%s.", i, c_waTypes [o->typeStack [i]]);
-        printf (" %s.", c_waTypes [o->typeStack [i]]);
-        if (i < o->firstConstSlotIndex)
-        {
-            u16 writeCount = o->wasmStack [i];
-
-            printf ((i < numArgs) ? "A" : "L");     // arg / local
-            printf ("%d", (i32) writeCount);        // writeCount
-        }
-        else
-        {
-            u16 slot = o->wasmStack [i];
-            
-            if (IsRegisterLocation (slot))
-            {
-                bool isFp = IsFpRegisterLocation (slot);
-                printf ("%s", isFp ? "f0" : "r0");
-                
-                regAllocated [isFp]--;
-            }
-            else
-            {
-                if (slot < o->firstSlotIndex)
-                {
-                    if (slot >= o->firstConstSlotIndex)
-                        printf ("c");
-                    else if (slot >= numArgs)
-                        printf ("l");
-                    else
-                        printf ("a");
-                }
-                
-                printf ("%d", (i32) slot);  // slot
-            }
-        }
-        
-        printf (" ");
-    }
-    
-    for (u32 r = 0; r < 2; ++r)
-        d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
-    
-#   endif
-}
 
 
 i16  GetStackTopIndex  (IM3Compilation o)
@@ -1169,6 +1092,7 @@ _       (EmitOp     (o, op_CallIndirect));
     _catch: return result;
 }
 
+
 M3Result  Compile_Memory_Current  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
@@ -1179,8 +1103,11 @@ _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 _   (EmitOp     (o, op_MemCurrent));
     EmitPointer (o, o->runtime);
 
+    PushRegister (o, c_m3Type_i32);   // i32?
+
     _catch: return result;
 }
+
 
 M3Result  Compile_Memory_Grow  (IM3Compilation o, u8 i_opcode)
 {
@@ -1188,11 +1115,14 @@ M3Result  Compile_Memory_Grow  (IM3Compilation o, u8 i_opcode)
 
     i8 reserved;
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    
+_   (MoveStackTopToRegister (o));   // a stack flavor of Grow would get rid of this
+_   (Pop (o));
 
-	// FIX: stack top needs to be moved to a register or need stack-flavor of MemGrow
-	
 _   (EmitOp     (o, op_MemGrow));
     EmitPointer (o, o->runtime);
+    
+    PushRegister (o, c_m3Type_i32);   // i32?
 
     _catch: return result;
 }
@@ -1221,7 +1151,10 @@ _   (PreserveRegisters (o));
 _   (ReadBlockType (o, & blockType));
 
     if (i_opcode == c_waOp_loop)
+    {
 _       (EmitOp (o, op_Loop));
+        EmitPointer (o, & o->runtime->memory);
+    }
 
 _   (CompileBlock (o, blockType, i_opcode));
 
@@ -1444,7 +1377,7 @@ _   (Compile_Operator (o, i_opcode));
 }
 
 
-#define d_singleOp(OP) OP, NULL, NULL       // these aren't actually used by the compiler, just codepage decoding
+#define d_singleOp(OP) op_##OP, NULL, NULL       // these aren't actually used by the compiler, just codepage decoding
 #define d_emptyOpList() NULL, NULL, NULL
 #define d_unaryOpList(TYPE, NAME) op_##TYPE##_##NAME##_r, op_##TYPE##_##NAME##_s, NULL
 #define d_binOpList(TYPE, NAME) op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss
@@ -1453,7 +1386,7 @@ _   (Compile_Operator (o, i_opcode));
 
 const M3OpInfo c_operations [] =
 {
-    M3OP( "unreachable",         0, none,   d_singleOp (op_Unreachable),    Compile_Unreachable ),  // 0x00
+    M3OP( "unreachable",         0, none,   d_singleOp (Unreachable),       Compile_Unreachable ),  // 0x00
     M3OP( "nop",                 0, none,   d_emptyOpList(),                Compile_Nop ),          // 0x01 .
     M3OP( "block",               0, none,   d_emptyOpList(),                Compile_LoopOrBlock ),  // 0x02
     M3OP( "loop",                0, none,   d_emptyOpList(),                Compile_LoopOrBlock ),  // 0x03
@@ -1463,11 +1396,11 @@ const M3OpInfo c_operations [] =
     M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                      // 0x06 - 0x0a
 
     M3OP( "end",                 0, none,   d_emptyOpList(),                Compile_Else_End ),     // 0x0b
-    M3OP( "br",                  0, none,   d_singleOp (op_Branch),         Compile_Branch ),       // 0x0c
+    M3OP( "br",                  0, none,   d_singleOp (Branch),            Compile_Branch ),       // 0x0c
     M3OP( "br_if",              -1, none,   d_emptyOpList(),                Compile_Branch ),       // 0x0d
-    M3OP( "br_table",           -1, none,   d_singleOp (op_BranchTable),    Compile_BranchTable ),  // 0x0e
-    M3OP( "return",              0, any,    d_singleOp (op_Return),         Compile_Return ),       // 0x0f
-    M3OP( "call",                0, any,    d_singleOp (op_Call),           Compile_Call ),         // 0x10
+    M3OP( "br_table",           -1, none,   d_singleOp (BranchTable),       Compile_BranchTable ),  // 0x0e
+    M3OP( "return",              0, any,    d_singleOp (Return),            Compile_Return ),       // 0x0f
+    M3OP( "call",                0, any,    d_singleOp (Call),              Compile_Call ),         // 0x10
     M3OP( "call_indirect",       0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x11
     M3OP( "return_call",         0, any,    d_emptyOpList(),                Compile_Call ),         // 0x12 TODO: Optimize
     M3OP( "return_call_indirect",0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x13
@@ -1517,8 +1450,8 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.store16",        -2, none,   d_binOpList (i64, Store_i16),   Compile_Load_Store ),           // 0x3d
     M3OP( "i64.store32",        -2, none,   d_binOpList (i64, Store_i32),   Compile_Load_Store ),           // 0x3e
 
-    M3OP( "memory.current",     1,  i_32,   d_emptyOpList(),                Compile_Memory_Current ),       // 0x3f
-    M3OP( "memory.grow",        0,  i_32,   d_emptyOpList(),                Compile_Memory_Grow ),          // 0x40
+    M3OP( "memory.current",     1,  i_32,   d_singleOp (MemCurrent),        Compile_Memory_Current ),       // 0x3f
+    M3OP( "memory.grow",        1,  i_32,   d_singleOp (MemGrow),           Compile_Memory_Grow ),          // 0x40
 
     M3OP( "i32.const",          1,  i_32,   d_emptyOpList(),                Compile_Const_i32 ),            // 0x41
     M3OP( "i64.const",          1,  i_64,   d_emptyOpList(),                Compile_Const_i64 ),            // 0x42

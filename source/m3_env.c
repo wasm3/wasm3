@@ -204,28 +204,47 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 {
     M3Result result = c_m3Err_none;                                     d_m3Assert (not io_runtime->memory.wasmPages);
 
-    if (i_module->memoryInfo.initPages and not i_module->memoryImported)
+    if (not i_module->memoryImported)
     {
-        M3Memory * memory = & io_runtime->memory;
-
-        // TODO: allocate only required memory when Grow is implemented
-		size_t numPageBytes = 256 * c_m3MemPageSize; //TODO: i_module->memoryInfo.initPages * c_m3MemPageSize;
-        size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
-
-        memory->mallocated = (M3MemoryHeader *) m3Realloc (memory->mallocated, numBytes, 0);
-
-		if (memory->mallocated)
-		{
-			memory->numPages = i_module->memoryInfo.initPages;
-			memory->maxPages = i_module->memoryInfo.maxPages;
-			memory->wasmPages = (u8 *) (memory->mallocated + 1);
-
-			memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize); //TODO: numPageBytes;
-			memory->mallocated->runtime = io_runtime;
-		}
-		else _throw (c_m3Err_mallocFailed);
+        u32 maxPages = i_module->memoryInfo.maxPages;
+        io_runtime->memory.maxPages = maxPages ? maxPages : 65536;
+        
+        result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
     }
 
+    _catch: return result;
+}
+
+
+M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
+{
+    M3Result result = c_m3Err_none;
+    
+    M3Memory * memory = & io_runtime->memory;
+    
+    if (i_numPages <= memory->maxPages)
+    {
+        size_t numPageBytes = i_numPages * c_m3MemPageSize;
+        size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
+
+        size_t numPreviousBytes = memory->numPages * c_m3MemPageSize;
+        if (numPreviousBytes)
+            numPreviousBytes += sizeof (M3MemoryHeader);
+        
+        memory->mallocated = (M3MemoryHeader *) m3Realloc (memory->mallocated, numBytes, numPreviousBytes);
+        
+        if (memory->mallocated)
+        {
+            memory->numPages = i_numPages;
+            memory->wasmPages = (u8 *) (memory->mallocated + 1);
+            
+            memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize);
+            memory->mallocated->runtime = io_runtime;
+        }
+        else result = c_m3Err_mallocFailed;
+    }
+    else result = c_m3Err_wasmMemoryOverflow;
+    
     _catch: return result;
 }
 
@@ -608,7 +627,7 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
 #   if defined (DEBUG) && d_m3LogCodePages
-        DumpCodePage (i_codePage, /* startPC: */ NULL);
+        dump_code_page (i_codePage, /* startPC: */ NULL);
 #   endif
 
     if (i_codePage)

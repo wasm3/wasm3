@@ -116,31 +116,17 @@ d_m3OpDef  (MemGrow)
 
     IM3Memory memory = & runtime->memory;
 
-    size_t requiredPages = memory->numPages + _r0;
-
-    if (memory->maxPages && requiredPages > memory->maxPages)
-    {
-    	_r0 = -1;
-    	return nextOp ();
-    }
-
+    u32 numPagesToGrow = (u32) _r0;
+    u32 requiredPages = memory->numPages + numPagesToGrow;
     _r0 = memory->numPages;
 
-	// FIX/FINISH (smassey): reallocation does need to occur here. and, op_Loop needs to refresh _mem arg from runtime
-    // for now, grow memory virtually
-    runtime->memory.numPages = requiredPages;
-    runtime->memory.mallocated->end = memory->wasmPages + (runtime->memory.numPages * c_m3MemPageSize);
-
-	/* m3ret_t r = ResizeMemory (& _mem, runtime, requiredPages);
-
-	 if (r)
-		return r;
-	 else
-	 
-	*/
-	
+    M3Result r = ResizeMemory (runtime, requiredPages);
+    if (r)
+        _r0 = -1;
+    
     return nextOp ();
 }
+
 
 // it's a debate: should the compilation be trigger be the caller or callee page.
 // it's a much easier to put it in the caller pager. if it's in the callee, either the entire page
@@ -279,9 +265,14 @@ d_m3OpDef  (Loop)
 {
     m3ret_t r;
 
+    M3Memory * memory = immediate (M3Memory *);
+    
     do
     {
-        r = nextOp ();              // printf ("loop: %p\n", r);
+        // linear memory pointer needs refreshed here because the block it's loop over
+        // can potentially invoke the grow operator.
+        _mem = memory->wasmPages;
+        r = nextOp ();                     // printf ("loop: %p\n", r);
     }
     while (r == _pc);
 

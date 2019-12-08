@@ -37,7 +37,7 @@ IM3CodePage             PopCodePage             (IM3CodePage * i_list);
 void                    TestCodePageCapacity    (IM3CodePage i_page);
 
 # ifdef DEBUG
-void                    DumpCodePage            (IM3CodePage i_codePage, pc_t i_startPC);
+void                    dump_code_page            (IM3CodePage i_codePage, pc_t i_startPC);
 # endif
 
 #define EmitWord(page, val) EmitWordImpl(page, (void*)(val))

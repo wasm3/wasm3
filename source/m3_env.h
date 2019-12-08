@@ -83,8 +83,8 @@ typedef struct M3Memory
     M3MemoryHeader *        mallocated;
     u8 *                    wasmPages;                  // = mallocated + sizeof (M3MemoryHeader)
 
-	size_t					numPages;
-	size_t					maxPages;
+	u32 					numPages;
+	u32 					maxPages;
 }
 M3Memory;
 
@@ -211,6 +211,7 @@ typedef M3Runtime *         IM3Runtime;
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void                        ReleaseRuntime              (IM3Runtime io_runtime);
 
+M3Result                    ResizeMemory                (IM3Runtime io_runtime, u32 i_numPages);
 
 typedef void *              (* ModuleVisitor)           (IM3Module i_module, void * i_info);
 void *                      ForEachModule               (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info);
