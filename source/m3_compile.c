@@ -376,7 +376,7 @@ void  PushRegister  (IM3Compilation o, u8 i_m3Type)
 M3Result  Pop  (IM3Compilation o)
 {
     M3Result result = c_m3Err_none;
-
+    
     if (o->stackIndex > o->block.initStackIndex)
     {
         o->stackIndex--;                                                //  printf ("pop: %d\n", (i32) o->stackIndex);
@@ -395,7 +395,11 @@ M3Result  Pop  (IM3Compilation o)
 
         m3logif (stack, dump_type_stack (o))
     }
-    else result = c_m3Err_functionStackUnderrun;
+    else
+    {
+        if (not o->block.isPolymorphic)
+            result = c_m3Err_functionStackUnderrun;
+    }
 
     return result;
 }
@@ -503,6 +507,17 @@ M3Result  EmitTopSlotAndPop  (IM3Compilation o)
     return Pop (o);
 }
 
+
+M3Result  AddTrapRecord  (IM3Compilation o)
+{
+    M3Result result = c_m3Err_none;
+    
+    if (o->function)
+    {
+    }
+
+    return result;
+}
 
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -1290,7 +1305,16 @@ M3Result  Compile_Nop  (IM3Compilation o, u8 i_opcode)
 
 M3Result  Compile_Unreachable  (IM3Compilation o, u8 i_opcode)
 {
-    return EmitOp (o, op_Unreachable);
+    M3Result result;
+
+_   (AddTrapRecord (o));
+    
+    o->block.isPolymorphic = true;
+
+_   (EmitOp (o, op_Unreachable));
+
+    _catch:
+    return result;
 }
 
 
