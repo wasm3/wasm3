@@ -626,12 +626,12 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
-#   if defined (DEBUG) && d_m3LogCodePages
-        dump_code_page (i_codePage, /* startPC: */ NULL);
-#   endif
-
     if (i_codePage)
     {
+#       if defined (DEBUG) && d_m3LogCodePages
+            dump_code_page (i_codePage, /* startPC: */ NULL);
+#       endif
+        
         IM3CodePage * list;
 
         if (NumFreeLines (i_codePage) < c_m3CodePageFreeLinesThreshold)

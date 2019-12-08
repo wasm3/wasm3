@@ -453,11 +453,11 @@ else:
         "address", "align", "endianness",
         "memory_redundancy", "float_memory",
 
-		"switch"
+		"switch", "if"
 
         #--- TODO ---
         #"start",
-        #"if", "loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
+        #"loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
         #"float_exprs",
         #"nop", "unreachable",
         #"memory", "memory_trap", "memory_grow",

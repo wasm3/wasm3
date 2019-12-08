@@ -375,11 +375,9 @@ void  PushRegister  (IM3Compilation o, u8 i_m3Type)
 
 M3Result  Pop  (IM3Compilation o)
 {
-    // TODO: multivalue changes this constraint, but this should check underrunning the current block?
-    
     M3Result result = c_m3Err_none;
 
-    if (o->stackIndex)
+    if (o->stackIndex > o->block.initStackIndex)
     {
         o->stackIndex--;                                                //  printf ("pop: %d\n", (i32) o->stackIndex);
 
@@ -411,7 +409,7 @@ M3Result  UnwindBlockStack  (IM3Compilation o)
 
     if (o->stackIndex > initStackIndex)
     {
-        m3log (compile, "reseting stack top");
+        m3log (compile, "unwinding stack top");
         
         while (o->stackIndex > initStackIndex )
 _           (Pop (o));
@@ -983,7 +981,9 @@ _           (m3Alloc (& scope->patches, M3BranchPatch, 1));
         }
     }
 
-_   (UnwindBlockStack (o));
+    o->block.isPolymorphic = true;
+    
+//_   (UnwindBlockStack (o));
 
     _catch: return result;
 }
@@ -1811,11 +1811,14 @@ _       (EmitOp (o, op_Branch));
 
         o->page = savedPage;
         
-        ReleaseCodePage (o->runtime, elsePage);
     }
-    else _throw (c_m3Err_mallocFailedCodePage);
+    else result = c_m3Err_mallocFailedCodePage;
 
-    _catch: return result;
+    _catch:
+    
+    ReleaseCodePage (o->runtime, elsePage);
+    
+    return result;
 }
 
 
