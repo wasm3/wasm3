@@ -26,6 +26,7 @@
 #include <time.h>
 #include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 
 //TODO
 #define PREOPEN_CNT   3
@@ -284,7 +285,12 @@ uint32_t m3_wasi_unstable_fd_datasync(uint32_t fd)
 uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
 {
     while (1) {
+        #if defined(__APPLE__)
+        abort ();   // get random not avail. on macos
+        ssize_t retlen = 0;
+        #else
         ssize_t retlen = getrandom(buf, buflen, 0);
+        #endif
         if (retlen < 0) {
             if (errno == EINTR) { continue; }
             return errno_to_wasi(errno);
