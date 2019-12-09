@@ -310,7 +310,7 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
             #include <NTSecAPI.h>
             #undef SystemFunction036
 
-            if (RtlGenRandom(buf, buflen) == FALSE) { continue; }
+            if (RtlGenRandom(buf, buflen) == TRUE) return __WASI_ESUCCESS;
         #else
             // use syscall ?
             abort (); // unsupport
