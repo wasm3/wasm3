@@ -286,23 +286,24 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
     while (1) {
         ssize_t retlen = 0;
         #if defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
-          #include <unistd.h>
+            #include <unistd.h>
 
-          size_t pos, stride;
-          for (pos = 0, stride = 256; pos + stride < buflen; pos += stride) {
-            if (getentropy((char *)buf + pos, stride)) {
-              return errno_to_wasi(errno);
+            size_t pos, stride;
+            for (pos = 0, stride = 256; pos + stride < buflen; pos += stride) {
+                if (getentropy((char *)buf + pos, stride)) {
+                    return errno_to_wasi(errno);
+                }
             }
-          }
-          if (getentropy((char *)buf + pos, buflen - pos)) {
-            return errno_to_wasi(errno);
-          }
-          return __WASI_ESUCCESS;
+            if (getentropy((char *)buf + pos, buflen - pos)) {
+                return errno_to_wasi(errno);
+            }
+            return __WASI_ESUCCESS;
+
         #elif defined(__NetBSD__)
-        // TODO
-        // sysctl(buf, buflen)
+            // TODO
+            // sysctl(buf, buflen)
         #elif defined(__FreeBSD__) || defined(__linux__)
-          ssize_t retlen = getrandom(buf, buflen, 0);
+            ssize_t retlen = getrandom(buf, buflen, 0);
         #elif defined(_WIN32)
             /* See http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx */
             #define SystemFunction036 NTAPI SystemFunction036
@@ -311,9 +312,9 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
 
             if (RtlGenRandom(buf, buflen) == FALSE) { continue; }
         #else
-        // use syscall ?
-        abort (); // unsupport
-        retlen = -1;
+            // use syscall ?
+            abort (); // unsupport
+            retlen = -1;
         #endif
         if (retlen < 0) {
             if (errno == EINTR) { continue; }
