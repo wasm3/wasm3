@@ -232,6 +232,17 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
 }
 
 
+M3Result  ParseSection_Start  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
+{
+    M3Result result = c_m3Err_none;
+
+    u32 startFunc;
+_   (ReadLEB_u32 (& startFunc, & i_bytes, i_end));                               m3log (parse, "** Start Function: %d", startFunc);
+
+    io_module->startFunction = startFunc;
+
+    _catch: return result;
+}
 
 M3Result  Parse_InitExpr  (M3Module * io_module, bytes_t * io_bytes, cbytes_t i_end)
 {
@@ -492,7 +503,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 		ParseSection_Memory,    // 5
         ParseSection_Global,    // 6
         ParseSection_Export,    // 7
-        NULL,                   // 8: start
+        ParseSection_Start,     // 8
         ParseSection_Element,   // 9
         ParseSection_Code,      // 10
         ParseSection_Data       // 11
@@ -527,6 +538,7 @@ _   (m3Alloc (& module, M3Module, 1));
 //  Module_Init (module);
 
     module->name = ".unnamed";                                                      m3log (parse, "load module: %d bytes", i_numBytes);
+    module->startFunction = -1;
 
     const u8 * pos = i_bytes;
     const u8 * end = pos + i_numBytes;

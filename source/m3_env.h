@@ -145,6 +145,8 @@ typedef struct M3Module                 // TODO add env owner? also discriminate
     u32                     numFunctions;
     M3Function *            functions;
 
+    i32                     startFunction;
+
     u32                     numDataSegments;
     M3DataSegment *         dataSegments;
 

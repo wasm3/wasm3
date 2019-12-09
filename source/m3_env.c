@@ -368,6 +368,30 @@ _                       (ReadLEB_u32 (& functionIndex, & bytes, end));
     _catch: return result;
 }
 
+M3Result  InitStartFunc  (IM3Module io_module)
+{
+    M3Result result = c_m3Err_none;
+
+    if (io_module->startFunction >= 0) {
+        if (io_module->startFunction >= io_module->numFunctions) {
+            return "start function index out of bounds";
+        }
+        IM3Function function = &io_module->functions [io_module->startFunction];
+        if (not function) {
+            return "start function not found";
+        }
+
+        if (not function->compiled)
+        {
+_           (Compile_Function (function));
+            if (result)
+                function = NULL;
+        }
+_       (m3_Call(function));
+    }
+
+    _catch: return result;
+}
 
 // TODO: deal with main + side-modules loading efforcement
 M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
@@ -390,6 +414,9 @@ _       (InitElements (io_module));
         io_module->runtime = io_runtime;
         io_module->next = io_runtime->modules;
         io_runtime->modules = io_module;
+
+        // Functions expect module to be linked to a runtime, so we call start here
+_       (InitStartFunc (io_module));
     }
     else _throw (c_m3Err_moduleAlreadyLinked);
 

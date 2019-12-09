@@ -35,6 +35,7 @@ parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--skip-crashes", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
+#parser.add_argument("--wasm-opt", metavar="<opt flags>")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("file", nargs='*')
@@ -87,7 +88,7 @@ def fatal(msg):
     sys.exit(1)
 
 def run(cmd):
-    return subprocess.check_output(cmd, shell=True)
+    return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
 
 def filename(p):
     _, fn = os.path.split(p)
@@ -171,6 +172,17 @@ def specTestsPreprocess():
         json_fn = os.path.join(coreDir, os.path.splitext(fn)[0]) + ".json"
         run(f"wast2json --debug-names -o {json_fn} {wast_fn}")
 
+    '''
+    if args.wasm_opt:
+        wasmFiles = glob.glob(os.path.join(coreDir, "*.wasm"))
+        wasmFiles.sort()
+        for fn in wasmFiles:
+            try:
+                run(f"wasm-opt {args.wasm_opt} {fn} -o {fn}")
+            except Exception:
+                pass
+    '''
+
 #
 # Wasm3 REPL
 #
@@ -206,13 +218,15 @@ class Wasm3():
         self.t.daemon = True
         self.t.start()
 
+        output = self._read_until("wasm3> ", False)
+
     def invoke(self, cmd):
         cmd = " ".join(map(str, cmd)) + "\n"
         self._flush_input()
         self._write(cmd)
         return self._read_until("\nwasm3> ")
 
-    def _read_until(self, token):
+    def _read_until(self, token, autorestart=True):
         buff = ""
         tout = time.time() + self.timeout
         error = None
@@ -233,7 +247,8 @@ class Wasm3():
             error = "Timeout"
 
         # Crash => restart
-        self.load(self.loaded)
+        if autorestart:
+            self.load(self.loaded)
         raise Exception(error)
 
     def _write(self, data):
@@ -247,7 +262,7 @@ class Wasm3():
 
     def _flush_input(self):
         while not self.q.empty():
-            self.q.get_nowait()
+            self.q.get()
 
     def terminate(self):
         self.p.stdin.close()
@@ -305,7 +320,7 @@ def runInvoke(test):
 
     test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
     if test_id in blacklist:
-        warning(f"Skipping {test_id}")
+        warning(f"Skipping {test_id} (blacklisted)")
         stats.skipped += 1
         return
 
@@ -454,11 +469,11 @@ else:
         "memory_redundancy", "float_memory",
         "memory", "memory_trap", "memory_grow",
 
-		"switch", "if",
-		"nop"
+        "switch", "if",
+        "nop",
+        "start",
 
         #--- TODO ---
-        #"start",
         #"loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
         #"float_exprs",
         #"unreachable",
@@ -483,8 +498,14 @@ for fn in jsonFiles:
         if test.type == "module":
             wast_module = cmd["filename"]
 
-            fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
-            wasm3.load(fn)
+            if args.verbose:
+                print(f"Loading {wast_module}")
+
+            try:
+                fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
+                wasm3.load(fn)
+            except Exception:
+                pass
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
@@ -510,7 +531,7 @@ for fn in jsonFiles:
                 test.expected_trap = cmd["text"]
             else:
                 stats.skipped += 1
-                warning(f"Skipped {test.source} {test.type}")
+                warning(f"Skipped {test.source} ({test.type} not implemented)")
                 continue
 
             test.action = dotdict(cmd["action"])
@@ -532,6 +553,7 @@ for fn in jsonFiles:
                 test.type == "assert_unlinkable" or
                 test.type == "assert_uninstantiable"):
             stats.skipped += 1
+            #warning(f"Skipped {test.source} ({test.type} not implemented)")
         else:
             fatal(f"Unknown command '{test}'")
 
