@@ -287,10 +287,8 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
         ssize_t retlen = 0;
         #if defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
             #include <unistd.h>
-
-            size_t pos, stride;
-            for (pos = 0, stride = 256; pos + stride < buflen; pos += stride) {
-                if (getentropy((char *)buf + pos, stride)) {
+            for (size_t pos = 0; pos + 256 < buflen; pos += 256) {
+                if (getentropy((char *)buf + pos, 256)) {
                     return errno_to_wasi(errno);
                 }
             }
