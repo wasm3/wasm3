@@ -296,6 +296,8 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
           if (getentropy((char *)buf + pos, buflen - pos))
             return errno_to_wasi(errno);
 
+          retlen = buflen;
+
         #elif defined(__NetBSD__)
         // TODO
         // sysctl(buf, buflen)
