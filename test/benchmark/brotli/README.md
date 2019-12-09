@@ -1,8 +1,6 @@
-# Brotli
+# Brotli 1.0.7
 
 https://github.com/google/brotli
-
-<p align="center"><img src="https://brotli.org/brotli.svg" alt="Brotli" width="64"></p>
 
 ### Results
 
