@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     } else if (argc == 3) {
         width = atoi(argv[1]);
         height = width;
-        magn = strtold(argv[2], NULL);
+        magn = strtod(argv[2], NULL);
     } else {
         fprintf(stderr, "usage: %s <size> <magnification>\n", argv[0]);
         return 1;

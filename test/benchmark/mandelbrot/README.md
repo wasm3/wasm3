@@ -14,7 +14,7 @@ TODO
 
 ```sh
 wasicc -O3 -s mandel_dd.c -o mandel_dd.wasm
-wasicc -O3 -s mandel.c -o mandel.wasm -Wl,-lc-printscan-long-double
+wasicc -O3 -s mandel.c -o mandel.wasm
 ```
 
 ### Running
