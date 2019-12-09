@@ -15,9 +15,9 @@ int main(int argc, char **argv) {
     unsigned width, height;
     double magn;
     if (argc <= 1) {
-        width = 512;
+        width = 1024;
         height = width;
-        magn  = 1e5;
+        magn  = 4e5;
     } else if (argc == 3) {
         width = atoi(argv[1]);
         height = width;
