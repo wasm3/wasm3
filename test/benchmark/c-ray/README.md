@@ -1,5 +1,7 @@
 # C-Ray 1.1
 
+<img align="center" width="30%" src="sphfract.jpg"> <img align="center" width="30%" src="scene.jpg">
+
 ### Results
 
 ```log
