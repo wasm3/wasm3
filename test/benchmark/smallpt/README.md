@@ -2,7 +2,7 @@
 
 Based on https://www.kevinbeason.com/smallpt/
 
-<img align="center" width="50%" src="image.jpg">
+<p align="center"><img width="50%" src="image.jpg"></p>
 
 ### Results
 

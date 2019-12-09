@@ -2,7 +2,7 @@
 
 Based on https://github.com/josch/mandelbrot
 
-<img align="center" width="50%" src="image.png">
+<p align="center"><img width="50%" src="image.png"></p>
 
 ### Results
 
