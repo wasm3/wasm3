@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
     double bailout = 128; // with a smaller value there are lines on magn=1
     double logLogBailout = log(log(bailout));
     int foundperiods = 0;
+    long maxiter = 50000;
     /*// maxiter = width * sqrt(magn);
     temp1 = dd_sqrt(magn);
     unsigned long maxiter = width * dd_get_ui(temp1);*/
@@ -83,8 +84,7 @@ int main(int argc, char **argv) {
             int whenupdate = 10;
             hx = 0;
             hy = 0;
-            //for (i = 1; i <= maxiter; i++) {
-            for (i = 1; i <= 50000; i++) {
+            for (i = 1; i <= maxiter; i++) {
                 //xx = zx * zx;
                 xx = dd_sqr(zx);
                 //yy = zy * zy;

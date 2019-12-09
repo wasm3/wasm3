@@ -42,7 +42,7 @@ cat scene | wasmer run c-ray.wasm -- -s 1024x768 > foo.ppm
 cat scene | wasmer run --backend singlepass c-ray.wasm -- -s 1024x768 > foo.ppm
 cat scene | wasmer run --backend llvm       c-ray.wasm -- -s 1024x768 > foo.ppm
 
-# Wasmer-JS (V8) https://www.npmjs.com/package/@wasmer/cli
+# Wasmer-JS (V8)
 cat scene | wasmer-js run c-ray.wasm -s 1024x768 > foo.ppm
 
 cat scene | node --wasm_interpret_all $(which wasmer-js) run c-ray.wasm -s 1024x768 > foo.ppm

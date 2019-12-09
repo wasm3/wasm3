@@ -1,5 +1,7 @@
 # mandelbrot
 
+Based on https://github.com/josch/mandelbrot
+
 ### Results
 
 ```log

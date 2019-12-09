@@ -1,5 +1,7 @@
 # CoreMark 1.0
 
+https://github.com/eembc/coremark
+
 ### Results
 
 ```log
@@ -50,6 +52,9 @@ $ENGINES_PATH/wac/wax coremark-wasi.wasm
 # wasm-micro-runtime
 $ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
 
+# wasmtime
+wasmtime --optimize coremark-wasi.wasm
+
 # Wasmer
 wasmer run coremark-wasi.wasm
 
@@ -58,7 +63,6 @@ wapm upload
 coremark-wasi
 
 # Wasmer-JS (V8)
-# https://www.npmjs.com/package/@wasmer/cli
 wasmer-js run coremark-wasi.wasm
 
 
