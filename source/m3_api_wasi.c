@@ -26,7 +26,6 @@
 #include <time.h>
 #include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 
 //TODO
 #define PREOPEN_CNT   3
