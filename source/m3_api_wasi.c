@@ -289,15 +289,15 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
           #include <unistd.h>
 
           size_t pos, stride;
-          for (pos = 0, stride = 256; pos + stride < buflen; pos += stride)
-            if (getentropy((char *)buf + pos, stride))
+          for (pos = 0, stride = 256; pos + stride < buflen; pos += stride) {
+            if (getentropy((char *)buf + pos, stride)) {
               return errno_to_wasi(errno);
-
-          if (getentropy((char *)buf + pos, buflen - pos))
+            }
+          }
+          if (getentropy((char *)buf + pos, buflen - pos)) {
             return errno_to_wasi(errno);
-
-          retlen = buflen;
-
+          }
+          return __WASI_ESUCCESS;
         #elif defined(__NetBSD__)
         // TODO
         // sysctl(buf, buflen)
