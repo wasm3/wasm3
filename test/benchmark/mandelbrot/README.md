@@ -2,6 +2,8 @@
 
 Based on https://github.com/josch/mandelbrot
 
+<img align="center" width="50%" src="image.png">
+
 ### Results
 
 ```log
