@@ -8,8 +8,6 @@
 
 #include "m3_code.h"
 
-#include <assert.h>
-
 IM3CodePage  NewCodePage  (u32 i_minNumLines)
 {
     static u32 s_sequence = 0;

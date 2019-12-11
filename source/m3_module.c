@@ -8,7 +8,6 @@
 
 
 #include "m3_module.h"
-#include <assert.h>
 
 void  m3_FreeModule  (IM3Module i_module)
 {

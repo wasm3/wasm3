@@ -471,7 +471,7 @@ d_m3Op  (Bridge)
 }
 
 
-d_m3Op  (BranchIf)
+d_m3Op  (BranchIf_r)
 {
     i32 condition   = (i32) _r0;
     pc_t branch     = immediate (pc_t);
@@ -482,6 +482,42 @@ d_m3Op  (BranchIf)
     }
     else return nextOp ();
 }
+
+
+d_m3Op  (BranchIf_s)
+{
+    i32 condition   = slot (i32);
+    pc_t branch     = immediate (pc_t);
+
+    if (condition)
+    {
+        return jumpOp (branch);
+    }
+    else return nextOp ();
+}
+
+
+// branching to blocks that produce a (int) value
+#define d_m3BranchIf(TYPE, LABEL, COND)         \
+d_m3Op  (TYPE##_BranchIf_##LABEL##s)            \
+{                                               \
+    i32 condition   = (i32) COND;               \
+    TYPE value      = slot (TYPE);              \
+    pc_t branch     = immediate (pc_t);         \
+                                                \
+    if (condition)                              \
+    {                                           \
+        _r0 = value;                            \
+        return jumpOp (branch);                 \
+    }                                           \
+    else return nextOp ();                      \
+}
+
+
+d_m3BranchIf (i32, r, _r0)
+d_m3BranchIf (i64, r, _r0)
+d_m3BranchIf (i32, s, slot (i32))
+d_m3BranchIf (i64, s, slot (i32))
 
 
 d_m3OpDecl  (BranchTable)

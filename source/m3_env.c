@@ -6,7 +6,6 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
-#include <assert.h>
 #include <stdarg.h>
 
 #include "m3.h"

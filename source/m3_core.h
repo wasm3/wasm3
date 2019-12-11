@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 
 #include "m3.h"
 #include "m3_config.h"
@@ -172,7 +173,6 @@ M3CodePageHeader;
 
 #define c_m3MemPageSize                     65536
 #define c_m3MaxFunctionStackHeight          d_m3MaxFunctionStackHeight
-#define c_m3MaxFunctionLocals               512
 
 #define c_m3Reg0SlotAlias                   c_m3MaxFunctionStackHeight + 1
 #define c_m3Fp0SlotAlias                    c_m3MaxFunctionStackHeight + 2
@@ -221,10 +221,10 @@ size_t      m3StackGetMax           ();
 #define     m3StackGetMax()         0
 #endif
 
-void        m3NotImplemented        ();
+void        m3NotImplemented        (void);
 void        m3AbortIfNot            (bool condition);
 
-void        m3Yield                 ();
+void        m3Yield                 (void);
 
 M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
 void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);

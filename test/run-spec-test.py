@@ -469,14 +469,13 @@ else:
         "memory_redundancy", "float_memory",
         "memory", "memory_trap", "memory_grow",
 
-        "switch", "if",
-        "nop",
-        "start",
+		"unreachable",
+        "switch", "if", "br",
+        "nop", "start",
 
         #--- TODO ---
-        #"loop", "labels", "block", "br", "br_if", "br_table", "return", "unwind",
+        #"loop", "labels", "block", "br_if", "br_table", "return", "unwind",
         #"float_exprs",
-        #"unreachable",
     ]))
 
 for fn in jsonFiles:

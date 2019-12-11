@@ -9,8 +9,6 @@
 #include "m3_info.h"
 #include "m3_compile.h"
 
-#include <assert.h>
-
 void  m3_PrintM3Info  ()
 {
     printf ("\n-- m3 configuration --------------------------------------------\n");

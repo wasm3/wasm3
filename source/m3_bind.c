@@ -6,8 +6,6 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
-#include <assert.h>
-
 #include "m3_exec.h"
 #include "m3_env.h"
 #include "m3_exception.h"
