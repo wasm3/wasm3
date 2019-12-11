@@ -266,6 +266,12 @@ d_m3OpDef  (Loop)
     m3ret_t r;
 
     M3Memory * memory = immediate (M3Memory *);
+    // smassey: a downside of this ^^^^ (embedding a memory pointer in the codepage)
+    // is that codepages are tied to specific runtime.
+    // originally, i was hoping that multiple runtimes (threads) could share
+    // compiled m3 code. with non-Windows calling conventions, a new
+    // "IM3Runtime _runtime" argument could be added to operations to detach
+    // the execution context from the codepage.
     
     do
     {
