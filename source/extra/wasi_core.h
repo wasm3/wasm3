@@ -11,9 +11,9 @@
 #ifndef __wasi_core_h
 #define __wasi_core_h
 
-#ifndef __wasi__
-#error <wasi/core.h> is only supported on WASI platforms.
-#endif
+//#ifndef __wasi__
+//#error <wasi/core.h> is only supported on WASI platforms.
+//#endif
 
 #include <stddef.h>
 #include <stdint.h>

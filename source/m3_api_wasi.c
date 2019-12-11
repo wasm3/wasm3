@@ -12,10 +12,7 @@
 #include "m3_module.h"
 #include "m3_exception.h"
 
-#define __wasi__
-
 #include "extra/wasi_core.h"
-
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -26,7 +23,6 @@
 #include <time.h>
 #include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 
 //TODO
 #define PREOPEN_CNT   3
@@ -285,12 +281,45 @@ uint32_t m3_wasi_unstable_fd_datasync(uint32_t fd)
 uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
 {
     while (1) {
-        #if defined(__APPLE__)
-        abort ();   // get random not avail. on macos
         ssize_t retlen = 0;
-        #else
-        ssize_t retlen = getrandom(buf, buflen, 0);
-        #endif
+
+#if defined(__wasi__)
+        retlen = getentropy(buf, buflen);
+        if (retlen == 0) {
+            retlen = buflen;
+        }
+#elif defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
+        #include <unistd.h>
+        size_t pos = 0;
+        for (; pos + 256 < buflen; pos += 256) {
+            if (getentropy((char *)buf + pos, 256)) {
+                return errno_to_wasi(errno);
+            }
+        }
+        if (getentropy((char *)buf + pos, buflen - pos)) {
+            return errno_to_wasi(errno);
+        }
+        return __WASI_ESUCCESS;
+
+#elif defined(__NetBSD__)
+        // TODO
+        // sysctl(buf, buflen)
+#elif defined(__FreeBSD__) || defined(__linux__)
+        retlen = getrandom(buf, buflen, 0);
+#elif defined(_WIN32)
+        /* See http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx */
+        #define SystemFunction036 NTAPI SystemFunction036
+        #include <NTSecAPI.h>
+        #undef SystemFunction036
+
+        if (RtlGenRandom(buf, buflen) == TRUE) {
+            return __WASI_ESUCCESS;
+        }
+#else
+        // use syscall ?
+        abort (); // unsupport
+        retlen = -1;
+#endif
         if (retlen < 0) {
             if (errno == EINTR) { continue; }
             return errno_to_wasi(errno);
