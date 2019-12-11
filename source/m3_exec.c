@@ -120,6 +120,9 @@ d_m3OpDef  (MemGrow)
     u32 requiredPages = memory->numPages + numPagesToGrow;
     _r0 = memory->numPages;
 
+    if (numPagesToGrow == 0)
+        return nextOp ();
+
     M3Result r = ResizeMemory (runtime, requiredPages);
     if (r)
         _r0 = -1;
