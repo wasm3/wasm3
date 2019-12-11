@@ -24,6 +24,15 @@
 #include <errno.h>
 #include <stdio.h>
 
+# if defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
+#   include <unistd.h>
+# elif defined(_WIN32)
+/* See http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx */
+#   define SystemFunction036 NTAPI SystemFunction036
+#   include <NTSecAPI.h>
+#   undef SystemFunction036
+# endif
+
 //TODO
 #define PREOPEN_CNT   3
 #define NANOS_PER_SEC 1000000000
@@ -289,7 +298,6 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
             retlen = buflen;
         }
 #elif defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
-        #include <unistd.h>
         size_t pos = 0;
         for (; pos + 256 < buflen; pos += 256) {
             if (getentropy((char *)buf + pos, 256)) {
@@ -307,11 +315,6 @@ uint32_t m3_wasi_unstable_random_get(void* buf, __wasi_size_t buflen)
 #elif defined(__FreeBSD__) || defined(__linux__)
         retlen = getrandom(buf, buflen, 0);
 #elif defined(_WIN32)
-        /* See http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx */
-        #define SystemFunction036 NTAPI SystemFunction036
-        #include <NTSecAPI.h>
-        #undef SystemFunction036
-
         if (RtlGenRandom(buf, buflen) == TRUE) {
             return __WASI_ESUCCESS;
         }
