@@ -384,4 +384,20 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
         o->block.depth++;
 }
 
+u16  GetMaxExecSlot  (IM3Compilation o);
+
+void emit_stack_dump (IM3Compilation o)
+{
+#   if d_m3RuntimeStackDumps
+    if (o->numEmits)
+    {
+        EmitOp          (o, op_DumpStack);
+        EmitConstant    (o, o->numOpcodes);
+        EmitConstant    (o, GetMaxExecSlot (o));
+        EmitConstant    (o, (u64) o->function);
+        
+        o->numEmits = 0;
+    }
+#   endif
+}
 

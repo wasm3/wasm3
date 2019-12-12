@@ -25,6 +25,7 @@ OpInfo          find_operation_info     (IM3Operation i_operation);
 void            dump_type_stack         (IM3Compilation o);
 void            log_opcode              (IM3Compilation o, u8 i_opcode);
 const char *    get_indention_string    (IM3Compilation o);
+void            emit_stack_dump         (IM3Compilation o);
 
 
 #endif /* m3_info_h */
