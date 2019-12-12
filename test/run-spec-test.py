@@ -542,6 +542,8 @@ if stats.failed > 0:
     if stats.crashed > 0:
         print(f" Crashed: {stats.crashed}")
     print(f"======================={ansi.ENDC}")
+    sys.exit(1)
+
 elif stats.success > 0:
     print(f"{ansi.OKGREEN}=======================")
     print(f" {stats.success}/{stats.total_run} tests OK")
