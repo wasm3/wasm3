@@ -843,7 +843,6 @@ _   (PushAllocatedSlotAndEmit (o, i_global->type));
 }
 
 
-// TODO: enforce mutability
 M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
 {
     M3Result result = c_m3Err_none;
