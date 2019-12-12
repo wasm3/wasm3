@@ -124,6 +124,7 @@ typedef struct M3Global
     u32                     initExprSize;
     u8                      type;
     bool                    imported;
+    bool                    isMutable;
 }
 M3Global;
 typedef M3Global *          IM3Global;

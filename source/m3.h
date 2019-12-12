@@ -139,6 +139,7 @@ d_m3ErrorConst  (unknownOpcode,                 "unknown opcode")
 d_m3ErrorConst  (functionStackOverflow,         "compiling function overrun its stack height limit")
 d_m3ErrorConst  (functionStackUnderrun,         "compiling function underran the stack")
 d_m3ErrorConst  (mallocFailedCodePage,          "memory allocation failed when acquiring a new M3 code page")
+d_m3ErrorConst  (settingImmutableGlobal,        "attempting to set an immutable global")
 d_m3ErrorConst  (optimizerFailed,               "optimizer failed") // not a fatal error. a result,
 
 // runtime errors

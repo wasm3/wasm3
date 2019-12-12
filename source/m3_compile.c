@@ -848,20 +848,24 @@ M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
 {
     M3Result result = c_m3Err_none;
 
-    IM3Operation op;
+    if (i_global->isMutable)
+    {
+        IM3Operation op;
 
-    if (IsStackTopInRegister (o))
-        op = IsStackTopTypeFp (o) ? op_SetGlobal_f64 : op_SetGlobal_i;
-    else
-        op = op_SetGlobal_s;
+        if (IsStackTopInRegister (o))
+            op = IsStackTopTypeFp (o) ? op_SetGlobal_f64 : op_SetGlobal_i;
+        else
+            op = op_SetGlobal_s;
 
-_   (EmitOp (o, op));
-    EmitPointer (o, & i_global->intValue);
+_      (EmitOp (o, op));
+        EmitPointer (o, & i_global->intValue);
 
-    if (op == op_SetGlobal_s)
-        EmitConstant (o, GetStackTopSlotIndex (o));
+        if (op == op_SetGlobal_s)
+            EmitConstant (o, GetStackTopSlotIndex (o));
 
-_   (Pop (o));
+_      (Pop (o));
+    }
+    else result = c_m3Err_settingImmutableGlobal;
 
     _catch: return result;
 }
