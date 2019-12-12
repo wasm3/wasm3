@@ -43,7 +43,7 @@ enum
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
-// since the end location of a block can be unknown when a branch is compiled, writing
+// since the end location of a block is unknown when a branch is compiled, writing
 // the actual address must deferred. A linked-list of patch locations is kept in
 // M3CompilationScope. When the block compilation exits, it patches these addresses.
 typedef struct M3BranchPatch

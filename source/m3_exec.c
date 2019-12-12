@@ -275,6 +275,10 @@ d_m3OpDef  (Loop)
     // compiled m3 code. with non-Windows calling conventions, a new
     // "IM3Runtime _runtime" argument could be added to operations to detach
     // the execution context from the codepage.
+	// alternatively:
+	// the compiler could track whether blocks/functions contain mem.grows.
+	// functions that are grow-clean could be shared and those that aren't
+	// could be copied and patched to the requesting runtime
     
     do
     {

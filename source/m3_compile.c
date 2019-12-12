@@ -534,6 +534,24 @@ M3Result  AddTrapRecord  (IM3Compilation o)
     return result;
 }
 
+
+void  PatchBranches  (IM3Compilation o)
+{
+	M3CompilationScope * block = & o->block;
+	pc_t pc = GetPC (o);
+	
+	while (block->patches)
+	{                                                           m3log (compile, "patching location: %p to pc: %p", block->patches->location, pc);
+		IM3BranchPatch next = block->patches->next;
+		
+		pc_t * location = block->patches->location;
+		* location = pc;
+		
+		m3Free (block->patches);
+		block->patches = next;
+	}
+}
+
 //-------------------------------------------------------------------------------------------------------------------------
 
 
@@ -764,6 +782,8 @@ _       (Pop (o));
 
 _   (EmitOp (o, op_Return));
 
+	o->block.isPolymorphic = true;
+	
     _catch: return result;
 }
 
@@ -773,12 +793,14 @@ M3Result  Compile_Else_End  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result = c_m3Err_none;
 
+	// function end:
     if (o->block.depth == 0)
     {
+		PatchBranches (o);
+
         if (o->block.type)
         {
-            // expression block w/ implicit return
-            if (GetStackTopType (o) != c_m3Type_none)
+//            if (GetStackTopType (o) != c_m3Type_none)
 _             (ReturnStackTop (o));
         }
 
@@ -935,7 +957,7 @@ _       (EmitOp (o, op));
         {
             bool conditionInRegister = IsStackTopInRegister (o);
             
-            op = conditionInRegister ? op_BranchIf_r : op_BranchIf_s;     // no block type or fp block type
+            op = conditionInRegister ? op_BranchIf_r : op_BranchIf_s;
             
             conditionSlot = GetStackTopSlotIndex (o);
 _           (Pop (o));  // condition
@@ -947,11 +969,15 @@ _               (MoveStackTopToRegister (o));
             }
             else if (IsIntType (valueType))
             {
-                valueSlot = GetStackTopSlotIndex (o);
-                
-                const IM3Operation ifOps [2][2] = { { op_i32_BranchIf_ss, op_i32_BranchIf_rs }, { op_i64_BranchIf_ss, op_i64_BranchIf_rs } };
+				// need to deal with int value in slot. it needs to be copied to _r0 during the branch
+				if (IsStackTopInSlot (o))
+				{
+					valueSlot = GetStackTopSlotIndex (o);
+					
+					const IM3Operation ifOps [2][2] = { { op_i32_BranchIf_ss, op_i32_BranchIf_rs }, { op_i64_BranchIf_ss, op_i64_BranchIf_rs } };
 
-                op = ifOps [valueType - c_m3Type_i32] [conditionInRegister];
+					op = ifOps [valueType - c_m3Type_i32] [conditionInRegister];
+				}
             }
         }
         else
@@ -976,7 +1002,6 @@ _       (EmitOp (o, op));
 
 _       (m3Alloc (& scope->patches, M3BranchPatch, 1));
 
-//                  printf ("scope: %p -- attach patch: %p to %p \n", scope, scope->patches, patch);
         scope->patches->location = (pc_t *) ReservePointer (o);
         scope->patches->next = patch;
     }
@@ -1459,7 +1484,7 @@ const M3OpInfo c_operations [] =
 
     M3OP( "end",                 0, none,   d_emptyOpList(),                Compile_Else_End ),     // 0x0b
     M3OP( "br",                  0, none,   d_singleOp (Branch),            Compile_Branch ),       // 0x0c
-    M3OP( "br_if",              -1, none,   op_BranchIf_r, op_BranchIf_r, NULL,  Compile_Branch ),       // 0x0d
+    M3OP( "br_if",              -1, none,   op_BranchIf_r, op_BranchIf_s, NULL,  Compile_Branch ),       // 0x0d
     M3OP( "br_table",           -1, none,   d_singleOp (BranchTable),       Compile_BranchTable ),  // 0x0e
     M3OP( "return",              0, any,    d_singleOp (Return),            Compile_Return ),       // 0x0f
     M3OP( "call",                0, any,    d_singleOp (Call),              Compile_Call ),         // 0x10
@@ -1660,7 +1685,7 @@ const M3OpInfo c_operations [] =
     M3OP( "f32.reinterpret/i32", 0, f_32,   d_unaryOpList(f32, Reinterpret_i32)     ),          // 0xbe
     M3OP( "f64.reinterpret/i64", 0, f_64,   d_unaryOpList(f64, Reinterpret_i64)     ),          // 0xbf
 
-# ifdef DEBUG // for code logging:
+# ifdef DEBUG // for codepage logging:
     M3OP( "Const",                  1,  any,     op_Const ),
     M3OP( "Entry",                  0,  none,    op_Entry ),
     M3OP( "Compile",                0,  none,    op_Compile),
@@ -1679,7 +1704,12 @@ const M3OpInfo c_operations [] =
     M3OP( "SetRegister_i64",        0,  none,    op_SetRegister_i64),
     M3OP( "SetRegister_f32",        0,  none,    op_SetRegister_f32),
     M3OP( "SetRegister_f64",        0,  none,    op_SetRegister_f64),
-    
+
+	M3OP( "i32_BranchIf_rs",        0,  none,    op_i32_BranchIf_rs),
+	M3OP( "i32_BranchIf_ss",        0,  none,    op_i32_BranchIf_ss),
+	M3OP( "i64_BranchIf_rs",        0,  none,    op_i64_BranchIf_rs),
+	M3OP( "i64_BranchIf_ss",        0,  none,    op_i64_BranchIf_ss),
+
     M3OP( "End",                    0,  none,    op_End ),
 # endif
 
@@ -1785,18 +1815,8 @@ _   (ValidateBlockEnd (o, & moveStackTopToRegister));
     if (moveStackTopToRegister)
 _       (MoveStackTopToRegister (o));
 
-    pc_t pc = GetPC (o);
-    while (block->patches)
-    {                                                           m3log (compile, "patching location: %p to pc: %p", block->patches->location, pc);
-        IM3BranchPatch next = block->patches->next;
-        
-        pc_t * location = block->patches->location;
-        * location = pc;
-        
-        m3Free (block->patches);
-        block->patches = next;
-    }
-    
+	PatchBranches (o);
+	
     o->block = outerScope;
 
     _catch: return result;
@@ -1993,7 +2013,7 @@ _       (EmitOp (o, op_Entry));//, comp.stackIndex);
         EmitPointer (o, io_function);
 
 _       (Compile_BlockStatements (o));
-
+		
         io_function->compiled = pc;
 
         u32 numConstants = o->constSlotIndex - o->firstConstSlotIndex;
