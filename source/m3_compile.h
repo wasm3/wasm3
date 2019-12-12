@@ -12,18 +12,6 @@
 #include "m3_env.h"
 #include "m3_exec_defs.h"
 
-/*
-
- WebAssembly spec info
- ---------------------
- 2.3.2 Result Types
- Note: In the current version of WebAssembly, at most one value is allowed as a result. However, this may be
- generalized to sequences of values in future versions.
-
- M3
- --
-
-*/
 
 enum
 {

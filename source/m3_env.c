@@ -71,20 +71,42 @@ void FreeImportInfo (M3ImportInfo * i_info)
     m3Free (i_info->fieldUtf8);
 }
 
-IM3Runtime  m3_NewRuntime  (u32 i_stackSizeInBytes)
+
+IM3Environment  m3_NewEnvironment  ()
 {
-    IM3Runtime env;
+    IM3Environment env = NULL;
+    m3Alloc (& env, M3Environment, 1);
+    
+    return env;
+}
+
+
+void  m3_FreeEnvironment  (IM3Environment i_environment)
+{
+    if (i_environment)
+    {
+//        ReleaseEnvironment (i_environment);
+        m3Free (i_environment);
+    }
+}
+
+
+IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes)
+{
+    IM3Runtime env = NULL;
     m3Alloc (& env, M3Runtime, 1);
 
-    if (!env) return NULL;
+    if (env)
+    {
+        m3Malloc (& env->stack, i_stackSizeInBytes);
 
-    m3Malloc (& env->stack, i_stackSizeInBytes);
-
-    if (!env->stack) {
-        m3Free(env);
-        return NULL;
+        if (env->stack)
+        {
+            env->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
+            env->environment = i_environment;
+        }
+        else m3Free (env);
     }
-    env->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
 
     return env;
 }

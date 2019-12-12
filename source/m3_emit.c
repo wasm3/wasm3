@@ -47,7 +47,7 @@ M3Result  BridgeToNewPageIfNecessary  (IM3Compilation o)
 void  log_emit  (IM3Operation i_operation)
 {
 # if DEBUG
-    OpInfo i = FindOperationInfo (i_operation);
+    OpInfo i = find_operation_info (i_operation);
     
     if (i.info)
     {

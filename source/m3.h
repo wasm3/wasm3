@@ -42,6 +42,7 @@ extern "C" {
 
 typedef const char *    M3Result;
 
+struct M3Environment;   typedef struct M3Environment *  IM3Environment;
 struct M3Runtime;       typedef struct M3Runtime *      IM3Runtime;
 struct M3Module;        typedef struct M3Module *       IM3Module;
 struct M3Function;      typedef struct M3Function *     IM3Function;
@@ -175,15 +176,18 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-//  "global" environment
+//  global environment than can host multiple runtimes
 //--------------------------------------------------------------------------------------------------------------------------------------------
-//  IM3Environment      m3_NewEnvironment
+    IM3Environment      m3_NewEnvironment           (void);
+    
+    void                m3_FreeEnvironment          (IM3Environment i_environment);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  execution context
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
-    IM3Runtime          m3_NewRuntime               (uint32_t i_stackSizeInBytes);
+    IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
+                                                     uint32_t               i_stackSizeInBytes);
 
 
     M3Result            m3_RegisterFunction         (IM3Runtime             io_runtime,
@@ -201,7 +205,8 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 //  modules
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
-    M3Result            m3_ParseModule              (IM3Module *            o_module,
+    M3Result            m3_ParseModule              (IM3Environment         i_environment,
+                                                     IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes
                              // M3Free              i_releaseHandler        // i_ref argument type provided to M3Free() handler is <IM3Module>

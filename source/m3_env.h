@@ -183,10 +183,21 @@ M3Result                    Module_AddGlobal            (IM3Module io_module, IM
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
 
+//---------------------------------------------------------------------------------------------------------------------------------
+typedef struct M3Environment
+{
+    //  u32                     numFuncTypes;
+    //  M3FuncType *            funcTypes;
+}
+M3Environment;
+
+typedef M3Environment *     IM3Environment;
 
 //---------------------------------------------------------------------------------------------------------------------------------
 typedef struct M3Runtime
 {
+    IM3Environment          environment;
+    
     M3CodePage *            pagesOpen;      // linked list of code pages with writable space on them
     M3CodePage *            pagesFull;      // linked list of finalized pages
 
@@ -199,9 +210,6 @@ typedef struct M3Runtime
     M3Result                runtimeError;
 
 	M3Memory                memory;
-
-//  u32                     numFuncTypes;
-//  M3FuncType *            funcTypes;
 
     M3ErrorInfo             error;
 }

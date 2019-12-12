@@ -33,7 +33,7 @@ M3Result repl_load  (IM3Runtime env, const char* fn)
     fclose (f);
 
     IM3Module module;
-    result = m3_ParseModule (&module, wasm, fsize);
+    result = m3_ParseModule (env->environment, &module, wasm, fsize);
     if (result) return result;
 
     result = m3_LoadModule (env, module);
@@ -71,10 +71,10 @@ void repl_free(IM3Runtime* env) {
     }
 }
 
-M3Result repl_init(IM3Runtime* env) {
-    repl_free(env);
-    *env = m3_NewRuntime (8*1024);
-    if (*env == NULL) {
+M3Result repl_init(IM3Environment env, IM3Runtime* runtime) {
+    repl_free(runtime);
+    *runtime = m3_NewRuntime (env, 8*1024);
+    if (*runtime == NULL) {
         return "m3_NewRuntime failed";
     }
     return c_m3Err_none;
@@ -120,7 +120,9 @@ void print_usage() {
 int  main  (int i_argc, const char* i_argv[])
 {
     M3Result result = c_m3Err_none;
-    IM3Runtime env = NULL;
+    
+    IM3Environment env = m3_NewEnvironment ();
+    IM3Runtime runtime = NULL;
     bool argRepl = false;
     const char* argFile = NULL;
     const char* argFunc = "_start";
@@ -157,21 +159,21 @@ int  main  (int i_argc, const char* i_argv[])
 
     ARGV_SET(argFile);
 
-    result = repl_init(&env);
+    result = repl_init(env, &runtime);
     if (result) FATAL("repl_init: %s", result);
 
     if (argFile) {
-        result = repl_load(env, argFile);
+        result = repl_load(runtime, argFile);
         if (result) FATAL("repl_load: %s", result);
 
-        result = m3_LinkWASI (env->modules);
+        result = m3_LinkWASI (runtime->modules);
         if (result) FATAL("m3_LinkWASI: %s", result);
 
-        result = m3_LinkLibC (env->modules);
+        result = m3_LinkLibC (runtime->modules);
         if (result) FATAL("m3_LinkLibC: %s", result);
 
         if (argFunc and not argRepl) {
-            result = repl_call(env, argFunc, i_argc, i_argv);
+            result = repl_call(runtime, argFunc, i_argc, i_argv);
             if (result) FATAL("repl_call: %s", result);
         }
     }
@@ -191,21 +193,21 @@ int  main  (int i_argc, const char* i_argv[])
         }
         M3Result result = c_m3Err_none;
         if (!strcmp(":init", argv[0])) {
-            result = repl_init(&env);
+            result = repl_init(env, &runtime);
         } else if (!strcmp(":exit", argv[0])) {
-            repl_free(&env);
+            repl_free(&runtime);
             return 0;
         } else if (!strcmp(":load", argv[0])) {
-            result = repl_load(env, argv[1]);
+            result = repl_load(runtime, argv[1]);
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
-            result = repl_call(env, argv[0], argc-1, argv+1);
+            result = repl_call(runtime, argv[0], argc-1, argv+1);
         }
 
         if (result) {
             printf ("Error: %s", result);
-            M3ErrorInfo info = m3_GetErrorInfo (env);
+            M3ErrorInfo info = m3_GetErrorInfo (runtime);
             printf (" (%s)\n", info.message);
         }
     }
@@ -213,14 +215,16 @@ int  main  (int i_argc, const char* i_argv[])
 _onfatal:
     if (result) {
         printf ("Error: %s", result);
-        if (env)
+        if (runtime)
         {
-            M3ErrorInfo info = m3_GetErrorInfo (env);
+            M3ErrorInfo info = m3_GetErrorInfo (runtime);
             printf (" (%s)", info.message);
         }
     }
 
     printf ("\n");
 
+    m3_FreeEnvironment (env);
+    
     return 0;
 }

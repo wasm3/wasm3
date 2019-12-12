@@ -123,7 +123,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 }
 
 
-OpInfo FindOperationInfo  (IM3Operation i_operation)
+OpInfo find_operation_info  (IM3Operation i_operation)
 {
     OpInfo opInfo;
     M3_INIT(opInfo);
@@ -245,7 +245,7 @@ void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
 
             if (op)
             {
-                OpInfo i = FindOperationInfo (op);
+                OpInfo i = find_operation_info (op);
 
                 if (i.info)
                 {
@@ -341,5 +341,47 @@ void  dump_type_stack  (IM3Compilation o)
 #   endif
 }
 
+
+const char *  GetOpcodeIndentionString  (IM3Compilation o)
+{
+    i32 blockDepth = o->block.depth + 1;
+    
+    if (blockDepth < 0)
+        blockDepth = 0;
+    
+    static const char * s_spaces = ".......................................................................................";
+    const char * indent = s_spaces + strlen (s_spaces);
+    indent -= (blockDepth * 2);
+    if (indent < s_spaces)
+        indent = s_spaces;
+    
+    return indent;
+}
+
+
+const char *  get_indention_string  (IM3Compilation o)
+{
+    o->block.depth += 4;
+    const char *indent = GetOpcodeIndentionString (o);
+    o->block.depth -= 4;
+    
+    return indent;
+}
+
+
+void  log_opcode  (IM3Compilation o, u8 i_opcode)
+{
+    if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
+        o->block.depth--;
+    
+#   ifdef DEBUG
+        m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o), c_operations [i_opcode].name);
+#   else
+        m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
+#   endif
+    
+    if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
+        o->block.depth++;
+}
 
 

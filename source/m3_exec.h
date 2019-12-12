@@ -301,8 +301,8 @@ d_m3Op(TO##_##NAME##_##FROM##_r)                            \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s)                            \
 {                                                           \
-    FROM * stack = (FROM *) (_sp + immediate (i32));        \
-    REG_TO = (TO) (* stack);                                \
+    FROM from = slot (FROM);                                \
+    REG_TO = (TO) (from);                                   \
     return nextOp ();                                       \
 }
 
@@ -625,7 +625,7 @@ d_m3Op  (SetGlobal_f64)
 }
 
 
-d_m3Op (CopySlot)
+d_m3Op (CopySlot_64)
 {
     u64 * dst = slot_ptr (u64);
     u64 * src = slot_ptr (u64);
@@ -636,7 +636,7 @@ d_m3Op (CopySlot)
 }
 
 
-d_m3Op (PreserveCopySlot)
+d_m3Op (PreserveCopySlot_64)
 {
     u64 * dest      = slot_ptr (u64);
     u64 * src       = slot_ptr (u64);

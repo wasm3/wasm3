@@ -33,15 +33,18 @@ d_m3OpDef  (Call)
 {
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
+    M3Memory * memory           = immediate (M3Memory *);
 
     m3stack_t sp = _sp + stackOffset;
 
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
 
     if (r == 0)
+    {
+        _mem = memory->wasmPages;
         return nextOp ();
-    else
-        return r;
+    }
+    else return r;
 }
 
 
@@ -50,6 +53,7 @@ d_m3OpDef  (CallIndirect)
     IM3Module module            = immediate (IM3Module);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
+    M3Memory * memory           = immediate (M3Memory *);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -63,6 +67,9 @@ d_m3OpDef  (CallIndirect)
 
         if (function)
         {
+            // TODO: this can eventually be simplified. by using a shared set of unique M3FuncType objects in
+            // M3Environment, the compare can be reduced to a single pointer-compare operation
+            
             if (type->numArgs != function->funcType->numArgs)
             {
                 return c_m3Err_trapIndirectCallTypeMismatch;
@@ -89,7 +96,10 @@ d_m3OpDef  (CallIndirect)
                 r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
 
                 if (not r)
+                {
+                    _mem = memory->wasmPages;
                     r = nextOp ();
+                }
             }
         }
         else r = "trap: table element is null";
@@ -275,6 +285,7 @@ d_m3OpDef  (Loop)
     // compiled m3 code. with non-Windows calling conventions, a new
     // "IM3Runtime _runtime" argument could be added to operations to detach
     // the execution context from the codepage.
+    
 	// alternatively:
 	// the compiler could track whether blocks/functions contain mem.grows.
 	// functions that are grow-clean could be shared and those that aren't

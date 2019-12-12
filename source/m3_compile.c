@@ -16,33 +16,8 @@
 
 #define d_indent "     | "
 
+
 u16  GetMaxExecSlot  (IM3Compilation o);
-
-const char *  GetOpcodeIndentionString  (IM3Compilation o)
-{
-    i32 blockDepth = o->block.depth + 1;
-
-    if (blockDepth < 0)
-        blockDepth = 0;
-
-    static const char * s_spaces = ".......................................................................................";
-    const char * indent = s_spaces + strlen (s_spaces);
-    indent -= (blockDepth * 2);
-    if (indent < s_spaces)
-        indent = s_spaces;
-
-    return indent;
-}
-
-
-const char *  GetIndentionString  (IM3Compilation o)
-{
-    o->block.depth += 4;
-    const char *indent = GetOpcodeIndentionString (o);
-    o->block.depth -= 4;
-
-    return indent;
-}
 
 
 void emit_stack_dump (IM3Compilation o)
@@ -60,19 +35,6 @@ void emit_stack_dump (IM3Compilation o)
 #   endif
 }
 
-
-void  log_opcode  (IM3Compilation o, u8 i_opcode)
-{
-    if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
-        o->block.depth--;
-#ifdef DEBUG
-    m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o), c_operations [i_opcode].name);
-#else
-    m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
-#endif
-    if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
-        o->block.depth++;
-}
 
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -523,6 +485,13 @@ M3Result  EmitTopSlotAndPop  (IM3Compilation o)
 }
 
 
+void  EmitMemory  (IM3Compilation o)
+{
+    // this is factored out for potential future functionality. see comment on op_Loop in m3_exec.c
+    EmitPointer (o, & o->runtime->memory);
+}
+
+
 M3Result  AddTrapRecord  (IM3Compilation o)
 {
     M3Result result = c_m3Err_none;
@@ -566,7 +535,7 @@ M3Result CopyTopSlot (IM3Compilation o, u16 i_destSlot)
         u8 type = GetStackTopType (o);
         op = c_setSetOps [type];
     }
-    else op = op_CopySlot;
+    else op = op_CopySlot_64;       // TODO: need 32-bit version for compacted stack
 
 _   (EmitOp (o, op));
     EmitConstant (o, i_destSlot);
@@ -593,7 +562,7 @@ M3Result  PreservedCopyTopSlot  (IM3Compilation o, u16 i_destSlot, u16 i_preserv
         bool isFp = IsStackTopTypeFp (o);
         op = isFp ? op_PreserveSetSlot_f64 : op_PreserveSetSlot_i64;
     }
-    else op = op_PreserveCopySlot;
+    else op = op_PreserveCopySlot_64;
 
 _   (EmitOp (o, op));
     EmitConstant (o, i_destSlot);
@@ -713,7 +682,7 @@ M3Result  Compile_Const_i32  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     i32 value;
-_   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", GetIndentionString (o), value);
+_   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", get_indention_string (o), value);
 
 _   (PushConst (o, value, c_m3Type_i32));
 
@@ -726,7 +695,7 @@ M3Result  Compile_Const_i64  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     i64 value;
-_   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", GetIndentionString (o), value);
+_   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", get_indention_string (o), value);
 
 _   (PushConst (o, value, c_m3Type_i64));
 
@@ -741,7 +710,7 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
     f32 value;
     union { u64 u; f32 f; } union64;
 
-_   (Read_f32 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", GetIndentionString (o), value);
+_   (Read_f32 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value);
 
     union64.f = value;
 
@@ -758,7 +727,7 @@ M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
     f64 value;
     union { u64 u; f64 f; } union64;
 
-_   (Read_f64 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", GetIndentionString (o), value);
+_   (Read_f64 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value);
 
     union64.f = value;
 
@@ -1107,12 +1076,12 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
 
     if (function)
     {                                                                   m3log (compile, d_indent "%s (func= '%s'; args= %d)",
-                                                                                GetIndentionString (o), GetFunctionName (function), function->funcType->numArgs);
+                                                                                get_indention_string (o), GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
             // TODO OPTZ: could avoid arg copy when args are already sequential and at top
 
-            u16 execTop = GetMaxExecSlot (o);
+            u16 slotTop = GetMaxExecSlot (o);
 
 _           (CompileCallArgsReturn (o, function->funcType, false));
 
@@ -1132,7 +1101,8 @@ _           (CompileCallArgsReturn (o, function->funcType, false));
 
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
-            EmitOffset  (o, execTop);
+            EmitOffset  (o, slotTop);
+            EmitMemory  (o);
         }
         else result = ErrorCompile (c_m3Err_functionImportMissing, o, "'%s'", GetFunctionName (function));
     }
@@ -1163,6 +1133,7 @@ _       (EmitOp     (o, op_CallIndirect));
         EmitPointer (o, o->module);
         EmitPointer (o, type);              // TODO: unify all types in M3Runtime
         EmitOffset  (o, execTop);
+        EmitMemory  (o);
     }
     else _throw ("function type index out of range");
 
@@ -1213,7 +1184,7 @@ M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
 
     _   (ReadLEB_i7 (& type, & o->wasm, o->wasmEnd));
     _   (NormalizeType (o_blockType, type));                                if (* o_blockType)  m3log (compile, d_indent "%s (block_type: 0x%02x normalized: %d)",
-                                                                                                   GetIndentionString (o), (u32) (u8) type, (u32) * o_blockType);
+                                                                                                   get_indention_string (o), (u32) (u8) type, (u32) * o_blockType);
     _catch: return result;
 }
 
@@ -1230,7 +1201,7 @@ _   (ReadBlockType (o, & blockType));
     if (i_opcode == c_waOp_loop)
     {
 _       (EmitOp (o, op_Loop));
-        EmitPointer (o, & o->runtime->memory);
+        EmitMemory (o);
     }
 
 _   (CompileBlock (o, blockType, i_opcode));
@@ -1456,7 +1427,7 @@ M3Result  Compile_Load_Store  (IM3Compilation o, u8 i_opcode)
 
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
 _   (ReadLEB_u32 (& offset, & o->wasm, o->wasmEnd));
-                                                                        m3log (compile, d_indent "%s (offset = %d)", GetIndentionString (o), offset);
+                                                                        m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), offset);
 _   (Compile_Operator (o, i_opcode));
     EmitConstant (o, offset);
 
@@ -1693,8 +1664,8 @@ const M3OpInfo c_operations [] =
 
     M3OP( "SetGlobal_s",            0,  none,    op_SetGlobal_s),
 
-    M3OP( "PreserveCopySlot",       0,  none,    op_PreserveCopySlot),
-    M3OP( "CopySlot",               0,  none,    op_CopySlot),
+    M3OP( "PreserveCopySlot",       0,  none,    op_PreserveCopySlot_64),
+    M3OP( "CopySlot",               0,  none,    op_CopySlot_64),
     M3OP( "SetSlot_i32",            0,  none,    op_SetSlot_i32),
     M3OP( "SetSlot_i64",            0,  none,    op_SetSlot_i64),
     M3OP( "SetSlot_f32",            0,  none,    op_SetSlot_f32),
@@ -1713,7 +1684,7 @@ const M3OpInfo c_operations [] =
     M3OP( "End",                    0,  none,    op_End ),
 # endif
 
-    M3OP( "termination",           0,  c_m3Type_void )                     // termination for FindOperationInfo ()
+    M3OP( "termination",           0,  c_m3Type_void )                     // termination for find_operation_info ()
 };
 
 

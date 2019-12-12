@@ -528,7 +528,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 }
 
 
-M3Result  m3_ParseModule  (IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes)
+M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes)
 {
     M3Result result;
 
