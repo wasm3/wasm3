@@ -245,7 +245,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
     M3Memory * memory = & io_runtime->memory;
 
-#if 1 // Temporary fix for memory allocation
+#if 0 // Temporary fix for memory allocation
     if (memory->mallocated) {
         memory->numPages = i_numPages;
         memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize);
