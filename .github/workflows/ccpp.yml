@@ -3,10 +3,11 @@ name: C/C++ CI
 on: [push]
 
 jobs:
-  build-ubuntu:
+  build:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
 
