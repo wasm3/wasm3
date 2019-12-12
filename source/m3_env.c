@@ -688,8 +688,10 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
     if (i_codePage)
     {
-#       if defined (DEBUG) && d_m3LogCodePages
-            dump_code_page (i_codePage, /* startPC: */ NULL);
+#       if defined (DEBUG)
+#           if d_m3LogCodePages
+                dump_code_page (i_codePage, /* startPC: */ NULL);
+#           endif
 #       endif
         
         IM3CodePage * list;

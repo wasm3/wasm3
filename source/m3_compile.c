@@ -14,31 +14,9 @@
 
 //-------------------------------------------------------------------------------------------------------------------------
 
-#define d_indent "     | "
-
-
-u16  GetMaxExecSlot  (IM3Compilation o);
-
-
-void emit_stack_dump (IM3Compilation o)
-{
-#   if d_m3RuntimeStackDumps
-    if (o->numEmits)
-    {
-        EmitOp          (o, op_DumpStack);
-        EmitConstant    (o, o->numOpcodes);
-        EmitConstant    (o, GetMaxExecSlot (o));
-        EmitConstant    (o, (u64) o->function);
-
-        o->numEmits = 0;
-    }
-#   endif
-}
-
-
-//-------------------------------------------------------------------------------------------------------------------------
-
 static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i64, op_SetSlot_f32, op_SetSlot_f64 };
+
+#define d_indent "     | "
 
 // just want less letter and numbers to stare at down the way in the compiler table
 #define i_32    c_m3Type_i32
@@ -47,6 +25,12 @@ static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i6
 #define f_64    c_m3Type_f64
 #define none    c_m3Type_none
 #define any     (u8)-1
+
+
+void  ReleaseCompilationCodePage  (IM3Compilation o)
+{
+    ReleaseCodePage (o->runtime, o->page);
+}
 
 bool  IsStackPolymorphic  (IM3Compilation o)
 {
@@ -1018,7 +1002,24 @@ _       (GetBlockScope (o, & scope, target));
 
         if (scope->opcode == c_waOp_loop)
         {
-            m3NotImplemented(); // TODO
+            // create a ContinueLoop operation on a fresh page
+            IM3CodePage continueOpPage = AcquireCodePage (o->runtime);
+
+            if (continueOpPage)
+            {
+                pc_t startPC = GetPagePC (continueOpPage);
+                EmitPointer (o, startPC);
+                
+                IM3CodePage savedPage = o->page;
+                o->page = continueOpPage;
+
+_               (EmitOp (o, op_ContinueLoop));
+                EmitPointer (o, scope->pc);
+                
+                ReleaseCompilationCodePage (o);
+                o->page = savedPage;
+            }
+            else _throw (c_m3Err_mallocFailedCodePage);
         }
         else
         {
@@ -1865,14 +1866,13 @@ _       (CompileBlock (o, i_blockType, c_waOp_else));
 _       (EmitOp (o, op_Branch));
         EmitPointer (o, GetPagePC (savedPage));
 
+        ReleaseCompilationCodePage (o);
+
         o->page = savedPage;
-        
     }
     else result = c_m3Err_mallocFailedCodePage;
 
     _catch:
-    
-    ReleaseCodePage (o->runtime, elsePage);
     
     return result;
 }
@@ -2005,7 +2005,7 @@ _           (m3Alloc (& io_function->constants, u64, numConstants));
 
     _catch:
     
-    ReleaseCodePage (runtime, o->page);
+    ReleaseCompilationCodePage (o);
     m3Free (o);
 
     return result;

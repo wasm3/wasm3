@@ -470,11 +470,11 @@ else:
         "memory", "memory_trap", "memory_grow",
 
 		"unreachable",
-        "switch", "if", "br", "br_if", "loop", "block",
+        "switch", "if", "br", "br_if", "br_table", "loop", "block",
         "return", "nop", "start",
 
         #--- TODO ---
-        #"labels", "br_table", "unwind",
+        #"labels",  "unwind",
         #"float_exprs",
     ]))
 
