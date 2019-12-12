@@ -9,7 +9,7 @@
 
 #define FATAL(msg, ...) { printf("Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
-M3Result repl_load  (IM3Runtime env, const char* fn)
+M3Result repl_load  (IM3Runtime runtime, const char* fn)
 {
     M3Result result = c_m3Err_none;
 
@@ -33,21 +33,21 @@ M3Result repl_load  (IM3Runtime env, const char* fn)
     fclose (f);
 
     IM3Module module;
-    result = m3_ParseModule (env->environment, &module, wasm, fsize);
+    result = m3_ParseModule (runtime->environment, &module, wasm, fsize);
     if (result) return result;
 
-    result = m3_LoadModule (env, module);
+    result = m3_LoadModule (runtime, module);
     if (result) return result;
 
     return result;
 }
 
-M3Result repl_call  (IM3Runtime env, const char* name, int argc, const char* argv[])
+M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char* argv[])
 {
     M3Result result = c_m3Err_none;
 
     IM3Function func;
-    result = m3_FindFunction (&func, env, name);
+    result = m3_FindFunction (&func, runtime, name);
     if (result) return result;
 
     // TODO
@@ -65,13 +65,15 @@ M3Result repl_call  (IM3Runtime env, const char* name, int argc, const char* arg
     return result;
 }
 
-void repl_free(IM3Runtime* env) {
-    if (*env) {
-        m3_FreeRuntime (*env);
+void repl_free(IM3Runtime* runtime)
+{
+    if (*runtime) {
+        m3_FreeRuntime (*runtime);
     }
 }
 
-M3Result repl_init(IM3Environment env, IM3Runtime* runtime) {
+M3Result repl_init(IM3Environment env, IM3Runtime* runtime)
+{
     repl_free(runtime);
     *runtime = m3_NewRuntime (env, 8*1024);
     if (*runtime == NULL) {
