@@ -469,7 +469,7 @@ else:
         "memory_redundancy", "float_memory",
         "memory", "memory_trap", "memory_grow",
 
-		"unreachable",
+        "unreachable",
         "switch", "if", "br", "br_if", "br_table", "loop", "block",
         "return", "nop", "start",
 
