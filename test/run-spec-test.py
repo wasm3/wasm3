@@ -150,38 +150,15 @@ def specTestsFetch():
     from zipfile import ZipFile
     from urllib.request import urlopen
 
-    officialSpec = "https://github.com/WebAssembly/spec/archive/wg_draft2.zip"
+    officialSpec = "https://github.com/wasm3/wasm-core-testsuite/archive/master.zip"
 
     print(f"Downloading {officialSpec}")
     resp = urlopen(officialSpec)
     with ZipFile(BytesIO(resp.read())) as zipFile:
         for zipInfo in zipFile.infolist():
-            if re.match(r"spec-wg_draft2/test/core/.*", zipInfo.filename):
-                zipInfo.filename = specDir + filename(zipInfo.filename)
+            if re.match(r".*-master/core/.*", zipInfo.filename):
+                zipInfo.filename = "core/" + filename(zipInfo.filename)
                 zipFile.extract(zipInfo)
-
-def specTestsPreprocess():
-    print("Preprocessing spec files...")
-
-    inputFiles = glob.glob(os.path.join(specDir, "*.wast"))
-    inputFiles.sort()
-    for fn in inputFiles:
-        fn = os.path.basename(fn)
-
-        wast_fn = os.path.join(specDir, fn)
-        json_fn = os.path.join(coreDir, os.path.splitext(fn)[0]) + ".json"
-        run(f"wast2json --debug-names -o {json_fn} {wast_fn}")
-
-    '''
-    if args.wasm_opt:
-        wasmFiles = glob.glob(os.path.join(coreDir, "*.wasm"))
-        wasmFiles.sort()
-        for fn in wasmFiles:
-            try:
-                run(f"wasm-opt {args.wasm_opt} {fn} -o {fn}")
-            except Exception:
-                pass
-    '''
 
 #
 # Wasm3 REPL
@@ -291,7 +268,6 @@ class Blacklist():
 
 curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 coreDir = os.path.join(curDir, "core")
-specDir = "core/spec/"
 
 
 wasm3 = Wasm3(args.exec)
@@ -429,9 +405,7 @@ def runInvoke(test):
         #sys.exit(1)
 
 if not os.path.isdir(coreDir):
-    if not os.path.isdir(specDir):
-        specTestsFetch()
-    specTestsPreprocess()
+    specTestsFetch()
 
 # Currently default to running the predefined list of tests
 # TODO: Switch to running all tests when wasm spec is implemented
