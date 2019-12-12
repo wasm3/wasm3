@@ -4,6 +4,7 @@
 
 [![GitHub issues](https://img.shields.io/github/issues/vshymanskyy/wasm3.svg)](https://github.com/vshymanskyy/wasm3/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vshymanskyy/wasm3)
+![CI status](https://github.com/wasm3/wasm3/workflows/spec%20tests/badge.svg)
 
 This is an (experimental) high performance WebAssembly interpreter written in C.
 
