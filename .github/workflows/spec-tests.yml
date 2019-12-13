@@ -3,7 +3,7 @@ name: spec tests
 on: [push]
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest #${{ matrix.os }}
 
     #strategy:
@@ -25,6 +25,24 @@ jobs:
       run: |
         cd test
         ./run-spec-test.py
+
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: make
+      run: |
+        cmake --build build
+    #- name: test
+    #  run: |
+    #    cd test
+    #    ./run-spec-test.py
 
   build-win:
     runs-on: windows-latest
