@@ -6,14 +6,16 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest #${{ matrix.os }}
 
-    #strategy:
-    #  fail-fast: false
-    #  matrix:
-    #    os: [macos-latest, ubuntu-latest, windows-latest]
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
 
     steps:
     - uses: actions/checkout@v1
     - name: configure
+      env:
+        CC: ${{ matrix.compiler }}
       run: |
         mkdir build
         cd build
@@ -50,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolset: [ClangCL, v142]
+        toolset: ["-T ClangCL", ""]
 
     steps:
     - uses: actions/checkout@v1
@@ -58,7 +60,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -T ${{ matrix.toolset }} ..
+        cmake ${{ matrix.toolset }} ..
     - name: make
       run: |
         cmake --build build --config Release
