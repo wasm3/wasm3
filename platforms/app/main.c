@@ -182,8 +182,8 @@ int  main  (int i_argc, const char* i_argv[])
 
     while (argRepl)
     {
-        char cmd_buff[128] = {};
-        const char* argv[32] = {};
+        char cmd_buff[128] = { 0, };
+        const char* argv[32] = { 0, };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);
         if (!fgets(cmd_buff, sizeof(cmd_buff), stdin)) {

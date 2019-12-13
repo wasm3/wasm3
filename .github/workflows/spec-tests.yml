@@ -25,3 +25,27 @@ jobs:
       run: |
         cd test
         ./run-spec-test.py
+
+  build-win:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        toolset: [ClangCL, v142]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: |
+        mkdir build
+        cd build
+        cmake -T ${{ matrix.toolset }} ..
+    - name: make
+      run: |
+        cmake --build build --config Release
+        cp ./build/Release/wasm3.exe ./build/
+    - name: test
+      run: |
+        cd test
+        python run-spec-test.py
