@@ -207,7 +207,7 @@ typedef struct M3Runtime
     IM3Module               modules;        // linked list of imported modules
 
     void *                  stack;
-//  void *                  stackPtr;               // TODO: args
+    u32                     stackSize;
     u32                     numStackSlots;
 
     M3Result                runtimeError;

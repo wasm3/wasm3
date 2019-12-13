@@ -148,7 +148,7 @@ bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
 
 M3Result    EmitOp                      (IM3Compilation o, IM3Operation i_operation);
 void        EmitConstant                (IM3Compilation o, const u64 immediate);
-void        Push                        (IM3Compilation o, u8 i_waType, i16 i_location);
+M3Result    Push                        (IM3Compilation o, u8 i_waType, i16 i_location);
 void        EmitPointer                 (IM3Compilation o, const void * const i_immediate);
 
 M3Result    CompileBlock                (IM3Compilation io, u8 i_blockType, u8 i_blockOpcode);

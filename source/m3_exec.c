@@ -173,31 +173,37 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
-    IM3Function function = immediate (IM3Function);
-    function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name, SPrintFunctionArgList (function, _sp));
+    M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
+    
+    if ((void *) _sp <= header->maxStack)
+    {
+        IM3Function function = immediate (IM3Function);
+        function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name, SPrintFunctionArgList (function, _sp));
 
-    u32 numLocals = function->numLocals;
+        u32 numLocals = function->numLocals;
 
-    m3stack_t stack = _sp + GetFunctionNumArgs (function);
-    while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
-        * (stack++) = 0;
+        m3stack_t stack = _sp + GetFunctionNumArgs (function);
+        while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
+            * (stack++) = 0;
 
-    memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+        memcpy (stack, function->constants, function->numConstants * sizeof (u64));
 
-    m3ret_t r = nextOp ();
+        m3ret_t r = nextOp ();
 
-#if d_m3LogExec
-        u8 returnType = function->funcType->returnType;
+#       if d_m3LogExec
+            u8 returnType = function->funcType->returnType;
 
-        char str [100] = { '!', 0 };
+            char str [100] = { '!', 0 };
 
-        if (not r)
-            SPrintArg (str, 99, _sp, function->funcType->returnType);
+            if (not r)
+                SPrintArg (str, 99, _sp, function->funcType->returnType);
 
-        m3log (exec, " exit  < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
-#endif
+            m3log (exec, " exit  < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
+#       endif
 
-    return r;
+        return r;
+    }
+    else return c_m3Err_trapStackOverflow;
 }
 
 

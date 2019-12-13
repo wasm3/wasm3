@@ -93,23 +93,23 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
 
 IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes)
 {
-    IM3Runtime env = NULL;
-    m3Alloc (& env, M3Runtime, 1);
+    IM3Runtime runtime = NULL;
+    m3Alloc (& runtime, M3Runtime, 1);
 
-    if (env)
+    if (runtime)
     {
-		env->environment = i_environment;
+		runtime->environment = i_environment;
 		
-        m3Malloc (& env->stack, i_stackSizeInBytes);
+        m3Malloc (& runtime->stack, i_stackSizeInBytes);
 
-        if (env->stack)
+        if (runtime->stack)
         {
-            env->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
+            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
         }
-        else m3Free (env);
+        else m3Free (runtime);
     }
 
-    return env;
+    return runtime;
 }
 
 
@@ -274,6 +274,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
             
             memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize);
             memory->mallocated->runtime = io_runtime;
+            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + io_runtime->numStackSlots * sizeof (m3reg_t) - c_m3MaxFunctionStackHeight;
         }
         else result = c_m3Err_mallocFailed;
     }

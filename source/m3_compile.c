@@ -311,29 +311,37 @@ _               (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 //----------------------------------------------------------------------------------------------------------------------
 
 
-void  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
+M3Result  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
 {
+    M3Result result = c_m3Err_none;
+
     u16 stackIndex = o->stackIndex++;                                       // printf ("push: %d\n", (i32) i);
 
-    // wasmStack tracks read counts for args & locals. otherwise, wasmStack represents slot location.
-    if (stackIndex < GetFunctionNumArgsAndLocals (o->function))
-        i_location = 0;
-
-    o->wasmStack        [stackIndex] = i_location;
-    o->typeStack        [stackIndex] = i_m3Type;
-
-    if (IsRegisterLocation (i_location))
+    if (stackIndex < c_m3MaxFunctionStackHeight)
     {
-        u32 regSelect = IsFpRegisterLocation (i_location);
-        AllocateRegister (o, regSelect, stackIndex);
-    }                                                                   m3logif (stack, dump_type_stack (o))
+        // wasmStack tracks read counts for args & locals. otherwise, wasmStack represents slot location.
+        if (stackIndex < GetFunctionNumArgsAndLocals (o->function))
+            i_location = 0;
+
+        o->wasmStack        [stackIndex] = i_location;
+        o->typeStack        [stackIndex] = i_m3Type;
+
+        if (IsRegisterLocation (i_location))
+        {
+            u32 regSelect = IsFpRegisterLocation (i_location);
+            AllocateRegister (o, regSelect, stackIndex);
+        }                                                                   m3logif (stack, dump_type_stack (o))
+    }
+    else result = c_m3Err_functionStackOverflow;
+    
+    return result;
 }
 
 
-void  PushRegister  (IM3Compilation o, u8 i_m3Type)
+M3Result  PushRegister  (IM3Compilation o, u8 i_m3Type)
 {
     i16 location = IsFpType (i_m3Type) ? c_m3Fp0SlotAlias : c_m3Reg0SlotAlias;
-    Push (o, i_m3Type, location);
+    return Push (o, i_m3Type, location);
 }
 
 
@@ -394,19 +402,14 @@ M3Result  _PushAllocatedSlotAndEmit  (IM3Compilation o, u8 i_m3Type, bool i_doEm
 
     if (AllocateExecSlot (o, & slot))
     {
-        i16 i = o->stackIndex;
-        if (i < c_m3MaxFunctionStackHeight)
-        {
-            Push            (o, i_m3Type, slot);
+_       (Push (o, i_m3Type, slot));
 
-            if (i_doEmit)
-                EmitConstant    (o, slot);
-        }
-        else result = c_m3Err_functionStackOverflow;
+        if (i_doEmit)
+            EmitConstant (o, slot);
     }
     else result = c_m3Err_functionStackOverflow;
 
-    return result;
+    _catch: return result;
 }
 
 
@@ -436,7 +439,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_m3Type)
         if (o->constants [i] == i_word)
         {
             location = o->firstConstSlotIndex + i;
-            Push (o, i_m3Type, location);               // stack check here??
+_           (Push (o, i_m3Type, location));
             break;
         }
     }
@@ -448,7 +451,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_m3Type)
             o->constants [numConstants] = i_word;
             location = o->constSlotIndex++;
 
-            Push (o, i_m3Type, location);       // stfack check here??
+_           (Push (o, i_m3Type, location));
         }
         else
         {
@@ -583,7 +586,7 @@ M3Result  MoveStackTopToRegister  (IM3Compilation o)
 
 _       (EmitOp (o, op));
 _       (EmitTopSlotAndPop (o));
-        PushRegister (o, type);
+_       (PushRegister (o, type));
     }
 
     _catch: return result;
@@ -700,10 +703,10 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     f32 value;
-    union { u64 u; f32 f; } union64;
 
 _   (Read_f32 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value);
 
+    union { u64 u; f32 f; } union64;
     union64.f = value;
 
 _   (PushConst (o, union64.u, c_m3Type_f32));
@@ -717,10 +720,10 @@ M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     f64 value;
-    union { u64 u; f64 f; } union64;
 
 _   (Read_f64 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value);
 
+    union { u64 u; f64 f; } union64;
     union64.f = value;
 
 _   (PushConst (o, union64.u, c_m3Type_f64));
@@ -779,7 +782,7 @@ _       (EmitOp (o, op_Return));
         {
             if (PatchBranches (o))
             {
-                PushRegister (o, valueType);
+_               (PushRegister (o, valueType));
                 ReturnStackTop (o);
 _ 			    (EmitOp (o, op_Return));
             }
@@ -831,13 +834,13 @@ M3Result  Compile_GetLocal  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-_try {
     u32 localIndex;
 _   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));
 
     u8 type = o->typeStack [localIndex];
-    Push (o, type, localIndex);
-    } _catch: return result;
+_   (Push (o, type, localIndex));
+
+    _catch: return result;
 }
 
 
@@ -1068,12 +1071,19 @@ _           (m3Alloc (& scope->patches, M3BranchPatch, 1));
 }
 
 
-M3Result  CompileCallArgsReturn  (IM3Compilation o, IM3FuncType i_type, bool i_isIndirect)
+M3Result  CompileCallArgsReturn  (IM3Compilation o, u16 * o_stackOffset, IM3FuncType i_type, bool i_isIndirect)
 {
     M3Result result = c_m3Err_none;
 
-_try {
+    // force use of at least one stack slot; this is to help ensure
+    // the m3 stack overflows (and traps) before the native stack can overflow.
+    // e.g. see Wasm spec test 'runaway' in call.wast
     u16 execTop = GetMaxExecSlot (o);
+    if (execTop == 0)
+        execTop = 1;
+
+    * o_stackOffset = execTop;
+
     u32 numArgs = i_type->numArgs + i_isIndirect;
     u16 argTop = execTop + numArgs;
 
@@ -1090,10 +1100,10 @@ _       (Pop (o));
         o->m3Slots [execTop] = 1;
         o->numAllocatedExecSlots++;
 
-        Push (o, i_type->returnType, execTop);
+_       (Push (o, i_type->returnType, execTop));
     }
 
-    } _catch: return result;
+    _catch: return result;
 }
 
 
@@ -1112,11 +1122,10 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
                                                                                 get_indention_string (o), GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
-            // TODO OPTZ: could avoid arg copy when args are already sequential and at top
+            // OPTZ: could avoid arg copy when args are already sequential and at top
 
-            u16 slotTop = GetMaxExecSlot (o);
-
-_           (CompileCallArgsReturn (o, function->funcType, false));
+            u16 slotTop;
+_           (CompileCallArgsReturn (o, & slotTop, function->funcType, false));
 
             IM3Operation op;
             const void * operand;
@@ -1157,10 +1166,9 @@ _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
     if (typeIndex < o->module->numFuncTypes)
     {
-        u16 execTop = GetMaxExecSlot (o);
-
+        u16 execTop;
         IM3FuncType type = & o->module->funcTypes [typeIndex];
-_       (CompileCallArgsReturn (o, type, true));
+_       (CompileCallArgsReturn (o, & execTop, type, true));
 
 _       (EmitOp     (o, op_CallIndirect));
         EmitPointer (o, o->module);
@@ -1184,7 +1192,7 @@ _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 _   (EmitOp     (o, op_MemCurrent));
     EmitPointer (o, o->runtime);
 
-    PushRegister (o, c_m3Type_i32);   // i32?
+_   (PushRegister (o, c_m3Type_i32));   // i32?
 
     _catch: return result;
 }
@@ -1203,7 +1211,7 @@ _   (Pop (o));
 _   (EmitOp     (o, op_MemGrow));
     EmitPointer (o, o->runtime);
     
-    PushRegister (o, c_m3Type_i32);   // i32?
+_   (PushRegister (o, c_m3Type_i32));   // i32?
 
     _catch: return result;
 }
@@ -1351,7 +1359,7 @@ _          (PreserveRegisterIfOccupied (o, type));
         if (slots [i] != c_slotUnused)
             EmitConstant (o, slots [i]);
     }
-    PushRegister (o, type);
+_   (PushRegister (o, type));
 
     _catch: return result;
 }
@@ -1439,7 +1447,7 @@ _           (EmitTopSlotAndPop (o));
 _               (EmitTopSlotAndPop (o));
 
             if (op->type != c_m3Type_none)
-                PushRegister (o, op->type);
+_               (PushRegister (o, op->type));
         }
     }
     else
@@ -1772,7 +1780,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
         if (IsStackPolymorphic (o))
         {
 _           (UnwindBlockStack (o));
-            PushRegister (o, o->block.type);
+_           (PushRegister (o, o->block.type));
         }
         else
         {
