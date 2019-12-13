@@ -1,0 +1,22 @@
+name: spec tests macos
+
+on: [push]
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: make
+      run: |
+        cmake --build build
+    - name: test
+      run: |
+        cd test
+        ./run-spec-test.py
