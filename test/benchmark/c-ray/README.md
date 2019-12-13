@@ -31,7 +31,7 @@ wasicc -O3 c-ray-f.c -Dunix -o c-ray.wasm
 export ENGINES_PATH=/opt/wasm_engines
 
 # Wasm3
-cat scene | ../../../build-release/wasm3 c-ray.wasm -s 1024x768 > foo.ppm
+cat scene | ../../../build/wasm3 c-ray.wasm -s 1024x768 > foo.ppm
 
 # wasm-micro-runtime
 cat scene | $ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm c-ray.wasm -s 1024x768 > foo.ppm
