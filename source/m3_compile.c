@@ -488,8 +488,10 @@ M3Result  AddTrapRecord  (IM3Compilation o)
 }
 
 
-void  PatchBranches  (IM3Compilation o)
+bool  PatchBranches  (IM3Compilation o)
 {
+	bool patched = false;
+	
 	M3CompilationScope * block = & o->block;
 	pc_t pc = GetPC (o);
 	
@@ -502,7 +504,11 @@ void  PatchBranches  (IM3Compilation o)
 		
 		m3Free (block->patches);
 		block->patches = next;
+		
+		patched = true;
 	}
+	
+	return patched;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------
@@ -746,18 +752,36 @@ M3Result  Compile_Else_End  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result = c_m3Err_none;
 
-	// function end:
+    // function end:
     if (o->block.depth == 0)
     {
-		PatchBranches (o);
-
-        if (o->block.type)
+        u8 valueType = o->block.type;
+		
+        if (valueType)
         {
-//            if (GetStackTopType (o) != c_m3Type_none)
+            // if there are branches to the function end, then their values are in a register
+            // if the block happens to have its top in a register too, then we can patch the branch
+            // to here. Otherwise, an ReturnStackTop is appended to the end of the function (at B) and
+            // branches patched there.
+            if (IsStackTopInRegister (o))
+                PatchBranches (o);
+			
 _             (ReturnStackTop (o));
         }
-
-_       (EmitOp (o, op_End));
+        else PatchBranches (o);  // for no return type, branch to op_End
+		
+_       (EmitOp (o, op_Return));
+		
+        // B: move register to return slot for branchehs
+        if (valueType)
+        {
+            if (PatchBranches (o))
+            {
+                PushRegister (o, valueType);
+                ReturnStackTop (o);
+_ 			    (EmitOp (o, op_Return));
+            }
+        }
     }
 
     _catch: return result;
@@ -940,7 +964,7 @@ _               (MoveStackTopToRegister (o));
         {
             op = op_Branch;
 
-            if (scope->type != c_m3Type_none)
+            if (valueType != c_m3Type_none)
 _               (MoveStackTopToRegister (o));
 
 //_           (UnwindBlockStack (o));
@@ -978,7 +1002,6 @@ _   (EnsureCodePageNumLines (o, numCodeLines));
 
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i64));         // move branch operand to a slot
     u16 slot = GetStackTopSlotIndex (o);
-    
 _   (Pop (o));
 
     // OPTZ: according to spec: "forward branches that target a control instruction with a non-empty
@@ -1016,7 +1039,7 @@ _       (GetBlockScope (o, & scope, target));
 _               (EmitOp (o, op_ContinueLoop));
                 EmitPointer (o, scope->pc);
                 
-                ReleaseCompilationCodePage (o);
+                ReleaseCompilationCodePage (o);     // FIX: continueOpPage can get lost if thrown
                 o->page = savedPage;
             }
             else _throw (c_m3Err_mallocFailedCodePage);
@@ -1135,7 +1158,7 @@ _       (CompileCallArgsReturn (o, type, true));
 
 _       (EmitOp     (o, op_CallIndirect));
         EmitPointer (o, o->module);
-        EmitPointer (o, type);              // TODO: unify all types in M3Runtime
+        EmitPointer (o, type);              // TODO: unify all types in M3Environment
         EmitOffset  (o, execTop);
         EmitMemory  (o);
     }

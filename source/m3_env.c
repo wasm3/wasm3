@@ -98,12 +98,13 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
 
     if (env)
     {
+		env->environment = i_environment;
+		
         m3Malloc (& env->stack, i_stackSizeInBytes);
 
         if (env->stack)
         {
             env->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
-            env->environment = i_environment;
         }
         else m3Free (env);
     }
@@ -656,9 +657,16 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
 IM3CodePage  AcquireCodePage  (IM3Runtime i_runtime)
 {
     if (i_runtime->pagesOpen)
+    {
         return PopCodePage (& i_runtime->pagesOpen);
+    }
     else
+    {
+		if (i_runtime->environment)
+        	i_runtime->environment->numCodePages++;
+		
         return NewCodePage (500);   // for 4kB page
+    }
 }
 
 
@@ -684,16 +692,25 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 }
 
 
+u32  CountPages  (IM3CodePage i_page)
+{
+    u32 numPages = 0;
+    
+    while (i_page)
+    {
+        ++numPages;
+        i_page = i_page->info.next;
+    }
+    
+    return numPages;
+}
+
+
+
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
     if (i_codePage)
     {
-#       if defined (DEBUG)
-#           if d_m3LogCodePages
-                dump_code_page (i_codePage, /* startPC: */ NULL);
-#           endif
-#       endif
-        
         IM3CodePage * list;
 
         if (NumFreeLines (i_codePage) < c_m3CodePageFreeLinesThreshold)
@@ -702,6 +719,22 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
             list = & i_runtime->pagesOpen;
 
         PushCodePage (list, i_codePage);
+
+#       if defined (DEBUG)
+            u32 numOpen = CountPages (i_runtime->pagesOpen);
+            u32 numFull = CountPages (i_runtime->pagesFull);
+            u32 numTotal = i_runtime->environment ? i_runtime->environment->numCodePages : numFull + numOpen;
+        
+            m3log (code, "open-pages: %d; full-pages: %d; total: %d", numOpen, numFull, numTotal);
+        
+//            d_m3Assert (numOpen + numFull == numTotal);
+		
+#           if d_m3LogCodePages
+                dump_code_page (i_codePage, /* startPC: */ NULL);
+#           endif
+#       endif
+        
+
     }
 }
 

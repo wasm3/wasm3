@@ -44,14 +44,14 @@ M3Result  BridgeToNewPageIfNecessary  (IM3Compilation o)
 }
 
 
-void  log_emit  (IM3Operation i_operation)
+void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 {
 # if DEBUG
     OpInfo i = find_operation_info (i_operation);
     
     if (i.info)
     {
-        printf ("%s", i.info->name);
+        printf ("%p: %s", GetPC (o),  i.info->name);
     }
 # endif
 }
@@ -72,7 +72,7 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
         result = BridgeToNewPageIfNecessary (o);
 
         if (not result)
-        {                                                           m3logif (emit, log_emit (i_operation))
+        {                                                           m3logif (emit, log_emit (o, i_operation))
             EmitWord (o->page, i_operation);
         }
     }

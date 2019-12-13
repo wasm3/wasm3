@@ -445,10 +445,10 @@ else:
 
         "unreachable",
         "switch", "if", "br", "br_if", "br_table", "loop", "block",
-        "return", "nop", "start",
+        "return", "nop", "start", "unwind"
 
         #--- TODO ---
-        #"labels",  "unwind",
+        #"labels",
         #"float_exprs",
     ]))
 
