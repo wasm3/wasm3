@@ -188,6 +188,7 @@ IM3Function                 Module_GetFunction          (IM3Module i_module, u32
 typedef struct M3Environment
 {
     u32                     numCodePages;
+
     //  u32                     numFuncTypes;
     //  M3FuncType *            funcTypes;
 }

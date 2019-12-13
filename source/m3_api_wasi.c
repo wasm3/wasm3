@@ -12,6 +12,8 @@
 #include "m3_module.h"
 #include "m3_exception.h"
 
+#if defined(d_m3HasWASI)
+
 #include "extra/wasi_core.h"
 
 #include <sys/types.h>
@@ -377,7 +379,6 @@ M3Result SuppressLookupFailure(M3Result i_result)
         return i_result;
 }
 
-
 M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
@@ -410,4 +411,12 @@ _catch:
     return result;
 }
 
+#else  // d_m3HasWASI
+
+M3Result  m3_LinkWASI  (IM3Module module)
+{
+    return c_m3Err_none;
+}
+
+#endif // d_m3HasWASI
 

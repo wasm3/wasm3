@@ -230,7 +230,8 @@ class Wasm3():
 
     def _write(self, data):
         if not self._is_running():
-            raise Exception("Not running")
+            self.load(self.loaded)
+            #raise Exception("Not running")
         self.p.stdin.write(data.encode("utf-8"))
         self.p.stdin.flush()
 
