@@ -30,11 +30,10 @@ typedef m3ret_t (* M3ArgPusher) (d_m3BindingArgList, M3State * i_state);
 typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
 
 
-m3ret_t PushArg_module (d_m3BindingArgList, M3State * _state)
+m3ret_t PushArg_runtime (d_m3BindingArgList, M3State * _state)
 {
-    void ** ptr = (void **) _state->mem;
-    IM3Module module = (IM3Module)(*(ptr - 2));
-    _i0 = (i64) module;
+    M3MemoryHeader * info = (M3MemoryHeader *) _state->mem - 1;
+    _i0 = (i64) info->runtime;
     M3ArgPusher pusher = (M3ArgPusher)(* _state->pc++);
     return pusher (d_m3BindingArgs, _state);
 }
@@ -294,7 +293,7 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
                 else if (type == c_m3Type_f64)      * pusher = c_m3Float64Pushers   [floatIndex++];
                 else if (type == c_m3Type_module)
                 {
-                    * pusher = PushArg_module;
+                    * pusher = PushArg_runtime;
                     d_m3Assert (i == 0); // can only push to arg0
                     ++intIndex;
                 }
