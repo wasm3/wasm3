@@ -171,18 +171,18 @@ from queue import Queue, Empty
 class Wasm3():
     def __init__(self, executable):
         if executable.endswith(".wasm"):
-            (engine, executable) = executable.split(maxsplit=1)
+            (engine, wasm) = executable.split(maxsplit=1)
 
-            if engine == "wasmer":
-                self.exe = [engine, "run", "--dir=.", executable, "--"]
+            if engine == "wasirun":
+                self.exe = [engine, wasm]
+            elif engine == "wasmer":
+                self.exe = [engine, "run", "--dir=.", wasm, "--"]
             #elif engine == "wasmer-js":
-            #    self.exe = [engine, "run", executable]
-            elif engine == "wasirun":
-                self.exe = [engine, executable]
+            #    self.exe = [engine, "run", wasm]
             elif engine == "wasmtime":
-                self.exe = [engine, "--dir=.", "--optimize", executable, "--"]
+                self.exe = [engine, "--dir=.", wasm, "--"]
             elif engine == "iwasm":
-                self.exe = [engine, "--dir=.", executable]
+                self.exe = [engine, "--dir=.", wasm]
             else:
                 fatal(f"Don't know how to run engine {engine}")
         else:
