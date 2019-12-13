@@ -372,13 +372,15 @@ M3Result  UnwindBlockStack  (IM3Compilation o)
     
     i16 initStackIndex = o->block.initStackIndex;
 
-    if (o->stackIndex > initStackIndex)
+    u32 popCount = 0;
+    while (o->stackIndex > initStackIndex )
     {
-        m3log (compile, "unwinding stack top");
-        
-        while (o->stackIndex > initStackIndex )
-_           (Pop (o));
+_       (Pop (o));
+        ++popCount;
     }
+    
+    if (popCount)
+        m3log (compile, "unwound stack top: %d", popCount);
     
     _catch: return result;
 }
@@ -922,7 +924,11 @@ _           (MoveStackTopToRegister (o));
             op = op_ContinueLoopIf;
 _           (Pop (o));
         }
-        else op = op_ContinueLoop;
+        else
+        {
+            op = op_ContinueLoop;
+            o->block.isPolymorphic = true;
+        }
 
 _       (EmitOp (o, op));
         EmitPointer (o, scope->pc);
@@ -1241,7 +1247,6 @@ M3Result  Compile_If  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-_try {
 _   (PreserveNonTopRegisters (o));
 
     IM3Operation op = IsStackTopInRegister (o) ? op_If_r : op_If_s;
@@ -1270,7 +1275,7 @@ _       (Compile_ElseBlock (o, pc, blockType));
     }
     else * pc = GetPC (o);
 
-    } _catch: return result;
+    _catch: return result;
 }
 
 
@@ -1474,7 +1479,7 @@ const M3OpInfo c_operations [] =
     M3OP( "unreachable",         0, none,   d_singleOp (Unreachable),       Compile_Unreachable ),  // 0x00
     M3OP( "nop",                 0, none,   d_emptyOpList(),                Compile_Nop ),          // 0x01 .
     M3OP( "block",               0, none,   d_emptyOpList(),                Compile_LoopOrBlock ),  // 0x02
-    M3OP( "loop",                0, none,   d_emptyOpList(),                Compile_LoopOrBlock ),  // 0x03
+    M3OP( "loop",                0, none,   d_singleOp (Loop),              Compile_LoopOrBlock ),  // 0x03
     M3OP( "if",                 -1, none,   d_emptyOpList(),                Compile_If ),           // 0x04
     M3OP( "else",                0, none,   d_emptyOpList(),                Compile_Else_End ),     // 0x05
 
@@ -1690,6 +1695,9 @@ const M3OpInfo c_operations [] =
     M3OP( "Bridge",                 0,  none,    op_Bridge),
 
     M3OP( "SetGlobal_s",            0,  none,    op_SetGlobal_s),
+
+    M3OP( "ContinueLoop",           0,  none,    op_ContinueLoop),
+    M3OP( "ContinueLoopIf",         0,  none,    op_ContinueLoopIf),
 
     M3OP( "PreserveCopySlot",       0,  none,    op_PreserveCopySlot_64),
     M3OP( "CopySlot",               0,  none,    op_CopySlot_64),
