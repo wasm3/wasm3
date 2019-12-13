@@ -3,28 +3,48 @@ name: spec tests
 on: [push]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest #${{ matrix.os }}
+  build-linux:
+    runs-on: ubuntu-latest
 
-    #strategy:
-    #  fail-fast: false
-    #  matrix:
-    #    os: [macos-latest, ubuntu-latest, windows-latest]
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
 
     steps:
     - uses: actions/checkout@v1
-    - name: configure
+    - name: Run CMake
+      env:
+        CC: ${{ matrix.compiler }}
       run: |
         mkdir build
         cd build
         cmake ..
-    - name: make
+    - name: Build
       run: |
         cmake --build build
-    - name: test
+    - name: Test
       run: |
         cd test
         ./run-spec-test.py
+
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run CMake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build
+      run: |
+        cmake --build build
+    #- name: Test
+    #  run: |
+    #    cd test
+    #    ./run-spec-test.py
 
   build-win:
     runs-on: windows-latest
@@ -32,20 +52,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolset: [ClangCL, v142]
+        toolset: ["-T ClangCL", ""]
 
     steps:
     - uses: actions/checkout@v1
-    - name: configure
+    - name: Run CMake
       run: |
         mkdir build
         cd build
-        cmake -T ${{ matrix.toolset }} ..
-    - name: make
+        cmake ${{ matrix.toolset }} ..
+    - name: Build
       run: |
         cmake --build build --config Release
         cp ./build/Release/wasm3.exe ./build/
-    - name: test
+    - name: Test
       run: |
         cd test
         python run-spec-test.py
