@@ -134,13 +134,14 @@ OpInfo find_operation_info  (IM3Operation i_operation)
 
         if (oi->type != c_m3Type_void)
         {
-            if (oi->operation_rs == i_operation or
-                oi->operation_sr == i_operation or
-                oi->operation_ss == i_operation)
+            for (u32 o = 0; o < 4; ++o)
             {
-                opInfo.info = oi;
-                opInfo.opcode = i;
-                break;
+                if (oi->operations [o] == i_operation)
+                {
+                    opInfo.info = oi;
+                    opInfo.opcode = i;
+                    break;
+                }
             }
         }
         else break;
