@@ -168,7 +168,7 @@ u8  ConvertTypeCharToTypeId (char i_code)
         else if (i_code == 'F') type = c_m3Type_f64;
         else if (i_code == 'i') type = c_m3Type_i32;
         else if (i_code == 'I') type = c_m3Type_i64;
-        else if (i_code == 'M') type = c_m3Type_module;
+        else if (i_code == 'R') type = c_m3Type_runtime;
     }
 
     return type;
@@ -233,7 +233,7 @@ M3Result  ValidateSignature  (IM3Function i_function, bool * o_traps, u8 * o_nor
             }
             else
             {
-                if (type != c_m3Type_module)
+                if (type != c_m3Type_runtime)
                     ++numArgs;
             }
         }
@@ -291,7 +291,7 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
                 else if (IsIntType (type))          * pusher = c_m3IntPushers       [intIndex++];
                 else if (type == c_m3Type_f32)      * pusher = c_m3Float32Pushers   [floatIndex++];
                 else if (type == c_m3Type_f64)      * pusher = c_m3Float64Pushers   [floatIndex++];
-                else if (type == c_m3Type_module)
+                else if (type == c_m3Type_runtime)
                 {
                     * pusher = PushArg_runtime;
                     d_m3Assert (i == 0); // can only push to arg0

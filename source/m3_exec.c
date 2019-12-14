@@ -33,7 +33,7 @@ d_m3OpDef  (Call)
 {
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
-    M3Memory * memory           = immediate (M3Memory *);
+    IM3Memory memory            = immediate (IM3Memory);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -127,15 +127,18 @@ d_m3OpDef  (MemGrow)
     IM3Memory memory = & runtime->memory;
 
     u32 numPagesToGrow = (u32) _r0;
-    u32 requiredPages = memory->numPages + numPagesToGrow;
     _r0 = memory->numPages;
 
-    if (numPagesToGrow == 0)
-        return nextOp ();
-
-    M3Result r = ResizeMemory (runtime, requiredPages);
-    if (r)
-        _r0 = -1;
+    if (numPagesToGrow)
+    {
+        u32 requiredPages = memory->numPages + numPagesToGrow;
+        
+        M3Result r = ResizeMemory (runtime, requiredPages);
+        if (r)
+            _r0 = -1;
+        
+        _mem = memory->wasmPages;
+    }
     
     return nextOp ();
 }
@@ -284,7 +287,7 @@ d_m3OpDef  (Loop)
 {
     m3ret_t r;
 
-    M3Memory * memory = immediate (M3Memory *);
+    IM3Memory memory = immediate (IM3Memory);
     // smassey: a downside of this ^^^^ (embedding a memory pointer in the codepage)
     // is that codepages are tied to specific runtime.
     // originally, i was hoping that multiple runtimes (threads) could share

@@ -142,7 +142,7 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
             if (i_ptr)
             {
                 if (i_newSize > i_oldSize)
-                    memset ((u8*)ptr + i_oldSize, 0x0, i_newSize - i_oldSize);
+                    memset ((u8*) ptr + i_oldSize, 0x0, i_newSize - i_oldSize);
             }
             else memset (ptr, 0x0, i_newSize);
         }

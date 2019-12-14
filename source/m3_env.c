@@ -242,7 +242,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 {
     M3Result result = c_m3Err_none;
     
-    u32 i_numPagesToAlloc = i_numPages;
+    u32 numPagesToAlloc = i_numPages;
 
     M3Memory * memory = & io_runtime->memory;
 
@@ -256,9 +256,9 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
     i_numPagesToAlloc = 256;
 #endif
 
-    if (i_numPages <= memory->maxPages)
+    if (numPagesToAlloc <= memory->maxPages)
     {
-        size_t numPageBytes = i_numPagesToAlloc * c_m3MemPageSize;
+        size_t numPageBytes = numPagesToAlloc * c_m3MemPageSize;
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
 
         size_t numPreviousBytes = memory->numPages * c_m3MemPageSize;
@@ -269,12 +269,14 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         
         if (memory->mallocated)
         {
-            memory->numPages = i_numPages;
+            memory->numPages = numPagesToAlloc;
             memory->wasmPages = (u8 *) (memory->mallocated + 1);
             
-            memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize);
+            memory->mallocated->end = memory->wasmPages + numPageBytes;
             memory->mallocated->runtime = io_runtime;
             memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + io_runtime->numStackSlots * sizeof (m3reg_t) - c_m3MaxFunctionStackHeight;
+            
+            m3log (runtime, "resized mem: %p; end: %p; pages: %d\n", memory->wasmPages, memory->mallocated->end, memory->numPages);
         }
         else result = c_m3Err_mallocFailed;
     }

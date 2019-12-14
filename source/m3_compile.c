@@ -187,8 +187,6 @@ void DeallocateSlot (IM3Compilation o, i16 i_slotIndex)
 {                                                                                       d_m3Assert (i_slotIndex >= o->firstSlotIndex);
     o->numAllocatedExecSlots--;                                                         d_m3Assert (o->m3Slots [i_slotIndex]);
     o->m3Slots [i_slotIndex] = 0;
-
-//  printf ("dealloc %d\n", (i32) i_stackIndex);
 }
 
 
@@ -1362,7 +1360,6 @@ _          (PreserveRegisterIfOccupied (o, type));
     for (u32 i = 0; i < 3; i++)
     {
         if (IsValidSlot (slots [i]))
-//        if (slots [i] != c_slotUnused)
             EmitConstant (o, slots [i]);
     }
 _   (PushRegister (o, type));
@@ -1424,7 +1421,7 @@ _           (PreserveRegisterIfOccupied (o, op->type));
     {
         if (IsStackTopInRegister (o))
         {
-            operation = op->operations [0];                   // printf ("r <- s+r\n");
+            operation = op->operations [0];
         }
         else if (IsStackTopMinus1InRegister (o))
         {
@@ -1432,12 +1429,11 @@ _           (PreserveRegisterIfOccupied (o, op->type));
 
             if (not operation)  // must be commutative, then
                 operation = op->operations [0];
-                                                            // printf ("r <- r+s\n");
         }
         else
         {
 _           (PreserveRegisterIfOccupied (o, op->type));
-            operation = op->operations [2];                   // printf ("r <- s+s\n");
+            operation = op->operations [2];
         }
     }
 
@@ -1512,8 +1508,8 @@ _   (Compile_Operator (o, i_opcode));
 #define d_unaryOpList(TYPE, NAME)           { op_##TYPE##_##NAME##_r, op_##TYPE##_##NAME##_s, NULL, NULL }
 #define d_binOpList(TYPE, NAME)             { op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss, NULL }
 #define d_commutativeBinOpList(TYPE, NAME)  { op_##TYPE##_##NAME##_sr, NULL, op_##TYPE##_##NAME##_ss, NULL }
-
 #define d_convertOpList(OP)                 { op_##OP##_r_r, op_##OP##_r_s, op_##OP##_s_r, op_##OP##_s_s }
+
 
 const M3OpInfo c_operations [] =
 {
@@ -1776,9 +1772,6 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
             result = (* compiler) (o, opcode);
         else
             result = c_m3Err_noCompiler;
-        
-//        if (opcode == c_waOp_branch or opcode == c_waOp_branchTable)
-            
 
         o->previousOpcode = opcode;                             //                      m3logif (stack, dump_type_stack (o))
 
@@ -1826,9 +1819,7 @@ _           (PushRegister (o, o->block.type));
     else
 _       (UnwindBlockStack (o));
 
-    _catch: //d_m3Assert (not result);
-
-    return result;
+    _catch: return result;
 }
 
 

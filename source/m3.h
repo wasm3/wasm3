@@ -78,7 +78,7 @@ enum // EWaTypes
     c_m3Type_ptr,
     c_m3Type_trap,
 
-    c_m3Type_module
+    c_m3Type_runtime
 };
 
 

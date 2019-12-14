@@ -21,7 +21,7 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 
         if (page)
         {
-            m3log (emit, "bridging new code page from: %d (free slots: %d)", o->page->info.sequence, NumFreeLines (o->page));
+            m3log (emit, "bridging new code page from: %d %p (free slots: %d)", o->page->info.sequence, GetPC (o), NumFreeLines (o->page));
 
             EmitWord (o->page, op_Bridge);
             EmitWord (o->page, GetPagePC (page));
