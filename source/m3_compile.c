@@ -1406,6 +1406,12 @@ M3Result  Compile_Operator  (IM3Compilation o, u8 i_opcode)
 
     IM3Operation operation;
 
+    // This preserve is for for FP compare operations.
+    // either need additional slot destination operations or the
+    // easy fix, move _r0 out of the way.
+    // moving out the way might be the optimal solution most often?
+    // otherwise, the _r0 reg can get buried down in the stack
+    // and be idle & wasted for a moment.
     if (IsFpType (GetStackTopType (o)) and IsIntType (op->type))
     {
 _       (PreserveRegisterIfOccupied (o, op->type));
