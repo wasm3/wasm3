@@ -38,6 +38,9 @@ clang-9 $FLAGS --target=ppc32 -S ops.c -o ppc32.clang.S
 # enable tail-call for wasm
 clang-9 $FLAGS --target=wasm32 -Xclang -target-feature -Xclang +tail-call -S ops.c -o wasm32.clang.S
 
+
+clang-9 $FLAGS --target=wasm32 -Xclang -target-feature -Xclang +tail-call -nostdlib -Wl,--no-entry -Wl,--export-all -o wasm32.clang.wasm ops.c
+
 # clang - xtensa
 
 export PATH=$OPT/llvm_build_xtensa/bin:$PATH

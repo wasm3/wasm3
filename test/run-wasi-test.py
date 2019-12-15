@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 
 # Author: Volodymyr Shymanskyy
+# Usage:
+#   ./run-wasi-test.py
+#   ./run-wasi-test.py --exec ../custom_build/wasm3 --timeout 120
+#   ./run-wasi-test.py --exec "wasmer run"
+#
+
+# TODO
+# - Implement wasi args passing => reduce test time & cpu usage
 
 import argparse
 import sys
@@ -48,9 +56,6 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-def run(cmd):
-    return subprocess.check_output(cmd, timeout=args.timeout, shell=True)
-
 #
 # Actual test
 #
@@ -59,17 +64,39 @@ stats = dotdict(total_run=0, failed=0, crashed=0, timeout=0)
 
 commands = [
   {
-    "command":        "<wasm3> ./wasi/test.wasm",
+    "name":           "Simple WASI test",
+    "wasm":           "./wasi/test.wasm",
     "expect_pattern": "Hello world*Constructor OK*fib(10) = 55*[* ms]*"
   }, {
-    "command":        "<wasm3> ./benchmark/coremark/coremark-wasi.wasm",
+    "name":           "CoreMark",
+    "wasm":           "./benchmark/coremark/coremark-wasi.wasm",
     "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / HEAP*"
   }, {
-    "command":        "cat ./benchmark/c-ray/scene | <wasm3> ./benchmark/c-ray/c-ray.wasm",
-    "expect_sha1":    "0260a0ee271abd447ffa505aecbf745cb7399e2c"
+    "name":           "C-Ray",
+    "stdin":          open("./benchmark/c-ray/scene", "rb"),
+    "wasm":           "./benchmark/c-ray/c-ray.wasm",
+    "expect_sha1":    "af7baced15a066eb83150aceaea0add05e0c7edf"
   }, {
-    "command":        "<wasm3> ./benchmark/stream/stream.wasm",
+    "skip":           True,  # TODO
+    "name":           "smallpt (explicit light sampling)",
+    "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
+    "expect_sha1":    "ad8e505dc15564a86cdbdbffc48682b2a923f37c"
+  }, {
+    "name":           "STREAM",
+    "wasm":           "./benchmark/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
+  }, {
+    "skip":           True,  # TODO
+    "name":           "Self-hosting",
+    "wasm":           "./self-hosting/wasm3-fib.wasm",
+    "expect_pattern": "*wasm3 on WASM*Elapsed: * ms*"
+  }, {
+    "skip":           True,  # TODO
+    "name":           "Brotli",
+    "stdin":          open("./benchmark/brotli/alice29.txt", "rb"),
+    "wasm":           "./benchmark/brotli/brotli.wasm",
+    "args":           ["-c"],
+    "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
   }
 ]
 
@@ -77,12 +104,30 @@ def fail(msg):
     print(f"{ansi.FAIL}FAIL:{ansi.ENDC} {msg}")
     stats.failed += 1
 
+
+args_sep = None
+if "wasmer" in args.exec or "wasmtime" in args.exec:
+    args_sep = "--"
+
 for cmd in commands:
-    command = cmd['command'].replace("<wasm3>", args.exec)
-    print(f"Running {command}")
-    stats.total_run += 1;
+    if "skip" in cmd:
+        continue
+
+    command = args.exec.split(' ')
+    command.append(cmd['wasm'])
+    if "args" in cmd:
+        if args_sep:
+            command.append(args_sep)
+        command.extend(cmd['args'])
+
+    command = list(map(str, command))
+    print(f"Running {cmd['name']}")
+    stats.total_run += 1
     try:
-        output = run(command)
+        if "stdin" in cmd:
+            output = subprocess.check_output(command, timeout=args.timeout, stdin=cmd['stdin'])
+        else:
+            output = subprocess.check_output(command, timeout=args.timeout)
     except subprocess.TimeoutExpired:
         stats.timeout += 1
         fail("Timeout")
