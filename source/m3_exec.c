@@ -201,12 +201,16 @@ d_m3OpDef  (Entry)
             if (not r)
                 SPrintArg (str, 99, _sp, function->funcType->returnType);
 
-            m3log (exec, " exit  < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
+            m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? r : "");
 #       endif
 
         return r;
     }
-    else return c_m3Err_trapStackOverflow;
+    else
+    {
+        printf ("stk: %p %p\n", _sp, header->maxStack);
+        return c_m3Err_trapStackOverflow;
+    }
 }
 
 

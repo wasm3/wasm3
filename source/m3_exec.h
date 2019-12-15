@@ -48,7 +48,7 @@
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
-    m3Yield ();
+//    m3Yield ();
     return nextOpDirect();
 }
 
@@ -853,8 +853,27 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     else d_outOfBounds;                                 \
 }
 
+// both operands can be in regs when storing a float
+#define d_m3StoreFp(REG, TYPE)                          \
+d_m3Op  (TYPE##_Store_##TYPE##_rr)             \
+{                                                       \
+    u32 operand = (u32) _r0;                            \
+    u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
+                                                        \
+    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
+    u8 * mem8 = (u8 *) (_mem + operand);                \
+    if (mem8 + sizeof (TYPE) <= end)                    \
+    {                                                   \
+        * (TYPE *) mem8 = (TYPE) REG;                   \
+        return nextOp ();                               \
+    }                                                   \
+    else d_outOfBounds;                                 \
+}                                                       \
+
+
 #define d_m3Store_i(SRC_TYPE, DEST_TYPE) d_m3Store(_r0, SRC_TYPE, DEST_TYPE)
-#define d_m3Store_f(SRC_TYPE, DEST_TYPE) d_m3Store(_fp0, SRC_TYPE, DEST_TYPE)
+#define d_m3Store_f(SRC_TYPE, DEST_TYPE) d_m3Store(_fp0, SRC_TYPE, DEST_TYPE) d_m3StoreFp (_fp0, SRC_TYPE);
 
 d_m3Store_f (f32, f32)
 d_m3Store_f (f64, f64)

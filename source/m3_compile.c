@@ -343,7 +343,7 @@ M3Result  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
 
 M3Result  PushRegister  (IM3Compilation o, u8 i_m3Type)
 {
-    i16 location = IsFpType (i_m3Type) ? c_m3Fp0SlotAlias : c_m3Reg0SlotAlias;
+    i16 location = IsFpType (i_m3Type) ? c_m3Fp0SlotAlias : c_m3Reg0SlotAlias;              d_m3Assert (i_m3Type);
     return Push (o, i_m3Type, location);
 }
 
@@ -1422,6 +1422,9 @@ _           (PreserveRegisterIfOccupied (o, op->type));
         if (IsStackTopInRegister (o))
         {
             operation = op->operations [0];
+            
+            if (IsStackTopMinus1InRegister (o))     // for fp.store
+                operation = op->operations [3];
         }
         else if (IsStackTopMinus1InRegister (o))
         {
@@ -1493,10 +1496,11 @@ _   (ReadLEB_u32 (& offset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), offset);
     const M3OpInfo * op = & c_operations [i_opcode];
     
-    if (IsFpType (op->type))
+    if (IsFpType (op->type)) // loading a float?
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
     
 _   (Compile_Operator (o, i_opcode));
+    
     EmitConstant (o, offset);
 
     _catch: return result;
@@ -1507,6 +1511,7 @@ _   (Compile_Operator (o, i_opcode));
 #define d_emptyOpList()                     { NULL, NULL, NULL, NULL }
 #define d_unaryOpList(TYPE, NAME)           { op_##TYPE##_##NAME##_r, op_##TYPE##_##NAME##_s, NULL, NULL }
 #define d_binOpList(TYPE, NAME)             { op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss, NULL }
+#define d_storeFpOpList(TYPE, NAME)         { op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss, op_##TYPE##_##NAME##_rr }
 #define d_commutativeBinOpList(TYPE, NAME)  { op_##TYPE##_##NAME##_sr, NULL, op_##TYPE##_##NAME##_ss, NULL }
 #define d_convertOpList(OP)                 { op_##OP##_r_r, op_##OP##_r_s, op_##OP##_s_r, op_##OP##_s_s }
 
@@ -1567,8 +1572,8 @@ const M3OpInfo c_operations [] =
 
     M3OP( "i32.store",          -2, none,   d_binOpList (i32, Store_i32),   Compile_Load_Store ),           // 0x36
     M3OP( "i64.store",          -2, none,   d_binOpList (i64, Store_i64),   Compile_Load_Store ),           // 0x37
-    M3OP( "f32.store",          -2, none,   d_binOpList (f32, Store_f32),   Compile_Load_Store ),           // 0x38
-    M3OP( "f64.store",          -2, none,   d_binOpList (f64, Store_f64),   Compile_Load_Store ),           // 0x39
+    M3OP( "f32.store",          -2, none,   d_storeFpOpList (f32, Store_f32), Compile_Load_Store ),           // 0x38
+    M3OP( "f64.store",          -2, none,   d_storeFpOpList (f64, Store_f64), Compile_Load_Store ),           // 0x39
 
     M3OP( "i32.store8",         -2, none,   d_binOpList (i32, Store_u8),    Compile_Load_Store ),           // 0x3a
     M3OP( "i32.store16",        -2, none,   d_binOpList (i32, Store_i16),   Compile_Load_Store ),           // 0x3b

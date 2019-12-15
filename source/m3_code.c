@@ -21,9 +21,10 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
 
     if (page)
     {
-        page->info.sequence = ++s_sequence;                     m3log (code, "new page: %d  size: %d", page->info.sequence, pageSize);
-
-        page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);;
+        page->info.sequence = ++s_sequence;
+        page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
+        
+        m3log (code, "new page: %d; bytes: %d; lines: %d", page->info.sequence, pageSize, page->info.numLines);
     }
 
     return page;

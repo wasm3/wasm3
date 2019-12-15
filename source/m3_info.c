@@ -154,7 +154,9 @@ OpInfo find_operation_info  (IM3Operation i_operation)
 #undef fetch
 #define fetch(TYPE) (*(TYPE *) ((*o_pc)++))
 
-void  Decode_Call  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+#define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t * o_pc)
+
+d_m3Decoder  (Call)
 {
     void * function = fetch (void *);
     u16 stackOffset = fetch (u16);
@@ -163,14 +165,27 @@ void  Decode_Call  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_p
 }
 
 
-void  Decode_Entry  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+d_m3Decoder (Entry)
 {
     IM3Function function = fetch (IM3Function);
     
     sprintf (o_string, "%s", function->name);
 }
 
-#define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+
+d_m3Decoder (f64_Store)
+{
+    if (i_operation == i_opInfo->operations [0])
+    {
+        u32 operand = fetch (u32);
+        u32 offset = fetch (u32);
+        
+        sprintf (o_string, "offset= slot:%d + immediate:%d", operand, offset);
+    }
+    
+//    sprintf (o_string, "%s", function->name);
+}
+
 
 d_m3Decoder  (Branch)
 {
@@ -178,7 +193,7 @@ d_m3Decoder  (Branch)
     sprintf (o_string, "%p", target);
 }
 
-void  Decode_BranchTable  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+d_m3Decoder  (BranchTable)
 {
     u16 slot = fetch (u16);
     
@@ -203,7 +218,7 @@ void  Decode_BranchTable  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_
 }
 
 
-void  Decode_Const  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+d_m3Decoder  (Const)
 {
     u64 value = fetch (u64); i32 offset = fetch (i32);
     sprintf (o_string, " slot [%d] = %" PRIu64, offset, value);
@@ -212,9 +227,9 @@ void  Decode_Const  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_
 
 #undef fetch
 
-void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t * o_pc)
+void  DecodeOperation  (char * o_string, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t * o_pc)
 {
-    #define d_m3Decode(OPCODE, FUNC) case OPCODE: Decode_##FUNC (o_string, i_opcode, i_opInfo, o_pc); break;
+    #define d_m3Decode(OPCODE, FUNC) case OPCODE: Decode_##FUNC (o_string, i_opcode, i_operation, i_opInfo, o_pc); break;
 
     switch (i_opcode)
     {
@@ -223,6 +238,7 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3OpInfo i_opInfo, pc_t *
         d_m3Decode (c_waOp_call,           Call)
         d_m3Decode (c_waOp_branch,         Branch)
         d_m3Decode (c_waOp_branchTable,    BranchTable)
+        d_m3Decode (0x39,                  f64_Store)
     }
 }
 
@@ -244,24 +260,24 @@ void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
             pc_t operationPC = pc;
             IM3Operation op = (IM3Operation) (* pc++);
 
-            if (op)
-            {
                 OpInfo i = find_operation_info (op);
 
                 if (i.info)
                 {
                     char infoString [1000] = { 0 };
                     
-                    DecodeOperation (infoString, i.opcode, i.info, & pc);
+                    DecodeOperation (infoString, i.opcode, op, i.info, & pc);
 
                     m3log (code, "%p | %20s  %s", operationPC, i.info->name, infoString);
                 }
-//                else break;
-            }
-//            else break;
+                else
+                    m3log (code, "%p | %p", operationPC, op);
+
         }
 
         m3log (code, "---------------------------------------------------------------------------------------");
+    
+        m3log (code, "free-lines: %d", i_codePage->info.numLines - i_codePage->info.lineIndex);
 }
 # endif
 
@@ -380,6 +396,12 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 #   else
         m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
 #   endif
+    
+    if (o->numOpcodes == 1198)
+    {
+        if (strncmp (o->function->name, "rad", 3) == 0)
+            printf ("hmmm...\n");
+    }
     
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
         o->block.depth++;
