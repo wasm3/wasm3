@@ -204,7 +204,7 @@ typedef struct M3Runtime
     IM3Environment          environment;
     
     M3CodePage *            pagesOpen;      // linked list of code pages with writable space on them
-    M3CodePage *            pagesFull;      // linked list of finalized pages
+    M3CodePage *            pagesFull;      // linked list of at-capacity pages
 
     u32                     numCodePages;
     u32                     numActiveCodePages;
@@ -220,6 +220,8 @@ typedef struct M3Runtime
 	M3Memory                memory;
 
     M3ErrorInfo             error;
+    
+    
 }
 M3Runtime;
 

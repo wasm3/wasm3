@@ -177,11 +177,7 @@ d_m3OpDef  (Compile)
 d_m3OpDef  (Entry)
 {
     M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
-    
-    size_t offset = (u8*) header->maxStack - (u8*) _sp;
-    
-//    printf ("%ld\n", offset);
-    
+        
     if ((void *) _sp <= header->maxStack)
     {
         IM3Function function = immediate (IM3Function);
@@ -207,14 +203,15 @@ d_m3OpDef  (Entry)
 
             m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? r : "");
 #       endif
+        
+#       if d_m3LogStackTrace
+        if (r)
+            printf (" ** %s  %p\n", function->name, _sp);
+#       endif
 
         return r;
     }
-    else
-    {
-//        printf ("stk: %ld %p %p\n", offset, _sp, header->maxStack);
-        return c_m3Err_trapStackOverflow;
-    }
+    else return c_m3Err_trapStackOverflow;
 }
 
 
@@ -388,7 +385,7 @@ d_m3OpDef  (BranchTable)
 {
     i32 branchIndex = slot (i32);           // branch index is always in a slot
     
-    u32 numTargets  = immediate (u32);
+    i32 numTargets  = immediate (i32);
     
     pc_t * branches = (pc_t *) _pc;
     

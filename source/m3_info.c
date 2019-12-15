@@ -396,13 +396,7 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 #   else
         m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
 #   endif
-    
-    if (o->numOpcodes == 1198)
-    {
-        if (strncmp (o->function->name, "rad", 3) == 0)
-            printf ("hmmm...\n");
-    }
-    
+        
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
         o->block.depth++;
 }
