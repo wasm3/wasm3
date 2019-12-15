@@ -187,7 +187,9 @@ IM3Function                 Module_GetFunction          (IM3Module i_module, u32
 //---------------------------------------------------------------------------------------------------------------------------------
 typedef struct M3Environment
 {
-    u32                     numCodePages;
+    u32     dummy;
+//    u32                     numCodePages;
+//    u32                     numActiveCodePages;
 
     //  u32                     numFuncTypes;
     //  M3FuncType *            funcTypes;
@@ -204,10 +206,13 @@ typedef struct M3Runtime
     M3CodePage *            pagesOpen;      // linked list of code pages with writable space on them
     M3CodePage *            pagesFull;      // linked list of finalized pages
 
+    u32                     numCodePages;
+    u32                     numActiveCodePages;
+
     IM3Module               modules;        // linked list of imported modules
 
     void *                  stack;
-//  void *                  stackPtr;               // TODO: args
+    u32                     stackSize;
     u32                     numStackSlots;
 
     M3Result                runtimeError;

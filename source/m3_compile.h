@@ -93,7 +93,7 @@ typedef struct
     u16                 wasmStack                   [c_m3MaxFunctionStackHeight];
     u8                  typeStack                   [c_m3MaxFunctionStackHeight];
 
-    // this array just contains single bit allocation flags.  could be fused with the typeStack to conserve space
+    // OPTZ: this array just contains single bit allocation flags.  could be fused with the typeStack to conserve space
     u8                  m3Slots                     [c_m3MaxFunctionStackHeight];
 
     u16                 numAllocatedExecSlots;
@@ -122,10 +122,10 @@ typedef struct M3OpInfo
     i8                      stackOffset;
     u8                      type;
 
-    IM3Operation            operation_sr;       // top operand in register
-    IM3Operation            operation_rs;       // top operand in stack
-    IM3Operation            operation_ss;       // both operands in stack
-
+    // for most operations:
+    // [0]= top operand in register, [1]= top operand in stack, [2]= both operands in stack
+    IM3Operation            operations [4];
+    
     M3Compiler              compiler;
 }
 M3OpInfo;
@@ -148,7 +148,7 @@ bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
 
 M3Result    EmitOp                      (IM3Compilation o, IM3Operation i_operation);
 void        EmitConstant                (IM3Compilation o, const u64 immediate);
-void        Push                        (IM3Compilation o, u8 i_waType, i16 i_location);
+M3Result    Push                        (IM3Compilation o, u8 i_waType, i16 i_location);
 void        EmitPointer                 (IM3Compilation o, const void * const i_immediate);
 
 M3Result    CompileBlock                (IM3Compilation io, u8 i_blockType, u8 i_blockOpcode);

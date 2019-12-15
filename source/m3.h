@@ -78,7 +78,7 @@ enum // EWaTypes
     c_m3Type_ptr,
     c_m3Type_trap,
 
-    c_m3Type_module
+    c_m3Type_runtime
 };
 
 
@@ -157,6 +157,7 @@ d_m3ErrorConst  (trapIndirectCallTypeMismatch,  "[trap] indirect call type misma
 d_m3ErrorConst  (trapTableIndexOutOfRange,      "[trap] undefined element")
 d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
+d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
 
 typedef void    (* M3Free)      (const void * i_data, void * i_ref);

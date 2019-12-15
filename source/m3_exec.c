@@ -33,7 +33,7 @@ d_m3OpDef  (Call)
 {
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
-    M3Memory * memory           = immediate (M3Memory *);
+    IM3Memory memory            = immediate (IM3Memory);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -127,15 +127,18 @@ d_m3OpDef  (MemGrow)
     IM3Memory memory = & runtime->memory;
 
     u32 numPagesToGrow = (u32) _r0;
-    u32 requiredPages = memory->numPages + numPagesToGrow;
     _r0 = memory->numPages;
 
-    if (numPagesToGrow == 0)
-        return nextOp ();
-
-    M3Result r = ResizeMemory (runtime, requiredPages);
-    if (r)
-        _r0 = -1;
+    if (numPagesToGrow)
+    {
+        u32 requiredPages = memory->numPages + numPagesToGrow;
+        
+        M3Result r = ResizeMemory (runtime, requiredPages);
+        if (r)
+            _r0 = -1;
+        
+        _mem = memory->wasmPages;
+    }
     
     return nextOp ();
 }
@@ -173,31 +176,41 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
-    IM3Function function = immediate (IM3Function);
-    function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name, SPrintFunctionArgList (function, _sp));
+    M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
+    
+    if ((void *) _sp <= header->maxStack)
+    {
+        IM3Function function = immediate (IM3Function);
+        function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name, SPrintFunctionArgList (function, _sp));
 
-    u32 numLocals = function->numLocals;
+        u32 numLocals = function->numLocals;
 
-    m3stack_t stack = _sp + GetFunctionNumArgs (function);
-    while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
-        * (stack++) = 0;
+        m3stack_t stack = _sp + GetFunctionNumArgs (function);
+        while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
+            * (stack++) = 0;
 
-    memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+        memcpy (stack, function->constants, function->numConstants * sizeof (u64));
 
-    m3ret_t r = nextOp ();
+        m3ret_t r = nextOp ();
 
-#if d_m3LogExec
-        u8 returnType = function->funcType->returnType;
+#       if d_m3LogExec
+            u8 returnType = function->funcType->returnType;
 
-        char str [100] = { '!', 0 };
+            char str [100] = { '!', 0 };
 
-        if (not r)
-            SPrintArg (str, 99, _sp, function->funcType->returnType);
+            if (not r)
+                SPrintArg (str, 99, _sp, function->funcType->returnType);
 
-        m3log (exec, " exit  < %s %s %s   %s\n", function->name, returnType ? "->" : "", str, r ? r : "");
-#endif
+            m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? r : "");
+#       endif
 
-    return r;
+        return r;
+    }
+    else
+    {
+        printf ("stk: %p %p\n", _sp, header->maxStack);
+        return c_m3Err_trapStackOverflow;
+    }
 }
 
 
@@ -278,7 +291,7 @@ d_m3OpDef  (Loop)
 {
     m3ret_t r;
 
-    M3Memory * memory = immediate (M3Memory *);
+    IM3Memory memory = immediate (IM3Memory);
     // smassey: a downside of this ^^^^ (embedding a memory pointer in the codepage)
     // is that codepages are tied to specific runtime.
     // originally, i was hoping that multiple runtimes (threads) could share
