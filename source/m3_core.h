@@ -72,7 +72,7 @@ const void * const  cvptr_t;
 
 
 # define d_m3Log_parse d_m3LogParse         // required for m3logif
-# define d_m3Log_stack d_m3LogStack
+# define d_m3Log_stack d_m3LogWasmStack
 # define d_m3Log_runtime d_m3LogRuntime
 # define d_m3Log_exec d_m3LogExec
 # define d_m3Log_emit d_m3LogEmit
@@ -93,7 +93,7 @@ const void * const  cvptr_t;
 #       define m3log_compile(...) {}
 #   endif
 
-#   if d_m3LogStack
+#   if d_m3LogWasmStack
 #       define m3log_stack(CATEGORY, FMT, ...)          d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #   else
 #       define m3log_stack(...) {}

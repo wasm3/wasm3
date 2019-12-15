@@ -178,6 +178,10 @@ d_m3OpDef  (Entry)
 {
     M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
     
+    size_t offset = (u8*) header->maxStack - (u8*) _sp;
+    
+//    printf ("%ld\n", offset);
+    
     if ((void *) _sp <= header->maxStack)
     {
         IM3Function function = immediate (IM3Function);
@@ -208,7 +212,7 @@ d_m3OpDef  (Entry)
     }
     else
     {
-        printf ("stk: %p %p\n", _sp, header->maxStack);
+//        printf ("stk: %ld %p %p\n", offset, _sp, header->maxStack);
         return c_m3Err_trapStackOverflow;
     }
 }
@@ -285,6 +289,23 @@ void  m3_PrintProfilerInfo  ()
     # endif
 }
 
+
+d_m3OpDef  (GetGlobal)
+{
+    i64 * global = immediate (i64 *);
+    slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
+    
+    return nextOp ();
+}
+
+
+d_m3OpDef  (SetGlobal_i)
+{
+    i64 * global = immediate (i64 *);
+    * global = _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
+    
+    return nextOp ();
+}
 
 
 d_m3OpDef  (Loop)

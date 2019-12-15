@@ -104,7 +104,7 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
 
         if (runtime->stack)
         {
-            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);
+            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3reg_t);         m3log (runtime, "new stack: %p", runtime->stack);
         }
         else m3Free (runtime);
     }
@@ -277,9 +277,12 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
             
             memory->mallocated->end = memory->wasmPages + numPageBytes;
             memory->mallocated->runtime = io_runtime;
-            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + io_runtime->numStackSlots * sizeof (m3reg_t) - c_m3MaxFunctionStackHeight;
             
-//            printf ("max:stack: %p\n", memory->mallocated->maxStack);
+             // TODO: track max function stack height and use this instead of hard-coded constant
+            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + (io_runtime->numStackSlots - c_m3MaxFunctionStackHeight);
+            
+            size_t diff = (u8*) (memory->mallocated->maxStack) - (u8*) io_runtime->stack;
+            
             m3log (runtime, "resized mem: %p; end: %p; pages: %d", memory->wasmPages, memory->mallocated->end, memory->numPages);
         }
         else result = c_m3Err_mallocFailed;

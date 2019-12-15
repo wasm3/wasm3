@@ -1147,6 +1147,7 @@ _           (CompileCallArgsReturn (o, & slotTop, function->funcType, false));
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
             EmitOffset  (o, slotTop);
+            
             EmitMemory  (o);
         }
         else result = ErrorCompile (c_m3Err_functionImportMissing, o, "'%s'", GetFunctionName (function));
@@ -1405,37 +1406,44 @@ M3Result  Compile_Operator  (IM3Compilation o, u8 i_opcode)
 
     IM3Operation operation;
 
+    if (IsFpType (GetStackTopType (o)) and IsIntType (op->type))
+    {
+_       (PreserveRegisterIfOccupied (o, op->type));
+    }
+    
     if (op->stackOffset == 0)
     {
         if (IsStackTopInRegister (o))
         {
-            operation = op->operations [0];
+            operation = op->operations [0]; // _s
         }
         else
         {
 _           (PreserveRegisterIfOccupied (o, op->type));
-            operation = op->operations [1];
+            operation = op->operations [1]; // _r
         }
     }
     else
     {
         if (IsStackTopInRegister (o))
         {
-            operation = op->operations [0];
+            operation = op->operations [0];  // _rs
             
-            if (IsStackTopMinus1InRegister (o))     // for fp.store
-                operation = op->operations [3];
+            if (IsStackTopMinus1InRegister (o))
+            {                                       d_m3Assert (i_opcode == 0x38 or i_opcode == 0x39);
+                operation = op->operations [3]; // _rr for fp.store
+            }
         }
         else if (IsStackTopMinus1InRegister (o))
         {
-            operation = op->operations [1];
+            operation = op->operations [1]; // _sr
 
             if (not operation)  // must be commutative, then
                 operation = op->operations [0];
         }
         else
         {
-_           (PreserveRegisterIfOccupied (o, op->type));
+_           (PreserveRegisterIfOccupied (o, op->type));     // _ss
             operation = op->operations [2];
         }
     }
@@ -1529,7 +1537,7 @@ const M3OpInfo c_operations [] =
 
     M3OP( "end",                 0, none,   d_emptyOpList(),                Compile_Else_End ),     // 0x0b
     M3OP( "br",                  0, none,   d_singleOp (Branch),            Compile_Branch ),       // 0x0c
-    M3OP( "br_if",              -1, none,   { op_BranchIf_r, op_BranchIf_s, NULL, NULL },  Compile_Branch ),       // 0x0d
+    M3OP( "br_if",              -1, none,   { op_BranchIf_r, op_BranchIf_s },  Compile_Branch ),       // 0x0d
     M3OP( "br_table",           -1, none,   d_singleOp (BranchTable),       Compile_BranchTable ),  // 0x0e
     M3OP( "return",              0, any,    d_singleOp (Return),            Compile_Return ),       // 0x0f
     M3OP( "call",                0, any,    d_singleOp (Call),              Compile_Call ),         // 0x10
@@ -1548,8 +1556,8 @@ const M3OpInfo c_operations [] =
     M3OP( "local.get",          1,  any,    d_emptyOpList(),                Compile_GetLocal ),     // 0x20
     M3OP( "local.set",          1,  none,   d_emptyOpList(),                Compile_SetLocal ),     // 0x21
     M3OP( "local.tee",          0,  any,    d_emptyOpList(),                Compile_SetLocal ),     // 0x22
-    M3OP( "global.get",         1,  none,   d_emptyOpList(),                Compile_GetSetGlobal ), // 0x23
-    M3OP( "global.set",         1,  none,   d_emptyOpList(),                Compile_GetSetGlobal ), // 0x24
+    M3OP( "global.get",         1,  none,   d_singleOp (GetGlobal),         Compile_GetSetGlobal ), // 0x23
+    M3OP( "global.set",         1,  none,   { op_SetGlobal_i, op_SetGlobal_s }, Compile_GetSetGlobal ), // 0x24
 
     M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                   // 0x25 - 0x27
 

@@ -53,6 +53,7 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
     {
         printf ("%p: %s", GetPC (o),  i.info->name);
     }
+    else printf ("not found: %p", i_operation);
 # endif
 }
 

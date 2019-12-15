@@ -638,28 +638,14 @@ d_m3Op  (End)
 }
 
 
-d_m3Op  (GetGlobal)
-{
-    i64 * global = immediate (i64 *);
-    slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
-
-    return nextOp ();
-}
+d_m3OpDecl  (GetGlobal)
+d_m3OpDecl  (SetGlobal_i)
 
 
 d_m3Op  (SetGlobal_s)
 {
     i64 * global = immediate (i64 *);
     * global = slot (i64);
-
-    return nextOp ();
-}
-
-
-d_m3Op  (SetGlobal_i)
-{
-    i64 * global = immediate (i64 *);
-    * global = _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
     return nextOp ();
 }

@@ -65,7 +65,7 @@
 
 # define d_m3LogParse           0
 # define d_m3LogCompile         0
-# define d_m3LogStack           0
+# define d_m3LogWasmStack       0
 # define d_m3LogEmit            0
 # define d_m3LogCodePages       0
 # define d_m3LogModule          0
