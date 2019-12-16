@@ -6,7 +6,7 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/wasm3/wasm3)
 [![CI status](https://github.com/wasm3/wasm3/workflows/spec%20tests/badge.svg)](https://github.com/wasm3/wasm3/actions)
 
-This is an (experimental) high performance WebAssembly interpreter written in C.
+A high performance WebAssembly interpreter written in C.
 
 **∼ 13.5x faster** than other wasm interpreters (`wac`, `life`, `wasm-micro-runtime`)  
 **∼ 5..6x slower** than state of the art wasm `JIT` engines (`liftoff`, `cranelift`)  
