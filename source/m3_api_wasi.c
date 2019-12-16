@@ -128,26 +128,39 @@ void copy_iov_to_host(struct iovec* host_iov, IM3Runtime runtime, uint32_t iov_o
  * WASI API implementation
  */
 
-uint32_t m3_wasi_unstable_args_get(IM3Runtime runtime,
-                                   uint32_t   argv_offset,
-                                   uint32_t   argv_buf_offset)
+
+uint32_t m3_wasi_unstable_args_get (IM3Runtime runtime,
+                                    u32 *       argv_offset,
+                                    u8 *        argv_buf_offset)
 {
-    if (runtime == NULL) { return __WASI_EINVAL; }
-    // TODO
-    return __WASI_ESUCCESS;
+    if (runtime)
+    {
+        for (u32 i = 0; i < runtime->argc; ++i)
+        {
+            argv_offset [i] = addr2offset (runtime, argv_buf_offset);
+            
+            size_t len = strlen (runtime->argv [i]);
+            memcpy (argv_buf_offset, runtime->argv [i], len);
+            argv_buf_offset += len;
+            * argv_buf_offset++ = 0;
+        }
+        
+        return __WASI_ESUCCESS;
+    }
+    else return __WASI_EINVAL;
 }
 
-uint32_t m3_wasi_unstable_args_sizes_get(IM3Runtime runtime,
-                                         uint32_t   argc_offset,
-                                         uint32_t   argv_buf_size_offset)
+uint32_t m3_wasi_unstable_args_sizes_get (IM3Runtime        runtime,
+                                          __wasi_size_t *   argc,
+                                          __wasi_size_t *   argv_buf_size)
 {
     if (runtime == NULL) { return __WASI_EINVAL; }
 
-    __wasi_size_t *argc          = offset2addr(runtime, argc_offset);
-    __wasi_size_t *argv_buf_size = offset2addr(runtime, argv_buf_size_offset);
-
-    *argc = 0;
+    *argc = runtime->argc;
     *argv_buf_size = 0;
+    for (int i = 0; i < runtime->argc; ++i)
+        * argv_buf_size += strlen (runtime->argv [i]) + 1;
+    
     return __WASI_ESUCCESS;
 }
 
@@ -384,9 +397,9 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
-_   (SuppressLookupFailure (m3_LinkFunction (module, "args_sizes_get",      "i(Rii)",       &m3_wasi_unstable_args_sizes_get)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "args_sizes_get",      "i(R**)",       &m3_wasi_unstable_args_sizes_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_sizes_get",   "i(Rii)",       &m3_wasi_unstable_environ_sizes_get)));
-_   (SuppressLookupFailure (m3_LinkFunction (module, "args_get",            "i(Rii)",       &m3_wasi_unstable_args_get)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "args_get",            "i(R**)",       &m3_wasi_unstable_args_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_get",         "i(Rii)",       &m3_wasi_unstable_environ_get)));
 
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_dir_name",  "i(Riii)",     &m3_wasi_unstable_fd_prestat_dir_name)));

@@ -54,9 +54,10 @@ M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char*
     if (argc) {
         if (!strcmp(name, "main") || !strcmp(name, "_main")) {
             return "passing arguments to libc main() not implemented";
-        } else if (!strcmp(name, "_start")) {
-            return "passing arguments to wasi _start() not implemented";
         }
+//        else if (!strcmp(name, "_start")) {
+//            return "passing arguments to wasi _start() not implemented";
+//        }
     }
 
     result = m3_CallWithArgs (func, argc, argv);

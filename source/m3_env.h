@@ -215,6 +215,9 @@ typedef struct M3Runtime
     u32                     stackSize;
     u32                     numStackSlots;
 
+    u32                     argc;
+    ccstr_t *               argv;
+    
     M3Result                runtimeError;
 
 	M3Memory                memory;

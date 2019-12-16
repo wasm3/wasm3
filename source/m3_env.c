@@ -348,11 +348,18 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         u32 minMemorySize = segment->size + segmentOffset + 1;                      m3log (runtime, "loading data segment: %d  offset: %d", i, segmentOffset);
 
-//		io_memory
-
 //_       (Module_EnsureMemorySize (io_module, io_memory, minMemorySize));
 
-        memcpy (io_memory->wasmPages + segmentOffset, segment->data, segment->size);
+        if (io_memory->wasmPages)
+        {
+            u8 * dest = io_memory->wasmPages + segmentOffset;
+            
+            if (dest + segment->size <= (u8 *) io_memory->mallocated->end)
+                memcpy (dest, segment->data, segment->size);
+            else
+                _throw ("data segment overflowing linear memory");
+        }
+        else _throw ("unallocated linear memory");
     }
 
     _catch: return result;
@@ -528,7 +535,11 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         IM3Module module = i_function->module;
 
         IM3Runtime runtime = module->runtime;
-
+        runtime->argc = i_argc;
+        runtime->argv = i_argv;
+        if (strcmp (i_function->name, "_start") == 0) // WASI
+            i_argc = 0;
+            
         IM3FuncType ftype = i_function->funcType;
 
 //#if d_m3AllocateLinearMemory
@@ -608,6 +619,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
 
     _catch: return result;
 }
+
 
 M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
