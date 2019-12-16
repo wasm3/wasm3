@@ -100,7 +100,9 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi,int E=1){
     radiance(reflRay,depth,Xi)*Re+radiance(Ray(x,tdir),depth,Xi)*Tr);
 }
 int main(int argc, char *argv[]){
-  int w=1024, h=768, samps = argc==2 ? atoi(argv[1])/4 : 2; // # samples
+  int w=1024, h=768, samps = 2;
+  if (argc >= 2) samps = atoi(argv[1])/4;
+  if (argc >= 3) w = h = atoi(argv[2]);
   double tbeg = get_time();
   Ray cam(Vec(50,52,295.6), Vec(0,-0.042612,-1).norm()); // cam pos, dir
   Vec cx=Vec(w*.5135/h), cy=(cx%cam.d).norm()*.5135, r, *c=new Vec[w*h];
