@@ -67,34 +67,52 @@ commands = [
   {
     "name":           "Simple WASI test",
     "wasm":           "./wasi/test.wasm",
-    "expect_pattern": "Hello world*Constructor OK*fib(10) = 55*[* ms]*"
+    "args":           ["args", "test"],
+    "expect_pattern": "Hello world*Constructor OK*Args: *test.wasm; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
+  }, {
+    "name":           "Simple WASI test (wasm-opt -O3)",
+    "wasm":           "./wasi/test-opt.wasm",
+    "args":           ["args", "test"],
+    "expect_pattern": "Hello world*Constructor OK*Args: *test-opt.wasm; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
   }, {
     "name":           "CoreMark",
     "wasm":           "./benchmark/coremark/coremark-wasi.wasm",
     "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / HEAP*"
   }, {
-    "name":           "C-Ray",
-    "stdin":          open("./benchmark/c-ray/scene", "rb"),
-    "wasm":           "./benchmark/c-ray/c-ray.wasm",
-    "expect_sha1":    "0260a0ee271abd447ffa505aecbf745cb7399e2c" # TODO: should be af7baced15a066eb83150aceaea0add05e0c7edf
+    "name":           "mandelbrot",
+    "wasm":           "./benchmark/mandelbrot/mandel.wasm",
+    "args":           ["128", "4e5"],
+    "expect_sha1":    "2df4c54065e58d3a860fe3b8cc6ad4ffabf6cdaf"
   }, {
-    "skip":           True,  # TODO
+    "name":           "mandelbrot (doubledouble)",
+    "wasm":           "./benchmark/mandelbrot/mandel_dd.wasm",
+    "args":           ["128", "4e5"],
+    "expect_sha1":    "dab4899961e2fcfc8691754c2200d64c5c0995e1"
+  }, {
+    "name":           "C-Ray",
+    "stdin":          "./benchmark/c-ray/scene",
+    "wasm":           "./benchmark/c-ray/c-ray.wasm",
+    "args":           ["-s", "128x128"],
+    "expect_sha1":    "90f86845ae227466a06ea8db06e753af4838f2fa"
+  }, {
+    "skip":           True,  # TODO: Crashes
     "name":           "smallpt (explicit light sampling)",
     "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
-    "expect_sha1":    "ad8e505dc15564a86cdbdbffc48682b2a923f37c"
+    "args":           ["4"],
+    "expect_sha1":    "5643ad941e1ba3d5cf1ec158469776bbacd85542"
   }, {
     "name":           "STREAM",
     "wasm":           "./benchmark/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
   }, {
-    "skip":           True,  # TODO
+    "skip":           True,  # TODO: Crashes
     "name":           "Self-hosting",
     "wasm":           "./self-hosting/wasm3-fib.wasm",
     "expect_pattern": "*wasm3 on WASM*Elapsed: * ms*"
   }, {
-    "skip":           True,  # TODO
+    "skip":           True,  # TODO: Invalid binary result
     "name":           "Brotli",
-    "stdin":          open("./benchmark/brotli/alice29.txt", "rb"),
+    "stdin":          "./benchmark/brotli/alice29.txt",
     "wasm":           "./benchmark/brotli/brotli.wasm",
     "args":           ["-c"],
     "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
@@ -122,12 +140,16 @@ for cmd in commands:
         command.extend(cmd['args'])
 
     command = list(map(str, command))
-    print(f"Running {cmd['name']}")
+    print(f"=== {cmd['name']} ===")
     stats.total_run += 1
     try:
         if "stdin" in cmd:
-            output = subprocess.check_output(command, timeout=args.timeout, stdin=cmd['stdin'])
+            fn = cmd['stdin']
+            f = open(fn, "rb")
+            print(f"cat {fn} | {' '.join(command)}")
+            output = subprocess.check_output(command, timeout=args.timeout, stdin=f)
         else:
+            print(f"{' '.join(command)}")
             output = subprocess.check_output(command, timeout=args.timeout)
     except subprocess.TimeoutExpired:
         stats.timeout += 1
@@ -146,6 +168,8 @@ for cmd in commands:
     if "expect_pattern" in cmd:
         if not fnmatch.fnmatch(output.decode("utf-8"), cmd['expect_pattern']):
             fail(f"Output does not match pattern")
+
+    print()
 
 pprint(stats)
 
