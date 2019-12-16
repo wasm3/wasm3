@@ -75,10 +75,6 @@ commands = [
     "args":           ["args", "test"],
     "expect_pattern": "Hello world*Constructor OK*Args: *test-opt.wasm; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
   }, {
-    "name":           "CoreMark",
-    "wasm":           "./benchmark/coremark/coremark-wasi.wasm",
-    "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / HEAP*"
-  }, {
     "name":           "mandelbrot",
     "wasm":           "./benchmark/mandelbrot/mandel.wasm",
     "args":           ["128", "4e5"],
@@ -108,14 +104,17 @@ commands = [
     "skip":           True,  # TODO: Crashes
     "name":           "Self-hosting",
     "wasm":           "./self-hosting/wasm3-fib.wasm",
-    "expect_pattern": "*wasm3 on WASM*Elapsed: * ms*"
+    "expect_pattern": "*wasm3 on WASM*Result: 832040*Elapsed: * ms*"
   }, {
-    "skip":           True,  # TODO: Invalid binary result
     "name":           "Brotli",
     "stdin":          "./benchmark/brotli/alice29.txt",
     "wasm":           "./benchmark/brotli/brotli.wasm",
-    "args":           ["-c"],
-    "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
+    "args":           ["-9", "-c"],
+    "expect_sha1":    "e5f2e4cb0eb0bae1775a7be0795dd2aaf8900f1a"
+  }, {
+    "name":           "CoreMark",
+    "wasm":           "./benchmark/coremark/coremark-wasi.wasm",
+    "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / HEAP*"
   }
 ]
 
