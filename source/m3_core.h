@@ -193,7 +193,8 @@ M3CodePageHeader;
 #define c_externalKind_memory               2
 #define c_externalKind_global               3
 
-static const char * const c_waTypes []              = { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
+static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
+static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v", "v*" };
 
 
 #define m3Alloc(OPTR, STRUCT, NUM)              m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))

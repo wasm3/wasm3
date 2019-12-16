@@ -314,7 +314,7 @@ void  dump_type_stack  (IM3Compilation o)
             printf (" | ");                     // divide the static & dynamic portion of the stack
         
         //        printf (" %d:%s.", i, c_waTypes [o->typeStack [i]]);
-        printf (" %s.", c_waTypes [o->typeStack [i]]);
+        printf (" %s", c_waCompactTypes [o->typeStack [i]]);
         if (i < o->firstConstSlotIndex)
         {
             u16 writeCount = o->wasmStack [i];
