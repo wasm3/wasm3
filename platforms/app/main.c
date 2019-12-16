@@ -55,9 +55,6 @@ M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char*
         if (!strcmp(name, "main") || !strcmp(name, "_main")) {
             return "passing arguments to libc main() not implemented";
         }
-//        else if (!strcmp(name, "_start")) {
-//            return "passing arguments to wasi _start() not implemented";
-//        }
     }
 
     result = m3_CallWithArgs (func, argc, argv);
@@ -176,7 +173,12 @@ int  main  (int i_argc, const char* i_argv[])
         if (result) FATAL("m3_LinkLibC: %s", result);
 
         if (argFunc and not argRepl) {
-            result = repl_call(runtime, argFunc, i_argc, i_argv);
+            if (!strcmp(argFunc, "_start")) {
+                // When passing args to WASI, include wasm filename as argv[0]
+                result = repl_call(runtime, argFunc, i_argc+1, i_argv-1);
+            } else {
+                result = repl_call(runtime, argFunc, i_argc, i_argv);
+            }
             if (result) FATAL("repl_call: %s", result);
         }
     }
@@ -209,23 +211,22 @@ int  main  (int i_argc, const char* i_argv[])
         }
 
         if (result) {
-            printf ("Error: %s", result);
+            fprintf (stderr, "Error: %s", result);
             M3ErrorInfo info = m3_GetErrorInfo (runtime);
-            printf (" (%s)\n", info.message);
+            fprintf (stderr, " (%s)\n", info.message);
         }
     }
 
 _onfatal:
     if (result) {
-        printf ("Error: %s", result);
+        fprintf (stderr, "Error: %s", result);
         if (runtime)
         {
             M3ErrorInfo info = m3_GetErrorInfo (runtime);
-            printf (" (%s)", info.message);
+            fprintf (stderr, " (%s)", info.message);
         }
+        fprintf (stderr, "\n");
     }
-
-    printf ("\n");
 
     m3_FreeEnvironment (env);
     

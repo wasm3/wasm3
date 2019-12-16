@@ -584,30 +584,30 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
 
 #if d_m3LogOutput
         switch (ftype->returnType) {
-        case c_m3Type_none: printf("Result: <Empty Stack>\n"); break;
+        case c_m3Type_none: fprintf (stderr, "Result: <Empty Stack>\n"); break;
 #ifdef USE_HUMAN_FRIENDLY_ARGS
-        case c_m3Type_i32:  printf("Result: %" PRIi32 "\n", *(i32*)(stack));  break;
-        case c_m3Type_i64:  printf("Result: %" PRIi64 "\n", *(i64*)(stack));  break;
-        case c_m3Type_f32:  printf("Result: %f\n",   *(f32*)(stack));  break;
-        case c_m3Type_f64:  printf("Result: %lf\n",  *(f64*)(stack));  break;
+        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)(stack));  break;
+        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)(stack));  break;
+        case c_m3Type_f32:  fprintf (stderr, "Result: %f\n",   *(f32*)(stack));  break;
+        case c_m3Type_f64:  fprintf (stderr, "Result: %lf\n",  *(f64*)(stack));  break;
 #else
-        case c_m3Type_i32:  printf("Result: %u\n",  *(u32*)(stack));  break;
+        case c_m3Type_i32:  fprintf (stderr, "Result: %u\n",  *(u32*)(stack));  break;
         case c_m3Type_f32:  {
             union { u32 u; f32 f; } union32;
             union32.f = * (f32 *)(stack);
-            printf("Result: %u\n", union32.u );
+            fprintf (stderr, "Result: %u\n", union32.u );
             break;
         }
         case c_m3Type_i64:
         case c_m3Type_f64:
-            printf("Result: %" PRIu64 "\n", *(u64*)(stack));  break;
+            fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)(stack));  break;
 #endif // USE_HUMAN_FRIENDLY_ARGS
         default: _throw("unknown return type");
         }
 
 #if d_m3LogNativeStack
         size_t stackUsed =  m3StackGetMax();
-        printf("Native stack used: %d\n", stackUsed);
+        fprintf (stderr, "Native stack used: %d\n", stackUsed);
 #endif // d_m3LogNativeStack
 
 #endif // d_m3LogOutput
