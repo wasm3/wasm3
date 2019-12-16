@@ -7,10 +7,6 @@
 #   ./run-wasi-test.py --exec "wasmer run"
 #
 
-# TODO
-# - Implement wasi args passing => reduce test time & cpu usage
-# - Fix "Empty stack" output, so it does not affect the SHA1 checksum
-
 import argparse
 import sys
 import subprocess
@@ -94,14 +90,13 @@ commands = [
     "skip":           True,  # TODO: Crashes
     "name":           "smallpt (explicit light sampling)",
     "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
-    "args":           ["4"],
-    "expect_sha1":    "5643ad941e1ba3d5cf1ec158469776bbacd85542"
+    "args":           ["16", "64"],
+    "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
   }, {
     "name":           "STREAM",
     "wasm":           "./benchmark/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
   }, {
-    "skip":           True,  # TODO: Crashes
     "name":           "Self-hosting",
     "wasm":           "./self-hosting/wasm3-fib.wasm",
     "expect_pattern": "*wasm3 on WASM*Result: 832040*Elapsed: * ms*"
