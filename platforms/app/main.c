@@ -73,7 +73,7 @@ void repl_free(IM3Runtime* runtime)
 M3Result repl_init(IM3Environment env, IM3Runtime* runtime)
 {
     repl_free(runtime);
-    *runtime = m3_NewRuntime (env, 8*1024);
+    *runtime = m3_NewRuntime (env, 64*1024);
     if (*runtime == NULL) {
         return "m3_NewRuntime failed";
     }
