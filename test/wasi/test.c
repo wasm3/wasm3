@@ -61,6 +61,14 @@ void test_printf() {
   printf("Hello %s!\n", "printf");
 }
 
+void test_args(int argc, char **argv) {
+  printf("Args: ");
+  for (int i = 0; i < argc; i++) {
+    printf("%s; ", argv[i]);
+  }
+  puts("");
+}
+
 void test_random() {
   unsigned entropy;
   getentropy(&entropy, sizeof(entropy));
@@ -76,15 +84,9 @@ void test_gettime() {
   printf("Now: %lld sec, %ld ns\n", now.tv_sec, now.tv_nsec);
 }
 
-void test_fib10() {
-  volatile uint32_t n = 10, result;
-  result = fib(n);
-  printf("fib(%d) = %d\n", n, result);
-}
-
-void test_perf_fib38() {
+void test_perf_fib(uint32_t n) {
   struct timespec start, finish;
-  volatile uint32_t n = 38, result;
+  uint32_t result;
 
   printf("fib(%d) = ", n);
   fflush(stdout);
@@ -95,26 +97,28 @@ void test_perf_fib38() {
   clock_gettime(CLOCK_REALTIME, &finish);
 
   struct timespec delta = timespec_diff(start, finish);
-  unsigned ms = (delta.tv_sec*1000) + (delta.tv_nsec/1000000);
-  printf("%d [%u ms]\n", result, ms);
 
-  // TODO: this fails
-  //double fms = (delta.tv_sec*1000.0) + (delta.tv_nsec/1000000.0);
-  //printf("%d [%f ms]\n", result, fms);
+  //unsigned ms = (delta.tv_sec*1000) + (delta.tv_nsec/1000000);
+  //printf("%d [%u ms]\n", result, ms);
+
+  double fms = (delta.tv_sec*1000.0) + (delta.tv_nsec/1000000.0);
+  printf("%d [%.3f ms]\n", result, fms);
 }
 
 /*
  * Main
  */
 
-int main()
+int main(int argc, char **argv)
 {
   test_write();
   test_constructor();
   test_printf();
+  test_args(argc, argv);
   test_gettime();
   test_random();
-  test_fib10();
-  test_perf_fib38();
+  test_perf_fib(20);
+
+  puts("=== done ===");
   return 0;
 }
