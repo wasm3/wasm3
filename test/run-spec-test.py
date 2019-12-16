@@ -518,7 +518,7 @@ for fn in jsonFiles:
                 test.expected[0]["value"] = "<Arithmetic NaN>"
             elif test.type == "assert_trap":
                 test.expected_trap = cmd["text"]
-            elif test.type == "assert_exhaustion" and args.all: # TODO: Remove args.all check
+            elif test.type == "assert_exhaustion":
                 test.expected_trap = "stack overflow"
             else:
                 stats.skipped += 1
