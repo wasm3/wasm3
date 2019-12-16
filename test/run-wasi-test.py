@@ -99,7 +99,7 @@ commands = [
   }, {
     "name":           "Self-hosting",
     "wasm":           "./self-hosting/wasm3-fib.wasm",
-    "expect_pattern": "*wasm3 on WASM*Result: 832040*Elapsed: * ms*"
+    "expect_pattern": "wasm3 on WASM*Result: 832040*Elapsed: * ms*"
   }, {
     "name":           "Brotli",
     "stdin":          "./benchmark/brotli/alice29.txt",
