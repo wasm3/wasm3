@@ -172,10 +172,10 @@ d_m3CommutativeOp_i (i32, Multiply,         *)      d_m3CommutativeOp_i (i64, Mu
 d_m3Op_i (i32, Subtract,                    -)      d_m3Op_i (i64, Subtract,                    -)
 
 // Note: For some reason modulo is needed for Clang
-#define OP_SHL_32(X,N) (X << (N % 32))
-#define OP_SHL_64(X,N) (X << (N % 64))
-#define OP_SHR_32(X,N) (X >> (N % 32))
-#define OP_SHR_64(X,N) (X >> (N % 64))
+#define OP_SHL_32(X,N) ((X) << ((N) % 32))
+#define OP_SHL_64(X,N) ((X) << ((N) % 64))
+#define OP_SHR_32(X,N) ((X) >> ((N) % 32))
+#define OP_SHR_64(X,N) ((X) >> ((N) % 64))
 
 d_m3OpFunc_i (i32, ShiftLeft,       OP_SHL_32)      d_m3OpFunc_i (i64, ShiftLeft,       OP_SHL_64)
 d_m3OpFunc_i (i32, ShiftRight,      OP_SHR_32)      d_m3OpFunc_i (i64, ShiftRight,      OP_SHR_64)
