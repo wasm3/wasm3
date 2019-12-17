@@ -36,9 +36,7 @@ parser.add_argument("--engine", metavar="<engine>")
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
-parser.add_argument("--skip-crashes", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
-#parser.add_argument("--wasm-opt", metavar="<opt flags>")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("file", nargs='*')
@@ -428,7 +426,6 @@ def runInvoke(test):
         stats.failed += 1
         log.write(f"FAIL: {actual}, should be: {expect}\n")
         if args.silent: return
-        if args.skip_crashes and actual == "<Crashed>": return
 
         showTestResult()
         #sys.exit(1)
@@ -469,7 +466,7 @@ for fn in jsonFiles:
                 fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
                 wasm3.load(fn)
             except Exception as e:
-                fatal(str(e))
+                pass #fatal(str(e))
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
