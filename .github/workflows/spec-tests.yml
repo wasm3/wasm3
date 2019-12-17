@@ -1,4 +1,4 @@
-name: spec tests
+name: tests
 
 on: [push, pull_request]
 
@@ -115,4 +115,5 @@ jobs:
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        ./run-spec-test.py --exec "wasmer ../build-wasi/wasm3.wasm"
+        ./run-spec-test.py --engine "wasmer run" --exec "../build-wasi/wasm3.wasm"
+

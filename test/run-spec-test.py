@@ -5,7 +5,9 @@
 #   ./run-spec-test.py
 #   ./run-spec-test.py ./core/i32.json
 #   ./run-spec-test.py ./core/float_exprs.json --line 2070
-#   ./run-spec-test.py --exec ../custom_build/wasm3
+#   ./run-spec-test.py --exec ../build-custom/wasm3
+#   ./run-spec-test.py --engine "wasmer run" --exec ../build-wasi/wasm3.wasm
+#   ./run-spec-test.py --engine "wasmer run --backend=llvm" --exec ../build-wasi/wasm3.wasm
 #
 
 # TODO
@@ -30,6 +32,7 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--engine", metavar="<engine>")
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
@@ -86,9 +89,6 @@ def fatal(msg):
     log.flush()
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
-
-def run(cmd):
-    return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
 
 def filename(p):
     _, fn = os.path.split(p)
@@ -168,36 +168,43 @@ from subprocess import Popen, STDOUT, PIPE
 from threading import Thread
 from queue import Queue, Empty
 
-class Wasm3():
-    def __init__(self, executable):
-        if executable.endswith(".wasm"):
-            (engine, wasm) = executable.split(maxsplit=1)
+import shlex
 
-            if engine == "wasirun":
-                self.exe = [engine, wasm]
-            elif engine == "wasmer":
-                self.exe = [engine, "run", "--dir=.", wasm, "--"]
-            #elif engine == "wasmer-js":
-            #    self.exe = [engine, "run", wasm]
-            elif engine == "wasmtime":
-                self.exe = [engine, "--dir=.", wasm, "--"]
-            elif engine == "iwasm":
-                self.exe = [engine, "--dir=.", wasm]
-            else:
-                fatal(f"Don't know how to run engine {engine}")
+def get_engine_cmd(engine, exe, wasm):
+    if engine:
+        cmd = shlex.split(engine)
+        if "wasirun" in engine or "wasm3" in engine:
+            return cmd + [exe, "--repl", wasm]
+        elif "wasmer" in engine:
+            return cmd + ["--dir=.", exe, "--", "--repl", wasm]
+        elif "wasmtime" in engine:
+            return cmd + ["--dir=.", exe, "--", "--repl", wasm]
+        elif "iwasm" in engine:
+            return cmd + ["--dir=.", exe, "--repl", wasm]
+        elif "wavm" in engine:
+            return cmd + ["--mount-root", ".", exe, "--repl", "/" + wasm]
         else:
-            self.exe = [executable]
+            fatal(f"Don't know how to run engine {engine}")
+    else:
+        if exe.endswith(".wasm"):
+            fatal(f"Need engine to execute wasm")
+        return shlex.split(exe) + ["--repl", wasm]
+
+class Wasm3():
+    def __init__(self, exe, engine=None):
+        self.exe = exe
+        self.engine = engine
         self.p = None
-        self.timeout = 3.0
+        self.timeout = 15.0
 
     def load(self, fn):
         if self.p:
             self.terminate()
 
         self.loaded = fn
+
         self.p = Popen(
-            self.exe + ["--repl", fn],
-            shell = False,
+            get_engine_cmd(self.engine, self.exe, fn),
             bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT
         )
 
@@ -211,7 +218,10 @@ class Wasm3():
         self.t.daemon = True
         self.t.start()
 
-        output = self._read_until("wasm3> ", False)
+        try:
+            output = self._read_until("wasm3> ", False)
+        except Exception:
+            pass
 
     def invoke(self, cmd):
         cmd = " ".join(map(str, cmd)) + "\n"
@@ -242,6 +252,7 @@ class Wasm3():
         # Crash => restart
         if autorestart:
             self.load(self.loaded)
+
         raise Exception(error)
 
     def _write(self, data):
@@ -287,7 +298,7 @@ curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 coreDir = os.path.join(curDir, "core")
 
 
-wasm3 = Wasm3(args.exec)
+wasm3 = Wasm3(args.exec, args.engine)
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
@@ -493,8 +504,8 @@ for fn in jsonFiles:
             try:
                 fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
                 wasm3.load(fn)
-            except Exception:
-                pass
+            except Exception as e:
+                fatal(str(e))
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
