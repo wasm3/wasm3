@@ -35,7 +35,6 @@ if(WASIENV)
   set(CMAKE_C_COMPILER   "wasicc")
   set(CMAKE_CXX_COMPILER "wasic++")
 
-  set(OUT_FILE           "wasm3.wasm")
   set(APP_DIR            "platforms/emscripten")
   #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
   #set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
