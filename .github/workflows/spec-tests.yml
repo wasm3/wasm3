@@ -10,6 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
+        flags: ["", "-D BUILD_32BIT=1"]
 
     steps:
     - uses: actions/checkout@v1
@@ -20,6 +21,7 @@ jobs:
         mkdir build
         cd build
         cmake ..
+        cmake ${{ matrix.flags }} ..
     - name: Build
       run: |
         cmake --build build
