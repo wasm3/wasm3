@@ -94,11 +94,11 @@ jobs:
     - name: Install wasienv
       run: |
         curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
-        source $HOME/.wasienv/wasienv.sh
     - name: Run CMake
       env:
         CC: wasicc
       run: |
+        source $HOME/.wasienv/wasienv.sh
         mkdir build
         cd build
         cmake ..
