@@ -19,19 +19,11 @@
 #include <intrin.h>
 
 #define __builtin_popcount    __popcnt
-#define __builtin_popcountll  __popcnt64
 
 static inline
 int __builtin_ctz(uint32_t x) {
     unsigned long ret;
     _BitScanForward(&ret, x);
-    return (int)ret;
-}
-
-static inline
-int __builtin_ctzll(unsigned long long x) {
-    unsigned long ret;
-    _BitScanForward64(&ret, x);
     return (int)ret;
 }
 
@@ -42,14 +34,52 @@ int __builtin_clz(uint32_t x) {
     return (int)(31 ^ ret);
 }
 
+
+
+#ifdef _WIN64
+
+#define __builtin_popcountll  __popcnt64
+
 static inline
-int __builtin_clzll(unsigned long long x) {
+int __builtin_ctzll(uint64_t value) {
     unsigned long ret;
-    _BitScanReverse64(&ret, x);
+     _BitScanForward64(&ret, value);
+    return (int)ret;
+}
+
+static inline
+int __builtin_clzll(uint64_t value) {
+    unsigned long ret;
+    _BitScanReverse64(&ret, value);
     return (int)(63 ^ ret);
 }
 
-#endif
+#else // _WIN64
+
+#define __builtin_popcountll(x)  (__popcnt((x) & 0xFFFFFFFF) + __popcnt((x) >> 32))
+
+static inline
+int __builtin_ctzll(uint64_t value) {
+    if (value == 0) return 64;
+    uint32_t msh = (uint32_t)(value >> 32);
+    uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
+    if (lsh != 0) return __builtin_ctz(lsh);
+    return 32 + __builtin_ctz(msh);
+}
+
+static inline
+int __builtin_clzll(uint64_t value) {
+    if (value == 0) return 64;
+    uint32_t msh = (uint32_t)(value >> 32);
+    uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
+    if (msh != 0) return __builtin_clz(msh);
+    return 32 + __builtin_clz(lsh);
+}
+
+#endif // _WIN64
+
+#endif // defined(M3_COMPILER_MSVC)
+
 
 // TODO: not sure why, signbit is actually defined in math.h
 #if defined(ESP8266)
