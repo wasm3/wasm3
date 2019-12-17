@@ -85,3 +85,21 @@ jobs:
       run: |
         cd test
         python run-spec-test.py
+
+  build-wasi:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install wasienv
+      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+    - name: Run CMake
+      env:
+        CC: wasicc
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build
+      run: |
+        cmake --build build
