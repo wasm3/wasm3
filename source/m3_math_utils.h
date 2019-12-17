@@ -60,7 +60,7 @@ int __builtin_clzll(uint64_t value) {
 
 static inline
 int __builtin_ctzll(uint64_t value) {
-    if (value == 0) return 64;
+    //if (value == 0) return 64; // Note: ctz(0) result is undefined anyway
     uint32_t msh = (uint32_t)(value >> 32);
     uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
     if (lsh != 0) return __builtin_ctz(lsh);
@@ -69,7 +69,7 @@ int __builtin_ctzll(uint64_t value) {
 
 static inline
 int __builtin_clzll(uint64_t value) {
-    if (value == 0) return 64;
+    //if (value == 0) return 64; // Note: clz(0) result is undefined anyway
     uint32_t msh = (uint32_t)(value >> 32);
     uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
     if (msh != 0) return __builtin_clz(msh);
