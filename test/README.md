@@ -53,3 +53,9 @@ ninja
 
 Read [more on libFuzzer](https://llvm.org/docs/LibFuzzer.html) and it's options.
 
+Note: to catch fuzzer errors in debugger, you need to define:
+```sh
+export ASAN_OPTIONS=abort_on_error=1
+export UBSAN_OPTIONS=abort_on_error=1
+```
+
