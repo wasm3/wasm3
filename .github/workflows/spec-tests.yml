@@ -66,6 +66,7 @@ jobs:
       fail-fast: false
       matrix:
         toolset: ["-T ClangCL", ""]
+        platform: ["-A Win32", ""]
 
     steps:
     - uses: actions/checkout@v1
@@ -73,7 +74,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.toolset }} ..
+        cmake ${{ matrix.platform }} ${{ matrix.toolset }} ..
     - name: Build
       run: |
         cmake --build build --config Release
