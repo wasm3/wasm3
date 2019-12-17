@@ -92,7 +92,9 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Install wasienv
-      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+      run: |
+        curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+        source $HOME/.wasienv/wasienv.sh
     - name: Run CMake
       env:
         CC: wasicc
