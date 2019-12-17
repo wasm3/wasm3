@@ -10,20 +10,21 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
-        flags: ["", "-D BUILD_32BIT=1"]
+        flags: ["", "-m32"]
 
     steps:
     - uses: actions/checkout@v1
-    - name: Install prerequisites
+    - name: Install multilib
+      if: contains(matrix.flags, '-m32')
       run: sudo apt-get install gcc-multilib
     - name: Run CMake
       env:
         CC: ${{ matrix.compiler }}
+        CFLAGS: ${{ matrix.flags }}
       run: |
         mkdir build
         cd build
         cmake ..
-        cmake ${{ matrix.flags }} ..
     - name: Build
       run: |
         cmake --build build
