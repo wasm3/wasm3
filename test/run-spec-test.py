@@ -168,25 +168,25 @@ from queue import Queue, Empty
 
 import shlex
 
-def get_engine_cmd(engine, exe, wasm):
+def get_engine_cmd(engine, exe):
     if engine:
         cmd = shlex.split(engine)
         if "wasirun" in engine or "wasm3" in engine:
-            return cmd + [exe, "--repl", wasm]
+            return cmd + [exe, "--repl"]
         elif "wasmer" in engine:
-            return cmd + ["--dir=.", exe, "--", "--repl", wasm]
+            return cmd + ["--dir=.", exe, "--", "--repl"]
         elif "wasmtime" in engine:
-            return cmd + ["--dir=.", exe, "--", "--repl", wasm]
+            return cmd + ["--dir=.", exe, "--", "--repl"]
         elif "iwasm" in engine:
-            return cmd + ["--dir=.", exe, "--repl", wasm]
+            return cmd + ["--dir=.", exe, "--repl"]
         elif "wavm" in engine:
-            return cmd + ["--mount-root", ".", exe, "--repl", "/" + wasm]
+            return cmd + ["--mount-root", ".", exe, "--repl"] # TODO, fix path
         else:
             fatal(f"Don't know how to run engine {engine}")
     else:
         if exe.endswith(".wasm"):
             fatal(f"Need engine to execute wasm")
-        return shlex.split(exe) + ["--repl", wasm]
+        return shlex.split(exe) + ["--repl"]
 
 class Wasm3():
     def __init__(self, exe, engine=None):
@@ -194,15 +194,15 @@ class Wasm3():
         self.engine = engine
         self.p = None
         self.timeout = 15.0
+        self.init()
 
-    def load(self, fn):
+    def init(self):
         if self.p:
             self.terminate()
 
-        self.loaded = fn
-
+        self.q = Queue()
         self.p = Popen(
-            get_engine_cmd(self.engine, self.exe, fn),
+            get_engine_cmd(self.engine, self.exe),
             bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT
         )
 
@@ -211,21 +211,24 @@ class Wasm3():
                 queue.put(data)
             queue.put(None)
 
-        self.q = Queue()
         self.t = Thread(target=_read_output, args=(self.p.stdout, self.q))
         self.t.daemon = True
         self.t.start()
 
-        try:
-            output = self._read_until("wasm3> ", False)
-        except Exception:
-            pass
+        time.sleep(0.05)
+
+    def load(self, fn):
+        self.loaded = fn
+
+        self._flush_input()
+        self._write(f":load {fn}\n")
+        return self._read_until("wasm3> ", False)
 
     def invoke(self, cmd):
         cmd = " ".join(map(str, cmd)) + "\n"
         self._flush_input()
         self._write(cmd)
-        return self._read_until("\nwasm3> ")
+        return self._read_until("wasm3> ")
 
     def _read_until(self, token, autorestart=True):
         buff = ""
@@ -249,14 +252,17 @@ class Wasm3():
 
         # Crash => restart
         if autorestart:
+            self.init()
             self.load(self.loaded)
 
         raise Exception(error)
 
     def _write(self, data):
         if not self._is_running():
+            self.init()
             self.load(self.loaded)
-            #raise Exception("Not running")
+            raise Exception("Not running")
+
         self.p.stdin.write(data.encode("utf-8"))
         self.p.stdin.flush()
 
