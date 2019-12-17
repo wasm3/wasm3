@@ -95,9 +95,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Install wasienv
+    - name: Install Wasienv
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
-    - name: Install wasmer
+    - name: Install Wasmer
       run: curl https://get.wasmer.io -sSfL | sh
     - name: Run CMake
       env:
@@ -113,6 +113,6 @@ jobs:
     - name: Run spec tests
       continue-on-error: true
       run: |
-        export PATH="$HOME/.wasmer/bin:$PATH"
+        source $HOME/.wasmer/wasmer.sh
         cd test
         ./run-spec-test.py --exec "wasmer ../build-wasi/wasm3.wasm"
