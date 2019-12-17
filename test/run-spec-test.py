@@ -14,7 +14,7 @@
 # - Get more tests from: https://github.com/microsoft/ChakraCore/tree/master/test/WasmSpec
 # - Fix "Empty Stack" check
 # - Check Canonical NaN and Arithmetic NaN separately
-# - Fix names.wast
+# - Fix names.wast, imports.wast
 
 import argparse
 import os, sys, glob, time
@@ -304,6 +304,7 @@ blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
   "*.wast:* *.wasm print32*",
   "*.wast:* *.wasm print64*",
+  "imports.wast:*",
   "names.wast:*",
 ])
 
@@ -323,7 +324,7 @@ def runInvoke(test):
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
     test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
-    if test_id in blacklist:
+    if test_id in blacklist and not args.all:
         warning(f"Skipping {test_id} (blacklisted)")
         stats.skipped += 1
         return
@@ -435,49 +436,12 @@ def runInvoke(test):
 if not os.path.isdir(coreDir):
     specTestsFetch()
 
-# Currently default to running the predefined list of tests
-# TODO: Switch to running all tests when wasm spec is implemented
-
 if args.file:
     jsonFiles = args.file
-elif args.all:
+else:
     jsonFiles = glob.glob(os.path.join(coreDir, "*.json"))
     jsonFiles = list(map(lambda x: os.path.relpath(x, curDir), jsonFiles))
     jsonFiles.sort()
-else:
-    jsonFiles = list(map(lambda x: f"core/{x}.json", [
-        "get_local", "set_local", "tee_local",
-        "globals",
-
-        "int_literals",
-        "i32", "i64",
-        "int_exprs",
-
-        "float_literals",
-        "f32", "f32_cmp", "f32_bitwise",
-        "f64", "f64_cmp", "f64_bitwise",
-        "float_misc",
-
-        "select",
-        "conversions",
-        "stack", "fac",
-        "call", "call_indirect",
-        "left-to-right",
-        "break-drop",
-        "forward",
-        "func_ptrs",
-
-        "address", "align", "endianness",
-        "memory_redundancy", "float_memory",
-        "memory", "memory_trap", "memory_grow",
-
-        "unreachable",
-        "switch", "if", "br", "br_if", "br_table", "loop", "block",
-        "return", "nop", "start", "unwind", "labels"
-
-        #--- TODO ---
-        #"float_exprs",
-    ]))
 
 for fn in jsonFiles:
     with open(fn) as f:
