@@ -99,9 +99,15 @@ jobs:
         CC: wasicc
       run: |
         source $HOME/.wasienv/wasienv.sh
-        mkdir build
-        cd build
+        mkdir build-wasi
+        cd build-wasi
         cmake ..
     - name: Build
       run: |
-        cmake --build build
+        cmake --build build-wasi
+    - name: Run spec tests
+      continue-on-error: true
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        cd test
+        ./run-wasi-test.py --exec "wasirun ../build-wasi/wasm3.wasm"
