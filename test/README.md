@@ -5,7 +5,7 @@
 To run spec tests, you need `python3`
 
 ```sh
-cd test
+# In test directory:
 python3 ./run-spec-test.py
 ```
 
@@ -18,7 +18,8 @@ Wasm3 comes with a set of benchmarks and test programs (prebuilt as `WASI` apps)
 This test will run all of them and verify the output:
 
 ```sh
-./run-wasi-test.py
+# In test directory:
+python3 ./run-wasi-test.py
 ```
 
 It can be run against other engines as well:
@@ -31,3 +32,24 @@ It can be run against other engines as well:
 ./run-wasi-test.py --exec $WAMR/iwasm --timeout=300   # [PASS, but very slow]
 ./run-wasi-test.py --exec $WAC/wax   --timeout=300    # [FAIL, crashes on most tests]
 ```
+
+## Running coverage-guided fuzz testing with libFuzzer
+
+You need to produce a fuzzer build first (use your version of Clang):
+
+```sh
+# In wasm3 root:
+mkdir build-fuzzer
+cd build-fuzzer
+cmake -GNinja -DCLANG_SUFFIX="-9" ..
+cmake -DBUILD_FUZZ:BOOL=TRUE ..
+ninja
+```
+
+```sh
+# In test directory:
+../build-fuzzer/wasm3-fuzzer -detect_leaks=0 ./fuzz/corpus
+```
+
+Read [more on libFuzzer](https://llvm.org/docs/LibFuzzer.html) and it's options.
+
