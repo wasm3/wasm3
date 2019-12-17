@@ -64,12 +64,12 @@ commands = [
     "name":           "Simple WASI test",
     "wasm":           "./wasi/test.wasm",
     "args":           ["args", "test"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *test.wasm; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
+    "expect_pattern": "Hello world*Constructor OK*Args: *; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
   }, {
     "name":           "Simple WASI test (wasm-opt -O3)",
     "wasm":           "./wasi/test-opt.wasm",
     "args":           ["args", "test"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *test-opt.wasm; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
+    "expect_pattern": "Hello world*Constructor OK*Args: *; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
   }, {
     "name":           "mandelbrot",
     "wasm":           "./benchmark/mandelbrot/mandel.wasm",
