@@ -7,6 +7,14 @@ if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
   set(CMAKE_CXX_COMPILER "clang++${CLANG_SUFFIX}")
   set(CMAKE_C_FLAGS      "${CMAKE_C_FLAGS} -fuse-ld=lld")
+
+  if(BUILD_FUZZ)
+    set(OUT_FILE         "wasm3-fuzzer")
+    set(APP_DIR          "platforms/app_fuzz")
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "set build type to Debug")
+    set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0 -fsanitize=fuzzer,address")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=fuzzer,address")
+  endif()
 endif()
 
 if(CLANG_CL)
@@ -29,9 +37,11 @@ if(WASIENV)
 
   set(OUT_FILE           "wasm3.wasm")
   set(APP_DIR            "platforms/emscripten")
+  #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
+  #set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
 endif()
 
-if(M EQUAL 32)
+if(BUILD_32BIT)
   set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -m32")
 endif()
 

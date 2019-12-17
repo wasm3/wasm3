@@ -15,6 +15,10 @@
 //#error <wasi/core.h> is only supported on WASI platforms.
 //#endif
 
+#if !defined(__x86_64__)
+#  define _Static_assert(...)
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 

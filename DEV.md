@@ -86,14 +86,3 @@ ninja
 ## Build for microcontrollers
 
 In `./platforms/` folder you can find projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.
-
-## Running WebAssembly spec tests
-
-To run spec tests, you need `python3` and `WABT` (The WebAssembly Binary Toolkit).
-
-```sh
-cd test
-python3 ./run-spec-test.py
-```
-
-It will automatically download, extract, preprocess the WebAssembly core test suite.

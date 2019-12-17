@@ -1,21 +1,27 @@
 name: spec tests
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     strategy:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
+        flags: ["", "-m32"]
 
     steps:
     - uses: actions/checkout@v1
+    - name: Install multilib
+      if: contains(matrix.flags, '-m32')
+      run: sudo apt-get install gcc-multilib
     - name: Run CMake
       env:
         CC: ${{ matrix.compiler }}
+        CFLAGS: ${{ matrix.flags }}
       run: |
         mkdir build
         cd build
@@ -34,6 +40,7 @@ jobs:
 
   build-mac:
     runs-on: macos-latest
+    timeout-minutes: 5
 
     steps:
     - uses: actions/checkout@v1
@@ -45,10 +52,11 @@ jobs:
     - name: Build
       run: |
         cmake --build build
-    #- name: Run spec tests
-    #  run: |
-    #    cd test
-    #    ./run-spec-test.py
+    - name: Run spec tests
+      continue-on-error: true
+      run: |
+        cd test
+        ./run-spec-test.py
     - name: Run WASI tests
       run: |
         cd test
@@ -56,11 +64,13 @@ jobs:
 
   build-win:
     runs-on: windows-latest
+    timeout-minutes: 5
 
     strategy:
       fail-fast: false
       matrix:
         toolset: ["-T ClangCL", ""]
+        platform: ["-A Win32", ""]
 
     steps:
     - uses: actions/checkout@v1
@@ -68,12 +78,41 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.toolset }} ..
+        cmake ${{ matrix.platform }} ${{ matrix.toolset }} ..
     - name: Build
       run: |
         cmake --build build --config Release
         cp ./build/Release/wasm3.exe ./build/
     - name: Run spec tests
+      continue-on-error: true
       run: |
         cd test
         python run-spec-test.py
+
+  build-wasi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install Wasienv
+      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+    - name: Install Wasmer
+      run: curl https://get.wasmer.io -sSfL | sh
+    - name: Run CMake
+      env:
+        CC: wasicc
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        mkdir build-wasi
+        cd build-wasi
+        cmake ..
+    - name: Build
+      run: |
+        cmake --build build-wasi
+    - name: Run spec tests
+      continue-on-error: true
+      run: |
+        source $HOME/.wasmer/wasmer.sh
+        cd test
+        ./run-spec-test.py --exec "wasmer ../build-wasi/wasm3.wasm"
