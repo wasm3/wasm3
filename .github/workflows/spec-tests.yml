@@ -14,6 +14,14 @@ jobs:
         build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]            
         #flags: ["", "-m32"]    # TODO
 
+        exclude:
+          - compiler: clang
+            build_type: "-DCMAKE_BUILD_TYPE=Debug"
+
+          - compiler: gcc
+            flags: "-m32"
+            build_type: "-DCMAKE_BUILD_TYPE=Debug"
+
     steps:
     - uses: actions/checkout@v1
     - name: Install multilib
@@ -37,7 +45,7 @@ jobs:
     - name: Run WASI tests
       run: |
         cd test
-        ./run-wasi-test.py
+        ./run-wasi-test.py --timeout 120
 
   build-mac:
     runs-on: macos-latest
