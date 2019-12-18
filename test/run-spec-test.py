@@ -200,6 +200,8 @@ class Wasm3():
         if self.p:
             self.terminate()
 
+        #print("== Running", self.exe)
+
         self.q = Queue()
         self.p = Popen(
             get_engine_cmd(self.engine, self.exe),
@@ -219,6 +221,10 @@ class Wasm3():
 
     def load(self, fn):
         self.loaded = fn
+
+        #self._flush_input()
+        #self._write(f":init\n")
+        #self._read_until("wasm3> ", False)
 
         self._flush_input()
         self._write(f":load {fn}\n")
@@ -329,7 +335,8 @@ def runInvoke(test):
 
     test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
     if test_id in blacklist and not args.all:
-        warning(f"Skipping {test_id} (blacklisted)")
+        if args.verbose:
+            warning(f"Skipping {test_id} (blacklisted)")
         stats.skipped += 1
         return
 
