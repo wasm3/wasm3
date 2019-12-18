@@ -80,7 +80,24 @@ M3Result repl_init(IM3Environment env, IM3Runtime* runtime)
     return c_m3Err_none;
 }
 
-int split_argv(char *str, const char** argv)
+static
+void unescape(char* buff)
+{
+    char* outp = buff;
+    while (*buff) {
+        if (*buff == '\\' && *(buff+1) == 'x') {
+            char hex[3] = { *(buff+2), *(buff+3), '\0' };
+            *outp++ = strtol(hex, NULL, 16);
+            buff += 4;
+        } else {
+            *outp++ = *buff++;
+        }
+    }
+    *outp = '\0';
+}
+
+static
+int split_argv(char *str, char** argv)
 {
     int result = 0;
     char* curr = str;
@@ -185,8 +202,8 @@ int  main  (int i_argc, const char* i_argv[])
 
     while (argRepl)
     {
-        char cmd_buff[256] = { 0, };
-        const char* argv[32] = { 0, };
+        char cmd_buff[1024] = { 0, };
+        char* argv[32] = { 0, };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);
         if (!fgets(cmd_buff, sizeof(cmd_buff), stdin)) {
@@ -207,6 +224,7 @@ int  main  (int i_argc, const char* i_argv[])
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
+            unescape(argv[0]);
             result = repl_call(runtime, argv[0], argc-1, argv+1);
         }
 

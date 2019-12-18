@@ -14,7 +14,7 @@
 # - Get more tests from: https://github.com/microsoft/ChakraCore/tree/master/test/WasmSpec
 # - Fix "Empty Stack" check
 # - Check Canonical NaN and Arithmetic NaN separately
-# - Fix names.wast, imports.wast
+# - Fix imports.wast
 
 import argparse
 import os, sys, glob, time
@@ -101,6 +101,24 @@ def binaryToFloat(num, t):
         return struct.unpack('!d', struct.pack('!Q', int(num)))[0]
     else:
         fatal(f"Unknown type '{t}'")
+
+def escape(s):
+    c = ord(s)
+
+    if c < 128 and s.isprintable() and not s in " \n\r\t\\":
+        return s
+
+    if c <= 0xff:
+        return r'\x{0:02x}'.format(c)
+    elif c <= 0xffff:
+        return r'\u{0:04x}'.format(c)
+    else:
+        return r'\U{0:08x}'.format(c)
+
+def escape_str(s):
+    if s == "":
+        return r'\x00'
+    return ''.join(escape(c) for c in s)
 
 #
 # Value format options
@@ -320,7 +338,7 @@ blacklist = Blacklist([
   "*.wast:* *.wasm print32*",
   "*.wast:* *.wasm print64*",
   "imports.wast:*",
-  "names.wast:*",
+  "names.wast:630 *", # name that starts with '\0'
 ])
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
@@ -522,6 +540,8 @@ for fn in jsonFiles:
                     stats.skipped += 1
                     warning(f"Skipped {test.source} (invoke in module)")
                     continue
+
+                test.action.field = escape_str(test.action.field)
 
                 runInvoke(test)
             else:
