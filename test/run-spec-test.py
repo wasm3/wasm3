@@ -5,14 +5,16 @@
 #   ./run-spec-test.py
 #   ./run-spec-test.py ./core/i32.json
 #   ./run-spec-test.py ./core/float_exprs.json --line 2070
-#   ./run-spec-test.py --exec ../custom_build/wasm3
+#   ./run-spec-test.py --exec ../build-custom/wasm3
+#   ./run-spec-test.py --engine "wasmer run" --exec ../build-wasi/wasm3.wasm
+#   ./run-spec-test.py --engine "wasmer run --backend=llvm" --exec ../build-wasi/wasm3.wasm
 #
 
 # TODO
 # - Get more tests from: https://github.com/microsoft/ChakraCore/tree/master/test/WasmSpec
 # - Fix "Empty Stack" check
 # - Check Canonical NaN and Arithmetic NaN separately
-# - Fix names.wast
+# - Fix names.wast, imports.wast
 
 import argparse
 import os, sys, glob, time
@@ -30,12 +32,11 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--engine", metavar="<engine>")
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
-parser.add_argument("--skip-crashes", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
-#parser.add_argument("--wasm-opt", metavar="<opt flags>")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("file", nargs='*')
@@ -86,9 +87,6 @@ def fatal(msg):
     log.flush()
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
-
-def run(cmd):
-    return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
 
 def filename(p):
     _, fn = os.path.split(p)
@@ -168,36 +166,45 @@ from subprocess import Popen, STDOUT, PIPE
 from threading import Thread
 from queue import Queue, Empty
 
-class Wasm3():
-    def __init__(self, executable):
-        if executable.endswith(".wasm"):
-            (engine, wasm) = executable.split(maxsplit=1)
+import shlex
 
-            if engine == "wasirun":
-                self.exe = [engine, wasm]
-            elif engine == "wasmer":
-                self.exe = [engine, "run", "--dir=.", wasm, "--"]
-            #elif engine == "wasmer-js":
-            #    self.exe = [engine, "run", wasm]
-            elif engine == "wasmtime":
-                self.exe = [engine, "--dir=.", wasm, "--"]
-            elif engine == "iwasm":
-                self.exe = [engine, "--dir=.", wasm]
-            else:
-                fatal(f"Don't know how to run engine {engine}")
+def get_engine_cmd(engine, exe):
+    if engine:
+        cmd = shlex.split(engine)
+        if "wasirun" in engine or "wasm3" in engine:
+            return cmd + [exe, "--repl"]
+        elif "wasmer" in engine:
+            return cmd + ["--dir=.", exe, "--", "--repl"]
+        elif "wasmtime" in engine:
+            return cmd + ["--dir=.", exe, "--", "--repl"]
+        elif "iwasm" in engine:
+            return cmd + ["--dir=.", exe, "--repl"]
+        elif "wavm" in engine:
+            return cmd + ["--mount-root", ".", exe, "--repl"] # TODO, fix path
         else:
-            self.exe = [executable]
-        self.p = None
-        self.timeout = 3.0
+            fatal(f"Don't know how to run engine {engine}")
+    else:
+        if exe.endswith(".wasm"):
+            fatal(f"Need engine to execute wasm")
+        return shlex.split(exe) + ["--repl"]
 
-    def load(self, fn):
+class Wasm3():
+    def __init__(self, exe, engine=None):
+        self.exe = exe
+        self.engine = engine
+        self.p = None
+        self.timeout = 15.0
+        self.init()
+
+    def init(self):
         if self.p:
             self.terminate()
 
-        self.loaded = fn
+        #print("== Running", self.exe)
+
+        self.q = Queue()
         self.p = Popen(
-            self.exe + ["--repl", fn],
-            shell = False,
+            get_engine_cmd(self.engine, self.exe),
             bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT
         )
 
@@ -206,18 +213,28 @@ class Wasm3():
                 queue.put(data)
             queue.put(None)
 
-        self.q = Queue()
         self.t = Thread(target=_read_output, args=(self.p.stdout, self.q))
         self.t.daemon = True
         self.t.start()
 
-        output = self._read_until("wasm3> ", False)
+        time.sleep(0.05)
+
+    def load(self, fn):
+        self.loaded = fn
+
+        #self._flush_input()
+        #self._write(f":init\n")
+        #self._read_until("wasm3> ", False)
+
+        self._flush_input()
+        self._write(f":load {fn}\n")
+        return self._read_until("wasm3> ", False)
 
     def invoke(self, cmd):
         cmd = " ".join(map(str, cmd)) + "\n"
         self._flush_input()
         self._write(cmd)
-        return self._read_until("\nwasm3> ")
+        return self._read_until("wasm3> ")
 
     def _read_until(self, token, autorestart=True):
         buff = ""
@@ -241,13 +258,17 @@ class Wasm3():
 
         # Crash => restart
         if autorestart:
+            self.init()
             self.load(self.loaded)
+
         raise Exception(error)
 
     def _write(self, data):
         if not self._is_running():
+            self.init()
             self.load(self.loaded)
-            #raise Exception("Not running")
+            raise Exception("Not running")
+
         self.p.stdin.write(data.encode("utf-8"))
         self.p.stdin.flush()
 
@@ -287,12 +308,13 @@ curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 coreDir = os.path.join(curDir, "core")
 
 
-wasm3 = Wasm3(args.exec)
+wasm3 = Wasm3(args.exec, args.engine)
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
   "*.wast:* *.wasm print32*",
   "*.wast:* *.wasm print64*",
+  "imports.wast:*",
   "names.wast:*",
 ])
 
@@ -312,8 +334,9 @@ def runInvoke(test):
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
     test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
-    if test_id in blacklist:
-        warning(f"Skipping {test_id} (blacklisted)")
+    if test_id in blacklist and not args.all:
+        if args.verbose:
+            warning(f"Skipping {test_id} (blacklisted)")
         stats.skipped += 1
         return
 
@@ -416,7 +439,6 @@ def runInvoke(test):
         stats.failed += 1
         log.write(f"FAIL: {actual}, should be: {expect}\n")
         if args.silent: return
-        if args.skip_crashes and actual == "<Crashed>": return
 
         showTestResult()
         #sys.exit(1)
@@ -424,49 +446,12 @@ def runInvoke(test):
 if not os.path.isdir(coreDir):
     specTestsFetch()
 
-# Currently default to running the predefined list of tests
-# TODO: Switch to running all tests when wasm spec is implemented
-
 if args.file:
     jsonFiles = args.file
-elif args.all:
+else:
     jsonFiles = glob.glob(os.path.join(coreDir, "*.json"))
     jsonFiles = list(map(lambda x: os.path.relpath(x, curDir), jsonFiles))
     jsonFiles.sort()
-else:
-    jsonFiles = list(map(lambda x: f"core/{x}.json", [
-        "get_local", "set_local", "tee_local",
-        "globals",
-
-        "int_literals",
-        "i32", "i64",
-        "int_exprs",
-
-        "float_literals",
-        "f32", "f32_cmp", "f32_bitwise",
-        "f64", "f64_cmp", "f64_bitwise",
-        "float_misc",
-
-        "select",
-        "conversions",
-        "stack", "fac",
-        "call", "call_indirect",
-        "left-to-right",
-        "break-drop",
-        "forward",
-        "func_ptrs",
-
-        "address", "align", "endianness",
-        "memory_redundancy", "float_memory",
-        "memory", "memory_trap", "memory_grow",
-
-        "unreachable",
-        "switch", "if", "br", "br_if", "br_table", "loop", "block",
-        "return", "nop", "start", "unwind", "labels"
-
-        #--- TODO ---
-        #"float_exprs",
-    ]))
 
 for fn in jsonFiles:
     with open(fn) as f:
@@ -493,8 +478,8 @@ for fn in jsonFiles:
             try:
                 fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
                 wasm3.load(fn)
-            except Exception:
-                pass
+            except Exception as e:
+                pass #fatal(str(e))
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or

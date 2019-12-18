@@ -185,7 +185,7 @@ int  main  (int i_argc, const char* i_argv[])
 
     while (argRepl)
     {
-        char cmd_buff[128] = { 0, };
+        char cmd_buff[256] = { 0, };
         const char* argv[32] = { 0, };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);

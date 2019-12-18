@@ -35,7 +35,6 @@ if(WASIENV)
   set(CMAKE_C_COMPILER   "wasicc")
   set(CMAKE_CXX_COMPILER "wasic++")
 
-  set(OUT_FILE           "wasm3.wasm")
   set(APP_DIR            "platforms/emscripten")
   #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
   #set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
@@ -96,6 +95,7 @@ elseif(WIN32)
     # for example: dumpbin /DISASM wasm3.exe /out:wasm3.S
 
     #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG:FULL")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608") # stack size
   else()
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /GS- /Qvec -Clang -O3")
   endif()
