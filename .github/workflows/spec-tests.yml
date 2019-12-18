@@ -11,16 +11,8 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
+        build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]            
         #flags: ["", "-m32"]    # TODO
-
-        include:
-          - compiler: gcc
-            flags: ""
-            build_type: -DCMAKE_BUILD_TYPE="Debug"
-
-          - compiler: gcc
-            flags: ""
-            build_type: ""
 
     steps:
     - uses: actions/checkout@v1
