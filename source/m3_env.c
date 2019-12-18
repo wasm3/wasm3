@@ -91,7 +91,7 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
 }
 
 
-IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes)
+IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, M3StackInfo * i_nativeStackInfo)
 {
     IM3Runtime runtime = NULL;
     m3Alloc (& runtime, M3Runtime, 1);
@@ -346,7 +346,7 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
         bytes_t start = segment->initExpr;
 _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
 
-        u32 minMemorySize = segment->size + segmentOffset + 1;                      m3log (runtime, "loading data segment: %d  offset: %d", i, segmentOffset);
+        u32 minMemorySize = segment->size + segmentOffset + 1;                      m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
 //_       (Module_EnsureMemorySize (io_module, io_memory, minMemorySize));
 
@@ -827,3 +827,23 @@ void m3_IgnoreErrorInfo (IM3Runtime i_runtime)
     i_runtime->error = reset;
 }
 
+
+void  GetStackInfo  (M3StackInfo * io_info)
+{
+    io_info->startAddr = (void *) io_info;
+    
+    bool stackGrowsDown = false;
+    stackGrowsDown = io_info->startAddr > (void *) & stackGrowsDown;
+
+    if (stackGrowsDown)
+        io_info->stackSize *= -1;
+}
+
+
+M3StackInfo  m3_GetNativeStackInfo  (int i_stackSize)
+{
+    M3StackInfo info = { NULL, (int) i_stackSize };
+    GetStackInfo (& info);
+    
+    return info;
+}

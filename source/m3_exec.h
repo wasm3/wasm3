@@ -48,7 +48,7 @@
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
-//    m3Yield ();
+    m3Yield ();
     return nextOpDirect();
 }
 

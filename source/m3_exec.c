@@ -181,12 +181,12 @@ d_m3OpDef  (Entry)
     if ((void *) _sp <= header->maxStack)
     {
         IM3Function function = immediate (IM3Function);
-        function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name, SPrintFunctionArgList (function, _sp));
+        function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
         u32 numLocals = function->numLocals;
 
         m3stack_t stack = _sp + GetFunctionNumArgs (function);
-        while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code)
+        while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code) TODO: see if this is still true.
             * (stack++) = 0;
 
         memcpy (stack, function->constants, function->numConstants * sizeof (u64));
@@ -202,11 +202,9 @@ d_m3OpDef  (Entry)
                 SPrintArg (str, 99, _sp, function->funcType->returnType);
 
             m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? r : "");
-#       endif
-        
-#       if d_m3LogStackTrace
-        if (r)
-            printf (" ** %s  %p\n", function->name, _sp);
+#       elif d_m3LogStackTrace
+            if (r)
+                printf (" ** %s  %p\n", function->name, _sp);
 #       endif
 
         return r;

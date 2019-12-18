@@ -21,7 +21,7 @@ void run_wasm()
     IM3Environment env = m3_NewEnvironment ();
     if (!env) FATAL("m3_NewEnvironment failed");
 
-    IM3Runtime runtime = m3_NewRuntime (env, 64*1024);
+    IM3Runtime runtime = m3_NewRuntime (env, 64*1024, NULL);
     if (!runtime) FATAL("m3_NewRuntime failed");
 
     IM3Module module;

@@ -1547,7 +1547,7 @@ const M3OpInfo c_operations [] =
     M3OP( "br_table",           -1, none,   d_singleOp (BranchTable),       Compile_BranchTable ),  // 0x0e
     M3OP( "return",              0, any,    d_singleOp (Return),            Compile_Return ),       // 0x0f
     M3OP( "call",                0, any,    d_singleOp (Call),              Compile_Call ),         // 0x10
-    M3OP( "call_indirect",       0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x11
+    M3OP( "call_indirect",       0, any,    d_singleOp (CallIndirect),      Compile_CallIndirect ), // 0x11
     M3OP( "return_call",         0, any,    d_emptyOpList(),                Compile_Call ),         // 0x12 TODO: Optimize
     M3OP( "return_call_indirect",0, any,    d_emptyOpList(),                Compile_CallIndirect ), // 0x13
 
@@ -1757,15 +1757,19 @@ const M3OpInfo c_operations [] =
 
     d_m3DebugOp (CopySlot_64),      d_m3DebugOp (PreserveCopySlot_64),
 
-    d_m3DebugOp (SetSlot_i32),
-    d_m3DebugOp (SetSlot_i64),
-    d_m3DebugOp (SetSlot_f32),
-    d_m3DebugOp (SetSlot_f64),
-    
-    d_m3DebugOp (SetRegister_i32),  d_m3DebugOp (i32_BranchIf_rs),
-    d_m3DebugOp (SetRegister_i64),  d_m3DebugOp (i32_BranchIf_ss),
-    d_m3DebugOp (SetRegister_f32),  d_m3DebugOp (i64_BranchIf_rs),
-    d_m3DebugOp (SetRegister_f64),  d_m3DebugOp (i64_BranchIf_ss),
+    d_m3DebugOp (SetRegister_i32),  d_m3DebugOp (i32_BranchIf_rs),  d_m3DebugOp (SetSlot_i32),
+    d_m3DebugOp (SetRegister_i64),  d_m3DebugOp (i32_BranchIf_ss),  d_m3DebugOp (SetSlot_i64),
+    d_m3DebugOp (SetRegister_f32),  d_m3DebugOp (i64_BranchIf_rs),  d_m3DebugOp (SetSlot_f32),
+    d_m3DebugOp (SetRegister_f64),  d_m3DebugOp (i64_BranchIf_ss),  d_m3DebugOp (SetSlot_f64),
+	
+	d_m3DebugOp (Select_i32_rss), 	d_m3DebugOp (Select_i32_srs),	d_m3DebugOp (Select_i32_ssr),	d_m3DebugOp (Select_i32_sss),
+	d_m3DebugOp (Select_i64_rss), 	d_m3DebugOp (Select_i64_srs),	d_m3DebugOp (Select_i64_ssr),	d_m3DebugOp (Select_i64_sss),
+	
+	d_m3DebugOp (Select_f32_sss),	d_m3DebugOp (Select_f32_srs),	d_m3DebugOp (Select_f32_ssr),
+	d_m3DebugOp (Select_f32_rss),	d_m3DebugOp (Select_f32_rrs),	d_m3DebugOp (Select_f32_rsr),
+
+	d_m3DebugOp (Select_f64_sss),	d_m3DebugOp (Select_f64_srs),	d_m3DebugOp (Select_f64_ssr),
+	d_m3DebugOp (Select_f64_rss),	d_m3DebugOp (Select_f64_rrs),	d_m3DebugOp (Select_f64_rsr),
 
 # endif
 

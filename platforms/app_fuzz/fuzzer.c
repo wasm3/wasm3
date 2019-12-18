@@ -17,7 +17,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
     IM3Environment env = m3_NewEnvironment ();
     if (env) {
-        IM3Runtime runtime = m3_NewRuntime (env, 64*1024);
+        IM3Runtime runtime = m3_NewRuntime (env, 64*1024, NULL);
         if (runtime) {
             IM3Module module = NULL;
             result = m3_ParseModule (env, &module, data, size);

@@ -65,6 +65,13 @@ typedef struct M3ErrorInfo
 M3ErrorInfo;
 
 
+typedef struct M3StackInfo
+{
+	void *			startAddr;
+	int				stackSize;
+}
+M3StackInfo;
+	
 
 enum // EWaTypes
 {
@@ -178,6 +185,14 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
+//  initialization
+//--------------------------------------------------------------------------------------------------------------------------------------------
+
+	M3StackInfo 		m3_GetNativeStackInfo		(int 					i_stackSize);
+	// GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread, at the start of the thread
+	// start function.
+	
+//--------------------------------------------------------------------------------------------------------------------------------------------
 //  global environment than can host multiple runtimes
 //--------------------------------------------------------------------------------------------------------------------------------------------
     IM3Environment      m3_NewEnvironment           (void);
@@ -189,7 +204,8 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
-                                                     uint32_t               i_stackSizeInBytes);
+                                                     uint32_t               i_stackSizeInBytes,
+													 M3StackInfo *			i_nativeStackInfo);		// i_nativeStackInfo can be NULL
 
 
     M3Result            m3_RegisterFunction         (IM3Runtime             io_runtime,
