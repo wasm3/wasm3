@@ -12,9 +12,11 @@ jobs:
       matrix:
         compiler: [gcc, clang]
         build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]            
-        #flags: ["", "-m32"]    # TODO
+        flags: ["", "-m32"]
 
         exclude:
+          - flags: "-m32"    # TODO
+
           - compiler: clang
             build_type: "-DCMAKE_BUILD_TYPE=Debug"
 
