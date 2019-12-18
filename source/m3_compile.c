@@ -102,7 +102,7 @@ i16  GetNumBlockValues  (IM3Compilation o)
 
 bool  IsStackTopInRegister  (IM3Compilation o)
 {
-    i16 i = GetStackTopIndex (o);               d_m3Assert (i >= 0);
+    i16 i = GetStackTopIndex (o);               //d_m3Assert (i >= 0);
 
     if (i >= 0)
     {
@@ -122,7 +122,7 @@ static const u16 c_slotUnused = 0xffff;
 
 u16  GetStackTopSlotIndex  (IM3Compilation o)
 {
-    i16 i = GetStackTopIndex (o);               d_m3Assert (i >= 0);
+    i16 i = GetStackTopIndex (o);               //d_m3Assert (i >= 0);
 
     u16 slot = c_slotUnused;
     
@@ -202,14 +202,16 @@ bool  IsRegisterTypeAllocated  (IM3Compilation o, u8 i_type)
 }
 
 void  AllocateRegister  (IM3Compilation o, u32 i_register, u16 i_stackIndex)
-{                                                                                       d_m3Assert (not IsRegisterAllocated (o, i_register));
+{
+    //d_m3Assert (not IsRegisterAllocated (o, i_register));
+
     o->regStackIndexPlusOne [i_register] = i_stackIndex + 1;
 }
 
 
 void  DeallocateRegister  (IM3Compilation o, u32 i_register)
 {
-    d_m3Assert (IsRegisterAllocated (o, i_register));
+    //d_m3Assert (IsRegisterAllocated (o, i_register));
 
     o->regStackIndexPlusOne [i_register] = c_m3RegisterUnallocated;
 }
@@ -343,7 +345,7 @@ M3Result  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
 
 M3Result  PushRegister  (IM3Compilation o, u8 i_m3Type)
 {
-    i16 location = IsFpType (i_m3Type) ? c_m3Fp0SlotAlias : c_m3Reg0SlotAlias;              d_m3Assert (i_m3Type);
+    i16 location = IsFpType (i_m3Type) ? c_m3Fp0SlotAlias : c_m3Reg0SlotAlias;              //d_m3Assert (i_m3Type);
     return Push (o, i_m3Type, location);
 }
 

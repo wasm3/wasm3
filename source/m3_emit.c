@@ -60,7 +60,7 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 
 M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 {
-    M3Result result = c_m3Err_none;                                 d_m3Assert (i_operation);
+    M3Result result = c_m3Err_none;                                 //d_m3Assert (i_operation);
 
     // it's OK for page to be null; when compile-walking the bytecode without emitting
     if (o->page)
