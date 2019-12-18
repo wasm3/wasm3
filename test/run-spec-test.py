@@ -80,7 +80,8 @@ class dotdict(dict):
 def warning(msg):
     log.write("Warning: " + msg + "\n")
     log.flush()
-    print(f"{ansi.WARNING}Warning:{ansi.ENDC} {msg}")
+    if args.verbose:
+        print(f"{ansi.WARNING}Warning:{ansi.ENDC} {msg}")
 
 def fatal(msg):
     log.write("Fatal: " + msg + "\n")
@@ -217,7 +218,10 @@ class Wasm3():
         self.t.daemon = True
         self.t.start()
 
-        time.sleep(0.05)
+        try:
+            self._read_until("wasm3> ", False)
+        except Exception:
+            pass
 
     def load(self, fn):
         self.loaded = fn
@@ -267,7 +271,7 @@ class Wasm3():
         if not self._is_running():
             self.init()
             self.load(self.loaded)
-            raise Exception("Not running")
+        #    raise Exception("Not running")
 
         self.p.stdin.write(data.encode("utf-8"))
         self.p.stdin.flush()
@@ -335,8 +339,7 @@ def runInvoke(test):
 
     test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
     if test_id in blacklist and not args.all:
-        if args.verbose:
-            warning(f"Skipping {test_id} (blacklisted)")
+        warning(f"Skipped {test_id} (blacklisted)")
         stats.skipped += 1
         return
 
@@ -521,7 +524,8 @@ for fn in jsonFiles:
 
                 runInvoke(test)
             else:
-                warning(f"Unknown action type '{test.action.type}'")
+                stats.skipped += 1
+                warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
 
         elif (  test.type == "register" or
                 test.type == "assert_invalid" or
@@ -529,7 +533,7 @@ for fn in jsonFiles:
                 test.type == "assert_unlinkable" or
                 test.type == "assert_uninstantiable"):
             stats.skipped += 1
-            #warning(f"Skipped {test.source} ({test.type} not implemented)")
+            warning(f"Skipped {test.source} ('{test.type}' not implemented)")
         else:
             fatal(f"Unknown command '{test}'")
 
