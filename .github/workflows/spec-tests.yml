@@ -11,7 +11,12 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
-        flags: ["", "-m32"]
+        #flags: ["", "-m32"]    # TODO
+
+        include:
+          - compiler: gcc
+            flags: ""
+            build_type: -DCMAKE_BUILD_TYPE="Debug"
 
     steps:
     - uses: actions/checkout@v1
@@ -25,7 +30,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake ${{ matrix.build_type }} ..
     - name: Build
       run: |
         cmake --build build
@@ -83,7 +88,7 @@ jobs:
         cmake --build build --config Release
         cp ./build/Release/wasm3.exe ./build/
     - name: Run spec tests
-      continue-on-error: true
+      continue-on-error: true    # TODO
       run: |
         cd test
         python run-spec-test.py
@@ -110,7 +115,7 @@ jobs:
       run: |
         cmake --build build-wasi
     - name: Run spec tests
-      continue-on-error: true
+      continue-on-error: true    # TODO
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
