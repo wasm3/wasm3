@@ -18,6 +18,10 @@ jobs:
             flags: ""
             build_type: -DCMAKE_BUILD_TYPE="Debug"
 
+          - compiler: gcc
+            flags: ""
+            build_type: ""
+
     steps:
     - uses: actions/checkout@v1
     - name: Install multilib
