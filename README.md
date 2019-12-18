@@ -4,7 +4,7 @@
 
 [![GitHub issues](https://img.shields.io/github/issues/wasm3/wasm3.svg)](https://github.com/wasm3/wasm3/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/wasm3/wasm3)
-[![CI status](https://github.com/wasm3/wasm3/workflows/spec%20tests/badge.svg)](https://github.com/wasm3/wasm3/actions)
+[![CI status](https://github.com/wasm3/wasm3/workflows/tests/badge.svg)](https://github.com/wasm3/wasm3/actions)
 
 A high performance WebAssembly interpreter written in C.
 
@@ -15,7 +15,7 @@ A high performance WebAssembly interpreter written in C.
 
 ## Status
 
-WebAssembly Core Specification conformance: **98%**
+`wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/master/test/core) and is able to run many `WASI` apps.
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
