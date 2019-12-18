@@ -33,6 +33,7 @@ from pprint import pprint
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
 parser.add_argument("--engine", metavar="<engine>")
+parser.add_argument("--timeout", type=int,             default=15)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
@@ -194,7 +195,7 @@ class Wasm3():
         self.exe = exe
         self.engine = engine
         self.p = None
-        self.timeout = 15.0
+        self.timeout = args.timeout
         self.init()
 
     def init(self):

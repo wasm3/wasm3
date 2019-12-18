@@ -43,7 +43,7 @@ jobs:
     - name: Run spec tests
       run: |
         cd test
-        ./run-spec-test.py
+        ./run-spec-test.py --timeout 30
     - name: Run WASI tests
       run: |
         cd test
