@@ -43,7 +43,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 See [DEV.md](./DEV.md)
 
-## Testing
+## Testing & Fuzzing
 
 See [test/README.md](./test/README.md)
 
