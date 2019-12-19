@@ -46,6 +46,19 @@ const void * const  cvptr_t;
 # endif
 
 # if defined(M3_COMPILER_MSVC)
+#   include <stdint.h>
+#   if UINTPTR_MAX == 0xFFFFFFFF
+#     define M3_SIZEOF_PTR 4
+#   elif UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
+#     define M3_SIZEOF_PTR 8
+#   else
+#     error Pointer size not supported
+#   endif
+# else
+#   define M3_SIZEOF_PTR __SIZEOF_POINTER__
+# endif
+
+# if defined(M3_COMPILER_MSVC)
 #   define M3_WEAK
 # else
 #   define M3_WEAK __attribute__((weak))

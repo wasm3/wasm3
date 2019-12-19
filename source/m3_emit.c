@@ -86,14 +86,20 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 void  EmitConstant  (IM3Compilation o, const u64 i_immediate)
 {
     if (o->page)
-        EmitWord (o->page, (const void *) i_immediate);
+        EmitWord (o->page, i_immediate);
+}
+
+void  EmitConstant64  (IM3Compilation o, const u64 i_const)
+{
+    if (o->page)
+        EmitWord64 (o->page, i_const);
 }
 
 
 void  EmitOffset  (IM3Compilation o, const i32 i_offset)
 {
     if (o->page)
-        EmitWord (o->page, (const void *) (i64) i_offset);
+        EmitWord (o->page, i_offset);
 }
 
 

@@ -29,17 +29,22 @@ void                    FreeCodePages           (IM3CodePage i_page);
 u32                     NumFreeLines            (IM3CodePage i_page);
 pc_t                    GetPageStartPC          (IM3CodePage i_page);
 pc_t                    GetPagePC               (IM3CodePage i_page);
-void                    EmitWordImpl            (IM3CodePage i_page, const void * i_word);
+void                    EmitWord64_impl         (IM3CodePage i_page, u64 i_word);
+void                    EmitWord_impl           (IM3CodePage i_page, void* i_word);
 
 void                    PushCodePage            (IM3CodePage * i_list, IM3CodePage i_codePage);
 IM3CodePage             PopCodePage             (IM3CodePage * i_list);
-
-void                    TestCodePageCapacity    (IM3CodePage i_page);
 
 # ifdef DEBUG
 void                    dump_code_page            (IM3CodePage i_codePage, pc_t i_startPC);
 # endif
 
-#define EmitWord(page, val) EmitWordImpl(page, (void*)(val))
+#define EmitWord(page, val) EmitWord_impl(page, (void*)(val))
+
+#if M3_SIZEOF_PTR == 4
+#  define EmitWord64(page, val) EmitWord64_impl(page, (u64)(val))
+#else
+#  define EmitWord64(page, val) EmitWord_impl(page, (void*)(val))
+#endif
 
 #endif /* m3_code_h */

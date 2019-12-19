@@ -33,6 +33,13 @@
 # define slot(TYPE)                 * (TYPE *) (_sp + immediate (i32))
 # define slot_ptr(TYPE)             (TYPE *) (_sp + immediate (i32))
 
+#if M3_SIZEOF_PTR == 4
+# define constant64(TYPE)           * ((TYPE *) _pc); _pc += 2;
+#else
+# define constant64(TYPE)           * ((TYPE *) _pc++);
+#endif
+
+
 #define nextOpDirect()              ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 #define jumpOpDirect(PC)            ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
 
@@ -616,7 +623,7 @@ d_m3OpDecl  (MemGrow)
 
 d_m3Op  (Const)
 {
-    u64 constant    = immediate (u64);
+    u64 constant    = constant64 (u64);
     i32 offset      = immediate (i32);
     * (_sp + offset) = constant;
 

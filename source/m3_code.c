@@ -52,18 +52,25 @@ void  FreeCodePages  (IM3CodePage i_page)
 
 u32  NumFreeLines  (IM3CodePage i_page)
 {
-    TestCodePageCapacity (i_page);
+    d_m3Assert (i_page->info.lineIndex <= i_page->info.numLines);
 
     return i_page->info.numLines - i_page->info.lineIndex;
 }
 
 
-void  EmitWordImpl  (IM3CodePage i_page, const void * i_word)
+void  EmitWord_impl  (IM3CodePage i_page, void * i_word)
 {
+    d_m3Assert (i_page->info.lineIndex+1 <= i_page->info.numLines);
+
     i_page->code [i_page->info.lineIndex++] = (void *) i_word;
+}
 
-    TestCodePageCapacity (i_page);
+void  EmitWord64_impl  (IM3CodePage i_page, const u64 i_word)
+{
+    d_m3Assert (i_page->info.lineIndex+2 <= i_page->info.numLines);
 
+    *((u64*)&i_page->code[i_page->info.lineIndex]) = i_word;
+    i_page->info.lineIndex+=2;
 }
 
 
@@ -98,9 +105,3 @@ IM3CodePage  PopCodePage  (IM3CodePage * i_list)
 
     return page;
 }
-
-void  TestCodePageCapacity  (IM3CodePage i_page)
-{
-    d_m3Assert (i_page->info.lineIndex <= i_page->info.numLines);
-}
-
