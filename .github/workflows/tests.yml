@@ -140,7 +140,7 @@ jobs:
         ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
 
   build-raspberry:
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, ARM]
     timeout-minutes: 5
 
     steps:
@@ -154,6 +154,7 @@ jobs:
       run: |
         cmake --build build
     - name: Run spec tests
+      continue-on-error: true    # TODO
       run: |
         cd test
         python3 run-spec-test.py
