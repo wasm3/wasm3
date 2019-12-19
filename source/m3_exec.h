@@ -748,8 +748,8 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
     u32 offset = immediate (u32);                       \
     u32 operand = (u32) _r0;                            \
                                                         \
-    u8 * src8 = _mem + operand + offset;                \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
+    u64 src8 = (u64)_mem + operand + offset;            \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
                                                         \
     if (src8 + sizeof (SRC_TYPE) <= end)                \
     {                                                   \
@@ -763,8 +763,8 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     u32 operand = * (u32 *) (_sp + immediate (i32));    \
     u32 offset = immediate (u32);                       \
                                                         \
-    u8 * src8 = _mem + operand + offset;                \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
+    u64 src8 = (u64)_mem + operand + offset;            \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
                                                         \
     if (src8 + sizeof (SRC_TYPE) <= end)                \
     {                                                   \
@@ -802,10 +802,9 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
 {                                                       \
     u32 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
-    operand += offset;                                  \
                                                         \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
-    u8 * mem8 = (u8 *) (_mem + operand);                \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
+    u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
         * (DEST_TYPE *) mem8 = (DEST_TYPE) REG;         \
@@ -818,10 +817,9 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     SRC_TYPE value = slot (SRC_TYPE);                   \
     u32 operand = (u32) REG;                            \
     u32 offset = immediate (u32);                       \
-    operand += offset;                                  \
                                                         \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
-    u8 * mem8 = (u8 *) (_mem + operand);                \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
+    u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
         * (DEST_TYPE *) mem8 = value;                   \
@@ -834,10 +832,9 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     SRC_TYPE value = slot (SRC_TYPE);                   \
     u32 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
-    operand += offset;                                  \
                                                         \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
-    u8 * mem8 = (u8 *) (_mem + operand);                \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
+    u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
         * (DEST_TYPE *) mem8 = value;                   \
@@ -848,7 +845,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
 
 // both operands can be in regs when storing a float
 #define d_m3StoreFp(REG, TYPE)                          \
-d_m3Op  (TYPE##_Store_##TYPE##_rr)             \
+d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
 {                                                       \
     u32 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
@@ -862,7 +859,7 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)             \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
-}                                                       \
+}
 
 
 #define d_m3Store_i(SRC_TYPE, DEST_TYPE) d_m3Store(_r0, SRC_TYPE, DEST_TYPE)
