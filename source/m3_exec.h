@@ -184,7 +184,7 @@ d_m3Op_i (i32, Subtract,                    -)      d_m3Op_i (i64, Subtract,    
 #define OP_SHR_32(X,N) ((X) >> ((N) % 32))
 #define OP_SHR_64(X,N) ((X) >> ((N) % 64))
 
-d_m3OpFunc_i (i32, ShiftLeft,       OP_SHL_32)      d_m3OpFunc_i (i64, ShiftLeft,       OP_SHL_64)
+d_m3OpFunc_i (u32, ShiftLeft,       OP_SHL_32)      d_m3OpFunc_i (u64, ShiftLeft,       OP_SHL_64)
 d_m3OpFunc_i (i32, ShiftRight,      OP_SHR_32)      d_m3OpFunc_i (i64, ShiftRight,      OP_SHR_64)
 d_m3OpFunc_i (u32, ShiftRight,      OP_SHR_32)      d_m3OpFunc_i (u64, ShiftRight,      OP_SHR_64)
 
@@ -849,10 +849,9 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
 {                                                       \
     u32 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
-    operand += offset;                                  \
                                                         \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
-    u8 * mem8 = (u8 *) (_mem + operand);                \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
+    u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (TYPE) <= end)                    \
     {                                                   \
         * (TYPE *) mem8 = (TYPE) REG;                   \
