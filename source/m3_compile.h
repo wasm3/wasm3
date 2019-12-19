@@ -149,6 +149,7 @@ bool        IsRegisterLocation          (i16 i_location);
 bool        IsFpRegisterLocation        (i16 i_location);
 bool        IsIntRegisterLocation       (i16 i_location);
 
+bool        IsStackPolymorphic          (IM3Compilation o);
 
 M3Result    EmitOp                      (IM3Compilation o, IM3Operation i_operation);
 void        EmitConstant                (IM3Compilation o, const u64 immediate);

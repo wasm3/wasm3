@@ -60,7 +60,7 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 
 M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 {
-    M3Result result = c_m3Err_none;                                 //d_m3Assert (i_operation);
+    M3Result result = c_m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic(o));
 
     // it's OK for page to be null; when compile-walking the bytecode without emitting
     if (o->page)
@@ -87,12 +87,6 @@ void  EmitConstant  (IM3Compilation o, const u64 i_immediate)
 {
     if (o->page)
         EmitWord (o->page, i_immediate);
-}
-
-void  EmitConstant64  (IM3Compilation o, const u64 i_const)
-{
-    if (o->page)
-        EmitWord64 (o->page, i_const);
 }
 
 
