@@ -139,12 +139,9 @@ jobs:
         cd test
         ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
 
-  build-arm:
+  build-raspberry:
     runs-on: self-hosted
     timeout-minutes: 5
-
-    strategy:
-      fail-fast: false
 
     steps:
     - uses: actions/checkout@v1
@@ -159,4 +156,4 @@ jobs:
     - name: Run spec tests
       run: |
         cd test
-        python run-spec-test.py
+        python3 run-spec-test.py
