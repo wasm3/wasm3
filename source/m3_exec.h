@@ -849,10 +849,9 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
 {                                                       \
     u32 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
-    operand += offset;                                  \
                                                         \
-    u8 * end = ((M3MemoryHeader*)(_mem) - 1)->end;      \
-    u8 * mem8 = (u8 *) (_mem + operand);                \
+    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
+    u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (TYPE) <= end)                    \
     {                                                   \
         * (TYPE *) mem8 = (TYPE) REG;                   \
