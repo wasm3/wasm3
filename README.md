@@ -3,7 +3,7 @@
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
 
-[![WAPM](https://img.shields.io/badge/WAPM-v0.4.0-%23523fcb.svg)](https://wapm.io/package/vshymanskyy/wasm3)
+[![WAPM](https://img.shields.io/badge/WAPM-v0.4.0-%654ff0.svg)](https://wapm.io/package/vshymanskyy/wasm3)
 [![GitHub issues](https://img.shields.io/github/issues/wasm3/wasm3.svg)](https://github.com/wasm3/wasm3/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/wasm3/wasm3)
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests.svg?label=tests)](https://github.com/wasm3/wasm3/actions)
@@ -16,7 +16,7 @@ A high performance WebAssembly interpreter written in C.
 **∼ 12.5x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](/test/benchmark/coremark). Your mileage may vary.</sub>
 
-[![LIVE DEMO](https://github.com/vshymanskyy/miband-js/raw/master/public/live-demo-btn.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)  
+[![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)
 <sub>[Howto](https://wapm.io/package/vshymanskyy/wasm3) use online demo.</sub>
 
 ## Status
