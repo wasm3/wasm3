@@ -39,51 +39,6 @@ typedef u64 *                   m3stack_t;
 typedef
 const void * const  cvptr_t;
 
-# if !defined(__cplusplus)
-#   define not      !
-#   define and      &&
-#   define or       ||
-# endif
-
-# if defined(M3_COMPILER_MSVC)
-#   include <stdint.h>
-#   if UINTPTR_MAX == 0xFFFFFFFF
-#     define M3_SIZEOF_PTR 4
-#   elif UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
-#     define M3_SIZEOF_PTR 8
-#   else
-#     error Pointer size not supported
-#   endif
-# else
-#   define M3_SIZEOF_PTR __SIZEOF_POINTER__
-# endif
-
-# if defined(M3_COMPILER_MSVC)
-#   define M3_WEAK
-# else
-#   define M3_WEAK __attribute__((weak))
-# endif
-
-# if defined(M3_COMPILER_MSVC)
-#   define UNLIKELY(x) (x)
-#   define LIKELY(x)   (x)
-# else
-#   define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#   define LIKELY(x)   __builtin_expect(!!(x), 1)
-# endif
-
-# ifndef min
-#   define min(A,B) (A < B) ? A : B
-# endif
-# ifndef max
-#   define max(A,B) (A > B) ? A : B
-# endif
-
-#define M3_INIT(field) memset(&field, 0, sizeof(field))
-
-#define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
-
-
 # define d_m3Log_parse d_m3LogParse         // required for m3logif
 # define d_m3Log_stack d_m3LogWasmStack
 # define d_m3Log_runtime d_m3LogRuntime

@@ -121,7 +121,7 @@ int split_argv(char *str, char** argv)
 }
 
 void print_version() {
-    puts("wasm3 v0.4.0");
+    puts("wasm3 v0.4.0 (" __DATE__ " " __TIME__ ", " M3_COMPILER_VER ", " M3_ARCH ")");
 }
 
 void print_usage() {
@@ -216,6 +216,8 @@ int  main  (int i_argc, const char* i_argv[])
         M3Result result = c_m3Err_none;
         if (!strcmp(":init", argv[0])) {
             result = repl_init(env, &runtime);
+        } else if (!strcmp(":version", argv[0])) {
+            print_version();
         } else if (!strcmp(":exit", argv[0])) {
             repl_free(&runtime);
             return 0;
