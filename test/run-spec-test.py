@@ -157,7 +157,7 @@ formaters = {
 formatValue = formaters[args.format]
 
 if args.format == "fp":
-    warning("When using fp display format, values are compared loosely (some tests may produce false positives)")
+    print("When using fp display format, values are compared loosely (some tests may produce false positives)")
 
 #
 # Spec tests preparation
@@ -480,7 +480,7 @@ for fn in jsonFiles:
         data = json.load(f)
 
     wast_source = filename(data["source_filename"])
-    wast_module = ""
+    wasm_module = ""
 
     print(f"Running {fn}")
 
@@ -488,17 +488,17 @@ for fn in jsonFiles:
         test = dotdict()
         test.line = int(cmd["line"])
         test.source = wast_source + ":" + str(test.line)
-        test.wasm = wast_module
+        test.wasm = wasm_module
         test.type = cmd["type"]
 
         if test.type == "module":
-            wast_module = cmd["filename"]
+            wasm_module = cmd["filename"]
 
             if args.verbose:
-                print(f"Loading {wast_module}")
+                print(f"Loading {wasm_module}")
 
             try:
-                fn = os.path.relpath(os.path.join(coreDir, wast_module), curDir)
+                fn = os.path.relpath(os.path.join(coreDir, wasm_module), curDir)
                 wasm3.load(fn)
             except Exception as e:
                 pass #fatal(str(e))
@@ -548,15 +548,17 @@ for fn in jsonFiles:
                 stats.skipped += 1
                 warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
 
-        elif (  test.type == "register" or
-                test.type == "assert_invalid" or
-                test.type == "assert_malformed" or
-                test.type == "assert_unlinkable" or
-                test.type == "assert_uninstantiable"):
+
+        # These are irrelevant
+        elif (test.type == "assert_invalid" or
+             test.type == "assert_malformed" or
+             test.type == "assert_uninstantiable"):
+            pass
+
+        # Others - report as skipped
+        else:
             stats.skipped += 1
             warning(f"Skipped {test.source} ('{test.type}' not implemented)")
-        else:
-            fatal(f"Unknown command '{test}'")
 
 if (stats.failed + stats.success) != stats.total_run:
     warning("Statistics summary invalid")
