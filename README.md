@@ -2,9 +2,12 @@
 
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
+
+[![WAPM](https://img.shields.io/badge/WAPM-v0.4.0-%23523fcb.svg)](https://wapm.io/package/vshymanskyy/wasm3)
 [![GitHub issues](https://img.shields.io/github/issues/wasm3/wasm3.svg)](https://github.com/wasm3/wasm3/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/wasm3/wasm3)
-[![CI status](https://github.com/wasm3/wasm3/workflows/tests/badge.svg)](https://github.com/wasm3/wasm3/actions)
+[![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests.svg?label=tests)](https://github.com/wasm3/wasm3/actions)
+
 
 A high performance WebAssembly interpreter written in C.
 
@@ -12,6 +15,9 @@ A high performance WebAssembly interpreter written in C.
 **∼ 5..6x slower** than state of the art wasm `JIT` engines (`liftoff`, `cranelift`)  
 **∼ 12.5x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](/test/benchmark/coremark). Your mileage may vary.</sub>
+
+[![LIVE DEMO](https://github.com/vshymanskyy/miband-js/raw/master/public/live-demo-btn.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)  
+<sub>[Howto](https://wapm.io/package/vshymanskyy/wasm3) use online demo.</sub>
 
 ## Status
 
@@ -30,14 +36,14 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
  ESP8266, ESP32, Air602 (W600), nRF52, nRF51,  
  Blue Pill (STM32F103C8T6), MXChip AZ3166 (EMW3166),  
  Maix (K210), HiFive1 (E310), Fomu (ICE40UP5K), etc.
-- <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> **OpenWRT**-enabled routers (ARM, MIPS)
+- <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
 `wasm3` is built on top of [Steven Massey](https://github.com/soundandform)'s novel [interpreter topology](/source/README.md), with:
-- Aim at Wasm 1.0 spec conformance
-- WASI support
-- Portability
+- Wasm 1.0 spec conformance
+- `WASI` support
+- Support of `x86`, `x64`, `ARM`, `MIPS`, `RISC-V`, `Xtensa` architectures
 
 ## Building
 
