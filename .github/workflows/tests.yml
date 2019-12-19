@@ -124,4 +124,17 @@ jobs:
         cd test
         ./run-spec-test.py --engine "wasmer run" --exec "../build-wasi/wasm3.wasm"
 
-      # TODO Run WASI tests
+    - name: Run CMake for native build
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build native
+      run: |
+        cmake --build build
+    - name: Run spec tests (self-hosting)
+      continue-on-error: true    # TODO
+      run: |
+        source $HOME/.wasmer/wasmer.sh
+        cd test
+        ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
