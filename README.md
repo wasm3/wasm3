@@ -16,8 +16,11 @@ A high performance WebAssembly interpreter written in C.
 **∼ 12.5x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](/test/benchmark/coremark). Your mileage may vary.</sub>
 
-[![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)  
-<sub>[**Getting started**](https://wapm.io/package/vshymanskyy/wasm3) with the demo.</sub>
+## Getting Started
+
+Here's an online demo and a small [getting started](https://wapm.io/package/vshymanskyy/wasm3) guide:
+
+[![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)
 
 ## Status
 
