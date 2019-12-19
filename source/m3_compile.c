@@ -461,7 +461,7 @@ _           (Push (o, i_m3Type, location));
         else
         {
 _           (EmitOp (o, op_Const));
-            EmitConstant (o, i_word);
+            EmitConstant64 (o, i_word);
 _           (PushAllocatedSlotAndEmit (o, i_m3Type));
         }
     }
