@@ -213,20 +213,22 @@ class Wasm3():
         self.exe = exe
         self.engine = engine
         self.p = None
+        self.loaded = None
         self.timeout = args.timeout
-        self.init()
+        self.autorestart = True
 
-    def init(self):
+        self.run()
+
+    def run(self):
         if self.p:
             self.terminate()
 
-        #print("== Running", self.exe)
+        cmd = get_engine_cmd(self.engine, self.exe)
+
+        #print(f"wasm3: Starting {' '.join(cmd)}")
 
         self.q = Queue()
-        self.p = Popen(
-            get_engine_cmd(self.engine, self.exe),
-            bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT
-        )
+        self.p = Popen(cmd, bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
 
         def _read_output(out, queue):
             for data in iter(lambda: out.read(1024), b''):
@@ -238,28 +240,47 @@ class Wasm3():
         self.t.start()
 
         try:
-            self._read_until("wasm3> ", False)
-        except Exception:
-            pass
+            self._read_until("wasm3> ")
+        except Exception as e:
+            print(f"wasm3: Could not start: {e}")
+
+    def restart(self):
+        print(f"wasm3: Restarting")
+        for i in range(10):
+            try:
+                self.run()
+                try:
+                    if self.loaded:
+                        self.load(self.loaded)
+                except Exception as e:
+                    pass
+                break
+            except Exception as e:
+                print(f"wasm3: {e} => retry")
+                time.sleep(0.1)
+
+    def init(self):
+        return self._run_cmd(f":init\n")
 
     def load(self, fn):
+        self.loaded = None
+        res = self._run_cmd(f":load {fn}\n")
         self.loaded = fn
-
-        #self._flush_input()
-        #self._write(f":init\n")
-        #self._read_until("wasm3> ", False)
-
-        self._flush_input()
-        self._write(f":load {fn}\n")
-        return self._read_until("wasm3> ", False)
+        return res
 
     def invoke(self, cmd):
-        cmd = " ".join(map(str, cmd)) + "\n"
+        return self._run_cmd(" ".join(map(str, cmd)) + "\n")
+
+    def _run_cmd(self, cmd):
+        if self.autorestart and not self._is_running():
+            self.restart()
         self._flush_input()
+
+        #print(f"wasm3: {cmd.strip()}")
         self._write(cmd)
         return self._read_until("wasm3> ")
 
-    def _read_until(self, token, autorestart=True):
+    def _read_until(self, token):
         buff = ""
         tout = time.time() + self.timeout
         error = None
@@ -273,25 +294,16 @@ class Wasm3():
                 buff = buff + data.decode("utf-8")
                 idx = buff.rfind(token)
                 if idx >= 0:
-                    return buff[0:idx]
+                    return buff[0:idx].strip()
             except Empty:
                 pass
         else:
             error = "Timeout"
 
-        # Crash => restart
-        if autorestart:
-            self.init()
-            self.load(self.loaded)
-
+        self.terminate()
         raise Exception(error)
 
     def _write(self, data):
-        if not self._is_running():
-            self.init()
-            self.load(self.loaded)
-        #    raise Exception("Not running")
-
         self.p.stdin.write(data.encode("utf-8"))
         self.p.stdin.flush()
 
@@ -373,7 +385,7 @@ def runInvoke(test):
     force_fail = False
 
     try:
-        output = wasm3.invoke(test.cmd).strip()
+        output = wasm3.invoke(test.cmd)
     except Exception as e:
         actual = f"<{e}>"
         force_fail = True
@@ -483,6 +495,8 @@ for fn in jsonFiles:
     wasm_module = ""
 
     print(f"Running {fn}")
+
+    wasm3.init()
 
     for cmd in data["commands"]:
         test = dotdict()
