@@ -262,6 +262,9 @@ class Wasm3():
     def init(self):
         return self._run_cmd(f":init\n")
 
+    def version(self):
+        return self._run_cmd(f":version\n")
+
     def load(self, fn):
         self.loaded = None
         res = self._run_cmd(f":load {fn}\n")
@@ -344,6 +347,8 @@ coreDir = os.path.join(curDir, "core")
 
 
 wasm3 = Wasm3(args.exec, args.engine)
+
+print("Version: " + wasm3.version())
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
