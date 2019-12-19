@@ -140,7 +140,7 @@ jobs:
         ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
 
   build-arm:
-    runs-on: ARM32
+    runs-on: self-hosted
     timeout-minutes: 5
 
     strategy:
