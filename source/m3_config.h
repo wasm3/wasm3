@@ -14,24 +14,20 @@
 # ifndef d_m3MaxNumFunctionArgs
 #   define d_m3MaxNumFunctionArgs               16
 # endif
-# ifndef d_m3CodePageSize
-#   define d_m3CodePageSize                     4096
-# endif
-# ifndef d_m3AlignWasmMemoryToPages
-#   define d_m3AlignWasmMemoryToPages           false
+
+# ifndef d_m3CodePageAlignSize
+#   define d_m3CodePageAlignSize                4096
 # endif
 # ifndef d_m3MaxFunctionStackHeight
 #   define d_m3MaxFunctionStackHeight           2000
 # endif
-# ifndef d_m3EnableOptimizations
-#   define d_m3EnableOptimizations              false
-# endif
-# ifndef d_m3EnableFp32Maths
-#   define d_m3EnableFp32Maths                  false
-# endif
-# ifndef d_m3EnableFp64Maths
-#   define d_m3EnableFp64Maths                  true
-# endif
+
+//# ifndef d_m3EnableFp32Maths
+//#   define d_m3EnableFp32Maths                  false
+//# endif
+//# ifndef d_m3EnableFp64Maths
+//#   define d_m3EnableFp64Maths                  true
+//# endif
 
 # ifndef d_m3LogOutput
 #   define d_m3LogOutput                        1
@@ -42,11 +38,16 @@
 //# define d_m3FixedHeap                        (32*1024)
 # endif
 
+# ifndef d_m3VerboseErrorMessages
+#   define d_m3VerboseErrorMessages           	1
+# endif
+
+
 // TODO: This flag is temporary
 // It's enabled by default for Linux, OS X, Win32 and Android builds
 // and disabled on other platforms, i.e. microcontrollers
 # ifndef d_m3AllocateLinearMemory
-#   define d_m3AllocateLinearMemory             false
+#   define d_m3AllocateLinearMemory             1
 # endif
 
 # ifndef d_m3FixedHeapAlign
@@ -71,6 +72,7 @@
 # define d_m3LogModule          0
 # define d_m3LogRuntime         0
 # define d_m3LogExec            0
+# define d_m3LogStackTrace      0
 # define d_m3LogNativeStack     0
 
 

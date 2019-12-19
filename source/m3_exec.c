@@ -112,6 +112,8 @@ d_m3OpDef  (CallIndirect)
 
 d_m3OpDef  (MemCurrent)
 {
+    // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
+    
     IM3Runtime runtime            = immediate (IM3Runtime);
 
     _r0 = runtime->memory.numPages;
@@ -122,6 +124,8 @@ d_m3OpDef  (MemCurrent)
 
 d_m3OpDef  (MemGrow)
 {
+    // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
+    
     IM3Runtime runtime            = immediate (IM3Runtime);
 
     IM3Memory memory = & runtime->memory;
@@ -307,19 +311,8 @@ d_m3OpDef  (Loop)
 {
     m3ret_t r;
 
-    IM3Memory memory = immediate (IM3Memory);
-    // smassey: a downside of this ^^^^ (embedding a memory pointer in the codepage)
-    // is that codepages are tied to specific runtime.
-    // originally, i was hoping that multiple runtimes (threads) could share
-    // compiled m3 code. with non-Windows calling conventions, a new
-    // "IM3Runtime _runtime" argument could be added to operations to detach
-    // the execution context from the codepage.
-    
-	// alternatively:
-	// the compiler could track whether blocks/functions contain mem.grows.
-	// functions that are grow-clean could be shared and those that aren't
-	// could be copied and patched to the requesting runtime
-    
+    IM3Memory memory = immediate (IM3Memory); 		// FIX: get M3Memory from _mem
+	
     do
     {
         // linear memory pointer needs refreshed here because the block it's loop over

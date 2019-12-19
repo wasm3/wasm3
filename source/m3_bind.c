@@ -256,7 +256,9 @@ M3Result  m3_RegisterFunction  (IM3Runtime io_runtime,  const char * const i_fun
 }
 
 
-M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionName,  const char * const i_signature,  const void * i_function)
+
+
+M3Result  LinkFunction  (IM3Module io_module,  IM3Function io_function,  const char * const i_signature,  const void * i_function)
 {
     M3Result result = c_m3Err_none;
 
@@ -266,86 +268,106 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
     M3_INIT(pushers);
     M3_INIT(signature);
 
-    IM3Function func = (IM3Function) v_FindFunction (io_module, i_functionName);
-    if (func)
-    {
-        bool trappingFunction = false;
+    bool trappingFunction = false;
 
-        result = ValidateSignature (func, & trappingFunction, signature, i_signature);
+    result = ValidateSignature (io_function, & trappingFunction, signature, i_signature);
+
+    if (not result)
+    {
+        u8 returnType = signature [0];
+        u8 * sig = & signature [1];
+
+        u32 intIndex = 0;
+        u32 floatIndex = 0;
+
+        u32 i = 0;
+        while (* sig)
+        {
+            M3ArgPusher * pusher = & pushers [i];
+            u8 type = * sig;
+
+            if      (type == c_m3Type_ptr)      * pusher = c_m3PointerPushers   [intIndex++];
+            else if (IsIntType (type))          * pusher = c_m3IntPushers       [intIndex++];
+            else if (type == c_m3Type_f32)      * pusher = c_m3Float32Pushers   [floatIndex++];
+            else if (type == c_m3Type_f64)      * pusher = c_m3Float64Pushers   [floatIndex++];
+            else if (type == c_m3Type_runtime)
+            {
+                * pusher = PushArg_runtime;
+                d_m3Assert (i == 0); // can only push to arg0
+                ++intIndex;
+            }
+            else
+            {
+                result = "FIX";
+                m3NotImplemented();
+            }
+
+            ++i; ++sig;
+        }
 
         if (not result)
         {
-            u8 returnType = signature [0];
-            u8 * sig = & signature [1];
+            IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, /*setup-func:*/ 1 + /*arg pushers:*/ i + /*target c-function:*/ 1);
 
-            u32 intIndex = 0;
-            u32 floatIndex = 0;
+            io_function->compiled = GetPagePC (page);
+            io_function->module = io_module;
 
-            u32 i = 0;
-            while (* sig)
+            IM3Operation callerOp;
+
+            if (trappingFunction)
             {
-                M3ArgPusher * pusher = & pushers [i];
-                u8 type = * sig;
+                // TODO: returned types not implemented!
+                d_m3Assert (returnType == c_m3Type_void);
 
-                if      (type == c_m3Type_ptr)      * pusher = c_m3PointerPushers   [intIndex++];
-                else if (IsIntType (type))          * pusher = c_m3IntPushers       [intIndex++];
-                else if (type == c_m3Type_f32)      * pusher = c_m3Float32Pushers   [floatIndex++];
-                else if (type == c_m3Type_f64)      * pusher = c_m3Float64Pushers   [floatIndex++];
-                else if (type == c_m3Type_runtime)
-                {
-                    * pusher = PushArg_runtime;
-                    d_m3Assert (i == 0); // can only push to arg0
-                    ++intIndex;
-                }
-                else
-                {
-                    result = "FIX";
-                    m3NotImplemented();
-                }
+                callerOp = CallTrappingCFunction_void;
+            }
+            else
+            {
+                callerOp = CallCFunction_i64;
 
-                ++i; ++sig;
+                if      (returnType == c_m3Type_f64)
+                    callerOp = CallCFunction_f64;
+                else if (returnType == c_m3Type_f32)
+                    callerOp = CallCFunction_f32;
+                else if (returnType == c_m3Type_ptr)
+                    callerOp = CallCFunction_ptr;
             }
 
-            if (not result)
-            {
-                IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, /*setup-func:*/ 1 + /*arg pushers:*/ i + /*target c-function:*/ 1);
+            EmitWord (page, callerOp);
 
-                func->compiled = GetPagePC (page);
-                func->module = io_module;
+            for (u32 j = 0; j < i; ++j)
+                EmitWord (page, pushers [j]);
 
-                IM3Operation callerOp;
+            EmitWord (page, i_function);
 
-                if (trappingFunction)
-                {
-                    // TODO: returned types not implemented!
-                    d_m3Assert (returnType == c_m3Type_void);
-
-                    callerOp = CallTrappingCFunction_void;
-                }
-                else
-                {
-                    callerOp = CallCFunction_i64;
-
-                    if      (returnType == c_m3Type_f64)
-                        callerOp = CallCFunction_f64;
-                    else if (returnType == c_m3Type_f32)
-                        callerOp = CallCFunction_f32;
-                    else if (returnType == c_m3Type_ptr)
-                        callerOp = CallCFunction_ptr;
-                }
-
-                EmitWord (page, callerOp);
-
-                for (u32 j = 0; j < i; ++j)
-                    EmitWord (page, pushers [j]);
-
-                EmitWord (page, i_function);
-
-                ReleaseCodePage (io_module->runtime, page);
-            }
+            ReleaseCodePage (io_module->runtime, page);
         }
     }
-    else result = c_m3Err_functionLookupFailed;
 
     return result;
 }
+
+
+// TODO: this should have a module name too.
+M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionName,  const char * const i_signature,  const void * i_function)
+{
+    M3Result result = c_m3Err_functionLookupFailed;
+    
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+        
+        if (f->name)
+        {
+            if (strcmp (f->name, i_functionName) == 0)
+            {
+                result = LinkFunction (io_module, f, i_signature, i_function);
+            }
+        }
+    }
+
+    return result;
+}
+
+
+

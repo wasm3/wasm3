@@ -16,7 +16,16 @@
 
 cstr_t  GetFunctionName  (IM3Function i_function)
 {
-    return (i_function->name) ? i_function->name : ".unnamed";
+    if (i_function->import.fieldUtf8)
+        return i_function->import.fieldUtf8;
+    else
+        return (i_function->name) ? i_function->name : "<unnamed>";
+}
+
+
+cstr_t  GetFunctionImportModuleName  (IM3Function i_function)
+{
+    return (i_function->import.moduleUtf8) ? i_function->import.moduleUtf8 : "";
 }
 
 
@@ -786,9 +795,7 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 //}
 
 
-// smassey: FIX: this isn't supposed to be a debug only function. It produces WebAssembly failure info that can
-// occur in production code.
-#ifdef DEBUG
+#if d_m3VerboseErrorMessages
 M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
                     const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...)
 {
@@ -840,9 +847,9 @@ void  GetStackInfo  (M3StackInfo * io_info)
 }
 
 
-M3StackInfo  m3_GetNativeStackInfo  (int i_stackSize)
+M3StackInfo  m3_GetNativeStackInfo  (i32 i_stackSize)
 {
-    M3StackInfo info = { NULL, (int) i_stackSize };
+    M3StackInfo info = { NULL, i_stackSize };
     GetStackInfo (& info);
     
     return info;

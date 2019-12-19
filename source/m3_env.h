@@ -58,6 +58,7 @@ M3Function;
 typedef M3Function *        IM3Function;
 
 
+cstr_t      GetFunctionImportModuleName (IM3Function i_function);
 cstr_t      GetFunctionName             (IM3Function i_function);
 u32         GetFunctionNumArgs          (IM3Function i_function);
 u32         GetFunctionNumReturns       (IM3Function i_function);

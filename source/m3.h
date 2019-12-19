@@ -68,7 +68,7 @@ M3ErrorInfo;
 typedef struct M3StackInfo
 {
 	void *			startAddr;
-	int				stackSize;
+	int32_t			stackSize;
 }
 M3StackInfo;
 	
@@ -188,7 +188,7 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 //  initialization
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
-	M3StackInfo 		m3_GetNativeStackInfo		(int 					i_stackSize);
+	M3StackInfo 		m3_GetNativeStackInfo		(int32_t 				i_stackSize);
 	// GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread, at the start of the thread
 	// start function.
 	
@@ -246,10 +246,10 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
     M3Result            m3_LinkFunction             (IM3Module              io_module,
                                                      const char * const     i_functionName,
-                                                     const char * const     i_signature,
+                                                     const char * const     i_signature,		    // signature is null terminated
                                                      const void * const     i_function /* , const void * const i_ref */);
 
-    // signature is null terminated
+
 
 //  M3Result            m3_SetGlobal
 

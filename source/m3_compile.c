@@ -1154,7 +1154,10 @@ _           (EmitOp     (o, op));
             
             EmitMemory  (o);
         }
-        else result = ErrorCompile (c_m3Err_functionImportMissing, o, "'%s'", GetFunctionName (function));
+        else
+		{
+			result = ErrorCompile (c_m3Err_functionImportMissing, o, "'%s.%s'", GetFunctionImportModuleName (function), GetFunctionName (function));
+		}
     }
     else result = c_m3Err_functionLookupFailed;
 
@@ -1391,9 +1394,8 @@ M3Result  Compile_Unreachable  (IM3Compilation o, u8 i_opcode)
 
 _   (AddTrapRecord (o));
     
-    o->block.isPolymorphic = true;
-
 _   (EmitOp (o, op_Unreachable));
+    o->block.isPolymorphic = true;
 
     _catch:
     return result;
@@ -1472,7 +1474,11 @@ _           (PushRegister (o, op->type));
     }
     else
     {
-        result = ErrorCompile ("no operation found for opcode", o, "'%s'", op->name);
+#		if DEBUG
+        	result = ErrorCompile ("no operation found for opcode", o, "'%s'", op->name);
+# 		else
+			result = ErrorCompile ("no operation found for opcode", o, "");
+# 		endif
     }
 
     _catch: return result;

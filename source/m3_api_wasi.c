@@ -397,6 +397,8 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
+    // TODO LinkFunction should have module name argument too
+    
 _   (SuppressLookupFailure (m3_LinkFunction (module, "args_sizes_get",      "i(R**)",       &m3_wasi_unstable_args_sizes_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_sizes_get",   "i(Rii)",       &m3_wasi_unstable_environ_sizes_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "args_get",            "i(R**)",       &m3_wasi_unstable_args_get)));
