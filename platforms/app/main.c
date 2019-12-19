@@ -85,10 +85,24 @@ void unescape(char* buff)
 {
     char* outp = buff;
     while (*buff) {
-        if (*buff == '\\' && *(buff+1) == 'x') {
-            char hex[3] = { *(buff+2), *(buff+3), '\0' };
-            *outp++ = strtol(hex, NULL, 16);
-            buff += 4;
+        if (*buff == '\\') {
+            switch (*(buff+1)) {
+            case '0':  *outp++ = '\0'; break;
+            case 'b':  *outp++ = '\b'; break;
+            case 'n':  *outp++ = '\n'; break;
+            case 'r':  *outp++ = '\r'; break;
+            case 't':  *outp++ = '\t'; break;
+            case 'x': {
+                char hex[3] = { *(buff+2), *(buff+3), '\0' };
+                *outp++ = strtol(hex, NULL, 16);
+                buff += 2;
+                break;
+            }
+            // Otherwise just pass the letter
+            // Also handles '\\'
+            default: *outp++ = *(buff+1); break;
+            }
+            buff += 2;
         } else {
             *outp++ = *buff++;
         }
@@ -97,7 +111,7 @@ void unescape(char* buff)
 }
 
 static
-int split_argv(char *str, char** argv)
+int split_argv(char *str, const char** argv)
 {
     int result = 0;
     char* curr = str;
@@ -106,6 +120,7 @@ int split_argv(char *str, char** argv)
         if (strchr(" \n\r\t", str[i])) {
             if (len) {  // Found space after non-space
                 str[i] = '\0';
+                unescape(curr);
                 argv[result++] = curr;
                 len = 0;
             }
@@ -203,7 +218,7 @@ int  main  (int i_argc, const char* i_argv[])
     while (argRepl)
     {
         char cmd_buff[1024] = { 0, };
-        char* argv[32] = { 0, };
+        const char* argv[32] = { 0, };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);
         if (!fgets(cmd_buff, sizeof(cmd_buff), stdin)) {
@@ -226,7 +241,6 @@ int  main  (int i_argc, const char* i_argv[])
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
-            unescape(argv[0]);
             result = repl_call(runtime, argv[0], argc-1, argv+1);
         }
 
