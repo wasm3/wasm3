@@ -111,7 +111,7 @@ void unescape(char* buff)
 }
 
 static
-int split_argv(char *str, const char** argv)
+int split_argv(char *str, char** argv)
 {
     int result = 0;
     char* curr = str;
@@ -120,7 +120,7 @@ int split_argv(char *str, const char** argv)
         if (strchr(" \n\r\t", str[i])) {
             if (len) {  // Found space after non-space
                 str[i] = '\0';
-                unescape(curr);
+                //unescape(curr); // TODO: breaks windows build?
                 argv[result++] = curr;
                 len = 0;
             }
@@ -218,7 +218,7 @@ int  main  (int i_argc, const char* i_argv[])
     while (argRepl)
     {
         char cmd_buff[1024] = { 0, };
-        const char* argv[32] = { 0, };
+        char* argv[32] = { 0, };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);
         if (!fgets(cmd_buff, sizeof(cmd_buff), stdin)) {
@@ -241,6 +241,7 @@ int  main  (int i_argc, const char* i_argv[])
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
+            unescape(argv[0]);
             result = repl_call(runtime, argv[0], argc-1, argv+1);
         }
 
