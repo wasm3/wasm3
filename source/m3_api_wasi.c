@@ -256,6 +256,21 @@ uint32_t m3_wasi_unstable_fd_seek(IM3Runtime          runtime,
     return __WASI_ESUCCESS;
 }
 
+
+uint32_t m3_wasi_unstable_path_open (__wasi_fd_t            dirfd,
+                                     __wasi_lookupflags_t   dirflags,
+                                     const char *           path,
+                                     size_t                 path_len,
+                                     __wasi_oflags_t        oflags,
+                                     __wasi_rights_t        fs_rights_base,
+                                     __wasi_rights_t        fs_rights_inheriting,
+                                     __wasi_fdflags_t       fs_flags,
+                                     __wasi_fd_t *          fd)
+{
+	return 0;
+}
+
+
 uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
                                   __wasi_fd_t   fd,
                                   uint32_t      iovs_offset,
@@ -404,8 +419,10 @@ _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_sizes_get",   "i(R
 _   (SuppressLookupFailure (m3_LinkFunction (module, "args_get",            "i(R**)",       &m3_wasi_unstable_args_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_get",         "i(Rii)",       &m3_wasi_unstable_environ_get)));
 
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_dir_name",  "i(Riii)",     &m3_wasi_unstable_fd_prestat_dir_name)));
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_get",       "i(Rii)",      &m3_wasi_unstable_fd_prestat_get)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_dir_name", "i(Riii)",      &m3_wasi_unstable_fd_prestat_dir_name)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_get",      "i(Rii)",       &m3_wasi_unstable_fd_prestat_get)));
+
+//_   (SuppressLookupFailure (m3_LinkFunction (module, "path_open",           "i(ii*iiiii*)", &m3_wasi_unstable_path_open)));
 
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_fdstat_get",       "i(Ri*)",       &m3_wasi_unstable_fd_fdstat_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_write",            "i(Riii*)",     &m3_wasi_unstable_fd_write)));
