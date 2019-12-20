@@ -36,7 +36,7 @@
 # endif
 
 //TODO
-#define PREOPEN_CNT   3
+#define PREOPEN_CNT   5
 #define NANOS_PER_SEC 1000000000
 
 typedef uint32_t __wasi_size_t;
@@ -48,18 +48,16 @@ struct wasi_iovec
 };
 
 typedef struct Preopen {
-    char       *path;
-    unsigned   path_len;
+    int         fd;
+    char*       path;
 } Preopen;
 
 Preopen preopen[PREOPEN_CNT] = {
-    { .path = "<stdin>",  .path_len = 7, },
-    { .path = "<stdout>", .path_len = 8, },
-    { .path = "<stderr>", .path_len = 8, },
-    //{ .path = "./",       .path_len = 2, }, //TODO
-    //{ .path = "../",      .path_len = 3, },
-    //{ .path = "/",        .path_len = 1, },
-    //{ .path = "/tmp",     .path_len = 4, },
+    {  0, "<stdin>"  },
+    {  1, "<stdout>" },
+    {  2, "<stderr>" },
+    { -1, "./"       },
+    { -1, "../"      },
 };
 
 static
@@ -187,24 +185,24 @@ uint32_t m3_wasi_unstable_environ_sizes_get(IM3Runtime runtime,
 
 uint32_t m3_wasi_unstable_fd_prestat_dir_name(IM3Runtime runtime,
                                               uint32_t   fd,
-                                              uint32_t   path_offset,
+                                              char*      path,
                                               uint32_t   path_len)
 {
     if (runtime == NULL) { return __WASI_EINVAL; }
     if (fd < 3 || fd >= PREOPEN_CNT) { return __WASI_EBADF; }
-    memmove((char *)offset2addr(runtime, path_offset), preopen[fd].path,
-            min(preopen[fd].path_len, path_len));
+    int size = min(strlen(preopen[fd].path), path_len);
+    memcpy(path, preopen[fd].path, size);
     return __WASI_ESUCCESS;
 }
 
 uint32_t m3_wasi_unstable_fd_prestat_get(IM3Runtime runtime,
                                          uint32_t   fd,
-                                         uint32_t   buf_offset)
+                                         uint32_t*  buf)
 {
     if (runtime == NULL) { return __WASI_EINVAL; }
     if (fd < 3 || fd >= PREOPEN_CNT) { return __WASI_EBADF; }
-    *(uint32_t *)offset2addr(runtime, buf_offset) = __WASI_PREOPENTYPE_DIR;
-    *(uint32_t *)offset2addr(runtime, buf_offset+4) = preopen[fd].path_len;
+    *(buf)   = __WASI_PREOPENTYPE_DIR;
+    *(buf+1) = strlen(preopen[fd].path);
     return __WASI_ESUCCESS;
 }
 
@@ -267,9 +265,41 @@ uint32_t m3_wasi_unstable_path_open (__wasi_fd_t            dirfd,
                                      __wasi_fdflags_t       fs_flags,
                                      __wasi_fd_t *          fd)
 {
-	return 0;
-}
+    if (path_len >= 512) {
+        return __WASI_EINVAL;
+    }
 
+    // copy path so we can ensure it is NULL terminated
+    char host_path[path_len+1];
+
+    memcpy(host_path, path, path_len);
+    host_path[path_len] = '\0'; // NULL terminator
+
+    // translate o_flags and fs_flags into flags and mode
+    int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
+                //((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
+                ((oflags & __WASI_O_EXCL)              ? O_EXCL      : 0) |
+                ((oflags & __WASI_O_TRUNC)             ? O_TRUNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_APPEND)     ? O_APPEND    : 0) |
+                //((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_NONBLOCK)   ? O_NONBLOCK  : 0) |
+                //((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_SYNC)       ? O_SYNC      : 0);
+    if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
+        (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= O_RDWR;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= O_WRONLY;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_READ)) {
+        flags |= O_RDONLY; // no-op because O_RDONLY is 0
+    }
+    int mode = 0644;
+    int host_fd = openat(dirfd, host_path, flags, mode);
+    if (host_fd < 0) { return errno_to_wasi(errno); }
+
+    *fd = host_fd;
+    return __WASI_ESUCCESS;
+}
 
 uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
                                   __wasi_fd_t   fd,
@@ -412,6 +442,11 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
+    // Preopen dirs
+    for (int i = 3; i < PREOPEN_CNT; i++) {
+        preopen[i].fd = open(preopen[i].path, O_RDONLY);
+    }
+
     // TODO LinkFunction should have module name argument too
     
 _   (SuppressLookupFailure (m3_LinkFunction (module, "args_sizes_get",      "i(R**)",       &m3_wasi_unstable_args_sizes_get)));
@@ -419,10 +454,10 @@ _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_sizes_get",   "i(R
 _   (SuppressLookupFailure (m3_LinkFunction (module, "args_get",            "i(R**)",       &m3_wasi_unstable_args_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "environ_get",         "i(Rii)",       &m3_wasi_unstable_environ_get)));
 
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_dir_name", "i(Riii)",      &m3_wasi_unstable_fd_prestat_dir_name)));
-_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_get",      "i(Rii)",       &m3_wasi_unstable_fd_prestat_get)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_dir_name",  "i(Ri*i)",     &m3_wasi_unstable_fd_prestat_dir_name)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "fd_prestat_get",       "i(Ri*)",      &m3_wasi_unstable_fd_prestat_get)));
 
-//_   (SuppressLookupFailure (m3_LinkFunction (module, "path_open",           "i(ii*iiiii*)", &m3_wasi_unstable_path_open)));
+_   (SuppressLookupFailure (m3_LinkFunction (module, "path_open",           "i(ii*iiIIi*)", &m3_wasi_unstable_path_open)));
 
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_fdstat_get",       "i(Ri*)",       &m3_wasi_unstable_fd_fdstat_get)));
 _   (SuppressLookupFailure (m3_LinkFunction (module, "fd_write",            "i(Riii*)",     &m3_wasi_unstable_fd_write)));
