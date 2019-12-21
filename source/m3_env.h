@@ -163,14 +163,9 @@ typedef struct M3Module                 // TODO add env owner? also discriminate
     IM3Function *           table0;
     u32                     table0Size;
 
-//    M3Memory                memory;
-    
 	M3MemoryInfo			memoryInfo;
 	bool					memoryImported;
 	
-//    u32                     memoryInitLength;
-//    u32                     memoryMaxLength;
-
 //  m3reg_t *               globalMemory;
 
     struct M3Module *       next;
@@ -245,8 +240,6 @@ void *                      v_FindFunction              (IM3Module i_module, con
 IM3CodePage                 AcquireCodePage             (IM3Runtime io_runtime);
 IM3CodePage                 AcquireCodePageWithCapacity (IM3Runtime io_runtime, u32 i_slotCount);
 void                        ReleaseCodePage             (IM3Runtime io_runtime, IM3CodePage i_codePage);
-//void                      CloseCodePage               (IM3Runtime io_runtime, IM3CodePage i_codePage);
-
 
 
 // Wasm MVP: i_memoryIndex must be zero

@@ -44,12 +44,6 @@ void  FreeCodePages  (IM3CodePage i_page)
 }
 
 
-//void  CloseCodePage  (IM3CodePage i_page)
-//{
-//  i_page->info.slotIndex = c_m3CodePageNumSlots;  // force closed
-//}
-
-
 u32  NumFreeLines  (IM3CodePage i_page)
 {
     d_m3Assert (i_page->info.lineIndex <= i_page->info.numLines);
