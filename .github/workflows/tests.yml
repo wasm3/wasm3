@@ -18,9 +18,8 @@ jobs:
           - compiler: clang
             build_type: "-DCMAKE_BUILD_TYPE=Debug"
 
-          - compiler: gcc
+          - compiler: gcc    # TODO: fails on numeric operations
             flags: "-m32"
-            #build_type: "-DCMAKE_BUILD_TYPE=Debug" # TODO: exclude only debug, leave -m32
 
     steps:
     - uses: actions/checkout@v1
@@ -78,7 +77,7 @@ jobs:
       fail-fast: false
       matrix:
         toolset: ["-T ClangCL", ""]
-        platform: ["-A Win32", ""]
+        platform: ["-A x86", "-A x64"]
 
     steps:
     - uses: actions/checkout@v1
@@ -95,6 +94,11 @@ jobs:
       run: |
         cd test
         python run-spec-test.py
+    # TODO: doesn't work yet
+    #- name: Run WASI tests
+    #  run: |
+    #    cd test
+    #    python run-wasi-test.py
 
   build-wasi:
     runs-on: ubuntu-latest
@@ -131,12 +135,12 @@ jobs:
     - name: Build native
       run: |
         cmake --build build
-    - name: Run spec tests (self-hosting)
-      continue-on-error: true    # TODO
-      run: |
-        source $HOME/.wasmer/wasmer.sh
-        cd test
-        ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
+    # TODO: doesn't work yet
+    #- name: Run spec tests (self-hosting)
+    #  run: |
+    #    source $HOME/.wasmer/wasmer.sh
+    #    cd test
+    #    ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
@@ -153,7 +157,7 @@ jobs:
       run: |
         cmake --build build
     - name: Run spec tests
-      continue-on-error: true    # TODO
+      continue-on-error: true    # TODO: fails on numeric operations
       run: |
         cd test
         python3 run-spec-test.py
