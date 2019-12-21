@@ -158,7 +158,6 @@ jobs:
         cd test
         python3 run-spec-test.py
     - name: Run WASI tests
-      continue-on-error: true    # TODO
       run: |
         cd test
         ./run-wasi-test.py --timeout 120
