@@ -5,8 +5,14 @@
  * Helpers
  */
 
-#define M3_STR___(x) #x
-#define M3_STR(x) M3_STR___(x)
+#define M3_STR__(x) #x
+#define M3_STR(x)   M3_STR__(x)
+
+#define M3_CONCAT__(a,b) a##b
+#define M3_CONCAT(a,b)   M3_CONCAT__(a,b)
+
+// Post-increment by a specific number
+#define M3_INC(x,n) (((x)+=(n))-(n))
 
 # if !defined(__cplusplus)
 #   define not      !
@@ -116,16 +122,16 @@
 
 
 # if defined(M3_COMPILER_MSVC)
-#   define M3_WEAK
+#  define M3_WEAK
 # else
-#   define M3_WEAK __attribute__((weak))
+#  define M3_WEAK __attribute__((weak))
 # endif
 
 # ifndef min
-#   define min(A,B) (A < B) ? A : B
+#  define min(A,B) (((A) < (B)) ? (A) : (B))
 # endif
 # ifndef max
-#   define max(A,B) (A > B) ? A : B
+#  define max(A,B) (((A) > (B)) ? (A) : (B))
 # endif
 
 #define M3_INIT(field) memset(&field, 0, sizeof(field))
