@@ -10,10 +10,11 @@
 
 #include "m3_core.h"
 
-#define m3ApiGetReturn(TYPE, NAME) TYPE* NAME = ((TYPE *) (_sp));
+#define m3ApiReturnType(TYPE)      TYPE* raw_return = ((TYPE*) (_sp));
 #define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
-#define m3ApiGetArgPtr(TYPE, NAME) TYPE NAME = (TYPE) (_mem + * (u32 *) _sp++);
+#define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE) (_mem + * (u32 *) _sp++);
 
 #define m3ApiRawFunction(NAME)     void NAME (u64 * _sp, u8 * _mem)
+#define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return; }
 
 #endif /* m3_api_defs_h */
