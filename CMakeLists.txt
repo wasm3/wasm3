@@ -35,9 +35,12 @@ if(WASIENV)
   set(CMAKE_C_COMPILER   "wasicc")
   set(CMAKE_CXX_COMPILER "wasic++")
 
-  set(APP_DIR            "platforms/emscripten")
-  #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
-  #set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
+  set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
+
+  if(HARD_CODED) # Bundle a wasm binary and run a hard-coded func
+    set(APP_DIR          "platforms/emscripten")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
+  endif()
 endif()
 
 if(BUILD_32BIT)
