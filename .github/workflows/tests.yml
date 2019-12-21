@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ["-A x86", "-A x64"]
+        platform: ["-A Win32", "-A x64"]
         toolset: ["-T ClangCL", ""]
 
     steps:
