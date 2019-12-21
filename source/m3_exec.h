@@ -34,9 +34,9 @@
 # define slot_ptr(TYPE)             (TYPE *) (_sp + immediate (i32))
 
 #if M3_SIZEOF_PTR == 4
-# define constant64(TYPE)           * ((TYPE *) _pc); _pc += 2;
+# define constant64(TYPE)           * ((TYPE *) M3_INC(_pc,2))
 #else
-# define constant64(TYPE)           * ((TYPE *) _pc++);
+# define constant64(TYPE)           * ((TYPE *) _pc++)
 #endif
 
 
