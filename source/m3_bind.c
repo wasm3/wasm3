@@ -23,11 +23,14 @@ M3State;
 // TODO: This binding code only work'n for System V AMD64 ABI calling convention (macOS & Linux)
 // Needs work for MS cdecl
 
-#define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, i64 _i4, f64 _f0, f64 _f1, f64 _f2, f64 _f3, f64 _f4
-#define d_m3BindingArgs _i0, _i1, _i2, _i3, _i4, _f0, _f1, _f2, _f3, _f4
+#define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, i64 _i4, i64 _i5, f64 _f0, f64 _f1, f64 _f2, f64 _f3, f64 _f4
+#define d_m3BindingArgs _i0, _i1, _i2, _i3, _i4, _i5, _f0, _f1, _f2, _f3, _f4
+#define d_m3BindingDefaultArgs 0,0,0,0,0,0, 0.,0.,0.,0.,0.
 
 typedef m3ret_t (* M3ArgPusher) (d_m3BindingArgList, M3State * i_state);
 typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
+
+typedef m3ret_t (* M3RawCall) (u64 * _sp, void * _mem);
 
 
 m3ret_t PushArg_runtime (d_m3BindingArgList, M3State * _state)
@@ -76,13 +79,13 @@ d_argPusherInt      (0)         d_argPusherInt      (1)         d_argPusherInt  
 d_argPusherFloat    (0, f32)    d_argPusherFloat    (1, f32)    d_argPusherFloat    (2, f32)    d_argPusherFloat    (3, f32)
 d_argPusherFloat    (0, f64)    d_argPusherFloat    (1, f64)    d_argPusherFloat    (2, f64)    d_argPusherFloat    (3, f64)
 
-d_argPusherPointer  (4)
-d_argPusherInt      (4)
+d_argPusherPointer  (4)         d_argPusherPointer  (5)
+d_argPusherInt      (4)         d_argPusherInt      (5)
 d_argPusherFloat    (4, f32)
 d_argPusherFloat    (4, f64)
 
-M3ArgPusher c_m3PointerPushers  [] = { PushArg_p0, PushArg_p1, PushArg_p2, PushArg_p3, PushArg_p4, NULL };      // one dummy is required
-M3ArgPusher c_m3IntPushers      [] = { PushArg_i0, PushArg_i1, PushArg_i2, PushArg_i3, PushArg_i4, NULL };
+M3ArgPusher c_m3PointerPushers  [] = { PushArg_p0, PushArg_p1, PushArg_p2, PushArg_p3, PushArg_p4, PushArg_p5, NULL };      // one dummy is required
+M3ArgPusher c_m3IntPushers      [] = { PushArg_i0, PushArg_i1, PushArg_i2, PushArg_i3, PushArg_i4, PushArg_i5, NULL };
 M3ArgPusher c_m3Float32Pushers  [] = { PushArg_f32_0, PushArg_f32_1, PushArg_f32_2, PushArg_f32_3, PushArg_f32_4, NULL };
 M3ArgPusher c_m3Float64Pushers  [] = { PushArg_f64_0, PushArg_f64_1, PushArg_f64_2, PushArg_f64_3, PushArg_f64_4, NULL };
 
@@ -93,7 +96,7 @@ d_m3RetSig  CallTrappingCFunction_void  (d_m3OpSig)
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    m3ret_t r = (m3ret_t) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
+    m3ret_t r = (m3ret_t) pusher (d_m3BindingDefaultArgs, & state);
 
     return r;
 }
@@ -104,7 +107,7 @@ d_m3RetSig  CallCFunction_i64  (d_m3OpSig)
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    i64 r = (i64) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
+    i64 r = (i64) pusher (d_m3BindingDefaultArgs, & state);
     * _sp = r;
 
     return 0;
@@ -116,7 +119,7 @@ d_m3RetSig  CallCFunction_f64  (d_m3OpSig)
     M3ArgPusherFpReturn pusher = (M3ArgPusherFpReturn) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    f64 r = (f64) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
+    f64 r = (f64) pusher (d_m3BindingDefaultArgs, & state);
     * (f64 *) (_sp) = r;
 
     return 0;
@@ -128,7 +131,7 @@ d_m3RetSig  CallCFunction_f32  (d_m3OpSig)
     M3ArgPusherFpReturn pusher = (M3ArgPusherFpReturn) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    f32 r = (f32) pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
+    f32 r = (f32) pusher (d_m3BindingDefaultArgs, & state);
     * (f32 *) (_sp) = r;
 
     return 0;
@@ -140,7 +143,7 @@ d_m3RetSig  CallCFunction_ptr  (d_m3OpSig)
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
     M3State state = { _pc, _sp, _mem };
 
-    const u8 * r = (const u8*)pusher (0, 0, 0, 0, 0, 0., 0., 0., 0., 0., & state);
+    const u8 * r = (const u8*) pusher (d_m3BindingDefaultArgs, & state);
 
     void ** ptr = (void **) _mem;
     IM3Runtime runtime = (IM3Runtime) (* (ptr - 2));
@@ -302,6 +305,9 @@ M3Result  LinkFunction  (IM3Module io_module,  IM3Function io_function,  const c
                 m3NotImplemented();
             }
 
+            if (* pusher == NULL)
+                _throw ("too many arguments in C binding");
+
             ++i; ++sig;
         }
 
@@ -309,47 +315,52 @@ M3Result  LinkFunction  (IM3Module io_module,  IM3Function io_function,  const c
         {
             IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, /*setup-func:*/ 1 + /*arg pushers:*/ i + /*target c-function:*/ 1);
 
-            io_function->compiled = GetPagePC (page);
-            io_function->module = io_module;
-
-            IM3Operation callerOp;
-
-            if (trappingFunction)
+            if (page)
             {
-                // TODO: returned types not implemented!
-                d_m3Assert (returnType == c_m3Type_void);
+                io_function->compiled = GetPagePC (page);
+                io_function->module = io_module;
 
-                callerOp = CallTrappingCFunction_void;
+                IM3Operation callerOp;
+
+                if (trappingFunction)
+                {
+                    // TODO: returned types not implemented!
+                    d_m3Assert (returnType == c_m3Type_void);
+
+                    callerOp = CallTrappingCFunction_void;
+                }
+                else
+                {
+                    callerOp = CallCFunction_i64;
+
+                    if      (returnType == c_m3Type_f64)
+                        callerOp = CallCFunction_f64;
+                    else if (returnType == c_m3Type_f32)
+                        callerOp = CallCFunction_f32;
+                    else if (returnType == c_m3Type_ptr)
+                        callerOp = CallCFunction_ptr;
+                }
+
+                EmitWord (page, callerOp);
+
+                for (u32 j = 0; j < i; ++j)
+                    EmitWord (page, pushers [j]);
+
+                EmitWord (page, i_function);
+
+                ReleaseCodePage (io_module->runtime, page);
             }
-            else
-            {
-                callerOp = CallCFunction_i64;
-
-                if      (returnType == c_m3Type_f64)
-                    callerOp = CallCFunction_f64;
-                else if (returnType == c_m3Type_f32)
-                    callerOp = CallCFunction_f32;
-                else if (returnType == c_m3Type_ptr)
-                    callerOp = CallCFunction_ptr;
-            }
-
-            EmitWord (page, callerOp);
-
-            for (u32 j = 0; j < i; ++j)
-                EmitWord (page, pushers [j]);
-
-            EmitWord (page, i_function);
-
-            ReleaseCodePage (io_module->runtime, page);
+            else result = c_m3Err_mallocFailedCodePage;
         }
     }
 
-    return result;
+	_catch:
+	return result;
 }
 
 
 // TODO: this should have a module name too.
-M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionName,  const char * const i_signature,  const void * i_function)
+M3Result  m3_LinkCFunction  (IM3Module io_module,  const char * const i_functionName,  const char * const i_signature,  const void * i_function)
 {
     M3Result result = c_m3Err_functionLookupFailed;
     
@@ -357,9 +368,9 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
     {
         IM3Function f = & io_module->functions [i];
         
-        if (f->name)
+        if (f->import.moduleUtf8 and f->import.fieldUtf8)
         {
-            if (strcmp (f->name, i_functionName) == 0)
+            if (strcmp (f->import.fieldUtf8, i_functionName) == 0)
             {
                 result = LinkFunction (io_module, f, i_signature, i_function);
             }
@@ -368,6 +379,60 @@ M3Result  m3_LinkFunction  (IM3Module io_module,  const char * const i_functionN
 
     return result;
 }
+
+
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+d_m3RetSig  CallRawFunction  (d_m3OpSig)
+{
+    M3RawCall call = (M3RawCall) (* _pc);
+    call (_sp, _mem);
+    return NULL;
+}
+
+
+M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function,  const void * i_function)
+{
+    M3Result result = c_m3Err_none;
+    
+    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 2);
+    
+    if (page)
+    {
+        io_function->compiled = GetPagePC (page);
+        io_function->module = io_module;
+
+        EmitWord (page, CallRawFunction);
+        EmitWord (page, i_function);
+        
+        ReleaseCodePage (io_module->runtime, page);
+    }
+    else result = c_m3Err_mallocFailedCodePage;
+
+    return result;
+}
+
+
+M3Result  m3_LinkRawFunction  (IM3Module io_module,  const char * const i_moduleName,  const char * const i_functionName,  const void * i_function)
+{
+    M3Result result = c_m3Err_functionLookupFailed;
+    
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+        
+        if (f->import.moduleUtf8 and f->import.fieldUtf8)
+        {
+            if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and strcmp (f->import.moduleUtf8, i_moduleName) == 0)
+            {
+                result = LinkRawFunction (io_module, f, i_function);
+            }
+        }
+    }
+    
+    return result;
+}
+
 
 
 

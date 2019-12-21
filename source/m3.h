@@ -244,7 +244,14 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime.
 
 
-    M3Result            m3_LinkFunction             (IM3Module              io_module,
+    M3Result            m3_LinkRawFunction          (IM3Module              io_module,
+                                                     const char * const     i_moduleName,
+                                                     const char * const     i_functionName,
+                                                     const void * const     i_function);        // void (u64 * _sp, u8 * _mem)
+    
+
+    
+    M3Result            m3_LinkCFunction            (IM3Module              io_module,
                                                      const char * const     i_functionName,
                                                      const char * const     i_signature,		    // signature is null terminated
                                                      const void * const     i_function /* , const void * const i_ref */);
