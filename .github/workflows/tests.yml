@@ -43,7 +43,6 @@ jobs:
         cd test
         ./run-spec-test.py --timeout 30
     - name: Run WASI tests
-      if: "!contains(matrix.flags, '-m32')" # TODO: remove this check
       run: |
         cd test
         ./run-wasi-test.py --timeout 120
