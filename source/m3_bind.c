@@ -359,8 +359,11 @@ M3Result  LinkFunction  (IM3Module io_module,  IM3Function io_function,  const c
 }
 
 
-// TODO: this should have a module name too.
-M3Result  m3_LinkCFunction  (IM3Module io_module,  const char * const i_functionName,  const char * const i_signature,  const void * i_function)
+M3Result  m3_LinkCFunction  (IM3Module io_module,
+                            const char * const i_moduleName,
+                            const char * const i_functionName,
+                            const char * const i_signature,
+                            const void * i_function)
 {
     M3Result result = c_m3Err_functionLookupFailed;
     
@@ -370,7 +373,8 @@ M3Result  m3_LinkCFunction  (IM3Module io_module,  const char * const i_function
         
         if (f->import.moduleUtf8 and f->import.fieldUtf8)
         {
-            if (strcmp (f->import.fieldUtf8, i_functionName) == 0)
+            if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
+                strcmp (f->import.moduleUtf8, i_moduleName) == 0)
             {
                 result = LinkFunction (io_module, f, i_signature, i_function);
             }
@@ -413,7 +417,10 @@ M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function,  cons
 }
 
 
-M3Result  m3_LinkRawFunction  (IM3Module io_module,  const char * const i_moduleName,  const char * const i_functionName,  const void * i_function)
+M3Result  m3_LinkRawFunction  (IM3Module io_module,
+                              const char * const i_moduleName,
+                              const char * const i_functionName,
+                              const void * i_function)
 {
     M3Result result = c_m3Err_functionLookupFailed;
     
@@ -423,7 +430,8 @@ M3Result  m3_LinkRawFunction  (IM3Module io_module,  const char * const i_module
         
         if (f->import.moduleUtf8 and f->import.fieldUtf8)
         {
-            if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and strcmp (f->import.moduleUtf8, i_moduleName) == 0)
+            if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
+                strcmp (f->import.moduleUtf8, i_moduleName) == 0)
             {
                 result = LinkRawFunction (io_module, f, i_function);
             }

@@ -252,6 +252,7 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
     
     M3Result            m3_LinkCFunction            (IM3Module              io_module,
+                                                     const char * const     i_moduleName,
                                                      const char * const     i_functionName,
                                                      const char * const     i_signature,		    // signature is null terminated
                                                      const void * const     i_function /* , const void * const i_ref */);

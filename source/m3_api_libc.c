@@ -7,7 +7,7 @@
 
 #include "m3_api_libc.h"
 
-#include "m3_core.h"
+#include "m3_api_defs.h"
 #include "m3_env.h"
 #include "m3_module.h"
 #include "m3_exception.h"
@@ -83,16 +83,18 @@ M3Result  m3_LinkLibC  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
+    const char* namespace = "env";
+
 //_   (SuppressLookupFailure (m3_LinkFunction (module, "_printf",           "v(**)",   &m3_libc_printf)));
 //_   (SuppressLookupFailure (m3_LinkFunction (module, "g$_stderr",         "i(M)",    &m3_libc_get_stderr)));
 
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "_memset",           "*(*ii)",  &m3_libc_memset)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "_memcpy",           "*(**i)",  &m3_libc_memcpy)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "_exit",             "Tv(i)",   &m3_libc_exit)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "_perror",           "v(*)",    &perror)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "_memset",           "*(*ii)",  &m3_libc_memset)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "_memcpy",           "*(**i)",  &m3_libc_memcpy)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "_exit",             "Tv(i)",   &m3_libc_exit)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "_perror",           "v(*)",    &perror)));
 
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "_clock",            "i()",     &m3_libc_clock)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "_clock_gettime",    "i(i*)",   &m3_libc_clock_gettime)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "_clock",            "i()",     &m3_libc_clock)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "_clock_gettime",    "i(i*)",   &m3_libc_clock_gettime)));
 
 
 _catch:

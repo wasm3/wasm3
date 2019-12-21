@@ -7,7 +7,7 @@
 
 #include "m3_api_wasi.h"
 
-#include "m3_core.h"
+#include "m3_api_defs.h"
 #include "m3_env.h"
 #include "m3_module.h"
 #include "m3_exception.h"
@@ -255,63 +255,62 @@ uint32_t m3_wasi_unstable_fd_seek(IM3Runtime          runtime,
 }
 
 
-#define d_m3GetArg(TYPE, NAME) TYPE NAME = * ((TYPE *) (_sp++));
-#define d_m3GetMemArg(TYPE, NAME) TYPE NAME = (TYPE) (_mem + * (u32 *) _sp++);
+m3ApiRawFunction(m3_wasi_unstable_path_open) {
+    m3ApiGetReturn   (uint32_t *,            o_return)
 
-void  m3_wasi_unstable_path_open  (u64 * _sp, u8 * _mem)
-{
-    uint32_t * o_return = (uint32_t *) _sp;
+    m3ApiGetArg      (__wasi_fd_t,           dirfd)
+    m3ApiGetArg      (__wasi_lookupflags_t,  dirflags)
+    m3ApiGetArgPtr   (const char *,          path)
+    m3ApiGetArg      (uint32_t,              path_len)
+    m3ApiGetArg      (__wasi_oflags_t,       oflags)
+    m3ApiGetArg      (__wasi_rights_t,       fs_rights_base)
+    m3ApiGetArg      (__wasi_rights_t,       fs_rights_inheriting)
+    m3ApiGetArg      (__wasi_fdflags_t,      fs_flags)
+    m3ApiGetArgPtr   (__wasi_fd_t *,         fd)
 
-    d_m3GetArg      (__wasi_fd_t,           dirfd)
-    d_m3GetArg      (__wasi_lookupflags_t,  dirflags)
-    d_m3GetMemArg   (const char *,          path)
-    d_m3GetArg      (uint32_t,              path_len)
-    d_m3GetArg      (__wasi_oflags_t,       oflags)
-    d_m3GetArg      (__wasi_rights_t,       fs_rights_base)
-    d_m3GetArg      (__wasi_rights_t,       fs_rights_inheriting)
-    d_m3GetArg      (__wasi_fdflags_t,      fs_flags)
-    d_m3GetMemArg   (__wasi_fd_t *,         fd)
-
-    if (path_len < 512)
+    if (path_len >= 512)
     {
-        // copy path so we can ensure it is NULL terminated
-        char host_path [path_len+1];
-
-        memcpy (host_path, path, path_len);
-        host_path [path_len] = '\0'; // NULL terminator
-
-        // translate o_flags and fs_flags into flags and mode
-        int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
-                    //((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
-                    ((oflags & __WASI_O_EXCL)              ? O_EXCL      : 0) |
-                    ((oflags & __WASI_O_TRUNC)             ? O_TRUNC     : 0) |
-                    ((fs_flags & __WASI_FDFLAG_APPEND)     ? O_APPEND    : 0) |
-                    //((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
-                    ((fs_flags & __WASI_FDFLAG_NONBLOCK)   ? O_NONBLOCK  : 0) |
-                    //((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
-                    ((fs_flags & __WASI_FDFLAG_SYNC)       ? O_SYNC      : 0);
-        if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
-            (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
-            flags |= O_RDWR;
-        } else if ((fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
-            flags |= O_WRONLY;
-        } else if ((fs_rights_base & __WASI_RIGHT_FD_READ)) {
-            flags |= O_RDONLY; // no-op because O_RDONLY is 0
-        }
-        int mode = 0644;
-        int host_fd = openat (dirfd, host_path, flags, mode);
-        
-        if (host_fd < 0)
-        {
-            * o_return = errno_to_wasi (errno);
-        }
-        else
-        {
-            * fd = host_fd;
-            * o_return = __WASI_ESUCCESS;
-        }
+        * o_return = __WASI_EINVAL;
+        return;
     }
-    else * o_return = __WASI_EINVAL;
+
+    // copy path so we can ensure it is NULL terminated
+    char host_path [path_len+1];
+
+    memcpy (host_path, path, path_len);
+    host_path [path_len] = '\0'; // NULL terminator
+
+    // translate o_flags and fs_flags into flags and mode
+    int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
+                //((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
+                ((oflags & __WASI_O_EXCL)              ? O_EXCL      : 0) |
+                ((oflags & __WASI_O_TRUNC)             ? O_TRUNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_APPEND)     ? O_APPEND    : 0) |
+                //((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_NONBLOCK)   ? O_NONBLOCK  : 0) |
+                //((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_SYNC)       ? O_SYNC      : 0);
+    if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
+        (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= O_RDWR;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= O_WRONLY;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_READ)) {
+        flags |= O_RDONLY; // no-op because O_RDONLY is 0
+    }
+    int mode = 0644;
+    int host_fd = openat (dirfd, host_path, flags, mode);
+
+    if (host_fd < 0)
+    {
+        * o_return = errno_to_wasi (errno);
+    }
+    else
+    {
+        * fd = host_fd;
+        * o_return = __WASI_ESUCCESS;
+    }
+
 }
 
 uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
@@ -455,38 +454,38 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
+    const char* namespace  = "wasi_unstable";
+
     // Preopen dirs
     for (int i = 3; i < PREOPEN_CNT; i++) {
         preopen[i].fd = open(preopen[i].path, O_RDONLY);
     }
-
-    // TODO LinkFunction should have module name argument too
     
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "args_sizes_get",      "i(R**)",       &m3_wasi_unstable_args_sizes_get)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "environ_sizes_get",   "i(Rii)",       &m3_wasi_unstable_environ_sizes_get)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "args_get",            "i(R**)",       &m3_wasi_unstable_args_get)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "environ_get",         "i(Rii)",       &m3_wasi_unstable_environ_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "args_sizes_get",      "i(R**)",       &m3_wasi_unstable_args_sizes_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "environ_sizes_get",   "i(Rii)",       &m3_wasi_unstable_environ_sizes_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "args_get",            "i(R**)",       &m3_wasi_unstable_args_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "environ_get",         "i(Rii)",       &m3_wasi_unstable_environ_get)));
 
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_prestat_dir_name",  "i(Ri*i)",     &m3_wasi_unstable_fd_prestat_dir_name)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_prestat_get",       "i(Ri*)",      &m3_wasi_unstable_fd_prestat_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_prestat_dir_name",  "i(Ri*i)",     &m3_wasi_unstable_fd_prestat_dir_name)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_prestat_get",       "i(Ri*)",      &m3_wasi_unstable_fd_prestat_get)));
 
-_   (SuppressLookupFailure (m3_LinkRawFunction  (module, "wasi_unstable",      "path_open",      &m3_wasi_unstable_path_open)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "path_open", &m3_wasi_unstable_path_open)));
 
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_fdstat_get",       "i(Ri*)",       &m3_wasi_unstable_fd_fdstat_get)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_write",            "i(Riii*)",     &m3_wasi_unstable_fd_write)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_read",             "i(Riii*)",     &m3_wasi_unstable_fd_read)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_seek",             "i(Riii*)",     &m3_wasi_unstable_fd_seek)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_datasync",         "i(i)",         &m3_wasi_unstable_fd_datasync)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "fd_close",            "i(i)",         &m3_wasi_unstable_fd_close)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_fdstat_get",       "i(Ri*)",       &m3_wasi_unstable_fd_fdstat_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_write",            "i(Riii*)",     &m3_wasi_unstable_fd_write)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_read",             "i(Riii*)",     &m3_wasi_unstable_fd_read)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_seek",             "i(Riii*)",     &m3_wasi_unstable_fd_seek)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_datasync",         "i(i)",         &m3_wasi_unstable_fd_datasync)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_close",            "i(i)",         &m3_wasi_unstable_fd_close)));
 
-//_   (SuppressLookupFailure (m3_LinkFunction (module, "sock_send",     "i(Riii*)",    &...)));
-//_   (SuppressLookupFailure (m3_LinkFunction (module, "sock_recv",     "i(Riii*)",    &...)));
+//_   (SuppressLookupFailure (m3_LinkFunction (module, namespace, "sock_send",     "i(Riii*)",    &...)));
+//_   (SuppressLookupFailure (m3_LinkFunction (module, namespace, "sock_recv",     "i(Riii*)",    &...)));
 
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "random_get",          "v(*i)",        &m3_wasi_unstable_random_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "random_get",          "v(*i)",        &m3_wasi_unstable_random_get)));
 
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "clock_res_get",       "v(Ri*)",       &m3_wasi_unstable_clock_res_get)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "clock_time_get",      "v(RiI*)",      &m3_wasi_unstable_clock_time_get)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, "proc_exit",           "v(i)",         &m3_wasi_unstable_proc_exit)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "clock_res_get",       "v(Ri*)",       &m3_wasi_unstable_clock_res_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "clock_time_get",      "v(RiI*)",      &m3_wasi_unstable_clock_time_get)));
+_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "proc_exit",           "v(i)",         &m3_wasi_unstable_proc_exit)));
 
 _catch:
     return result;
