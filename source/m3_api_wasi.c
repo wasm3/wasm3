@@ -470,6 +470,9 @@ m3ApiRawFunction(m3_wasi_unstable_proc_exit)
     m3ApiGetArg      (uint32_t, code)
 
     // TODO: in repl mode, trap and bail out
+    if (code) {
+        fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", code);
+    }
     exit(code);
 }
 
