@@ -161,4 +161,4 @@ jobs:
       continue-on-error: true    # TODO
       run: |
         cd test
-        ./run-wasi-test.py
+        ./run-wasi-test.py --timeout 120
