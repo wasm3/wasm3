@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.9)
 set(OUT_FILE "wasm3")
 set(APP_DIR  "platforms/app")
 
+if(HARDCODED) # Bundle a wasm binary and run a hard-coded func
+  set(APP_DIR          "platforms/emscripten")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
+endif()
+
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
   set(CMAKE_CXX_COMPILER "clang++${CLANG_SUFFIX}")
@@ -36,11 +41,6 @@ if(WASIENV)
   set(CMAKE_CXX_COMPILER "wasic++")
 
   set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
-
-  if(HARD_CODED) # Bundle a wasm binary and run a hard-coded func
-    set(APP_DIR          "platforms/emscripten")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
-  endif()
 endif()
 
 if(BUILD_32BIT)
