@@ -11,8 +11,8 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
-        build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]            
         flags: ["", "-m32"]
+        build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]
 
         exclude:
           - compiler: clang
@@ -76,8 +76,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolset: ["-T ClangCL", ""]
         platform: ["-A x86", "-A x64"]
+        toolset: ["-T ClangCL", ""]
 
     steps:
     - uses: actions/checkout@v1
