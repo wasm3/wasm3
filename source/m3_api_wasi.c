@@ -314,21 +314,24 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
 
 }
 
-uint32_t m3_wasi_unstable_fd_read(IM3Runtime    runtime,
-                                  __wasi_fd_t   fd,
-                                  uint32_t      iovs_offset,
-                                  __wasi_size_t iovs_len,
-                                  __wasi_size_t* nread)
+m3ApiRawFunction(m3_wasi_unstable_fd_read)
 {
-    if (runtime == NULL || nread == NULL) { return __WASI_EINVAL; }
+    m3ApiReturnType  (uint32_t)
+
+    m3ApiGetArg      (__wasi_fd_t          , fd)
+    m3ApiGetArg      (uint32_t             , iovs_offset)
+    m3ApiGetArg      (__wasi_size_t        , iovs_len)
+    m3ApiGetArgMem   (__wasi_size_t*       , nread)
+
+    if (runtime == NULL || nread == NULL) { m3ApiReturn(__WASI_EINVAL); }
 
     struct iovec iovs[iovs_len];
     copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
 
     ssize_t ret = readv(fd, iovs, iovs_len);
-    if (ret < 0) { return errno_to_wasi(errno); }
+    if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
     *nread = ret;
-    return __WASI_ESUCCESS;
+    m3ApiReturn(__WASI_ESUCCESS);
 }
 
 uint32_t m3_wasi_unstable_fd_write(IM3Runtime    runtime,
@@ -474,7 +477,7 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "path_open", 
 
 _   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_fdstat_get",       "i(Ri*)",       &m3_wasi_unstable_fd_fdstat_get)));
 _   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_write",            "i(Riii*)",     &m3_wasi_unstable_fd_write)));
-_   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_read",             "i(Riii*)",     &m3_wasi_unstable_fd_read)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_read",           &m3_wasi_unstable_fd_read)));
 _   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_seek",             "i(Riii*)",     &m3_wasi_unstable_fd_seek)));
 _   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_datasync",         "i(i)",         &m3_wasi_unstable_fd_datasync)));
 _   (SuppressLookupFailure (m3_LinkCFunction (module, namespace, "fd_close",            "i(i)",         &m3_wasi_unstable_fd_close)));

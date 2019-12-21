@@ -30,7 +30,7 @@ M3State;
 typedef m3ret_t (* M3ArgPusher) (d_m3BindingArgList, M3State * i_state);
 typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
 
-typedef m3ret_t (* M3RawCall) (u64 * _sp, void * _mem);
+typedef m3ret_t (* M3RawCall) (IM3Runtime runtime, u64 * _sp, void * _mem);
 
 
 m3ret_t PushArg_runtime (d_m3BindingArgList, M3State * _state)
@@ -389,8 +389,9 @@ M3Result  m3_LinkCFunction  (IM3Module io_module,
 
 d_m3RetSig  CallRawFunction  (d_m3OpSig)
 {
-    M3RawCall call = (M3RawCall) (* _pc);
-    call (_sp, _mem);
+    M3RawCall call = (M3RawCall) (* _pc++);
+    IM3Runtime runtime = (IM3Runtime) (* _pc++);
+    call (runtime, _sp, _mem);
     return NULL;
 }
 
@@ -408,6 +409,7 @@ M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function,  cons
 
         EmitWord (page, CallRawFunction);
         EmitWord (page, i_function);
+        EmitWord (page, io_module->runtime);
         
         ReleaseCodePage (io_module->runtime, page);
     }
