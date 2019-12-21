@@ -391,8 +391,8 @@ d_m3RetSig  CallRawFunction  (d_m3OpSig)
 {
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = (IM3Runtime) (* _pc++);
-    call (runtime, _sp, _mem);
-    return NULL;
+    m3ret_t possible_trap = call (runtime, _sp, _mem);
+    return possible_trap;
 }
 
 
