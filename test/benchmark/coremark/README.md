@@ -17,7 +17,8 @@ Wasmer 0.11.0 cranelift        6875      4.1x
 wasmer-js (Node v13.0.1)       9090      5.4x
 Wasmer 0.11.0 llvm            10526      6.3x
 WAVM                          15384      9.2x
-Native (GCC 7.4.0, 32-bit)    19104     11.5x
+Native (GCC 7.4.0, 32-bit)    17976     10.8x
+Native (GCC 7.4.0, 64-bit)    19104     11.5x
 ```
 
 ### Building
