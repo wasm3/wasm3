@@ -3,6 +3,9 @@
 #include <string.h>
 #include <time.h>
 
+#include <sys/stat.h>
+#include <fcntl.h>
+
 /*
  * Helpers
  */
@@ -105,6 +108,20 @@ void test_perf_fib(uint32_t n) {
   printf("%d [%.3f ms]\n", result, fms);
 }
 
+void test_cat(char* fn) {
+  int file = open(fn, O_RDONLY);
+  if (file >= 0) {
+    char c = 0;
+    while (read(file, &c, sizeof(c)) > 0) {
+      printf("%02x ", c);
+    }
+    close(file);
+    puts("");
+  } else {
+    printf("Cannot open %s\n", fn);
+  }
+}
+
 /*
  * Main
  */
@@ -116,8 +133,12 @@ int main(int argc, char **argv)
   test_printf();
   test_args(argc, argv);
   test_gettime();
-  test_random();
+  //test_random();
   test_perf_fib(20);
+
+  if (0 == strcmp(argv[1], "cat")) {
+    test_cat(argv[2]);
+  }
 
   puts("=== done ===");
   return 0;

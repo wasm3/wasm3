@@ -4,7 +4,7 @@
 # Usage:
 #   ./run-wasi-test.py
 #   ./run-wasi-test.py --exec ../custom_build/wasm3 --timeout 120
-#   ./run-wasi-test.py --exec "wasmer run"
+#   ./run-wasi-test.py --exec "wasmer run --dir=."
 #
 
 import argparse
@@ -63,13 +63,13 @@ commands = [
   {
     "name":           "Simple WASI test",
     "wasm":           "./wasi/test.wasm",
-    "args":           ["args", "test"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
+    "args":           ["cat", "./wasi/0.txt"],
+    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
     "name":           "Simple WASI test (wasm-opt -O3)",
     "wasm":           "./wasi/test-opt.wasm",
-    "args":           ["args", "test"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *; args; test;*fib(20) = 6765*[* ms]*=== done ===*"
+    "args":           ["cat", "./wasi/0.txt"],
+    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
     "name":           "mandelbrot",
     "wasm":           "./benchmark/mandelbrot/mandel.wasm",
@@ -97,6 +97,7 @@ commands = [
     "wasm":           "./benchmark/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
   }, {
+    # TODO "if":             { "file_exists": "./self-hosting/wasm3-fib.wasm" },
     "name":           "Self-hosting",
     "wasm":           "./self-hosting/wasm3-fib.wasm",
     "expect_pattern": "wasm3 on WASM*Result: 832040*Elapsed: * ms*"
