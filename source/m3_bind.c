@@ -398,9 +398,9 @@ d_m3RetSig  CallRawFunction  (d_m3OpSig)
 
 M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function,  const void * i_function)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = c_m3Err_none;                                                 d_m3Assert (io_module->runtime);
     
-    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 2);
+    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 3);
     
     if (page)
     {
