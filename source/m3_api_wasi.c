@@ -5,6 +5,8 @@
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
 //
 
+#define _POSIX_C_SOURCE 199309L
+
 #include "m3_api_wasi.h"
 
 #include "m3_api_defs.h"
@@ -23,7 +25,7 @@ typedef uint32_t __wasi_size_t;
 #include <errno.h>
 #include <stdio.h>
 
-#if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
+#if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__)
 #  include <unistd.h>
 #  include <sys/uio.h>
 #  include <sys/random.h>
@@ -410,7 +412,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
 
-        fprintf(stderr, "R %d %d\n", i, len);
+        //fprintf(stderr, "R %d %d\n", i, len);
 
         int ret = _read (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
@@ -448,7 +450,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
 
-        fprintf(stderr, "W %d %d\n", i, len);
+        //fprintf(stderr, "W %d %d\n", i, len);
 
         int ret = _write (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
