@@ -274,9 +274,16 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     m3ApiGetArgMem   (__wasi_fdstat_t*     , fdstat)
 
     if (runtime == NULL || fdstat == NULL) { m3ApiReturn(__WASI_EINVAL); }
-
+    
 #ifdef _WIN32
-    fdstat->fs_filetype = 0;
+
+    // TODO: This needs a proper implementation
+    if (fd < PREOPEN_CNT){
+        fdstat->fs_filetype= __WASI_FILETYPE_DIRECTORY;
+    }else{
+        fdstat->fs_filetype= __WASI_FILETYPE_REGULAR_FILE;
+    }
+    
     fdstat->fs_flags = 0;
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
@@ -291,7 +298,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
                           (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
                           (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
                           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
-                          (S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
+                          //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
                           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
     fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
                        ((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
@@ -342,19 +349,49 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     m3ApiGetArgMem   (__wasi_fd_t *        , fd)
 
     if (path_len >= 512)
-    {
         m3ApiReturn(__WASI_EINVAL);
-    }
 
-#ifdef _WIN32
-    // TODO
-#else
     // copy path so we can ensure it is NULL terminated
+#if defined(M3_COMPILER_MSVC)
+    char host_path [512];
+#else
     char host_path [path_len+1];
-
+#endif
     memcpy (host_path, path, path_len);
     host_path [path_len] = '\0'; // NULL terminator
 
+    printf ("== path_open: %s\n", host_path);
+
+#ifdef _WIN32
+    // TODO: This all needs a proper implementation
+
+    int flags = ((oflags & __WASI_O_CREAT)             ? _O_CREAT     : 0) |
+                ((oflags & __WASI_O_EXCL)              ? _O_EXCL      : 0) |
+                ((oflags & __WASI_O_TRUNC)             ? _O_TRUNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_APPEND)     ? _O_APPEND    : 0);
+
+    if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
+        (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= _O_RDWR;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= _O_WRONLY;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_READ)) {
+        flags |= _O_RDONLY; // no-op because O_RDONLY is 0
+    }
+    int mode = 0644;
+
+    int host_fd = _open (host_path, flags, mode);
+
+    if (host_fd < 0)
+    {
+        m3ApiReturn(errno_to_wasi (errno));
+    }
+    else
+    {
+        * fd = host_fd;
+        m3ApiReturn(__WASI_ESUCCESS);
+    }
+#else
     // translate o_flags and fs_flags into flags and mode
     int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
                 ((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
@@ -597,7 +634,6 @@ M3Result  m3_LinkWASI  (IM3Module module)
     setmode(fileno(stdout), O_BINARY);
     setmode(fileno(stderr), O_BINARY);
 
-    // TODO
 #else
     // Preopen dirs
     for (int i = 3; i < PREOPEN_CNT; i++) {
