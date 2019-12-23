@@ -5,7 +5,7 @@
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
 //
 
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200809L
 
 #include "m3_api_wasi.h"
 
@@ -298,7 +298,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
                           (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
                           (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
                           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
-                          //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
+                          (S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
                           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
     fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
                        ((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
