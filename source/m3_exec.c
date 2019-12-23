@@ -311,14 +311,15 @@ d_m3OpDef  (Loop)
 {
     m3ret_t r;
 
-    IM3Memory memory = immediate (IM3Memory); 		// FIX: get M3Memory from _mem
-	
+    M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
+    IM3Memory memory = & header->runtime->memory;
+    
     do
     {
         // linear memory pointer needs refreshed here because the block it's loop over
         // can potentially invoke the grow operator.
-        _mem = memory->wasmPages;
         r = nextOp ();                     // printf ("loop: %p\n", r);
+        _mem = memory->wasmPages;
     }
     while (r == _pc);
 

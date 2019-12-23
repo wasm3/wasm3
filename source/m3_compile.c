@@ -1013,9 +1013,6 @@ M3Result  Compile_BranchTable  (IM3Compilation o, u8 i_opcode)
     u32 targetCount;
 _   (ReadLEB_u32 (& targetCount, & o->wasm, o->wasmEnd));
 
-    u32 numCodeLines = targetCount + 3; // 3 => IM3Operation + target_count + default_target
-_   (EnsureCodePageNumLines (o, numCodeLines));
-
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i64));         // move branch operand to a slot
     u16 slot = GetStackTopSlotIndex (o);
 _   (Pop (o));
@@ -1025,6 +1022,9 @@ _   (Pop (o));
     // So, this move-to-reg is only necessary if the target scopes have a type.
     if (GetNumBlockValues (o) > 0)
 _      (MoveStackTopToRegister (o));
+
+    u32 numCodeLines = targetCount + 4; // 3 => IM3Operation + slot + target_count + default_target
+_   (EnsureCodePageNumLines (o, numCodeLines));
 
 _   (EmitOp (o, op_BranchTable));
     EmitConstant (o, slot);
@@ -1251,10 +1251,7 @@ _   (PreserveRegisters (o));
 _   (ReadBlockType (o, & blockType));
 
     if (i_opcode == c_waOp_loop)
-    {
 _       (EmitOp (o, op_Loop));
-        EmitMemory (o);
-    }
 
 _   (CompileBlock (o, blockType, i_opcode));
 
@@ -1869,7 +1866,7 @@ M3Result  Compile_BlockScoped  (IM3Compilation o, /*pc_t * o_startPC,*/ u8 i_blo
     block->type             = i_blockType;
     block->initStackIndex   = o->stackIndex;
     block->depth            ++;
-    block->loopDepth        += (i_blockOpcode == c_waOp_loop);
+//    block->loopDepth        += (i_blockOpcode == c_waOp_loop);
     block->opcode           = i_blockOpcode;
 
 _   (Compile_BlockStatements (o));

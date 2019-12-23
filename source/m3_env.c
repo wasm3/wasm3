@@ -281,6 +281,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         
         if (memory->mallocated)
         {
+            u8 * oldPages = memory->wasmPages;
             memory->numPages = numPagesToAlloc;
             memory->wasmPages = (u8 *) (memory->mallocated + 1);
             
@@ -292,7 +293,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
             
             size_t diff = (u8*) (memory->mallocated->maxStack) - (u8*) io_runtime->stack;
             
-            m3log (runtime, "resized mem: %p; end: %p; pages: %d", memory->wasmPages, memory->mallocated->end, memory->numPages);
+            m3log (runtime, "resized old: %p; mem: %p; end: %p; pages: %d", oldPages, memory->wasmPages, memory->mallocated->end, memory->numPages);
         }
         else result = c_m3Err_mallocFailed;
     }
@@ -761,18 +762,18 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
         IM3Runtime env = i_runtime;
         IM3CodePage * list;
 
-        if (NumFreeLines (i_codePage) < c_m3CodePageFreeLinesThreshold)
+        bool pageFull = (NumFreeLines (i_codePage) < c_m3CodePageFreeLinesThreshold);
+        if (pageFull)
             list = & i_runtime->pagesFull;
         else
             list = & i_runtime->pagesOpen;
 
-        PushCodePage (list, i_codePage);
+        PushCodePage (list, i_codePage);                                                m3log (emit, "release page: %d to queue: '%s'", i_codePage->info.sequence, pageFull ? "full" : "open")
         env->numActiveCodePages--;
         
 #       if defined (DEBUG)
             u32 numOpen = CountPages (i_runtime->pagesOpen);
             u32 numFull = CountPages (i_runtime->pagesFull);
-//            u32 numTotal = env->numCodePages : numFull + numOpen;
         
             m3log (code, "runtime: %p; open-pages: %d; full-pages: %d; active: %d; total: %d", i_runtime, numOpen, numFull, env->numActiveCodePages, env->numCodePages);
         
