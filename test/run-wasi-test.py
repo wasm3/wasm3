@@ -21,7 +21,7 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
-parser.add_argument("--timeout", type=int,             default=30)
+parser.add_argument("--timeout", type=int,             default=120)
 
 args = parser.parse_args()
 

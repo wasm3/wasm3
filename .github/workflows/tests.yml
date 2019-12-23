@@ -40,11 +40,11 @@ jobs:
     - name: Run spec tests
       run: |
         cd test
-        ./run-spec-test.py --timeout 30
+        ./run-spec-test.py
     - name: Run WASI tests
       run: |
         cd test
-        ./run-wasi-test.py --timeout 120
+        ./run-wasi-test.py
 
   build-mac:
     runs-on: macos-latest
@@ -97,7 +97,7 @@ jobs:
     - name: Run WASI tests
       run: |
         cd test
-        python run-wasi-test.py --timeout 120
+        python run-wasi-test.py
 
   build-wasi:
     runs-on: ubuntu-latest
@@ -163,4 +163,4 @@ jobs:
     - name: Run WASI tests
       run: |
         cd test
-        ./run-wasi-test.py --timeout 120
+        ./run-wasi-test.py
