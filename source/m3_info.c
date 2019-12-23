@@ -403,6 +403,7 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 
 u16  GetMaxExecSlot  (IM3Compilation o);
 
+
 void emit_stack_dump (IM3Compilation o)
 {
 #   if d_m3RuntimeStackDumps
@@ -416,5 +417,19 @@ void emit_stack_dump (IM3Compilation o)
         o->numEmits = 0;
     }
 #   endif
+}
+
+
+void  log_emit  (IM3Compilation o, IM3Operation i_operation)
+{
+# if DEBUG
+    OpInfo i = find_operation_info (i_operation);
+    
+    if (i.info)
+    {
+        printf ("%p: %s", GetPC (o),  i.info->name);
+    }
+    else printf ("not found: %p", i_operation);
+# endif
 }
 

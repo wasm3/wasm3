@@ -21,9 +21,10 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 
         if (page)
         {
+            d_m3Assert (NumFreeLines (o->page) >= 2);
             m3log (emit, "bridging new code page from: %d %p (free slots: %d) to: %d", o->page->info.sequence, GetPC (o), NumFreeLines (o->page), page->info.sequence);
-
-            EmitWord (o->page, op_Bridge);                  d_m3Assert (NumFreeLines (o->page) >= 2);
+            
+            EmitWord (o->page, op_Bridge);
             EmitWord (o->page, GetPagePC (page));
 
             ReleaseCodePage (o->runtime, o->page);
@@ -40,21 +41,7 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 // have execution jump to a new page if slots are critically low
 M3Result  BridgeToNewPageIfNecessary  (IM3Compilation o)
 {
-    return EnsureCodePageNumLines (o, c_m3CodePageFreeLinesThreshold - 2);
-}
-
-
-void  log_emit  (IM3Compilation o, IM3Operation i_operation)
-{
-# if DEBUG
-    OpInfo i = find_operation_info (i_operation);
-    
-    if (i.info)
-    {
-        printf ("%p: %s", GetPC (o),  i.info->name);
-    }
-    else printf ("not found: %p", i_operation);
-# endif
+    return EnsureCodePageNumLines (o, c_m3CodePageFreeLinesThreshold);
 }
 
 

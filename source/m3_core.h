@@ -28,6 +28,7 @@ typedef int8_t          i8;
 
 
 typedef const void *            m3ret_t;
+typedef const void *            voidptr_t;
 typedef const char *            cstr_t;
 typedef const char * const      ccstr_t;
 typedef const u8 *              bytes_t;
@@ -140,7 +141,7 @@ typedef struct M3CodePageHeader
 M3CodePageHeader;
 
 
-#define c_m3CodePageFreeLinesThreshold      10
+#define c_m3CodePageFreeLinesThreshold      4       // max is probably: select _sss 
 
 #define c_m3MemPageSize                     65536
 #define c_m3MaxFunctionStackHeight          d_m3MaxFunctionStackHeight
@@ -152,7 +153,6 @@ M3CodePageHeader;
 
 #define c_m3AlignWasmMemoryToPages          d_m3AlignWasmMemoryToPages
 
-//#define   c_m3MaxSaneWasmSize             1000000000
 #define c_m3MaxSaneUtf8Length               2000
 #define c_m3MaxNumFunctionArgs              d_m3MaxNumFunctionArgs
 

@@ -39,14 +39,16 @@
 # define constant64(TYPE)           * ((TYPE *) _pc++)
 #endif
 
-
 #define nextOpDirect()              ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 #define jumpOpDirect(PC)            ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
 
 # if d_m3EnableOpProfiling
-#   define nextOp()                 profileOp (d_m3OpAllArgs, __PRETTY_FUNCTION__)
+
+d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName);
+
+#   define nextOp()                 profileOp (d_m3OpAllArgs, __FUNCTION__)
 # elif d_m3TraceExec
-#   define nextOp()                 debugOp (d_m3OpAllArgs, __PRETTY_FUNCTION__)
+#   define nextOp()                 debugOp (d_m3OpAllArgs, __FUNCTION__)
 # else
 #   define nextOp()                 nextOpDirect()
 # endif
@@ -58,44 +60,6 @@ d_m3RetSig  Call  (d_m3OpSig)
     m3Yield ();
     return nextOpDirect();
 }
-
-
-d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
-{
-    char name [100];
-    strcpy (name, strstr (i_opcode, "op_") + 3);
-    char * bracket = strstr (name, "(");
-    if (bracket) {
-        *bracket  = 0;
-    }
-
-    puts (name);
-    return nextOpDirect();
-}
-
-static const u32 c_m3ProfilerSlotMask = 0xFFFF;
-
-typedef struct M3ProfilerSlot
-{
-    cstr_t      opName;
-    u64         hitCount;
-}
-M3ProfilerSlot;
-
-void  ProfileHit  (cstr_t i_operationName);
-
-d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
-{
-    ProfileHit (i_operationName);
-
-    return nextOpDirect();
-}
-
-#if d_m3RuntimeStackDumps
-d_m3OpDecl  (DumpStack)
-#endif
-
-
 
 // TODO: OK, this needs some explanation here ;0
 
@@ -615,6 +579,7 @@ d_m3Op  (ContinueLoopIf)
 d_m3OpDecl  (Compile)
 d_m3OpDecl  (Call)
 d_m3OpDecl  (CallIndirect)
+d_m3OpDecl  (CallRawFunction)
 d_m3OpDecl  (Entry)
 
 d_m3OpDecl  (MemCurrent)
@@ -676,15 +641,8 @@ d_m3Op  (SetGlobal_f64)
 }
 
 
-d_m3Op (CopySlot_64)
-{
-    u64 * dst = slot_ptr (u64);
-    u64 * src = slot_ptr (u64);
-    
-    * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
-    return nextOp ();
-}
+d_m3OpDecl (CopySlot_64)
 
 
 d_m3Op (PreserveCopySlot_64)
@@ -898,6 +856,50 @@ d_m3Store_i (i64, i64)
 
 //---------------------------------------------------------------------------------------------------------------------
 # endif
+
+
+//---------------------------------------------------------------------------------------------------------------------
+// debug/profiling
+//---------------------------------------------------------------------------------------------------------------------
+#if d_m3TraceExec
+d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
+{
+    char name [100];
+    strcpy (name, strstr (i_opcode, "op_") + 3);
+    char * bracket = strstr (name, "(");
+    if (bracket) {
+        *bracket  = 0;
+    }
+    
+    puts (name);
+    return nextOpDirect();
+}
+# endif
+
+# if d_m3RuntimeStackDumps
+d_m3OpDecl  (DumpStack)
+# endif
+
+# if d_m3EnableOpProfiling
+static const u32 c_m3ProfilerSlotMask = 0xFFFF;
+
+typedef struct M3ProfilerSlot
+{
+    cstr_t      opName;
+    u64         hitCount;
+}
+M3ProfilerSlot;
+
+void  ProfileHit  (cstr_t i_operationName);
+
+d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
+{
+    ProfileHit (i_operationName);
+
+    return nextOpDirect();
+}
+# endif
+
 
 
 #endif /* m3_exec_h */

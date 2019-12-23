@@ -30,8 +30,6 @@ M3State;
 typedef m3ret_t (* M3ArgPusher) (d_m3BindingArgList, M3State * i_state);
 typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
 
-typedef m3ret_t (* M3RawCall) (IM3Runtime runtime, u64 * _sp, void * _mem);
-
 
 m3ret_t PushArg_runtime (d_m3BindingArgList, M3State * _state)
 {
@@ -259,9 +257,11 @@ M3Result  m3_RegisterFunction  (IM3Runtime io_runtime,  const char * const i_fun
 }
 
 
+typedef M3Result  (* M3Linker)  (IM3Module io_module,  IM3Function io_function,  const char * const i_signature,  const void * i_function);
 
 
-M3Result  LinkFunction  (IM3Module io_module,  IM3Function io_function,  const char * const i_signature,  const void * i_function)
+
+M3Result  LinkCFunction  (IM3Module io_module,  IM3Function io_function,  const char * const i_signature,  const void * i_function)
 {
     M3Result result = c_m3Err_none;
 
@@ -359,11 +359,12 @@ M3Result  LinkFunction  (IM3Module io_module,  IM3Function io_function,  const c
 }
 
 
-M3Result  m3_LinkCFunction  (IM3Module io_module,
-                            const char * const i_moduleName,
-                            const char * const i_functionName,
-                            const char * const i_signature,
-                            const void * i_function)
+M3Result  FindAndLinkFunction      (IM3Module       io_module,
+                                    ccstr_t         i_moduleName,
+                                    ccstr_t         i_functionName,
+                                    ccstr_t         i_signature,
+                                    voidptr_t       i_function,
+                                    const M3Linker  i_linker)
 {
     M3Result result = c_m3Err_functionLookupFailed;
     
@@ -376,40 +377,42 @@ M3Result  m3_LinkCFunction  (IM3Module io_module,
             if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
                 strcmp (f->import.moduleUtf8, i_moduleName) == 0)
             {
-                result = LinkFunction (io_module, f, i_signature, i_function);
+                result = i_linker (io_module, f, i_signature, i_function);
             }
         }
     }
-
+    
     return result;
+}
+
+
+
+M3Result  m3_LinkCFunction  (IM3Module io_module,
+                            const char * const i_moduleName,
+                            const char * const i_functionName,
+                            const char * const i_signature,
+                            const void * i_function)
+{
+    return FindAndLinkFunction (io_module, i_moduleName, i_functionName, i_signature, i_function, LinkCFunction);
 }
 
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-d_m3RetSig  CallRawFunction  (d_m3OpSig)
-{
-    M3RawCall call = (M3RawCall) (* _pc++);
-    IM3Runtime runtime = (IM3Runtime) (* _pc++);
-    m3ret_t possible_trap = call (runtime, _sp, _mem);
-    return possible_trap;
-}
 
-
-M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function,  const void * i_function)
+M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr_t i_signature,  const void * i_function)
 {
     M3Result result = c_m3Err_none;                                                 d_m3Assert (io_module->runtime);
     
-    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 3);
+    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 2);
     
     if (page)
     {
         io_function->compiled = GetPagePC (page);
         io_function->module = io_module;
 
-        EmitWord (page, CallRawFunction);
+        EmitWord (page, op_CallRawFunction);
         EmitWord (page, i_function);
-        EmitWord (page, io_module->runtime);
         
         ReleaseCodePage (io_module->runtime, page);
     }
@@ -419,30 +422,13 @@ M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function,  cons
 }
 
 
-M3Result  m3_LinkRawFunction  (IM3Module io_module,
-                              const char * const i_moduleName,
-                              const char * const i_functionName,
-                              const void * i_function)
+M3Result  m3_LinkRawFunction  (IM3Module            io_module,
+                              const char * const    i_moduleName,
+                              const char * const    i_functionName,
+                              M3RawCall             i_function)
 {
-    M3Result result = c_m3Err_functionLookupFailed;
-    
-    for (u32 i = 0; i < io_module->numFunctions; ++i)
-    {
-        IM3Function f = & io_module->functions [i];
-        
-        if (f->import.moduleUtf8 and f->import.fieldUtf8)
-        {
-            if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
-                strcmp (f->import.moduleUtf8, i_moduleName) == 0)
-            {
-                result = LinkRawFunction (io_module, f, i_function);
-            }
-        }
-    }
-    
-    return result;
+    return FindAndLinkFunction (io_module, i_moduleName, i_functionName, NULL, i_function, LinkRawFunction);
 }
-
 
 
 

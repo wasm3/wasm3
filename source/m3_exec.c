@@ -54,9 +54,6 @@ void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 }
 
 
-
-
-
 d_m3OpDef  (Call)
 {
     pc_t callPC                 = immediate (pc_t);
@@ -138,6 +135,16 @@ d_m3OpDef  (CallIndirect)
 }
 
 
+d_m3OpDef  (CallRawFunction)
+{
+    M3RawCall call = (M3RawCall) (* _pc++);
+    IM3Runtime runtime = GetRuntime (_mem);
+    
+    m3ret_t possible_trap = call (runtime, _sp, _mem);
+    return possible_trap;
+}
+
+
 d_m3OpDef  (MemCurrent)
 {
     // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
@@ -205,7 +212,7 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
-    M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
+    M3MemoryHeader * header = GetMemoryHeader (_mem);
         
     if ((void *) _sp <= header->maxStack)
     {
@@ -239,78 +246,6 @@ d_m3OpDef  (Entry)
         return r;
     }
     else return c_m3Err_trapStackOverflow;
-}
-
-
-#if d_m3RuntimeStackDumps
-d_m3OpDef  (DumpStack)
-{
-    u32 opcodeIndex         = immediate (u32);
-    u64 stackHeight         = immediate (u64);
-    IM3Function function    = immediate (IM3Function);
-
-    cstr_t funcName = (function) ? function->name : "";
-
-    printf (" %4d ", opcodeIndex);
-    printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
-    printf ("                                     fp0: %lf  \n", _fp0);
-
-    u64 * sp = _sp;
-
-    for (u32 i = 0; i < stackHeight; ++i)
-    {
-        printf ("%016llx  ", (u64) sp);
-
-        cstr_t kind = "";
-
-        printf ("%5s  %2d: 0x%" PRIx64 " %" PRIi64 "\n", kind, i, (u64) *(sp), (i64) *sp);
-
-        ++sp;
-    }
-    printf ("---------------------------------------------------------------------------------------------------------\n");
-
-    return nextOpDirect();
-}
-#endif
-
-
-
-# if d_m3EnableOpProfiling
-M3ProfilerSlot s_opProfilerCounts [c_m3ProfilerSlotMask] = {};
-
-
-void  ProfileHit  (cstr_t i_operationName)
-{
-    u64 ptr = (u64) i_operationName;
-
-    M3ProfilerSlot * slot = & s_opProfilerCounts [ptr & c_m3ProfilerSlotMask];
-
-    if (slot->opName)
-    {
-        if (slot->opName != i_operationName)
-        {
-            printf ("**** profiler slot collision; increase mask width\n");
-            m3NotImplemented ();
-        }
-    }
-
-    slot->opName = i_operationName;
-    slot->hitCount++;
-}
-# endif
-
-
-void  m3_PrintProfilerInfo  ()
-{
-    # if d_m3EnableOpProfiling
-        for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
-        {
-            M3ProfilerSlot * slot = & s_opProfilerCounts [i];
-
-            if (slot->opName)
-                printf ("%13llu  %s\n", slot->hitCount, slot->opName);
-        }
-    # endif
 }
 
 
@@ -412,3 +347,89 @@ d_m3OpDef  (BranchTable)
     return jumpOp (branches [branchIndex]);
 }
 
+
+
+d_m3OpDef (CopySlot_64)
+{
+    u64 * dst = slot_ptr (u64);
+    u64 * src = slot_ptr (u64);
+    
+    * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
+    
+    return nextOp ();
+}
+
+
+
+#if d_m3RuntimeStackDumps
+//--------------------------------------------------------------------------------------------------------
+d_m3OpDef  (DumpStack)
+{
+    u32 opcodeIndex         = immediate (u32);
+    u64 stackHeight         = immediate (u64);
+    IM3Function function    = immediate (IM3Function);
+
+    cstr_t funcName = (function) ? function->name : "";
+
+    printf (" %4d ", opcodeIndex);
+    printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
+    printf ("                                     fp0: %lf  \n", _fp0);
+
+    u64 * sp = _sp;
+
+    for (u32 i = 0; i < stackHeight; ++i)
+    {
+        printf ("%016llx  ", (u64) sp);
+
+        cstr_t kind = "";
+
+        printf ("%5s  %2d: 0x%" PRIx64 " %" PRIi64 "\n", kind, i, (u64) *(sp), (i64) *sp);
+
+        ++sp;
+    }
+    printf ("---------------------------------------------------------------------------------------------------------\n");
+
+    return nextOpDirect();
+}
+#endif
+
+
+# if d_m3EnableOpProfiling
+//--------------------------------------------------------------------------------------------------------
+M3ProfilerSlot s_opProfilerCounts [c_m3ProfilerSlotMask] = {};
+
+void  ProfileHit  (cstr_t i_operationName)
+{
+    u64 ptr = (u64) i_operationName;
+
+    M3ProfilerSlot * slot = & s_opProfilerCounts [ptr & c_m3ProfilerSlotMask];
+
+    if (slot->opName)
+    {
+        if (slot->opName != i_operationName)
+        {
+            printf ("**** profiler slot collision; increase mask width\n");
+            m3NotImplemented ();
+        }
+    }
+
+    slot->opName = i_operationName;
+    slot->hitCount++;
+}
+
+void  m3_PrintProfilerInfo  ()
+{
+    for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
+    {
+        M3ProfilerSlot * slot = & s_opProfilerCounts [i];
+
+        if (slot->opName)
+            printf ("%13llu  %s\n", slot->hitCount, slot->opName);
+    }
+}
+
+# else
+
+void  m3_PrintProfilerInfo  () {}
+
+# endif

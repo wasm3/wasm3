@@ -219,8 +219,6 @@ typedef struct M3Runtime
 	M3Memory                memory;
 
     M3ErrorInfo             error;
-    
-    
 }
 M3Runtime;
 
