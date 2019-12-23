@@ -5,7 +5,7 @@
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
 //
 
-#define _POSIX_C_SOURCE 200809L
+#define _POSIX_C_SOURCE 199309L
 
 #include "m3_api_wasi.h"
 
@@ -298,7 +298,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
                           (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
                           (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
                           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
-                          (S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
+                          //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
                           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
     fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
                        ((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
@@ -394,13 +394,13 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
 #else
     // translate o_flags and fs_flags into flags and mode
     int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
-                ((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
+                //((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
                 ((oflags & __WASI_O_EXCL)              ? O_EXCL      : 0) |
                 ((oflags & __WASI_O_TRUNC)             ? O_TRUNC     : 0) |
                 ((fs_flags & __WASI_FDFLAG_APPEND)     ? O_APPEND    : 0) |
                 ((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
                 ((fs_flags & __WASI_FDFLAG_NONBLOCK)   ? O_NONBLOCK  : 0) |
-                ((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
+                //((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
                 ((fs_flags & __WASI_FDFLAG_SYNC)       ? O_SYNC      : 0);
     if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
         (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
