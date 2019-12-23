@@ -303,7 +303,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
                        ((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
                        ((fl & O_NONBLOCK)  ? __WASI_FDFLAG_NONBLOCK  : 0) |
-                       ((fl & O_RSYNC)     ? __WASI_FDFLAG_RSYNC     : 0) |
+                       //((fl & O_RSYNC)     ? __WASI_FDFLAG_RSYNC     : 0) |
                        ((fl & O_SYNC)      ? __WASI_FDFLAG_SYNC      : 0);
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
