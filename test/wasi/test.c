@@ -53,7 +53,7 @@ void test_init_some_global() {
 }
 
 void test_constructor() {
-  fwrite(gString, 1, sizeof(gString), stdout);
+  fwrite(gString, 1, sizeof(gString)-1, stdout);
 }
 
 void test_write() {
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
   test_printf();
   test_args(argc, argv);
   test_gettime();
-  //test_random();
+  test_random();
   test_perf_fib(20);
 
   if (0 == strcmp(argv[1], "cat")) {

@@ -40,11 +40,11 @@ jobs:
     - name: Run spec tests
       run: |
         cd test
-        ./run-spec-test.py --timeout 30
+        ./run-spec-test.py
     - name: Run WASI tests
       run: |
         cd test
-        ./run-wasi-test.py --timeout 120
+        ./run-wasi-test.py
 
   build-mac:
     runs-on: macos-latest
@@ -94,11 +94,10 @@ jobs:
       run: |
         cd test
         python run-spec-test.py
-    # TODO: doesn't work yet
-    #- name: Run WASI tests
-    #  run: |
-    #    cd test
-    #    python run-wasi-test.py
+    - name: Run WASI tests
+      run: |
+        cd test
+        python run-wasi-test.py
 
   build-wasi:
     runs-on: ubuntu-latest
@@ -135,12 +134,11 @@ jobs:
     - name: Build native
       run: |
         cmake --build build
-    # TODO: doesn't work yet
-    #- name: Run spec tests (self-hosting)
-    #  run: |
-    #    source $HOME/.wasmer/wasmer.sh
-    #    cd test
-    #    ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
+    - name: Run spec tests (self-hosting)
+      continue-on-error: true    # TODO
+      run: |
+        cd test
+        ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
@@ -164,4 +162,4 @@ jobs:
     - name: Run WASI tests
       run: |
         cd test
-        ./run-wasi-test.py --timeout 120
+        ./run-wasi-test.py

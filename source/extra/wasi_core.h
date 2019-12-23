@@ -15,6 +15,12 @@
 //#error <wasi/core.h> is only supported on WASI platforms.
 //#endif
 
+# if defined (M3_COMPILER_MSVC)
+#  define _Static_assert(...)
+#  define __attribute__(...)
+#  define _Noreturn
+# endif
+
 #if !defined(__x86_64__)
 #  define _Static_assert(...)
 #endif
