@@ -10,9 +10,34 @@
 #include "m3_compile.h"
 
 
+static inline
+M3MemoryHeader * GetMemoryHeader (u8 * i_memory)
+{
+    M3MemoryHeader * header = (M3MemoryHeader *) i_memory - 1;
+    return header;
+}
+
+static inline
+IM3Memory GetMemoryInfo (u8 * i_memory)
+{
+    M3MemoryHeader * header = GetMemoryHeader (i_memory);
+    IM3Memory memory = & header->runtime->memory;
+    
+    return memory;
+}
+
+static inline
+IM3Runtime GetRuntime (u8 * i_memory)
+{
+    M3MemoryHeader * header = GetMemoryHeader (i_memory);
+    return header->runtime;
+}
+
+
+
 m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
 {
-    M3MemoryHeader * info = (M3MemoryHeader*)(i_mem) - 1;
+    M3MemoryHeader * info = GetMemoryHeader (i_mem);
     u8 * mem8 = i_mem + i_offset;
 
     ErrorRuntime (c_m3Err_trapOutOfBoundsMemoryAccess, info->runtime,
@@ -29,11 +54,14 @@ void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 }
 
 
+
+
+
 d_m3OpDef  (Call)
 {
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
-    IM3Memory memory            = immediate (IM3Memory);
+    IM3Memory memory            = GetMemoryInfo (_mem);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -53,7 +81,7 @@ d_m3OpDef  (CallIndirect)
     IM3Module module            = immediate (IM3Module);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
-    M3Memory * memory           = immediate (M3Memory *);
+    IM3Memory memory            = GetMemoryInfo (_mem);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -114,9 +142,9 @@ d_m3OpDef  (MemCurrent)
 {
     // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
     
-    IM3Runtime runtime            = immediate (IM3Runtime);
+    IM3Memory memory            = GetMemoryInfo (_mem);
 
-    _r0 = runtime->memory.numPages;
+    _r0 = memory->numPages;
 
     return nextOp ();
 }
@@ -124,11 +152,8 @@ d_m3OpDef  (MemCurrent)
 
 d_m3OpDef  (MemGrow)
 {
-    // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
-    
-    IM3Runtime runtime            = immediate (IM3Runtime);
-
-    IM3Memory memory = & runtime->memory;
+    IM3Runtime runtime          = GetRuntime (_mem);
+    IM3Memory memory            = & runtime->memory;
 
     u32 numPagesToGrow = (u32) _r0;
     _r0 = memory->numPages;
@@ -155,7 +180,7 @@ d_m3OpDef  (MemGrow)
 // do both.
 d_m3OpDef  (Compile)
 {
-    rewrite (op_Call);
+    rewrite_op (op_Call);
 
     IM3Function function        = immediate (IM3Function);
 
@@ -307,12 +332,12 @@ d_m3OpDef  (SetGlobal_i)
 }
 
 
+
 d_m3OpDef  (Loop)
 {
     m3ret_t r;
 
-    M3MemoryHeader * header = (M3MemoryHeader *) _mem - 1;
-    IM3Memory memory = & header->runtime->memory;
+    IM3Memory memory = GetMemoryInfo (_mem);
     
     do
     {

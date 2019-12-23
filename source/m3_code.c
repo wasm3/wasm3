@@ -53,18 +53,14 @@ u32  NumFreeLines  (IM3CodePage i_page)
 
 
 void  EmitWord_impl  (IM3CodePage i_page, void * i_word)
-{
-    d_m3Assert (i_page->info.lineIndex+1 <= i_page->info.numLines);
-
+{                                                                       d_m3Assert (i_page->info.lineIndex+1 <= i_page->info.numLines);
     i_page->code [i_page->info.lineIndex++] = (void *) i_word;
 }
 
 void  EmitWord64_impl  (IM3CodePage i_page, const u64 i_word)
-{
-    d_m3Assert (i_page->info.lineIndex+2 <= i_page->info.numLines);
-
-    *((u64*)&i_page->code[i_page->info.lineIndex]) = i_word;
-    i_page->info.lineIndex+=2;
+{                                                                       d_m3Assert (i_page->info.lineIndex+2 <= i_page->info.numLines);
+    *((u64 *) & i_page->code [i_page->info.lineIndex]) = i_word;
+    i_page->info.lineIndex += 2;
 }
 
 

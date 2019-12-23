@@ -19,7 +19,7 @@
 #include <math.h>
 #include <limits.h>
 
-# define rewrite(NAME)              * ((void **) (_pc-1)) = (void*)(NAME)
+# define rewrite_op(OP)           * ((void **) (_pc-1)) = (void*)(OP)
 
 # define d_m3RetSig                 static inline m3ret_t vectorcall
 # define d_m3Op(NAME)               d_m3RetSig op_##NAME (d_m3OpSig)
@@ -28,7 +28,7 @@
 # define d_m3OpDecl(NAME)           d_m3OpDef (NAME);
 
 # define immediate(TYPE)            * ((TYPE *) _pc++)
-# define skip_immediate(TYPE)       (void)* ((TYPE *) _pc++)
+# define skip_immediate(TYPE)       (_pc++)
 
 # define slot(TYPE)                 * (TYPE *) (_sp + immediate (i32))
 # define slot_ptr(TYPE)             (TYPE *) (_sp + immediate (i32))

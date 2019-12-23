@@ -479,13 +479,6 @@ M3Result  EmitTopSlotAndPop  (IM3Compilation o)
 }
 
 
-void  EmitMemory  (IM3Compilation o)
-{
-    // this is factored out for potential future functionality. see comment on op_Loop in m3_exec.c
-    EmitPointer (o, & o->runtime->memory);
-}
-
-
 M3Result  AddTrapRecord  (IM3Compilation o)
 {
     M3Result result = c_m3Err_none;
@@ -1151,8 +1144,6 @@ _           (CompileCallArgsReturn (o, & slotTop, function->funcType, false));
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
             EmitOffset  (o, slotTop);
-            
-            EmitMemory  (o);
         }
         else
 		{
@@ -1185,7 +1176,6 @@ _       (EmitOp     (o, op_CallIndirect));
         EmitPointer (o, o->module);
         EmitPointer (o, type);              // TODO: unify all types in M3Environment
         EmitOffset  (o, execTop);
-        EmitMemory  (o);
     }
     else _throw ("function type index out of range");
 
@@ -1201,7 +1191,6 @@ M3Result  Compile_Memory_Current  (IM3Compilation o, u8 i_opcode)
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
 _   (EmitOp     (o, op_MemCurrent));
-    EmitPointer (o, o->runtime);
 
 _   (PushRegister (o, c_m3Type_i32));   // i32?
 
@@ -1220,7 +1209,6 @@ _   (MoveStackTopToRegister (o));   // a stack flavor of Grow would get rid of t
 _   (Pop (o));
 
 _   (EmitOp     (o, op_MemGrow));
-    EmitPointer (o, o->runtime);
     
 _   (PushRegister (o, c_m3Type_i32));   // i32?
 
