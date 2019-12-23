@@ -94,11 +94,10 @@ jobs:
       run: |
         cd test
         python run-spec-test.py
-    # TODO: doesn't work yet
-    #- name: Run WASI tests
-    #  run: |
-    #    cd test
-    #    python run-wasi-test.py
+    - name: Run WASI tests
+      run: |
+        cd test
+        python run-wasi-test.py --timeout 120
 
   build-wasi:
     runs-on: ubuntu-latest

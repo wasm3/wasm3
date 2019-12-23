@@ -24,6 +24,7 @@ typedef uint32_t __wasi_size_t;
 #include <time.h>
 #include <errno.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__)
 #  include <unistd.h>
@@ -33,6 +34,7 @@ typedef uint32_t __wasi_size_t;
 #  define HAS_IOVEC
 #elif defined(_WIN32)
 #  include <Windows.h>
+#  include <io.h>
 // See http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx
 #  define SystemFunction036 NTAPI SystemFunction036
 #  include <NTSecAPI.h>
@@ -595,6 +597,10 @@ M3Result  m3_LinkWASI  (IM3Module module)
     const char* namespace  = "wasi_unstable";
 
 #ifdef _WIN32
+    setmode(fileno(stdin),  O_BINARY);
+    setmode(fileno(stdout), O_BINARY);
+    setmode(fileno(stderr), O_BINARY);
+
     // TODO
 #else
     // Preopen dirs
