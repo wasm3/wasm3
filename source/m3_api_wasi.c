@@ -291,12 +291,12 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
                           (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
                           (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
                           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
-                          //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
+                          (S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
                           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
     fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
-                       //((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
+                       ((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
                        ((fl & O_NONBLOCK)  ? __WASI_FDFLAG_NONBLOCK  : 0) |
-                       //((fl & O_RSYNC)     ? __WASI_FDFLAG_RSYNC     : 0) |
+                       ((fl & O_RSYNC)     ? __WASI_FDFLAG_RSYNC     : 0) |
                        ((fl & O_SYNC)      ? __WASI_FDFLAG_SYNC      : 0);
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
@@ -357,13 +357,13 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
 
     // translate o_flags and fs_flags into flags and mode
     int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
-                //((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
+                ((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
                 ((oflags & __WASI_O_EXCL)              ? O_EXCL      : 0) |
                 ((oflags & __WASI_O_TRUNC)             ? O_TRUNC     : 0) |
                 ((fs_flags & __WASI_FDFLAG_APPEND)     ? O_APPEND    : 0) |
-                //((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
                 ((fs_flags & __WASI_FDFLAG_NONBLOCK)   ? O_NONBLOCK  : 0) |
-                //((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
                 ((fs_flags & __WASI_FDFLAG_SYNC)       ? O_SYNC      : 0);
     if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
         (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
@@ -414,8 +414,6 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
 
-        //fprintf(stderr, "R %d %d\n", i, len);
-
         int ret = _read (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
@@ -451,8 +449,6 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
         void* addr = offset2addr(runtime, wasi_iov[i].iov_base);
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
-
-        //fprintf(stderr, "W %d %d\n", i, len);
 
         int ret = _write (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));

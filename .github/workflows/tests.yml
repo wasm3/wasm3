@@ -134,12 +134,11 @@ jobs:
     - name: Build native
       run: |
         cmake --build build
-    # TODO: doesn't work yet
-    #- name: Run spec tests (self-hosting)
-    #  run: |
-    #    source $HOME/.wasmer/wasmer.sh
-    #    cd test
-    #    ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
+    - name: Run spec tests (self-hosting)
+      continue-on-error: true    # TODO
+      run: |
+        cd test
+        ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
