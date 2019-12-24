@@ -700,6 +700,9 @@ d_m3SetRegisterSetSlot (f64, _fp0)
 
 #endif
 
+// memcpy here is to support non-aligned access on some platforms.
+// TODO: check if this is optimized-out on x86/x64, and performance impact
+
 #define d_m3Load(REG,DEST_TYPE,SRC_TYPE)                \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
 {                                                       \
@@ -711,7 +714,9 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
                                                         \
     if (src8 + sizeof (SRC_TYPE) <= end)                \
     {                                                   \
-        REG = (DEST_TYPE) (* (SRC_TYPE *) src8);        \
+        SRC_TYPE value;                                 \
+        memcpy(&value, src8, sizeof(value));            \
+        REG = (DEST_TYPE)value;                         \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
@@ -726,7 +731,9 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
                                                         \
     if (src8 + sizeof (SRC_TYPE) <= end)                \
     {                                                   \
-        REG = (DEST_TYPE) (* (SRC_TYPE *) src8);        \
+        SRC_TYPE value;                                 \
+        memcpy(&value, src8, sizeof(value));            \
+        REG = (DEST_TYPE)value;                         \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
