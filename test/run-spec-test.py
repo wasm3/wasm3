@@ -352,8 +352,6 @@ print("Version: " + wasm3.version())
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
-  "*.wast:* *.wasm print32*",
-  "*.wast:* *.wasm print64*",
   "imports.wast:*",
   "names.wast:630 *", # name that starts with '\0'
 ])

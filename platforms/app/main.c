@@ -39,6 +39,8 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
     result = m3_LoadModule (runtime, module);
     if (result) return result;
 
+    result = m3_LinkSpecTest (runtime->modules);
+
     return result;
 }
 

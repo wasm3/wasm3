@@ -84,7 +84,7 @@ m3ApiRawFunction(m3_spectest_dummy)
     return c_m3Err_none;
 }
 
-M3Result  m3_LinkLibC  (IM3Module module)
+M3Result  m3_LinkSpecTest  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
@@ -97,6 +97,15 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_f32",  
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_f64",       &m3_spectest_dummy)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_i32_f32",   &m3_spectest_dummy)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_i64_f64",   &m3_spectest_dummy)));
+
+_catch:
+    return result;
+}
+
+
+M3Result  m3_LinkLibC  (IM3Module module)
+{
+    M3Result result = c_m3Err_none;
 
     const char* namespace = "env";
 
