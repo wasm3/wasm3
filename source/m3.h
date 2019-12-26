@@ -277,7 +277,7 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
     M3Result            m3_Call                     (IM3Function i_function);
     M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
-    M3Result            m3_CallMain                 (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
+//  M3Result            m3_CallMain                 (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
 
 //  void * /* return */ m3_Call                     (IM3Function i_function, M3Result * o_result);
 

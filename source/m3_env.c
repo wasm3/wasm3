@@ -630,7 +630,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
     _catch: return result;
 }
 
-
+#if 0
 M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
     M3Result result = c_m3Err_none;
@@ -685,7 +685,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
 
     _catch: return result;
 }
-
+#endif
 
 IM3CodePage  AcquireCodePage  (IM3Runtime i_runtime)
 {
