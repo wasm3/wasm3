@@ -225,7 +225,9 @@ d_m3OpDef  (Entry)
         while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code) TODO: see if this is still true.
             * (stack++) = 0;
 
-        memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+        if (function->constants) {
+            memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+        }
 
         m3ret_t r = nextOp ();
 
