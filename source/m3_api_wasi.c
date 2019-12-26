@@ -360,7 +360,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     memcpy (host_path, path, path_len);
     host_path [path_len] = '\0'; // NULL terminator
 
-    printf ("== path_open: %s\n", host_path);
+    //printf ("== path_open: %s\n", host_path);
 
 #ifdef _WIN32
     // TODO: This all needs a proper implementation

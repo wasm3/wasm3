@@ -24,11 +24,17 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
     fsize = ftell(f);
     fseek (f, 0, SEEK_SET);
 
-    if (fsize > 10*1024*1024) {
+    if (fsize < 8) {
+        return "file is too small";
+    } else if (fsize > 10*1024*1024) {
         return "file too big";
     }
 
     wasm = (u8*) malloc(fsize);
+    if (!wasm) {
+        return "cannot allocate memory for wasm binary";
+    }
+
     fread (wasm, 1, fsize, f);
     fclose (f);
 
@@ -38,6 +44,8 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
 
     result = m3_LoadModule (runtime, module);
     if (result) return result;
+
+    result = m3_LinkSpecTest (runtime->modules);
 
     return result;
 }
