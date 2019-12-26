@@ -479,6 +479,7 @@ M3Result  EmitTopSlotAndPop  (IM3Compilation o)
 }
 
 
+// Or, maybe: EmitTrappingOp
 M3Result  AddTrapRecord  (IM3Compilation o)
 {
     M3Result result = c_m3Err_none;
@@ -523,12 +524,13 @@ M3Result CopyTopSlot (IM3Compilation o, u16 i_destSlot)
 
     IM3Operation op;
 
+    u8 type = GetStackTopType (o);
+    
     if (IsStackTopInRegister (o))
     {
-        u8 type = GetStackTopType (o);
         op = c_setSetOps [type];
     }
-    else op = op_CopySlot_64;       // TODO: need 32-bit version for compacted stack
+    else op = Is64BitType (type) ? op_CopySlot_64 : op_CopySlot_32;
 
 _   (EmitOp (o, op));
     EmitConstant (o, i_destSlot);
@@ -1750,6 +1752,7 @@ const M3OpInfo c_operations [] =
     
     d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
 
+    d_m3DebugOp (CopySlot_32),   //   d_m3DebugOp (PreserveCopySlot_32),
     d_m3DebugOp (CopySlot_64),      d_m3DebugOp (PreserveCopySlot_64),
 
     d_m3DebugOp (SetRegister_i32),  d_m3DebugOp (i32_BranchIf_rs),  d_m3DebugOp (SetSlot_i32),

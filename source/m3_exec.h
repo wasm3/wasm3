@@ -484,7 +484,7 @@ d_m3Select_f (f64, _fp0, s, slot (i32))
 d_m3Op  (Return)
 {
     m3StackCheck();
-    return 0;
+    return NULL;
 }
 
 
@@ -555,8 +555,9 @@ d_m3OpDecl  (BranchTable)
 d_m3Op  (ContinueLoop)
 {
     // TODO: this is where execution can "escape" the M3 code and callback to the client / fiber switch
-    // OR it can go in the Loop operation
-
+    // OR it can go in the Loop operation. I think it's best to do here. adding code to the loop operation
+    // has the potential to increase its native-stack usage. (don't forget ContinueLoopIf too.)
+    
     void * loopId = immediate (void *);
     return loopId;
 }
@@ -641,7 +642,7 @@ d_m3Op  (SetGlobal_f64)
 }
 
 
-
+d_m3OpDecl (CopySlot_32)
 d_m3OpDecl (CopySlot_64)
 
 

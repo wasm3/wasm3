@@ -336,7 +336,6 @@ d_m3OpDef  (IfPreserve)
 d_m3OpDef  (BranchTable)
 {
     i32 branchIndex = slot (i32);           // branch index is always in a slot
-    
     i32 numTargets  = immediate (i32);
     
     pc_t * branches = (pc_t *) _pc;
@@ -347,6 +346,17 @@ d_m3OpDef  (BranchTable)
     return jumpOp (branches [branchIndex]);
 }
 
+
+
+d_m3OpDef (CopySlot_32)
+{
+    u32 * dst = slot_ptr (u32);
+    u32 * src = slot_ptr (u32);
+    
+    * dst = * src;
+    
+    return nextOp ();
+}
 
 
 d_m3OpDef (CopySlot_64)

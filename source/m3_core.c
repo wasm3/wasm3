@@ -187,6 +187,23 @@ size_t      m3StackGetMax  ()
 
 //--------------------------------------------------------------------------------------------
 
+M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
+{
+    M3Result result = c_m3Err_none;
+    
+    u8 type = -i_convolutedWasmType;
+    
+    if (type == 0x40)
+        type = c_m3Type_none;
+    else if (type < c_m3Type_i32 or type > c_m3Type_f64)
+        result = c_m3Err_invalidTypeId;
+    
+    * o_type = type;
+    
+    return result;
+}
+
+
 bool  IsFpType  (u8 i_m3Type)
 {
     return (i_m3Type == c_m3Type_f32 or i_m3Type == c_m3Type_f64);
@@ -199,6 +216,16 @@ bool  IsIntType  (u8 i_m3Type)
 }
 
 
+bool  Is64BitType  (u8 i_m3Type)
+{
+    if (i_m3Type == c_m3Type_i64 or i_m3Type == c_m3Type_f64)
+        return true;
+    else if (i_m3Type == c_m3Type_i32 or i_m3Type == c_m3Type_f32 or i_m3Type == c_m3Type_none)
+        return false;
+    else
+        return (sizeof (voidptr_t) == 8); // all other cases are pointers
+}
+
 u32  SizeOfType  (u8 i_m3Type)
 {
     u32 size = sizeof (i64);
@@ -207,23 +234,6 @@ u32  SizeOfType  (u8 i_m3Type)
         size = sizeof (i32);
 
     return size;
-}
-
-
-M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
-{
-    M3Result result = c_m3Err_none;
-
-    u8 type = -i_convolutedWasmType;
-
-    if (type == 0x40)
-        type = c_m3Type_none;
-    else if (type < c_m3Type_i32 or type > c_m3Type_f64)
-        result = c_m3Err_invalidTypeId;
-
-    * o_type = type;
-
-    return result;
 }
 
 

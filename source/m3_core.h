@@ -200,9 +200,11 @@ M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
 void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3Free_impl             (void * o_ptr);
 
+M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
+
 bool        IsIntType               (u8 i_wasmType);
 bool        IsFpType                (u8 i_wasmType);
-M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
+bool        Is64BitType             (u8 i_m3Type);
 u32         SizeOfType              (u8 i_m3Type);
 
 M3Result    Read_u64                (u64 * o_value, const u8 ** io_bytes, cbytes_t i_end);
