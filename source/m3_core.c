@@ -247,7 +247,7 @@ M3Result  Read_u64  (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 
     if (ptr <= i_end)
     {
-        * o_value = * ((u64 *) * io_bytes);
+        memcpy(o_value, * io_bytes, sizeof(u64));
         * io_bytes = ptr;
         return c_m3Err_none;
     }
@@ -262,7 +262,7 @@ M3Result  Read_u32  (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 
     if (ptr <= i_end)
     {
-        * o_value = * ((u32 *) * io_bytes);
+        memcpy(o_value, * io_bytes, sizeof(u32));
         * io_bytes = ptr;
         return c_m3Err_none;
     }
@@ -276,7 +276,7 @@ M3Result  Read_f64  (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 
     if (ptr <= i_end)
     {
-        * o_value = * ((f64 *) * io_bytes);
+        memcpy(o_value, * io_bytes, sizeof(f64));
         * io_bytes = ptr;
         return c_m3Err_none;
     }
@@ -291,7 +291,7 @@ M3Result  Read_f32  (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 
     if (ptr <= i_end)
     {
-        * o_value = * ((f32 *) * io_bytes);
+        memcpy(o_value, * io_bytes, sizeof(f32));
         * io_bytes = ptr;
         return c_m3Err_none;
     }

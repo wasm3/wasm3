@@ -772,7 +772,8 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
-        * (DEST_TYPE *) mem8 = (DEST_TYPE) REG;         \
+        DEST_TYPE val = (DEST_TYPE) REG;                \
+        memcpy((u8*)mem8, &val, sizeof(val));           \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
@@ -787,7 +788,8 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
-        * (DEST_TYPE *) mem8 = value;                   \
+        DEST_TYPE val = (DEST_TYPE) value;              \
+        memcpy((u8*)mem8, &val, sizeof(val));           \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
@@ -802,7 +804,8 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (DEST_TYPE) <= end)               \
     {                                                   \
-        * (DEST_TYPE *) mem8 = value;                   \
+        DEST_TYPE val = (DEST_TYPE) value;              \
+        memcpy((u8*)mem8, &val, sizeof(val));           \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
@@ -819,7 +822,8 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
     u64 mem8 = (u64)_mem + operand + offset;            \
     if (mem8 + sizeof (TYPE) <= end)                    \
     {                                                   \
-        * (TYPE *) mem8 = (TYPE) REG;                   \
+        TYPE val = (TYPE) REG;                          \
+        memcpy((u8*)mem8, &val, sizeof(val));           \
         return nextOp ();                               \
     }                                                   \
     else d_outOfBounds;                                 \
