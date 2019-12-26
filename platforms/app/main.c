@@ -35,7 +35,9 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
         return "cannot allocate memory for wasm binary";
     }
 
-    fread (wasm, 1, fsize, f);
+    if (fread (wasm, 1, fsize, f) != fsize) {
+        return "cannot read file";
+    }
     fclose (f);
 
     IM3Module module;
@@ -250,7 +252,7 @@ int  main  (int i_argc, const char* i_argv[])
             result = "no such command";
         } else {
             unescape(argv[0]);
-            result = repl_call(runtime, argv[0], argc-1, argv+1);
+            result = repl_call(runtime, argv[0], argc-1, (const char**)(argv+1));
         }
 
         if (result) {
