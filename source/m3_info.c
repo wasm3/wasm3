@@ -7,14 +7,15 @@
 //
 
 #include "m3_info.h"
+#include "m3_emit.h"
 #include "m3_compile.h"
 
 void  m3_PrintM3Info  ()
 {
     printf ("\n-- m3 configuration --------------------------------------------\n");
-//  printf (" sizeof M3CodePage    : %lu bytes  (%d slots) \n", sizeof (M3CodePage), c_m3CodePageNumSlots);
-    printf (" sizeof M3MemPage     : %d bytes              \n", c_m3MemPageSize);
-    printf (" sizeof M3Compilation : %ld bytes              \n", sizeof (M3Compilation));
+//  printf (" sizeof M3CodePage    : %zu bytes  (%d slots) \n", sizeof (M3CodePage), c_m3CodePageNumSlots);
+    printf (" sizeof M3MemPage     : %u bytes              \n", c_m3MemPageSize);
+    printf (" sizeof M3Compilation : %zu bytes             \n", sizeof (M3Compilation));
     printf ("----------------------------------------------------------------\n\n");
 }
 
@@ -31,7 +32,7 @@ void  m3_PrintRuntimeInfo  (IM3Runtime i_runtime)
 {
     printf ("\n-- m3 runtime -------------------------------------------------\n");
 
-    printf (" stack-size: %lu   \n\n", i_runtime->numStackSlots * sizeof (m3reg_t));
+    printf (" stack-size: %zu   \n\n", i_runtime->numStackSlots * sizeof (m3reg_t));
 
     u32 moduleIndex = 0;
     ForEachModule (i_runtime, (ModuleVisitor) v_PrintEnvModuleInfo, & moduleIndex);
@@ -74,9 +75,9 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
     * o_string = 0;
 
     if      (i_type == c_m3Type_i32)
-        len = snprintf (o_string, i_n, "%d", * (i32 *) i_sp);
+        len = snprintf (o_string, i_n, "%" PRIi32, * (i32 *) i_sp);
     else if (i_type == c_m3Type_i64)
-        len = snprintf (o_string, i_n, "%ld", * i_sp);
+        len = snprintf (o_string, i_n, "%" PRIi64, * i_sp);
     else if (i_type == c_m3Type_f32)
         len = snprintf (o_string, i_n, "%f",  * (f32 *) i_sp);
     else if (i_type == c_m3Type_f64)
