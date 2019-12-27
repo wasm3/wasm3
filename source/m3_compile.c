@@ -1262,7 +1262,7 @@ _   (EmitTopSlotAndPop (o));
 
     i32 stackIndex = o->stackIndex;
 
-    pc_t * preservations = (pc_t *) ReservePointer (o);
+    ReservePointer (o);
     pc_t * pc = (pc_t *) ReservePointer (o);
 
     u8 blockType;
@@ -1745,7 +1745,7 @@ const M3OpInfo c_operations [] =
     M3OP( "f64.reinterpret/i64", 0, f_64,   d_convertOpList (f64_Reinterpret_i64),  Compile_Convert ),  // 0xbf
 
 # ifdef DEBUG // for codepage logging:
-#   define d_m3DebugOp(OP) M3OP (#OP, 0, none, op_##OP)
+#   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
     
     d_m3DebugOp (Const),            d_m3DebugOp (Entry),                d_m3DebugOp (Compile),
     d_m3DebugOp (Bridge),           d_m3DebugOp (End),                  d_m3DebugOp (SetGlobal_s),
