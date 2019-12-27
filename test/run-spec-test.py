@@ -458,7 +458,7 @@ def runInvoke(test):
 
     def showTestResult():
         print(" ----------------------")
-        print(f"Test:     {ansi.HEADER}{test.source}{ansi.ENDC} -> {' '.join(test.cmd)}")
+        print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
         print(f"Args:     {', '.join(displayArgs)}")
         print(f"Expected: {ansi.OKGREEN}{expect}{ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
