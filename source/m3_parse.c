@@ -170,14 +170,14 @@ _				(ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
             case c_externalKind_global:
             {
                 i8 waType;
-                u8 type, mutable;
+                u8 type, isMutable;
 
 _               (ReadLEB_i7 (& waType, & i_bytes, i_end));
 _               (NormalizeType (& type, waType));
-_               (ReadLEB_u7 (& mutable, & i_bytes, i_end));                     m3log (parse, "     global: %s mutable=%d", c_waTypes [type], (u32) mutable);
+_               (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                     m3log (parse, "     global: %s mutable=%d", c_waTypes [type], (u32) isMutable);
 
                 IM3Global global;
-_               (Module_AddGlobal (io_module, & global, type, mutable, true /* isImport */));
+_               (Module_AddGlobal (io_module, & global, type, isMutable, true /* isImport */));
                 global->import = import;
                 import = clearImport;
             }
@@ -413,14 +413,14 @@ _   (ReadLEB_u32 (& numGlobals, & i_bytes, i_end));                             
     for (u32 i = 0; i < numGlobals; ++i)
     {
         i8 waType;
-        u8 type, mutable;
+        u8 type, isMutable;
 
 _       (ReadLEB_i7 (& waType, & i_bytes, i_end));
 _       (NormalizeType (& type, waType));
-_       (ReadLEB_u7 (& mutable, & i_bytes, i_end));                                 m3log (parse, "  - add global: [%d] %s mutable: %d", i, c_waTypes [type],   (u32) mutable);
+_       (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                                 m3log (parse, "  - add global: [%d] %s mutable: %d", i, c_waTypes [type],   (u32) isMutable);
         
         IM3Global global;
-_       (Module_AddGlobal (io_module, & global, type, mutable, false /* isImport */));
+_       (Module_AddGlobal (io_module, & global, type, isMutable, false /* isImport */));
 
         global->initExpr = i_bytes;
 _       (Parse_InitExpr (io_module, & i_bytes, i_end));
