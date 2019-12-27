@@ -5,7 +5,7 @@
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
 //
 
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200809L
 
 #include "m3_api_wasi.h"
 
@@ -30,7 +30,6 @@ typedef uint32_t __wasi_size_t;
 #  include <unistd.h>
 #  include <sys/uio.h>
 #  include <sys/random.h>
-#  include <fcntl.h>
 #  define HAS_IOVEC
 #elif defined(_WIN32)
 #  include <Windows.h>
@@ -50,12 +49,12 @@ struct wasi_iovec
 
 static inline
 uint32_t addr2offset(IM3Runtime m, void *addr) {
-    return (u8*)addr - m->memory.wasmPages;
+    return (u8*)addr - (u8*)(m->memory.mallocated+1);
 }
 
 static inline
 void *offset2addr(IM3Runtime m, uint32_t offset) {
-    return m->memory.wasmPages + offset;
+    return (u8*)(m->memory.mallocated+1) + offset;
 }
 
 #define PREOPEN_CNT   5
@@ -209,7 +208,7 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
 
     *argc = runtime->argc;
     *argv_buf_size = 0;
-    for (int i = 0; i < runtime->argc; ++i)
+    for (u32 i = 0; i < runtime->argc; ++i)
     {
         * argv_buf_size += strlen (runtime->argv [i]) + 1;
     }
@@ -446,7 +445,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
 #else
     ssize_t res = 0;
     struct wasi_iovec *wasi_iov = offset2addr(runtime, iovs_offset);
-    for (int i = 0; i < iovs_len; i++) {
+    for (__wasi_size_t i = 0; i < iovs_len; i++) {
         void* addr = offset2addr(runtime, wasi_iov[i].iov_base);
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
@@ -454,7 +453,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
         int ret = _read (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
-        if (ret < len) break;
+        if ((size_t)ret < len) break;
     }
     *nread = res;
     m3ApiReturn(__WASI_ESUCCESS);
@@ -482,7 +481,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
 #else
     ssize_t res = 0;
     struct wasi_iovec *wasi_iov = offset2addr(runtime, iovs_offset);
-    for (int i = 0; i < iovs_len; i++) {
+    for (__wasi_size_t i = 0; i < iovs_len; i++) {
         void* addr = offset2addr(runtime, wasi_iov[i].iov_base);
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
@@ -490,7 +489,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
         int ret = _write (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
-        if (ret < len) break;
+        if ((size_t)ret < len) break;
     }
     *nwritten = res;
     m3ApiReturn(__WASI_ESUCCESS);
