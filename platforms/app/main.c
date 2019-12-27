@@ -238,7 +238,7 @@ int  main  (int i_argc, const char* i_argv[])
         if (argc <= 0) {
             continue;
         }
-        M3Result result = c_m3Err_none;
+        result = c_m3Err_none;
         if (!strcmp(":init", argv[0])) {
             result = repl_init(env, &runtime);
         } else if (!strcmp(":version", argv[0])) {
