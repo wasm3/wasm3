@@ -512,11 +512,12 @@ m3ApiRawFunction(m3_wasi_unstable_fd_datasync)
 
 #if defined(_WIN32)
     int ret = fflush(fd);
-    m3ApiReturn(ret == 0 ? __WASI_ESUCCESS : ret);
+#elif defined(__APPLE__)
+    int ret = fsync(fd);
 #else
     int ret = fdatasync(fd);
-    m3ApiReturn(ret == 0 ? __WASI_ESUCCESS : ret);
 #endif
+    m3ApiReturn(ret == 0 ? __WASI_ESUCCESS : ret);
 }
 
 m3ApiRawFunction(m3_wasi_unstable_random_get)
