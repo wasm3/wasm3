@@ -138,7 +138,7 @@ d_m3ErrorConst  (tooManyMemorySections,         "Wasm MVP can only define one me
 // link errors
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
 d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
-d_m3ErrorConst  (functionImportMissing,         "missing imported function");
+d_m3ErrorConst  (functionImportMissing,         "missing imported function")
 
 // compilation errors
 d_m3ErrorConst  (noCompiler,                    "no compiler found for opcode")

@@ -54,6 +54,10 @@
 #   define d_m3FixedHeapAlign                   16
 # endif
 
+# ifndef d_m3EnableOptimizations
+#   define d_m3EnableOptimizations              0
+# endif
+
 // logging ---------------------------------------------------------------------------
 
 # define d_m3EnableOpProfiling      0

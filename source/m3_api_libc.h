@@ -10,14 +10,14 @@
 
 #include "m3_core.h"
 
-# if __cplusplus
+# if defined(__cplusplus)
 extern "C" {
 # endif
 
     M3Result    m3_LinkLibC     (IM3Module io_module);
     M3Result    m3_LinkSpecTest (IM3Module io_module);
 
-# if __cplusplus
+# if defined(__cplusplus)
 }
 # endif
 

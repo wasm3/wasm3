@@ -402,8 +402,6 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
         o->block.depth++;
 }
 
-u16  GetMaxExecSlot  (IM3Compilation o);
-
 
 void emit_stack_dump (IM3Compilation o)
 {
@@ -423,7 +421,7 @@ void emit_stack_dump (IM3Compilation o)
 
 void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 {
-# if DEBUG
+# ifdef DEBUG
     OpInfo i = find_operation_info (i_operation);
     
     if (i.info)
