@@ -6,6 +6,7 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include "m3_env.h"
 #include "m3_compile.h"
 #include "m3_emit.h"
 #include "m3_exec.h"
@@ -1224,8 +1225,8 @@ M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
 
     i8 type;
 
-    _   (ReadLEB_i7 (& type, & o->wasm, o->wasmEnd));
-    _   (NormalizeType (o_blockType, type));                                if (* o_blockType)  m3log (compile, d_indent "%s (block_type: 0x%02x normalized: %d)",
+_   (ReadLEB_i7 (& type, & o->wasm, o->wasmEnd));
+_   (NormalizeType (o_blockType, type));                                if (* o_blockType)  m3log (compile, d_indent "%s (block_type: 0x%02x normalized: %d)",
                                                                                                    get_indention_string (o), (u32) (u8) type, (u32) * o_blockType);
     _catch: return result;
 }
@@ -1461,7 +1462,7 @@ _           (PushRegister (o, op->type));
     }
     else
     {
-#		if DEBUG
+#		ifdef DEBUG
         	result = ErrorCompile ("no operation found for opcode", o, "'%s'", op->name);
 # 		else
 			result = ErrorCompile ("no operation found for opcode", o, "");
@@ -2022,9 +2023,9 @@ M3Result  Compile_Function  (IM3Function io_function)
                                                                            io_function->name, (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function), c_waTypes [GetFunctionReturnType (io_function)]);
     IM3Runtime runtime = io_function->module->runtime;
 
-    IM3Compilation o = NULL;
-_   (m3Alloc (& o, M3Compilation, 1));  // TODO: i think an M3Compilation object could just live in M3Runtime. only one function is compiled at a time.
-
+    IM3Compilation o = & runtime->compilation;
+    memset (o, 0x0, sizeof (M3Compilation));
+    
     o->runtime = runtime;
     o->module =  io_function->module;
     o->wasm =    io_function->wasm;
@@ -2084,7 +2085,6 @@ _           (m3Alloc (& io_function->constants, u64, numConstants));
     _catch:
     
     ReleaseCompilationCodePage (o);
-    m3Free (o);
 
     return result;
 }

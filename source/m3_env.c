@@ -175,36 +175,40 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
 M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = c_m3Err_none;
-//  * o_expressed = 0;
 
     u64 stack [c_m3MaxFunctionStackHeight]; // stack on the stack
 
     // create a temporary runtime context
-    M3Runtime rt;
-    M3_INIT (rt);
+    M3Runtime runtime;
+    M3_INIT (runtime);
     
-    rt.environment = i_module->runtime->environment;
-    rt.numStackSlots = c_m3MaxFunctionStackHeight;
-    rt.stack = & stack;
+    runtime.environment = i_module->runtime->environment;
+    runtime.numStackSlots = c_m3MaxFunctionStackHeight;
+    runtime.stack = & stack;
 
     IM3Runtime savedRuntime = i_module->runtime;
-    i_module->runtime = & rt;
+    i_module->runtime = & runtime;
+    
+    IM3Compilation o = & runtime.compilation;
+    o->runtime = & runtime;
+    o->module =  i_module;
+    o->wasm =    * io_bytes;
+    o->wasmEnd = i_end;
 
-    M3Compilation o = { & rt, i_module, * io_bytes, i_end };
-    o.block.depth = -1;  // so that root compilation depth = 0
+    o->block.depth = -1;  // so that root compilation depth = 0
 
     //  OPTZ: this code page could be erased after use.  maybe have 'empty' list in addition to full and open?
-    o.page = AcquireCodePage (& rt);  // AcquireUnusedCodePage (...)
+    o->page = AcquireCodePage (& runtime);  // AcquireUnusedCodePage (...)
 
-    if (o.page)
+    if (o->page)
     {
-        pc_t m3code = GetPagePC (o.page);
-        result = CompileBlock (& o, i_type, 0);
+        pc_t m3code = GetPagePC (o->page);
+        result = CompileBlock (o, i_type, 0);
 
         if (not result)
         {
             m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
-            result = rt.runtimeError;
+            result = runtime.runtimeError;
 
             if (r == 0 and not result)
             {
@@ -220,15 +224,15 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
         }
 
         // TODO: EraseCodePage (...) see OPTZ above
-        ReleaseCodePage (& rt, o.page);
+        ReleaseCodePage (& runtime, o->page);
     }
     else result = c_m3Err_mallocFailedCodePage;
 
-    rt.stack = NULL;        // prevent free(stack) in ReleaseRuntime
-    ReleaseRuntime (& rt);
+    runtime.stack = NULL;        // prevent free(stack) in ReleaseRuntime
+    ReleaseRuntime (& runtime);
     i_module->runtime = savedRuntime;
 
-    * io_bytes = o.wasm;
+    * io_bytes = o->wasm;
 
     return result;
 }
@@ -511,7 +515,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
         return "no modules loaded";
     }
 
-    IM3Function function = (IM3Function)ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
+    IM3Function function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
 
     if (function)
     {

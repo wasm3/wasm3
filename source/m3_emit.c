@@ -6,8 +6,10 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include "m3_env.h"
 #include "m3_emit.h"
 #include "m3_info.h"
+#include "m3_exec.h"
 
 M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 {

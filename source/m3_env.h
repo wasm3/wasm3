@@ -12,6 +12,7 @@
 #include "m3.h"
 #include "m3_code.h"
 #include "m3_exec.h"
+#include "m3_compile.h"
 
 
 typedef struct M3FuncType
@@ -197,6 +198,8 @@ typedef M3Environment *     IM3Environment;
 //---------------------------------------------------------------------------------------------------------------------------------
 typedef struct M3Runtime
 {
+    M3Compilation           compilation;
+    
     IM3Environment          environment;
     
     M3CodePage *            pagesOpen;      // linked list of code pages with writable space on them

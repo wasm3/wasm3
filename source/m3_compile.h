@@ -9,7 +9,7 @@
 #ifndef m3_compile_h
 #define m3_compile_h
 
-#include "m3_env.h"
+#include "m3_code.h"
 #include "m3_exec_defs.h"
 
 
@@ -107,6 +107,7 @@ typedef struct
 M3Compilation;
 
 typedef M3Compilation *                 IM3Compilation;
+
 typedef M3Result (* M3Compiler)         (IM3Compilation, u8);
 
 
