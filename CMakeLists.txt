@@ -96,19 +96,24 @@ elseif(WIN32)
 
     # Uncomment this if you want to disassemble the release build,
     # for example: dumpbin /DISASM wasm3.exe /out:wasm3.S
-
     #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG:FULL")
+
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608") # stack size
   else()
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /GS- /Qvec -Clang -O3")
   endif()
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2 -Wjump-misses-init")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow -Werror=implicit-function-declaration") # -Werror=cast-align
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
+  if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # TODO: Place clang-specific options here
+  elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wjump-misses-init")
+  endif()
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0")
 
-  set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -Wfatal-errors -fstrict-aliasing") #-fno-inline
+  set(CMAKE_C_FLAGS_RELEASE "-O3 -fomit-frame-pointer -march=native -Wfatal-errors -fstrict-aliasing") #-fno-inline
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
