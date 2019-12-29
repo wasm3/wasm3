@@ -266,7 +266,7 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
         result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
     }
 
-    _catch: return result;
+    return result;
 }
 
 
@@ -319,7 +319,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
     }
     else result = c_m3Err_wasmMemoryOverflow;
     
-    _catch: return result;
+    return result;
 }
 
 
@@ -376,9 +376,7 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
         bytes_t start = segment->initExpr;
 _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
 
-        u32 minMemorySize = segment->size + segmentOffset + 1;                      m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
-
-//_       (Module_EnsureMemorySize (io_module, io_memory, minMemorySize));
+        m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
         if (io_memory->wasmPages)
         {
@@ -454,7 +452,7 @@ M3Result  InitStartFunc  (IM3Module io_module)
     M3Result result = c_m3Err_none;
 
     if (io_module->startFunction >= 0) {
-        if (io_module->startFunction >= io_module->numFunctions) {
+        if ((u32)io_module->startFunction >= io_module->numFunctions) {
             return "start function index out of bounds";
         }
         IM3Function function = &io_module->functions [io_module->startFunction];

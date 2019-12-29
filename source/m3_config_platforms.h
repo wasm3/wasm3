@@ -142,6 +142,26 @@
  * Apply settings
  */
 
+# if defined (M3_COMPILER_MSVC)
+#   define  vectorcall
+# elif defined(WIN32)
+#   define  vectorcall __vectorcall
+# elif defined (ESP8266)
+#   include <c_types.h>
+#   define vectorcall //ICACHE_FLASH_ATTR
+# elif defined (ESP32)
+#   include "esp_system.h"
+#   define vectorcall IRAM_ATTR
+# elif defined (FOMU)
+#   define vectorcall __attribute__((section(".ramtext")))
+# elif defined(HIFIVE1)
+#   include <metal/itim.h>
+#   define vectorcall
+# else
+#   define vectorcall
+# endif
+
+
 # if defined(PARTICLE)
 #  define d_m3LogOutput                         false
 #  define d_m3MaxFunctionStackHeight            256

@@ -2099,7 +2099,9 @@ _       (Compile_ReserveConstants (o));
         o->block.initStackIndex = o->stackIndex;
 
         pc_t pc2 = GetPagePC (o->page);
-        d_m3AssertFatal (pc2 == pc);
+        if (pc2 != pc) {
+            m3Abort("pc2 != pc");
+        }
 
 _       (EmitOp (o, op_Entry));
         EmitPointer (o, io_function);

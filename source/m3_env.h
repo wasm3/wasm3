@@ -248,7 +248,7 @@ void                        ReleaseCodePage             (IM3Runtime io_runtime, 
 //size_t                    m3_GetMemorySize    (void * i_memory);
 
 
-M3Result                    m3Error                 (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
+M3Result                    m3Error                     (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
 
 
 #endif /* m3_env_h */

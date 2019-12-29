@@ -164,6 +164,7 @@ M3Result    Compile_BlockStatements     (IM3Compilation io);
 M3Result    Compile_Function            (IM3Function io_function);
 
 bool        PeekNextOpcode              (IM3Compilation o, u8 i_opcode);
+u16         GetMaxExecSlot              (IM3Compilation o);
 
 //M3Result  Optimize_ConstOp            (IM3Compilation o, u64 i_word, u8 i_waType);
 

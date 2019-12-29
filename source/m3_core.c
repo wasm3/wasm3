@@ -9,16 +9,13 @@
 
 #include "m3_core.h"
 
-void m3NotImplemented() {
-    puts("Error: Not implemented");
+void m3Abort(const char* message) {
+    fprintf(stderr, "Error: %s\n", message);
     abort();
 }
 
-void m3AbortIfNot(bool condition) {
-    if (!condition) {
-        puts("Error: Fatal");
-        abort();
-    }
+void m3NotImplemented() {
+    m3Abort("Not implemented");
 }
 
 M3_WEAK

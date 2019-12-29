@@ -23,9 +23,12 @@ M3State;
 // TODO: This binding code only work'n for System V AMD64 ABI calling convention (macOS & Linux)
 // Needs work for MS cdecl
 
-#define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, i64 _i4, i64 _i5, f64 _f0, f64 _f1, f64 _f2, f64 _f3, f64 _f4
-#define d_m3BindingArgs _i0, _i1, _i2, _i3, _i4, _i5, _f0, _f1, _f2, _f3, _f4
-#define d_m3BindingDefaultArgs 0,0,0,0,0,0, 0.,0.,0.,0.,0.
+#define d_m3BindingArgList i64 _i0, i64 _i1, i64 _i2, i64 _i3, i64 _i4, i64 _i5, \
+                           f64 _f0, f64 _f1, f64 _f2, f64 _f3, f64 _f4
+#define d_m3BindingArgs _i0, _i1, _i2, _i3, _i4, _i5, \
+                        _f0, _f1, _f2, _f3, _f4
+#define d_m3BindingDefaultArgs 0,0,0,0,0,0, \
+                               0.,0.,0.,0.,0.
 
 typedef m3ret_t (* M3ArgPusher) (d_m3BindingArgList, M3State * i_state);
 typedef f64 (* M3ArgPusherFpReturn) (d_m3BindingArgList, M3State * i_state);
@@ -400,7 +403,8 @@ M3Result  m3_LinkCFunction  (IM3Module io_module,
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr_t /* unused: */ signature,  const void * i_function)
+// TODO: validate signature as well?
+M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr_t signature,  const void * i_function)
 {
     M3Result result = c_m3Err_none;                                                 d_m3Assert (io_module->runtime);
     

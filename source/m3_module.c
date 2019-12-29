@@ -146,10 +146,12 @@ i32  AllocatePrivateHeap  (M3Memory * io_memory, i32 i_size)
 
     size_t size = (u8 *) io_memory->mallocated->end - io_memory->wasmPages;
 
-    d_m3AssertFatal (ptrOffset < size);
+    if (ptrOffset >= size) {
+        m3Abort("ptrOffset >= size");
+    }
 
     return (i32) ptrOffset;*/
-	
+
 	return 0;
 }
 
