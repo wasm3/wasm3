@@ -22,13 +22,6 @@
 #   define d_m3MaxFunctionStackHeight           2000
 # endif
 
-//# ifndef d_m3EnableFp32Maths
-//#   define d_m3EnableFp32Maths                  false
-//# endif
-//# ifndef d_m3EnableFp64Maths
-//#   define d_m3EnableFp64Maths                  true
-//# endif
-
 # ifndef d_m3LogOutput
 #   define d_m3LogOutput                        1
 # endif

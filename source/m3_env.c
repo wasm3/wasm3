@@ -151,12 +151,28 @@ void *  _FreeModule  (IM3Module i_module, void * i_info)
 }
 
 
+
+void  FreeCompilationPatches  (IM3Compilation o)
+{
+    IM3BranchPatch patches = o->releasedPatches;
+    
+    while (patches)
+    {
+        IM3BranchPatch next = patches->next;
+        m3Free (patches);
+        patches = next;
+    }
+}
+
+
 void  ReleaseRuntime  (IM3Runtime i_runtime)
 {
     ForEachModule (i_runtime, _FreeModule, NULL);
 
     FreeCodePages (i_runtime->pagesOpen);
     FreeCodePages (i_runtime->pagesFull);
+    
+    FreeCompilationPatches (& i_runtime->compilation);
 
     m3Free (i_runtime->stack);
 }

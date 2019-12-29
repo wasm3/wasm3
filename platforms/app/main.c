@@ -273,6 +273,7 @@ _onfatal:
         fprintf (stderr, "\n");
     }
 
+    m3_FreeRuntime (runtime);
     m3_FreeEnvironment (env);
     
     return 0;

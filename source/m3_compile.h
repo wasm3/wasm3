@@ -77,6 +77,8 @@ typedef struct
     IM3Function         function;
 
     IM3CodePage         page;
+    
+    IM3BranchPatch      releasedPatches;
 
     u32                 numEmits;
     u32                 numOpcodes;
@@ -99,8 +101,6 @@ typedef struct
     u16                 numAllocatedExecSlots;
 
     u16                 regStackIndexPlusOne        [2];
-
-    //bool              enableOptimizations;        // no longer used. currently implementation is highly pre-optimized.
 
     u8                  previousOpcode;
 }
