@@ -400,8 +400,7 @@ M3Result  m3_LinkCFunction  (IM3Module io_module,
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-// TODO: validate signature as well?
-M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr_t i_signature,  const void * i_function)
+M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr_t /* unused: */ signature,  const void * i_function)
 {
     M3Result result = c_m3Err_none;                                                 d_m3Assert (io_module->runtime);
     

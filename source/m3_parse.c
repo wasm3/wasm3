@@ -191,9 +191,8 @@ _               (Module_AddGlobal (io_module, & global, type, isMutable, true /*
     }
 
     _catch:
-    {
-        FreeImportInfo (& import);
-    }
+    
+    FreeImportInfo (& import);
 
     return result;
 }

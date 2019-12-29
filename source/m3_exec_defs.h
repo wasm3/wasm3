@@ -35,14 +35,7 @@
 # endif
 
 
-typedef f64 arch_f;
-typedef i64 arch_i;
-
-
 //---------------------------------------------------------------------------------------------------------------
-#define c_m3NumIntRegisters 1
-#define c_m3NumFpRegisters  1
-#define c_m3NumRegisters    (c_m3NumIntRegisters + c_m3NumFpRegisters)
 
 #   define d_m3OpSig                pc_t _pc, u64 * _sp, u8 * _mem, m3reg_t _r0, f64 _fp0
 #   define d_m3OpArgs               _sp, _mem, _r0, _fp0

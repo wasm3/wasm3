@@ -151,8 +151,6 @@ M3CodePageHeader;
 
 #define c_m3MaxNumFunctionConstants         60
 
-#define c_m3AlignWasmMemoryToPages          d_m3AlignWasmMemoryToPages
-
 #define c_m3MaxSaneUtf8Length               2000
 #define c_m3MaxNumFunctionArgs              d_m3MaxNumFunctionArgs
 

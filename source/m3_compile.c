@@ -493,27 +493,55 @@ M3Result  AddTrapRecord  (IM3Compilation o)
 }
 
 
+M3Result  AcquirePatch  (IM3Compilation o, IM3BranchPatch * o_patch)
+{
+    M3Result result = c_m3Err_none;
+    
+    IM3BranchPatch patch = o->releasedPatches;
+    
+    if (patch)
+    {
+        o->releasedPatches = patch->next;
+        patch->next = NULL;
+    }
+    else
+_       (m3Alloc (& patch, M3BranchPatch, 1));
+    
+    * o_patch = patch;
+    
+    _catch: return result;
+}
+
+
 bool  PatchBranches  (IM3Compilation o)
 {
-	bool patched = false;
+    bool didPatch = false;
 	
 	M3CompilationScope * block = & o->block;
 	pc_t pc = GetPC (o);
 	
-	while (block->patches)
-	{                                                           m3log (compile, "patching location: %p to pc: %p", block->patches->location, pc);
-		IM3BranchPatch next = block->patches->next;
-		
-		pc_t * location = block->patches->location;
-		* location = pc;
-		
-		m3Free (block->patches);
-		block->patches = next;
-		
-		patched = true;
+    IM3BranchPatch patches = block->patches;
+    IM3BranchPatch endPatch = patches;
+    
+    while (patches)
+	{                                                           m3log (compile, "patching location: %p to pc: %p", patches->location, pc);
+		* (patches->location) = pc;
+        
+        endPatch = patches;
+        patches = patches->next;
 	}
-	
-	return patched;
+    
+    if (block->patches)
+    {                                                           d_m3Assert (endPatch->next == NULL);
+        // return patches to pool
+        endPatch->next = o->releasedPatches;
+        o->releasedPatches = block->patches;
+        block->patches = NULL;
+        
+        didPatch = true;
+    }
+
+	return didPatch;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------
@@ -990,16 +1018,18 @@ _       (EmitOp (o, op));
         if (IsValidSlot (valueSlot))
             EmitConstant (o, valueSlot);
 
-        IM3BranchPatch patch = scope->patches;
-
-_       (m3Alloc (& scope->patches, M3BranchPatch, 1));
-
-        scope->patches->location = (pc_t *) ReservePointer (o);
-        scope->patches->next = patch;
+        IM3BranchPatch patch;
+_       (AcquirePatch (o, & patch));
+        
+        patch->location = (pc_t *) ReservePointer (o);
+        patch->next = scope->patches;
+        scope->patches = patch;
     }
 
     _catch: return result;
 }
+
+
 
 
 M3Result  Compile_BranchTable  (IM3Compilation o, u8 i_opcode)
@@ -1058,11 +1088,12 @@ _               (EmitOp (o, op_ContinueLoop));
         }
         else
         {
-            IM3BranchPatch prev_patch = scope->patches;
-_           (m3Alloc (& scope->patches, M3BranchPatch, 1));
-
-            scope->patches->location = (pc_t *) ReservePointer (o);
-            scope->patches->next = prev_patch;
+            IM3BranchPatch patch;
+_           (AcquirePatch (o, & patch));
+            
+            patch->location = (pc_t *) ReservePointer (o);
+            patch->next = scope->patches;
+            scope->patches = patch;
         }
     }
 
@@ -2017,6 +2048,14 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
 }
 
 
+void  SetupCompilation (IM3Compilation o)
+{
+    IM3BranchPatch patches = o->releasedPatches;
+    memset (o, 0x0, sizeof (M3Compilation));
+    o->releasedPatches = patches;
+}
+
+
 M3Result  Compile_Function  (IM3Function io_function)
 {
     M3Result result = c_m3Err_none;                                     m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
@@ -2024,7 +2063,7 @@ M3Result  Compile_Function  (IM3Function io_function)
     IM3Runtime runtime = io_function->module->runtime;
 
     IM3Compilation o = & runtime->compilation;
-    memset (o, 0x0, sizeof (M3Compilation));
+    SetupCompilation (o);
     
     o->runtime = runtime;
     o->module =  io_function->module;
@@ -2062,7 +2101,7 @@ _       (Compile_ReserveConstants (o));
         pc_t pc2 = GetPagePC (o->page);
         d_m3AssertFatal (pc2 == pc);
 
-_       (EmitOp (o, op_Entry));//, comp.stackIndex);
+_       (EmitOp (o, op_Entry));
         EmitPointer (o, io_function);
 
 _       (Compile_BlockStatements (o));

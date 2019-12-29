@@ -421,8 +421,8 @@ void  ProfileHit  (cstr_t i_operationName)
     {
         if (slot->opName != i_operationName)
         {
-            printf ("**** profiler slot collision; increase mask width\n");
-            m3NotImplemented ();
+            printf ("**** profiler slot collision; increase mask width: c_m3ProfilerSlotMask\n");
+            abort ();
         }
     }
 
