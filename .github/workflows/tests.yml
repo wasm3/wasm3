@@ -65,7 +65,7 @@ jobs:
       continue-on-error: true
       run: |
         cd test
-        ./run-spec-test.py ./core/call.json
+        ./run-spec-test.py ./core/address.json
     - name: Run spec tests
       run: |
         cd test
