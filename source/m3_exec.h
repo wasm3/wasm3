@@ -689,6 +689,12 @@ d_m3SetRegisterSetSlot (f32, _fp0)
 d_m3SetRegisterSetSlot (f64, _fp0)
 
 
+#if defined(d_m3SkipMemoryBoundsCheck)
+#  define m3MemCheck(x) true
+#else
+#  define m3MemCheck(x) (x)
+#endif
+
 #ifdef DEBUG
   #define d_outOfBounds return ErrorRuntime (c_m3Err_trapOutOfBoundsMemoryAccess,	\
                         _mem->runtime, "memory size: %zu; access offset: %zu",  	\
@@ -707,7 +713,9 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
     u64 operand = (u32) _r0;                            \
     operand += offset;                                  \
                                                         \
-    if (operand + sizeof (SRC_TYPE) <= _mem->length) {  \
+    if (m3MemCheck(                                     \
+        operand + sizeof (SRC_TYPE) <= _mem->length     \
+    )) {                                                \
         u8* src8 = m3MemData(_mem) + operand;           \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
@@ -721,7 +729,9 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    if (operand + sizeof (SRC_TYPE) <= _mem->length) {  \
+    if (m3MemCheck(                                     \
+        operand + sizeof (SRC_TYPE) <= _mem->length     \
+    )) {                                                \
         u8* src8 = m3MemData(_mem) + operand;           \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
@@ -760,7 +770,9 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    if (operand + sizeof (DEST_TYPE) <= _mem->length) { \
+    if (m3MemCheck(                                     \
+        operand + sizeof (DEST_TYPE) <= _mem->length    \
+    )) {                                                \
         u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) REG;                \
         memcpy(mem8, &val, sizeof(val));                \
@@ -774,7 +786,9 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    if (operand + sizeof (DEST_TYPE) <= _mem->length) { \
+    if (m3MemCheck(                                     \
+        operand + sizeof (DEST_TYPE) <= _mem->length    \
+    )) {                                                \
         u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) value;              \
         memcpy(mem8, &val, sizeof(val));                \
@@ -788,7 +802,9 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    if (operand + sizeof (DEST_TYPE) <= _mem->length) { \
+    if (m3MemCheck(                                     \
+        operand + sizeof (DEST_TYPE) <= _mem->length    \
+    )) {                                                \
         u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) value;              \
         memcpy(mem8, &val, sizeof(val));                \
@@ -804,7 +820,9 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
-    if (operand + sizeof (TYPE) <= _mem->length) {      \
+    if (m3MemCheck(                                     \
+        operand + sizeof (TYPE) <= _mem->length         \
+    )) {                                                \
         u8* mem8 = m3MemData(_mem) + operand;           \
         TYPE val = (TYPE) REG;                          \
         memcpy(mem8, &val, sizeof(val));                \
@@ -827,6 +845,8 @@ d_m3Store_i (i64, u8)
 d_m3Store_i (i64, i16)
 d_m3Store_i (i64, i32)
 d_m3Store_i (i64, i64)
+
+#undef m3MemCheck
 
 //---------------------------------------------------------------------------------------------------------------------
 # if d_m3EnableOptimizations

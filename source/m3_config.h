@@ -43,7 +43,7 @@
 #   define d_m3EnableOptimizations              0
 # endif
 
-// logging ---------------------------------------------------------------------------
+// logging --------------------------------------------------------------------
 
 # define d_m3EnableOpProfiling      0
 # define d_m3RuntimeStackDumps      0
@@ -51,7 +51,7 @@
 # define d_m3TraceExec              (1 && d_m3RuntimeStackDumps && DEBUG)
 
 
-// m3log (...) --------------------------------------------------------------------
+// m3log (...) ----------------------------------------------------------------
 
 # define d_m3LogParse           0
 # define d_m3LogCompile         0
@@ -64,5 +64,9 @@
 # define d_m3LogStackTrace      0
 # define d_m3LogNativeStack     0
 
+// other ----------------------------------------------------------------------
+
+//#define d_m3SkipStackCheck
+//#define d_m3SkipMemoryBoundsCheck
 
 #endif /* m3_config_h */
