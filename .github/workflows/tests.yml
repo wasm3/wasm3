@@ -61,7 +61,6 @@ jobs:
       run: |
         cmake --build build
     - name: Run spec tests
-      continue-on-error: true    # TODO
       run: |
         cd test
         ./run-spec-test.py

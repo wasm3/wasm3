@@ -142,7 +142,7 @@ if args.format == "fp":
 # Spec tests preparation
 #
 
-if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
+def fetchSpecTests():
     from io import BytesIO
     from zipfile import ZipFile
     from urllib.request import urlopen
@@ -314,6 +314,11 @@ class Wasm3():
 wasm3 = Wasm3(args.exec, args.engine)
 
 print("Version: " + wasm3.version())
+
+# MacOS does not allow wasm3 to load files right after start
+# fetching the tests while wasm3 is already running seems to help
+if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
+    fetchSpecTests()
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
