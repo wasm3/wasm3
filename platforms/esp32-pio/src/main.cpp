@@ -1,29 +1,21 @@
 #include <stdio.h>
 #include <time.h>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
-#include "sdkconfig.h"
+#include <unistd.h>
+#include "m3/m3.h"
 #include "esp_system.h"
-#include "esp_spi_flash.h"
+#include "m3/m3_env.h"
+#include "m3/extra/fib32.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
-#include "m3/m3.h"
-#include "m3/m3_env.h"
-
-#include "m3/extra/fib32.wasm.h"
-
-void run_wasm()
+static void run_wasm(void)
 {
     M3Result result = c_m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
-    size_t fsize = fib32_wasm_len-1;
+    uint32_t fsize = fib32_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
-
     IM3Environment env = m3_NewEnvironment ();
     if (!env) FATAL("m3_NewEnvironment failed");
 
@@ -52,7 +44,7 @@ void run_wasm()
     printf("Result: %ld\n", value);
 }
 
-void wasm_task(void*)
+extern "C" void app_main(void)
 {
     printf("\nwasm3 on ESP32, build " __DATE__ " " __TIME__ "\n");
 
@@ -62,30 +54,7 @@ void wasm_task(void*)
 
     printf("Elapsed: %d ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
 
-    for(;;) {
-        vTaskDelay(0xFFFF);
-    }
-}
-
-extern "C"
-void app_main()
-{
-    /* Print chip information */
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    printf("This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
-            chip_info.cores,
-            (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-            (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    printf("silicon revision %d, ", chip_info.revision);
-
-    printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
-            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    xTaskCreate(&wasm_task, "wasm_m3", 32768, NULL, 5, NULL);
-
-    for(;;) {
-        vTaskDelay(0xFFFF);
-    }
+    sleep(3);
+    printf("Restarting...\n\n\n");
+    esp_restart();
 }

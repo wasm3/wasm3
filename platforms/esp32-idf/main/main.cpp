@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 #include "m3/m3.h"
+#include "esp_system.h"
+#include "m3/m3_env.h"
 #include "m3/extra/fib32.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
@@ -36,9 +39,12 @@ static void run_wasm(void)
     result = m3_CallWithArgs (f, 1, i_argv);
 
     if (result) FATAL("m3_CallWithArgs: %s", result);
+
+    long value = *(uint64_t*)(runtime->stack);
+    printf("Result: %ld\n", value);
 }
 
-void app_main(void)
+extern "C" void app_main(void)
 {
     printf("\nwasm3 on ESP32, build " __DATE__ " " __TIME__ "\n");
 
@@ -47,4 +53,8 @@ void app_main(void)
     clock_t end = clock();
 
     printf("Elapsed: %d ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
+
+    sleep(3);
+    printf("Restarting...\n\n\n");
+    esp_restart();
 }

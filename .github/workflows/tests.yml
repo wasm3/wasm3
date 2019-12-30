@@ -221,3 +221,7 @@ jobs:
         grep "Elapsed: " out.txt
         grep "Restarting..." out.txt
         test $(($(grep "ets Jun  8 2016" out.txt | wc -l))) -eq 1
+    - name: Check that IDF and PIO examples are in sync
+      run: |
+        diff -q platforms/esp32-idf/main/main.cpp platforms/esp32-pio/src/main.cpp
+      # TODO: also check that the build flags are in sync
