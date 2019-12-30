@@ -1,20 +1,11 @@
 #include <stdio.h>
 #include <time.h>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
-#include "sdkconfig.h"
-#include "esp_system.h"
-#include "esp_spi_flash.h"
+#include "m3/m3.h"
+#include "m3/extra/fib32.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
-#include "m3/m3.h"
-
-#include "m3/extra/fib32.wasm.h"
-
-void run_wasm()
+static void run_wasm(void)
 {
     M3Result result = c_m3Err_none;
 
@@ -22,19 +13,21 @@ void run_wasm()
     uint32_t fsize = fib32_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
+    IM3Environment env = m3_NewEnvironment ();
+    if (!env) FATAL("m3_NewEnvironment failed");
+
+    IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
+    if (!runtime) FATAL("m3_NewRuntime failed");
 
     IM3Module module;
-    result = m3_ParseModule (& module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) FATAL("m3_ParseModule: %s", result);
 
-    IM3Runtime env = m3_NewRuntime (1024);
-    if (!env) FATAL("m3_NewRuntime");
-
-    result = m3_LoadModule (env, module);
+    result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, env, "fib");
+    result = m3_FindFunction (&f, runtime, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
     printf("Running...\n");
@@ -45,7 +38,7 @@ void run_wasm()
     if (result) FATAL("m3_CallWithArgs: %s", result);
 }
 
-void wasm_task(void* arg)
+void app_main(void)
 {
     printf("\nwasm3 on ESP32, build " __DATE__ " " __TIME__ "\n");
 
@@ -54,26 +47,4 @@ void wasm_task(void* arg)
     clock_t end = clock();
 
     printf("Elapsed: %d ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
-
-    vTaskDelete(NULL);
-}
-
-void app_main()
-{
-    /* Print chip information */
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    printf("This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
-            chip_info.cores,
-            (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-            (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    printf("silicon revision %d, ", chip_info.revision);
-
-    printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
-            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    xTaskCreate(&wasm_task, "wasm_m3", 32768, NULL, 5, NULL);
-
-    vTaskDelete(NULL);
 }
