@@ -41,7 +41,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
 parser.add_argument("--engine", metavar="<engine>")
 parser.add_argument("--timeout", type=int,             default=30)
-parser.add_argument("--sleep",   type=float,           default=0)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
 parser.add_argument("--show-logs", action="store_true")
@@ -143,7 +142,7 @@ if args.format == "fp":
 # Spec tests preparation
 #
 
-def fetchSpecTests():
+if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
     from io import BytesIO
     from zipfile import ZipFile
     from urllib.request import urlopen
@@ -315,13 +314,6 @@ class Wasm3():
 wasm3 = Wasm3(args.exec, args.engine)
 
 print("Version: " + wasm3.version())
-
-if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
-    fetchSpecTests()
-
-if args.sleep > 0:
-    print(f"Sleeping for {args.sleep} seconds")
-    time.sleep(args.sleep)
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
