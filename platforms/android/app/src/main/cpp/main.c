@@ -3,11 +3,12 @@
 #include <time.h>
 
 #include "m3/m3.h"
+#include "m3/m3_env.h"
+#include "m3/m3_config.h"
+
 #include "m3/extra/fib32.wasm.h"
 
-#include "abi_detect.h"
-
-#define FATAL(msg, ...) { printf("Fatal: " msg "\n", __VA_ARGS__); return; }
+#define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
 void run_wasm()
 {
@@ -18,24 +19,21 @@ void run_wasm()
 
     printf("Loading WebAssembly...\n");
 
+    IM3Environment env = m3_NewEnvironment ();
+    if (!env) FATAL("m3_NewEnvironment failed");
+
+    IM3Runtime runtime = m3_NewRuntime (env, 8192, NULL);
+    if (!runtime) FATAL("m3_NewRuntime failed");
+
     IM3Module module;
-    result = m3_ParseModule (& module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) FATAL("m3_ParseModule: %s", result);
 
-    IM3Runtime env = m3_NewRuntime (8192);
-
-    result = m3_LoadModule (env, module);
+    result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, env, "__post_instantiate");
-    if (! result)
-    {
-      result = m3_Call (f);
-      if (result) FATAL("__post_instantiate: %s", result);
-    }
-
-    result = m3_FindFunction (&f, env, "fib");
+    result = m3_FindFunction (&f, runtime, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
     printf("Running...\n");
@@ -43,12 +41,15 @@ void run_wasm()
     const char* i_argv[2] = { "40", NULL };
     result = m3_CallWithArgs (f, 1, i_argv);
 
-    if (result) FATAL("Call: %s", result);
+    if (result) FATAL("m3_CallWithArgs: %s", result);
+
+    long value = *(uint64_t*)(runtime->stack);
+    printf("Result: %ld\n", value);
 }
 
 int main()
 {
-    printf("wasm3 on Android (" ABI ")\n");
+    printf("wasm3 on Android (" M3_ARCH ")\n");
     printf("Build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
