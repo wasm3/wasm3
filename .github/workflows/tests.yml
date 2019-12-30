@@ -60,17 +60,10 @@ jobs:
     - name: Build
       run: |
         cmake --build build
-    - name: Fetch spec tests and warm-up
-      # this is ok to fail here
-      continue-on-error: true
-      run: |
-        cd test
-        ./run-spec-test.py ./core/address.json
-        sleep 15
     - name: Run spec tests
       run: |
         cd test
-        ./run-spec-test.py
+        ./run-spec-test.py --sleep=30
     - name: Run WASI tests
       run: |
         cd test
