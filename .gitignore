@@ -1,9 +1,11 @@
 /build*
 /source-*
-node_modules
 test/core
+test/proposals
 test/*.log
 test/tailcall/*.S
+node_modules/
+__pycache__/
 .project
 .cproject
 .settings

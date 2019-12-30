@@ -5,6 +5,7 @@
 #   ./run-spec-test.py
 #   ./run-spec-test.py ./core/i32.json
 #   ./run-spec-test.py ./core/float_exprs.json --line 2070
+#   ./run-spec-test.py ./proposals/tail-call/*.json
 #   ./run-spec-test.py --exec ../build-custom/wasm3
 #   ./run-spec-test.py --engine "wasmer run" --exec ../build-wasi/wasm3.wasm
 #   ./run-spec-test.py --engine "wasmer run --backend=llvm" --exec ../build-wasi/wasm3.wasm
@@ -23,8 +24,14 @@ import json
 import re
 import struct
 import math
+import pathlib
 
+scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+sys.path.append(os.path.join(scriptDir, '..', 'extra'))
+
+from testutils import *
 from pprint import pprint
+
 
 #
 # Args handling
@@ -54,30 +61,6 @@ if args.line:
 log = open("spec-test.log","w+")
 log.write("======================\n")
 
-class ansi:
-    ENDC = '\033[0m'
-    HEADER = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-class dotdict(dict):
-    def __init__(self, *args, **kwargs):
-        super(dotdict, self).__init__(*args, **kwargs)
-        for arg in args:
-            if isinstance(arg, dict):
-                for k, v in arg.items():
-                    self[k] = v
-        if kwargs:
-            for k, v in kwargs.items():
-                self[k] = v
-
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
 def warning(msg):
     log.write("Warning: " + msg + "\n")
     log.flush()
@@ -89,10 +72,6 @@ def fatal(msg):
     log.flush()
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
-
-def filename(p):
-    _, fn = os.path.split(p)
-    return fn
 
 def binaryToFloat(num, t):
     if t == "f32":
@@ -163,7 +142,7 @@ if args.format == "fp":
 # Spec tests preparation
 #
 
-def specTestsFetch():
+if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
     from io import BytesIO
     from zipfile import ZipFile
     from urllib.request import urlopen
@@ -174,8 +153,13 @@ def specTestsFetch():
     resp = urlopen(officialSpec)
     with ZipFile(BytesIO(resp.read())) as zipFile:
         for zipInfo in zipFile.infolist():
-            if re.match(r".*-master/core/.*", zipInfo.filename):
-                zipInfo.filename = "core/" + filename(zipInfo.filename)
+            if re.match(r".*-master/.*/.*(\.wasm|\.json)", zipInfo.filename):
+                parts = pathlib.Path(zipInfo.filename).parts
+                newpath = str(pathlib.Path(*parts[1:-1]))
+                newfn   = str(pathlib.Path(*parts[-1:]))
+                ensure_path(newpath)
+                newpath = newpath + "/" + newfn
+                zipInfo.filename = newpath
                 zipFile.extract(zipInfo)
 
 #
@@ -324,27 +308,8 @@ class Wasm3():
         self.p = None
 
 #
-# Blacklist
-#
-
-import fnmatch
-
-class Blacklist():
-    def __init__(self, patterns):
-        patterns = map(fnmatch.translate, patterns)
-        final = '|'.join(patterns)
-        self._regex = re.compile(final)
-
-    def __contains__(self, item):
-        return self._regex.match(item) != None
-
-#
 # Actual test
 #
-
-curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
-coreDir = os.path.join(curDir, "core")
-
 
 wasm3 = Wasm3(args.exec, args.engine)
 
@@ -480,15 +445,13 @@ def runInvoke(test):
         showTestResult()
         #sys.exit(1)
 
-if not os.path.isdir(coreDir):
-    specTestsFetch()
-
 if args.file:
     jsonFiles = args.file
 else:
-    jsonFiles = glob.glob(os.path.join(coreDir, "*.json"))
-    jsonFiles = list(map(lambda x: os.path.relpath(x, curDir), jsonFiles))
-    jsonFiles.sort()
+    jsonFiles = glob.glob(os.path.join(".", "core", "*.json"))
+    #jsonFiles = list(map(lambda x: os.path.relpath(x, curDir), jsonFiles))
+
+jsonFiles.sort()
 
 for fn in jsonFiles:
     with open(fn) as f:
@@ -515,8 +478,8 @@ for fn in jsonFiles:
                 print(f"Loading {wasm_module}")
 
             try:
-                fn = os.path.relpath(os.path.join(coreDir, wasm_module), curDir)
-                wasm3.load(fn)
+                wasm_fn = os.path.join(pathname(fn), wasm_module)
+                wasm3.load(wasm_fn)
             except Exception as e:
                 pass #fatal(str(e))
 
@@ -568,8 +531,8 @@ for fn in jsonFiles:
 
         # These are irrelevant
         elif (test.type == "assert_invalid" or
-             test.type == "assert_malformed" or
-             test.type == "assert_uninstantiable"):
+              test.type == "assert_malformed" or
+              test.type == "assert_uninstantiable"):
             pass
 
         # Others - report as skipped

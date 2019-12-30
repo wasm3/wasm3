@@ -498,19 +498,20 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Type,      // 1
         ParseSection_Import,    // 2
         ParseSection_Function,  // 3
-        NULL,                   // 4: table
+        NULL,                   // 4: Table
 		ParseSection_Memory,    // 5
         ParseSection_Global,    // 6
         ParseSection_Export,    // 7
         ParseSection_Start,     // 8
         ParseSection_Element,   // 9
         ParseSection_Code,      // 10
-        ParseSection_Data       // 11
+        ParseSection_Data,      // 11
+        NULL,                   // 12: DataCount from bulk memory operations proposal
     };
 
     M3Parser parser = NULL;
 
-    if (i_sectionType <= 11)
+    if (i_sectionType <= 12)
         parser = s_parsers [i_sectionType];
 
     if (parser)
@@ -559,8 +560,11 @@ _       (Read_u32 (&version, & pos, end));
                 u8 sectionCode;
 _               (ReadLEB_u7 (& sectionCode, & pos, end));
 
-                if (sectionCode > previousSection or sectionCode == 0)              // from the spec: sections must appear in order
-                {
+                if (sectionCode > previousSection or  // from the spec: sections must appear in order
+                    sectionCode == 0 or
+                    (sectionCode == 12 and previousSection == 9) or  // if present, DataCount goes after Element
+                    (sectionCode == 10 and previousSection == 12)    // and before Code
+                ) {
                     u32 sectionLength;
 _                   (ReadLEB_u32 (& sectionLength, & pos, end));
 _                   (ParseModuleSection (module, sectionCode, pos, sectionLength));

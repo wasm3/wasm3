@@ -13,6 +13,9 @@ import subprocess
 import hashlib
 import fnmatch
 
+sys.path.append('../extra')
+
+from testutils import *
 from pprint import pprint
 
 #
@@ -24,38 +27,6 @@ parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
 parser.add_argument("--timeout", type=int,             default=120)
 
 args = parser.parse_args()
-
-#
-# Helpers
-#
-
-class ansi:
-    ENDC = '\033[0m'
-    HEADER = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-class dotdict(dict):
-    def __init__(self, *args, **kwargs):
-        super(dotdict, self).__init__(*args, **kwargs)
-        for arg in args:
-            if isinstance(arg, dict):
-                for k, v in arg.items():
-                    self[k] = v
-        if kwargs:
-            for k, v in kwargs.items():
-                self[k] = v
-
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-#
-# Actual test
-#
 
 stats = dotdict(total_run=0, failed=0, crashed=0, timeout=0)
 
