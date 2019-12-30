@@ -95,7 +95,7 @@ M3ArgPusher c_m3Float64Pushers  [] = { PushArg_f64_0, PushArg_f64_1, PushArg_f64
 d_m3RetSig  CallTrappingCFunction_void  (d_m3OpSig)
 {
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
-    M3State state = { _pc, _sp, _mem };
+    M3State state = { _pc, _sp, m3MemData(_mem) };
 
     m3ret_t r = (m3ret_t) pusher (d_m3BindingDefaultArgs, & state);
 
@@ -106,7 +106,7 @@ d_m3RetSig  CallTrappingCFunction_void  (d_m3OpSig)
 d_m3RetSig  CallCFunction_i64  (d_m3OpSig)
 {
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
-    M3State state = { _pc, _sp, _mem };
+    M3State state = { _pc, _sp, m3MemData(_mem) };
 
     i64 r = (i64) pusher (d_m3BindingDefaultArgs, & state);
     * _sp = r;
@@ -118,7 +118,7 @@ d_m3RetSig  CallCFunction_i64  (d_m3OpSig)
 d_m3RetSig  CallCFunction_f64  (d_m3OpSig)
 {
     M3ArgPusherFpReturn pusher = (M3ArgPusherFpReturn) (* _pc++);
-    M3State state = { _pc, _sp, _mem };
+    M3State state = { _pc, _sp, m3MemData(_mem) };
 
     f64 r = (f64) pusher (d_m3BindingDefaultArgs, & state);
     * (f64 *) (_sp) = r;
@@ -130,7 +130,7 @@ d_m3RetSig  CallCFunction_f64  (d_m3OpSig)
 d_m3RetSig  CallCFunction_f32  (d_m3OpSig)
 {
     M3ArgPusherFpReturn pusher = (M3ArgPusherFpReturn) (* _pc++);
-    M3State state = { _pc, _sp, _mem };
+    M3State state = { _pc, _sp, m3MemData(_mem) };
 
     f32 r = (f32) pusher (d_m3BindingDefaultArgs, & state);
     * (f32 *) (_sp) = r;
@@ -142,14 +142,11 @@ d_m3RetSig  CallCFunction_f32  (d_m3OpSig)
 d_m3RetSig  CallCFunction_ptr  (d_m3OpSig)
 {
     M3ArgPusher pusher = (M3ArgPusher) (* _pc++);
-    M3State state = { _pc, _sp, _mem };
+    M3State state = { _pc, _sp, m3MemData(_mem) };
 
     const u8 * r = (const u8*) pusher (d_m3BindingDefaultArgs, & state);
 
-    void ** ptr = (void **) _mem;
-    IM3Runtime runtime = (IM3Runtime) (* (ptr - 2));
-
-    size_t offset = r - (const u8 *) runtime->memory.wasmPages;
+    size_t offset = r - m3MemData(_mem);
 
     * (i32 *) (_sp) = (i32) offset;
 

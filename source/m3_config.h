@@ -35,14 +35,6 @@
 #   define d_m3VerboseErrorMessages           	1
 # endif
 
-
-// TODO: This flag is temporary
-// It's enabled in build scripts for Linux, OS X, Win32 and Android targets
-// and disabled on other platforms, i.e. microcontrollers
-# ifndef d_m3AllocateLinearMemory
-#   define d_m3AllocateLinearMemory             0
-# endif
-
 # ifndef d_m3FixedHeapAlign
 #   define d_m3FixedHeapAlign                   16
 # endif

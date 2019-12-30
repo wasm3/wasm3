@@ -690,14 +690,11 @@ d_m3SetRegisterSetSlot (f64, _fp0)
 
 
 #ifdef DEBUG
-
-  m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset);
-  #define d_outOfBounds { return ReportOutOfBoundsMemoryError (_pc, _mem, operand); }
-
+  #define d_outOfBounds return ErrorRuntime (c_m3Err_trapOutOfBoundsMemoryAccess,	\
+                        _mem->runtime, "memory size: %zu; access offset: %zu",  	\
+                       	_mem->length, operand)
 #else
-
   #define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
-
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.
@@ -707,36 +704,30 @@ d_m3SetRegisterSetSlot (f64, _fp0)
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
 {                                                       \
     u32 offset = immediate (u32);                       \
-    u32 operand = (u32) _r0;                            \
+    u64 operand = (u32) _r0;                            \
+    operand += offset;                                  \
                                                         \
-    u64 src8 = (u64)_mem + operand + offset;            \
-    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
-                                                        \
-    if (src8 + sizeof (SRC_TYPE) <= end)                \
-    {                                                   \
+    if (operand + sizeof (SRC_TYPE) <= _mem->length) {  \
+        u8* src8 = m3MemData(_mem) + operand;           \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
         REG = (DEST_TYPE)value;                         \
         return nextOp ();                               \
-    }                                                   \
-    else d_outOfBounds;                                 \
+    } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
 {                                                       \
-    u32 operand = * (u32 *) (_sp + immediate (i32));    \
+    u64 operand = * (u32 *) (_sp + immediate (i32));    \
     u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
                                                         \
-    u64 src8 = (u64)_mem + operand + offset;            \
-    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
-                                                        \
-    if (src8 + sizeof (SRC_TYPE) <= end)                \
-    {                                                   \
+    if (operand + sizeof (SRC_TYPE) <= _mem->length) {  \
+        u8* src8 = m3MemData(_mem) + operand;           \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
         REG = (DEST_TYPE)value;                         \
         return nextOp ();                               \
-    }                                                   \
-    else d_outOfBounds;                                 \
+    } else d_outOfBounds;                               \
 }
 
 //  printf ("get: %d -> %d\n", operand + offset, (i64) REG);
@@ -765,68 +756,60 @@ d_m3Load_i (i64, i64);
 #define d_m3Store(REG, SRC_TYPE, DEST_TYPE)             \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
 {                                                       \
-    u32 operand = slot (u32);                           \
+    u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
                                                         \
-    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
-    u64 mem8 = (u64)_mem + operand + offset;            \
-    if (mem8 + sizeof (DEST_TYPE) <= end)               \
-    {                                                   \
+    if (operand + sizeof (DEST_TYPE) <= _mem->length) { \
+        u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) REG;                \
-        memcpy((u8*)mem8, &val, sizeof(val));           \
+        memcpy(mem8, &val, sizeof(val));                \
         return nextOp ();                               \
-    }                                                   \
-    else d_outOfBounds;                                 \
+    } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
 {                                                       \
     SRC_TYPE value = slot (SRC_TYPE);                   \
-    u32 operand = (u32) REG;                            \
+    u64 operand = (u32) REG;                            \
     u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
                                                         \
-    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
-    u64 mem8 = (u64)_mem + operand + offset;            \
-    if (mem8 + sizeof (DEST_TYPE) <= end)               \
-    {                                                   \
+    if (operand + sizeof (DEST_TYPE) <= _mem->length) { \
+        u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) value;              \
-        memcpy((u8*)mem8, &val, sizeof(val));           \
+        memcpy(mem8, &val, sizeof(val));                \
         return nextOp ();                               \
-    }                                                   \
-    else d_outOfBounds;                                 \
+    } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
 {                                                       \
     SRC_TYPE value = slot (SRC_TYPE);                   \
-    u32 operand = slot (u32);                           \
+    u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
                                                         \
-    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
-    u64 mem8 = (u64)_mem + operand + offset;            \
-    if (mem8 + sizeof (DEST_TYPE) <= end)               \
-    {                                                   \
+    if (operand + sizeof (DEST_TYPE) <= _mem->length) { \
+        u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) value;              \
-        memcpy((u8*)mem8, &val, sizeof(val));           \
+        memcpy(mem8, &val, sizeof(val));                \
         return nextOp ();                               \
-    }                                                   \
-    else d_outOfBounds;                                 \
+    } else d_outOfBounds;                               \
 }
 
 // both operands can be in regs when storing a float
 #define d_m3StoreFp(REG, TYPE)                          \
 d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
 {                                                       \
-    u32 operand = (u32) _r0;                            \
+    u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
                                                         \
-    u64 end = ((M3MemoryHeader*)(_mem) - 1)->end;       \
-    u64 mem8 = (u64)_mem + operand + offset;            \
-    if (mem8 + sizeof (TYPE) <= end)                    \
-    {                                                   \
+    if (operand + sizeof (TYPE) <= _mem->length) {      \
+        u8* mem8 = m3MemData(_mem) + operand;           \
         TYPE val = (TYPE) REG;                          \
-        memcpy((u8*)mem8, &val, sizeof(val));           \
+        memcpy(mem8, &val, sizeof(val));                \
         return nextOp ();                               \
-    }                                                   \
-    else d_outOfBounds;                                 \
+    } else d_outOfBounds;                               \
 }
 
 

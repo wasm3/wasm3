@@ -301,19 +301,18 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         
         if (memory->mallocated)
         {
-            u8 * oldPages = memory->wasmPages;
+#if d_m3LogRuntime
+            u8 * oldMallocated = memory->mallocated;
+#endif
             memory->numPages = numPagesToAlloc;
-            memory->wasmPages = (u8 *) (memory->mallocated + 1);
             
-            memory->mallocated->end = memory->wasmPages + numPageBytes;
+            memory->mallocated->length =  numPageBytes;
             memory->mallocated->runtime = io_runtime;
             
              // TODO: track max function stack height and use this instead of hard-coded constant
             memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + (io_runtime->numStackSlots - c_m3MaxFunctionStackHeight);
             
-            size_t diff = (u8*) (memory->mallocated->maxStack) - (u8*) io_runtime->stack;
-            
-            m3log (runtime, "resized old: %p; mem: %p; end: %p; pages: %d", oldPages, memory->wasmPages, memory->mallocated->end, memory->numPages);
+            m3log (runtime, "resized old: %p; mem: %p; end: %p; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->end, memory->numPages);
         }
         else result = c_m3Err_mallocFailed;
     }
@@ -378,11 +377,11 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
-        if (io_memory->wasmPages)
+        if (io_memory->mallocated)
         {
-            u8 * dest = io_memory->wasmPages + segmentOffset;
+            u8 * dest = m3MemData(io_memory->mallocated) + segmentOffset;
             
-            if (dest + segment->size <= (u8 *) io_memory->mallocated->end)
+            if ((size_t)segmentOffset + segment->size <= io_memory->mallocated->length)
                 memcpy (dest, segment->data, segment->size);
             else
                 _throw ("data segment overflowing linear memory");
@@ -482,9 +481,7 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
         io_module->runtime = io_runtime;
 		M3Memory * memory = & io_runtime->memory;
 
-# if d_m3AllocateLinearMemory
 _       (InitMemory (io_runtime, io_module));
-# endif
 _       (InitGlobals (io_module));
 _       (InitDataSegments (memory, io_module));
 _       (InitElements (io_module));
@@ -570,12 +567,6 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
             
         IM3FuncType ftype = i_function->funcType;
 
-//#if d_m3AllocateLinearMemory
-//_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
-//#endif
-
-        u8 * linearMemory = runtime->memory.wasmPages;
-
         m3stack_t stack = (m3stack_t)(runtime->stack);
 
         m3logif (runtime, PrintFuncTypeSignature (ftype));
@@ -608,7 +599,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         }
 
         m3StackCheckInit();
-_       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
+_       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
 #if d_m3LogOutput
         switch (ftype->returnType) {

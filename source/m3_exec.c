@@ -12,42 +12,18 @@
 
 
 static inline
-M3MemoryHeader * GetMemoryHeader (u8 * i_memory)
+IM3Memory GetMemoryInfo (M3MemoryHeader * header)
 {
-    M3MemoryHeader * header = (M3MemoryHeader *) i_memory - 1;
-    return header;
-}
-
-static inline
-IM3Memory GetMemoryInfo (u8 * i_memory)
-{
-    M3MemoryHeader * header = GetMemoryHeader (i_memory);
     IM3Memory memory = & header->runtime->memory;
     
     return memory;
 }
 
 static inline
-IM3Runtime GetRuntime (u8 * i_memory)
+IM3Runtime GetRuntime (M3MemoryHeader * header)
 {
-    M3MemoryHeader * header = GetMemoryHeader (i_memory);
     return header->runtime;
 }
-
-
-
-m3ret_t ReportOutOfBoundsMemoryError (pc_t i_pc, u8 * i_mem, u32 i_offset)
-{
-    M3MemoryHeader * info = GetMemoryHeader (i_mem);
-    u8 * mem8 = i_mem + i_offset;
-
-    ErrorRuntime (c_m3Err_trapOutOfBoundsMemoryAccess, info->runtime,
-				  "memory bounds: [%p %p); accessed: %p; offset: %u overflow: %zd bytes",
-				  i_mem, info->end, mem8, i_offset, mem8 - (u8 *) info->end);
-
-    return c_m3Err_trapOutOfBoundsMemoryAccess;
-}
-
 
 void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 {
@@ -67,7 +43,7 @@ d_m3OpDef  (Call)
 
     if (r == 0)
     {
-        _mem = memory->wasmPages;
+        _mem = memory->mallocated;
         return nextOp ();
     }
     else return r;
@@ -123,7 +99,7 @@ d_m3OpDef  (CallIndirect)
 
                 if (not r)
                 {
-                    _mem = memory->wasmPages;
+                    _mem = memory->mallocated;
                     r = nextOp ();
                 }
             }
@@ -141,7 +117,7 @@ d_m3OpDef  (CallRawFunction)
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = GetRuntime (_mem);
     
-    m3ret_t possible_trap = call (runtime, _sp, _mem);
+    m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem));
     return possible_trap;
 }
 
@@ -174,7 +150,7 @@ d_m3OpDef  (MemGrow)
         if (r)
             _r0 = -1;
         
-        _mem = memory->wasmPages;
+        _mem = memory->mallocated;
     }
     
     return nextOp ();
@@ -213,9 +189,11 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
-    M3MemoryHeader * header = GetMemoryHeader (_mem);
-        
-    if ((void *) _sp <= header->maxStack)
+#if defined(d_m3SkipStackCheck)
+    if (true)
+#else
+    if ((void *) _sp <= _mem->maxStack)
+#endif
     {
         IM3Function function = immediate (IM3Function);
         function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
@@ -282,7 +260,7 @@ d_m3OpDef  (Loop)
         // linear memory pointer needs refreshed here because the block it's loop over
         // can potentially invoke the grow operator.
         r = nextOp ();                     // printf ("loop: %p\n", r);
-        _mem = memory->wasmPages;
+        _mem = memory->mallocated;
     }
     while (r == _pc);
 

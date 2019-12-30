@@ -83,7 +83,6 @@ M3MemoryInfo;
 typedef struct M3Memory
 {
     M3MemoryHeader *        mallocated;
-    u8 *                    wasmPages;                  // = mallocated + sizeof (M3MemoryHeader)
 
 	u32 					numPages;
 	u32 					maxPages;

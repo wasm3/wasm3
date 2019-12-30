@@ -120,9 +120,7 @@ typedef struct M3MemoryHeader
 {
     IM3Runtime      runtime;
     void *          maxStack;
-    
-    // 'end' should be the last element because m3_exec accesses this with a simplistyic _mem - 1
-    void *          end;
+    size_t          length;
 }
 M3MemoryHeader;
 
