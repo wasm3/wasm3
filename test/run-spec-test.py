@@ -319,8 +319,8 @@ print("Version: " + wasm3.version())
 if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
     fetchSpecTests()
 
-if args.sleep:
-    print("Sleeping for {args.sleep} seconds"
+if args.sleep > 0:
+    print(f"Sleeping for {args.sleep} seconds")
     time.sleep(args.sleep)
 
 blacklist = Blacklist([
