@@ -560,14 +560,11 @@ _       (Read_u32 (&version, & pos, end));
                 u8 sectionCode;
 _               (ReadLEB_u7 (& sectionCode, & pos, end));
 
-                // TODO: this breaks spec tests on macos.. hmm
-
-                //if (sectionCode > previousSection or  // from the spec: sections must appear in order
-                //  sectionCode == 0 or
-                //    (sectionCode == 12 and previousSection == 9) or  // if present, DataCount goes after Element
-                //    (sectionCode == 10 and previousSection == 12)    // and before Code
-                //) {
-                if (1) {
+                if (sectionCode > previousSection or  // from the spec: sections must appear in order
+                    sectionCode == 0 or
+                    (sectionCode == 12 and previousSection == 9) or  // if present, DataCount goes after Element
+                    (sectionCode == 10 and previousSection == 12)    // and before Code
+                ) {
                     u32 sectionLength;
 _                   (ReadLEB_u32 (& sectionLength, & pos, end));
 _                   (ParseModuleSection (module, sectionCode, pos, sectionLength));
