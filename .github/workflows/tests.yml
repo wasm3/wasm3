@@ -66,6 +66,7 @@ jobs:
       run: |
         cd test
         ./run-spec-test.py ./core/address.json
+        sleep 15
     - name: Run spec tests
       run: |
         cd test
