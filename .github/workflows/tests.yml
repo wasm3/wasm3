@@ -60,6 +60,12 @@ jobs:
     - name: Build
       run: |
         cmake --build build
+    - name: Fetch spec tests and warm-up
+      # this is ok to fail here
+      continue-on-error: true
+      run: |
+        cd test
+        ./run-spec-test.py ./core/call.json
     - name: Run spec tests
       run: |
         cd test
