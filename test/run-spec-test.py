@@ -288,6 +288,8 @@ class Wasm3():
         else:
             error = "Timeout"
 
+        print("Last output: " + buff)
+
         self.terminate()
         raise Exception(error)
 
