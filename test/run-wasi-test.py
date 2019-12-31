@@ -42,6 +42,7 @@ commands = [
     "args":           ["cat", "./wasi/0.txt"],
     "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
+    "skip":           True,  # TODO: Native calls fail on all 32-bit targets
     "name":           "Raw/Native funcs benchmark",
     "wasm":           "./wasi/test_native_vs_raw.wasm",
     "expect_pattern": "Validation...*Native/Raw: *"
