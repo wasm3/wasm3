@@ -61,12 +61,10 @@ jobs:
       run: |
         cmake --build build
     - name: Run spec tests
-      continue-on-error: true
       run: |
         cd test
         ./run-spec-test.py
     - name: Run WASI tests
-      continue-on-error: true
       run: |
         cd test
         ./run-wasi-test.py
