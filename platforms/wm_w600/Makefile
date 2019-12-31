@@ -90,7 +90,7 @@ endif
 #   for a subtree within the makefile rooted therein
 #
 
-DEFINES =  -w -DWM_W600 -Os -flto
+DEFINES = -DWM_W600 -Os -flto -Dd_m3SkipStackCheck
 #			-Dd_m3FixedHeap=8192
 #			-fno-optimize-sibling-calls
 
