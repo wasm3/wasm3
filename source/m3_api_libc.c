@@ -86,6 +86,25 @@ m3ApiRawFunction(m3_spectest_dummy)
     return c_m3Err_none;
 }
 
+m3ApiRawFunction(m3_wasm3_raw_sum)
+{
+    m3ApiReturnType  (int64_t)
+    m3ApiGetArg      (int32_t, val1)
+    m3ApiGetArg      (int32_t, val2)
+    m3ApiGetArg      (int32_t, val3)
+    m3ApiGetArg      (int32_t, val4)
+
+    m3ApiReturn(val1 + val2 + val3 + val4);
+
+    return c_m3Err_none;
+}
+
+i64 m3_wasm3_native_sum(i32 val1, i32 val2, i32 val3, i32 val4)
+{
+    return val1 + val2 + val3 + val4;
+}
+
+
 M3Result  m3_LinkSpecTest  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
@@ -99,6 +118,11 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_f32",  
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_f64",       &m3_spectest_dummy)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_i32_f32",   &m3_spectest_dummy)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, spectest, "print_i64_f64",   &m3_spectest_dummy)));
+
+    const char* wasm3 = "wasm3";
+
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasm3, "raw_sum",                   &m3_wasm3_raw_sum)));
+_   (SuppressLookupFailure (m3_LinkCFunction   (module, wasm3, "native_sum",    "I(iiii)",  &m3_wasm3_native_sum)));
 
 _catch:
     return result;
