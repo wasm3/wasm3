@@ -114,9 +114,10 @@ jobs:
         source $HOME/.wasienv/wasienv.sh
         mkdir build-wasi
         cd build-wasi
-        cmake -DWASIENV=1 ..
+        wasimake cmake -DWASIENV=1 ..
     - name: Build
       run: |
+        source $HOME/.wasienv/wasienv.sh
         cmake --build build-wasi
     - name: Run spec tests (in Wasmer)
       run: |

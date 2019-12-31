@@ -36,11 +36,6 @@ if(EMSCRIPTEN)
   set(APP_DIR            "platforms/emscripten")
 endif()
 
-if(WASIENV)
-  set(CMAKE_C_COMPILER   "wasicc")
-  set(CMAKE_CXX_COMPILER "wasic++")
-endif()
-
 if(BUILD_32BIT)
   set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -m32")
 endif()
@@ -67,11 +62,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-file(GLOB M3_SRC "source/*.c" "source/*.cpp" "${APP_DIR}/*.c")
 
-add_executable(${OUT_FILE} ${M3_SRC})
-
-include_directories("./source/")
+file(GLOB app_srcs "${APP_DIR}/*.c")
+add_executable(${OUT_FILE} ${app_srcs})
 
 #-fno-optimize-sibling-calls
 
@@ -140,6 +133,9 @@ if(result AND NOT WASIENV) # TODO: LTO breaks wasm imports
 else()
   message("LTO:        OFF")
 endif()
+
+add_subdirectory(source)
+target_link_libraries(${OUT_FILE} m3)
 
 message("Flags:         ${CMAKE_C_FLAGS}")
 message("Debug flags:   ${CMAKE_C_FLAGS_DEBUG}")
