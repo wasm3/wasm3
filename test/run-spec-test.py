@@ -480,8 +480,10 @@ for fn in jsonFiles:
 
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
-                wasm3.load(wasm_fn)
+                res = wasm3.load(wasm_fn)
+                print(res)
             except Exception as e:
+                print(e)
                 pass #fatal(str(e))
 
         elif (  test.type == "action" or
