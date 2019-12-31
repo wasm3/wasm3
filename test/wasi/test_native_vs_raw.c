@@ -12,7 +12,7 @@ double get_time() {
 
 int main(int argc, char **argv)
 {
-  const unsigned cycles = 1000000000;
+  const unsigned cycles = (argc > 1) ? atol(argv[1]) : 10000000;
   double beg, end;
 
   printf("Validation...\n");
@@ -26,7 +26,7 @@ int main(int argc, char **argv)
   fflush(stdout);
 
   beg = get_time();
-  for (int i = 0; i < cycles/10; i++) {
+  for (unsigned i = 0; i < cycles/10; i++) {
       wasm3_raw_sum(10, 20, 30, 40);
       wasm3_native_sum(10, 20, 30, 40);
   }
@@ -36,14 +36,14 @@ int main(int argc, char **argv)
 
   // actual test
   beg = get_time();
-  for (int i = 0; i < cycles; i++) {
+  for (unsigned i = 0; i < cycles; i++) {
       wasm3_raw_sum(1, 2, 3, 4);
   }
   end = get_time();
   const double time_raw = (end - beg);
 
   beg = get_time();
-  for (int i = 0; i < cycles; i++) {
+  for (unsigned i = 0; i < cycles; i++) {
       wasm3_native_sum(1, 2, 3, 4);
   }
   end = get_time();
