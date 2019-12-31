@@ -42,6 +42,10 @@ commands = [
     "args":           ["cat", "./wasi/0.txt"],
     "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
+    "name":           "Raw/Native funcs benchmark",
+    "wasm":           "./wasi/test_native_vs_raw.wasm",
+    "expect_pattern": "Validation...*Native/Raw: *"
+  }, {
     "name":           "mandelbrot",
     "wasm":           "./benchmark/mandelbrot/mandel.wasm",
     "args":           ["128", "4e5"],
