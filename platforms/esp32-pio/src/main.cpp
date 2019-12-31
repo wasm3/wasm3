@@ -52,7 +52,7 @@ extern "C" void app_main(void)
     run_wasm();
     clock_t end = clock();
 
-    printf("Elapsed: %d ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
+    printf("Elapsed: %ld ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
 
     sleep(3);
     printf("Restarting...\n\n\n");
