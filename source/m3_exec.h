@@ -692,7 +692,7 @@ d_m3SetRegisterSetSlot (f64, _fp0)
 #if defined(d_m3SkipMemoryBoundsCheck)
 #  define m3MemCheck(x) true
 #else
-#  define m3MemCheck(x) (x)
+#  define m3MemCheck(x) LIKELY(x)
 #endif
 
 #ifdef DEBUG
