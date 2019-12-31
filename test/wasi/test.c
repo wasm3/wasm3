@@ -1,18 +1,14 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 #include <time.h>
-
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#include "wasm_api.h"
 
 /*
  * Helpers
  */
-
-#define WASM_EXPORT               __attribute__((used)) __attribute__((visibility ("default")))
-#define WASM_EXPORT_AS(NAME)      WASM_EXPORT __attribute__((export_name(NAME)))
-#define WASM_IMPORT(MODULE,NAME)  __attribute__((weak)) __attribute__((import_module(MODULE))) __attribute__((import_name(NAME)))
 
 static inline
 struct timespec timespec_diff(struct timespec start, struct timespec end)
