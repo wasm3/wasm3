@@ -235,9 +235,10 @@ class Wasm3():
                 self.run()
                 try:
                     if self.loaded:
-                        self.load(self.loaded)
+                        res = self.load(self.loaded)
+                        print(res)
                 except Exception as e:
-                    pass
+                    print(e)
                 break
             except Exception as e:
                 print(f"wasm3: {e} => retry")
