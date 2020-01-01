@@ -142,6 +142,7 @@ jobs:
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
+    if: "false"    # TODO: implement QEMU-based RPi build/test environment
     timeout-minutes: 5
 
     strategy:
