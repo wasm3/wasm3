@@ -4,6 +4,14 @@
 
 #include "wasm_api.h"
 
+/*
+ * Result: "Raw" calls are ~2x faster than native arg "pushers".
+ *
+ * WARNING: this benchmark no longer works.
+ * Native calls were removed along with wasm3_native_sum.
+ * It may be useful in future when we implement libffi calls, etc.
+ */
+
 static inline
 double get_time() {
     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);

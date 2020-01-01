@@ -627,7 +627,7 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = c_m3Err_none;
 
-    const char* namespace  = "wasi_unstable";
+    const char* wasi  = "wasi_unstable";
 
 #ifdef _WIN32
     setmode(fileno(stdin),  O_BINARY);
@@ -640,31 +640,31 @@ M3Result  m3_LinkWASI  (IM3Module module)
         preopen[i].fd = open(preopen[i].path, O_RDONLY);
     }
 #endif
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "args_sizes_get",       &m3_wasi_unstable_args_sizes_get)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "environ_sizes_get",    &m3_wasi_unstable_environ_sizes_get)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "args_get",             &m3_wasi_unstable_args_get)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "environ_get",          &m3_wasi_unstable_environ_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "args_sizes_get",       "i(**)",   &m3_wasi_unstable_args_sizes_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "environ_sizes_get",    "i(**)",   &m3_wasi_unstable_environ_sizes_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "args_get",             "i(**)",   &m3_wasi_unstable_args_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "environ_get",          "i(**)",   &m3_wasi_unstable_environ_get)));
 
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_prestat_dir_name",  &m3_wasi_unstable_fd_prestat_dir_name)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_prestat_get",       &m3_wasi_unstable_fd_prestat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_dir_name",  "i(i*i)",  &m3_wasi_unstable_fd_prestat_dir_name)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_get",       "i(i*)",   &m3_wasi_unstable_fd_prestat_get)));
 
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "path_open",            &m3_wasi_unstable_path_open)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",            "i(ii*iiiii*)",  &m3_wasi_unstable_path_open)));
 
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_fdstat_get",        &m3_wasi_unstable_fd_fdstat_get)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_write",             &m3_wasi_unstable_fd_write)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_read",              &m3_wasi_unstable_fd_read)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_seek",              &m3_wasi_unstable_fd_seek)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_datasync",          &m3_wasi_unstable_fd_datasync)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "fd_close",             &m3_wasi_unstable_fd_close)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_unstable_fd_fdstat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(iii*)", &m3_wasi_unstable_fd_write)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_read",              "i(iii*)", &m3_wasi_unstable_fd_read)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_seek",              "i(iii*)", &m3_wasi_unstable_fd_seek)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_datasync",          "i(i)",    &m3_wasi_unstable_fd_datasync)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_close",             "i(i)",    &m3_wasi_unstable_fd_close)));
 
-//_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "sock_send",            &...)));
-//_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "sock_recv",            &...)));
+//_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_send",            "i()",  &...)));
+//_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_recv",            "i()",  &...)));
 
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "random_get",           &m3_wasi_unstable_random_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "random_get",           "i(*i)",   &m3_wasi_unstable_random_get)));
 
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "clock_res_get",        &m3_wasi_unstable_clock_res_get)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "clock_time_get",       &m3_wasi_unstable_clock_time_get)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, namespace, "proc_exit",            &m3_wasi_unstable_proc_exit)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "clock_res_get",        "i(i*)",   &m3_wasi_unstable_clock_res_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "clock_time_get",       "i(ii*)",  &m3_wasi_unstable_clock_time_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "proc_exit",            "i(i)",    &m3_wasi_unstable_proc_exit)));
 
 _catch:
     return result;

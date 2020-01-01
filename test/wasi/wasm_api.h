@@ -12,7 +12,4 @@
 WASM_IMPORT("wasm3", "raw_sum")
 int64_t wasm3_raw_sum        (int32_t val1, int32_t val2, int32_t val3, int32_t val4);
 
-WASM_IMPORT("wasm3", "native_sum")
-int64_t wasm3_native_sum     (int32_t val1, int32_t val2, int32_t val3, int32_t val4);
-
 #endif

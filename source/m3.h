@@ -163,13 +163,9 @@ d_m3ErrorConst  (trapIntegerConversion,         "[trap] invalid conversion to in
 d_m3ErrorConst  (trapIndirectCallTypeMismatch,  "[trap] indirect call type mismatch")
 d_m3ErrorConst  (trapTableIndexOutOfRange,      "[trap] undefined element")
 d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
+d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
-
-
-typedef void    (* M3Free)      (const void * i_data, void * i_ref);
-typedef void    (* M3Importer)  (IM3ImportInfo io_import, IM3Module io_module, void * i_ref);
-typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -200,17 +196,7 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
                                                      uint32_t               i_stackSizeInBytes,
 													 M3StackInfo *			i_nativeStackInfo);		// i_nativeStackInfo can be NULL
 
-
-    M3Result            m3_RegisterFunction         (IM3Runtime             io_runtime,
-                                                     const char * const     i_functionName,
-                                                     const char * const     i_signature,
-                                                     const void * const     i_function /* , const void * const i_ref */);
-
-
     void                m3_FreeRuntime              (IM3Runtime i_runtime);
-
-//  void                m3_SetImporter              (IM3Runtime i_runtime, M3Importer i_importHandler);
-//  void                m3_SetTimeoutHandler        (IM3Runtime i_runtime, float i_periodInSeconds, M3Callback i_callback);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  modules
@@ -230,9 +216,6 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
     void                m3_FreeModule               (IM3Module i_module);
     //  Only unloaded modules need to be freed.
 
-
-//  M3Result            m3_EnableOptimizer          (IM3Module io_module,  bool i_enable);
-
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime.
 
@@ -243,19 +226,8 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,
                                                      const char * const     i_functionName,
-                                                     M3RawCall               i_function);        // void (u64 * _sp, u8 * _mem)
-    
-
-    
-    M3Result            m3_LinkCFunction            (IM3Module              io_module,
-                                                     const char * const     i_moduleName,
-                                                     const char * const     i_functionName,
-                                                     const char * const     i_signature,		    // signature is null terminated
-                                                     const void * const     i_function /* , const void * const i_ref */);
-
-
-
-//  M3Result            m3_SetGlobal
+                                                     const char * const     i_signature,
+                                                     M3RawCall              i_function);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  functions
@@ -265,14 +237,9 @@ typedef int64_t (* M3Callback)  (IM3Function i_currentFunction, void * i_ref);
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
 
-//  M3Result            m3_GetCFunction             (void ** o_cFunction,  IM3Runtime i_runtime,
-//                                                   const char * const i_functionName, const char * const i_signature);
-
     M3Result            m3_Call                     (IM3Function i_function);
     M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
 //  M3Result            m3_CallMain                 (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
-
-//  void * /* return */ m3_Call                     (IM3Function i_function, M3Result * o_result);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 
