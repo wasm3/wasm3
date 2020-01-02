@@ -1,6 +1,6 @@
-# M3/Wasm
+# M3
 
-This is a work-in-progress WebAssembly interpreter written in C using a novel, high performance interpreter topology. The interpreter strategy (named M3) was developed prior to this particular Wasm project and is described some below.
+This is a WebAssembly interpreter written in C using a novel, high performance interpreter topology. The interpreter strategy (named M3) was developed prior to this particular Wasm project and is described some below.
 
 ## Purpose
 
@@ -10,10 +10,6 @@ I don't know. I just woke up one day and started hacking this out after realizin
 * It might be a good start-up, pre-JIT interpreter in a more complex Wasm compiler system.
 * It could serve as a Wasm validation library.
 * The interpreter topology might be inspiring to others.
-
-## Current Status
-
-Its foundation is solid but the edges are still quite rough. Many of the WebAssembly opcodes are lacking an implementation. The compilation logic is a tad unfinished.  Most execution trap cases are unhandled.  
 
 
 ## Benchmarks
