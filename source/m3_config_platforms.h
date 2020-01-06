@@ -172,9 +172,9 @@ static inline float rintf( float arg ) {
 }
 
 static inline double rint( double arg ) {
-  union { double f; uint64_t i; } u;
+  union { double f; uint32_t i[2]; } u;
   u.f = arg;
-  uint32_t ux = (u.i >> 32) & 0x7FFFFFFF;
+  uint32_t ux = u.i[1] & 0x7FFFFFFF;
   if (UNLIKELY(ux == 0 || (ux > 0x433FFFFF))) {
     return arg;
   }
