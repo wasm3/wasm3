@@ -165,7 +165,7 @@ static inline float rintf( float arg ) {
   union { float f; uint32_t i; } u;
   u.f = arg;
   uint32_t ux = u.i & 0x7FFFFFFF;
-  if (UNLIKELY(ux == 0 || (ux > 0x5A000000))) {
+  if (UNLIKELY(ux == 0 || ux > 0x5A000000)) {
     return arg;
   }
   return (float)lrint(arg);
@@ -175,7 +175,7 @@ static inline double rint( double arg ) {
   union { double f; uint32_t i[2]; } u;
   u.f = arg;
   uint32_t ux = u.i[1] & 0x7FFFFFFF;
-  if (UNLIKELY(ux == 0 || (ux > 0x433FFFFF))) {
+  if (UNLIKELY(ux == 0 || ux > 0x433FFFFF)) {
     return arg;
   }
   return (double)lrint(arg);
