@@ -161,10 +161,21 @@ typedef short           i16;
 typedef uint8_t         u8;
 typedef int8_t          i8;
 
+static inline float rintf( float arg ) {
+  if (UNLIKELY(arg == 0 || fabsf(arg) > 9007199254740992 || isnan(arg))) {
+    return arg;
+  }
+  return (float)lrint(arg);
+}
+
+static inline double rint( double arg ) {
+  if (UNLIKELY(arg == 0 || fabs(arg) > 9007199254740992 || isnan(arg))) {
+    return arg;
+  }
+  return (double)lrint(arg);
+}
 //TODO
-static inline float rintf( float arg ) { return .0f; }
-static inline double rint ( double arg ) { return .0; }
-static inline uint64_t strtoull ( const char* str, char ** endptr, int base ) { return 0; }
+static inline uint64_t strtoull( const char* str, char ** endptr, int base ) { return 0; }
 
 #endif
 
