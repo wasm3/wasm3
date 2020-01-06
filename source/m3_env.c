@@ -834,7 +834,7 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
     M3_INIT(i_runtime->error);
     i_runtime->error.message = "";
 #if d_m3VerboseLogs
-    i_runtime->error_message[0] = "\0";
+    i_runtime->error_message[0] = '\0';
 #endif
 }
 
