@@ -5,7 +5,8 @@
 #include "esp_system.h"
 #include "m3/m3_env.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "m3_api_esp_wasi.h"
+#include "wasi_test.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
@@ -13,14 +14,14 @@ static void run_wasm(void)
 {
     M3Result result = c_m3Err_none;
 
-    uint8_t* wasm = (uint8_t*)fib32_wasm;
-    uint32_t fsize = fib32_wasm_len-1;
+    uint8_t* wasm = (uint8_t*)wasi_test_wasm;
+    uint32_t fsize = wasi_test_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
     IM3Environment env = m3_NewEnvironment ();
     if (!env) FATAL("m3_NewEnvironment failed");
 
-    IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
+    IM3Runtime runtime = m3_NewRuntime (env, 8*1024, NULL);
     if (!runtime) FATAL("m3_NewRuntime failed");
 
     IM3Module module;
@@ -30,13 +31,16 @@ static void run_wasm(void)
     result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
 
+    result = m3_LinkEspWASI (runtime->modules);
+    if (result) FATAL("m3_LinkEspWASI: %s", result);
+
     IM3Function f;
-    result = m3_FindFunction (&f, runtime, "fib");
+    result = m3_FindFunction (&f, runtime, "_start");
     if (result) FATAL("m3_FindFunction: %s", result);
 
     printf("Running...\n");
 
-    const char* i_argv[2] = { "24", NULL };
+    const char* i_argv[2] = { "test.wasm", NULL };
     result = m3_CallWithArgs (f, 1, i_argv);
 
     if (result) FATAL("m3_CallWithArgs: %s", result);

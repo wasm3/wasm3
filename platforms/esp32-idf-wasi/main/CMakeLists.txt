@@ -1,6 +1,6 @@
 file(GLOB_RECURSE M3_SOURCES "m3/*.c")
 
-set(APP_SOURCES "main.cpp")
+set(APP_SOURCES "main.cpp" "m3_api_esp_wasi.c")
 
 idf_component_register(SRCS ${APP_SOURCES} ${M3_SOURCES}
                     INCLUDE_DIRS "")
