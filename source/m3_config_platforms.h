@@ -162,14 +162,20 @@ typedef uint8_t         u8;
 typedef int8_t          i8;
 
 static inline float rintf( float arg ) {
-  if (UNLIKELY(arg == 0 || fabsf(arg) > 9007199254740992 || isnan(arg))) {
+  union { float f; uint32_t i; } u;
+  u.f = arg;
+  uint32_t ux = u.i & 0x7FFFFFFF;
+  if (UNLIKELY(ux == 0 || (ux > 0x5A000000))) {
     return arg;
   }
   return (float)lrint(arg);
 }
 
 static inline double rint( double arg ) {
-  if (UNLIKELY(arg == 0 || fabs(arg) > 9007199254740992 || isnan(arg))) {
+  union { double f; uint64_t i; } u;
+  u.f = arg;
+  uint32_t ux = (u.i >> 32) & 0x7FFFFFFF;
+  if (UNLIKELY(ux == 0 || (ux > 0x433FFFFF))) {
     return arg;
   }
   return (double)lrint(arg);
