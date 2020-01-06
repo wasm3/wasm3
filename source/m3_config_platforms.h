@@ -67,8 +67,14 @@
 #   define M3_ARCH "mips64"
 #  elif defined(__mips__)
 #   define M3_ARCH "mips"
+#  elif defined(__xtensa__)
+#   define M3_ARCH "xtensa"
+#  elif defined(__AVR__)
+#   define M3_ARCH "avr"
 #  endif
-# elif defined(M3_COMPILER_MSVC)
+# endif
+
+#if defined(M3_COMPILER_MSVC)
 #  if defined(_M_X64)
 #   define M3_ARCH "x64"
 #  elif defined(_M_IX86)
@@ -88,7 +94,7 @@
 # if defined(M3_COMPILER_CLANG)
 #  define M3_COMPILER_VER __VERSION__
 # elif defined(M3_COMPILER_GCC)
-#  define M3_COMPILER_VER "GCC "__VERSION__
+#  define M3_COMPILER_VER "GCC " __VERSION__
 # elif defined(M3_COMPILER_MSVC)
 #  define M3_COMPILER_VER "MSVC " M3_STR(_MSC_VER)
 # else
@@ -138,6 +144,30 @@
 
 #define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
+#if defined(__AVR__)
+
+# define PRIu64         "llu"
+# define PRIi64         "lli"
+
+# define d_m3ShortTypesDefined
+typedef double          f64;
+typedef float           f32;
+typedef uint64_t        u64;
+typedef int64_t         i64;
+typedef uint32_t        u32;
+typedef int32_t         i32;
+typedef short unsigned  u16;
+typedef short           i16;
+typedef uint8_t         u8;
+typedef int8_t          i8;
+
+//TODO
+static inline float rintf( float arg ) { return .0f; }
+static inline double rint ( double arg ) { return .0; }
+static inline uint64_t strtoull ( const char* str, char ** endptr, int base ) { return 0; }
+
+#endif
+
 /*
  * Apply settings
  */
@@ -169,8 +199,6 @@
 #  define d_m3LogOutput                         false
 #  define d_m3MaxFunctionStackHeight            256
 #  define d_m3FixedHeap                         (8*1024)
-# elif defined(ESP32)
-#  define d_m3MaxFunctionStackHeight            256
 # elif defined(WM_W600)
 #  define d_m3MaxFunctionStackHeight            256
 # elif defined(BLUE_PILL)
@@ -181,6 +209,9 @@
 #  define d_m3LogOutput                         false
 #  define d_m3MaxFunctionStackHeight            256
 #  define d_m3FixedHeap                         (8*1024)
+# elif defined(__AVR__)
+#  define d_m3LogOutput                         false
+#  define d_m3MaxFunctionStackHeight            64
 # endif
 
 #endif

@@ -15,6 +15,7 @@
 #include "m3.h"
 #include "m3_config.h"
 
+#if !defined(d_m3ShortTypesDefined)
 typedef double          f64;
 typedef float           f32;
 typedef uint64_t        u64;
@@ -25,7 +26,7 @@ typedef uint16_t        u16;
 typedef int16_t         i16;
 typedef uint8_t         u8;
 typedef int8_t          i8;
-
+#endif // d_m3ShortTypesDefined
 
 typedef const void *            m3ret_t;
 typedef const void *            voidptr_t;
