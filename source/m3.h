@@ -1,11 +1,17 @@
 //
 //  Wasm3, high performance WebAssembly interpreter
 //
-//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy. All rights reserved.
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
+//  All rights reserved.
 //
 
 #ifndef m3_h
 #define m3_h
+
+#define M3_VERSION_MAJOR 0
+#define M3_VERSION_MINOR 4
+#define M3_VERSION_REV   1
+#define M3_VERSION       "0.4.1"
 
 #include <stdlib.h>
 #include <stdint.h>

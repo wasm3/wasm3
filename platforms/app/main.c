@@ -146,7 +146,7 @@ int split_argv(char *str, char** argv)
 }
 
 void print_version() {
-    puts("wasm3 v0.4.0 (" __DATE__ " " __TIME__ ", " M3_COMPILER_VER ", " M3_ARCH ")");
+    puts("wasm3 v" M3_VERSION " (" __DATE__ " " __TIME__ ", " M3_COMPILER_VER ", " M3_ARCH ")");
 }
 
 void print_usage() {
