@@ -20,4 +20,4 @@ extern "C" {
 }
 # endif
 
-#endif /* m3_api_wasi_h */
+#endif // m3_api_wasi_h

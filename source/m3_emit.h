@@ -1,6 +1,5 @@
 //
 //  m3_emit.h
-//  m3
 //
 //  Created by Steven Massey on 7/9/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -23,4 +22,4 @@ void *      ReservePointer              (IM3Compilation o);
 
 pc_t        GetPC                       (IM3Compilation o);
 
-#endif /* m3_emit_h */
+#endif // m3_emit_h

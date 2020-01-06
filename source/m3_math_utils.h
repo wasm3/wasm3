@@ -1,6 +1,5 @@
 //
 //  m3_math_utils.h
-//  m3
 //
 //  Created by Volodymyr Shymanksyy on 8/10/19.
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
@@ -208,4 +207,4 @@ f64 max_f64(f64 a, f64 b) {
     return a > b ? a : b;
 }
 
-#endif /* m3_math_utils_h */
+#endif // m3_math_utils_h

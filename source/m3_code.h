@@ -1,6 +1,5 @@
 //
 //  m3_code.h
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/19/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -46,4 +45,4 @@ void                    dump_code_page            (IM3CodePage i_codePage, pc_t 
 #  define EmitWord64(page, val) EmitWord_impl(page, (void*)(val))
 #endif
 
-#endif /* m3_code_h */
+#endif // m3_code_h

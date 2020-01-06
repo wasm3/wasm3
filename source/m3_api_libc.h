@@ -21,4 +21,4 @@ extern "C" {
 }
 # endif
 
-#endif /* m3_api_libc_h */
+#endif // m3_api_libc_h

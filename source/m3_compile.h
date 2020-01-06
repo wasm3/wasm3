@@ -1,6 +1,5 @@
 //
 //  m3_compile.h
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/17/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -77,7 +76,7 @@ typedef struct
     IM3Function         function;
 
     IM3CodePage         page;
-    
+
     IM3BranchPatch      releasedPatches;
 
     u32                 numEmits;
@@ -126,7 +125,7 @@ typedef struct M3OpInfo
     // for most operations:
     // [0]= top operand in register, [1]= top operand in stack, [2]= both operands in stack
     IM3Operation            operations [4];
-    
+
     M3Compiler              compiler;
 }
 M3OpInfo;
@@ -168,4 +167,4 @@ u16         GetMaxExecSlot              (IM3Compilation o);
 
 //M3Result  Optimize_ConstOp            (IM3Compilation o, u64 i_word, u8 i_waType);
 
-#endif /* m3_compile_h */
+#endif // m3_compile_h

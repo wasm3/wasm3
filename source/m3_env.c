@@ -1,6 +1,5 @@
 //
 //  m3_env.c
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/19/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -85,7 +84,7 @@ IM3Environment  m3_NewEnvironment  ()
 {
     IM3Environment env = NULL;
     m3Alloc (& env, M3Environment, 1);
-    
+
     return env;
 }
 
@@ -109,7 +108,7 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
     {
         m3_ResetErrorInfo(runtime);
 
-		runtime->environment = i_environment;
+        runtime->environment = i_environment;
 
         m3Malloc (& runtime->stack, i_stackSizeInBytes);
 
@@ -157,7 +156,7 @@ void *  _FreeModule  (IM3Module i_module, void * i_info)
 void  FreeCompilationPatches  (IM3Compilation o)
 {
     IM3BranchPatch patches = o->releasedPatches;
-    
+
     while (patches)
     {
         IM3BranchPatch next = patches->next;
@@ -173,7 +172,7 @@ void  ReleaseRuntime  (IM3Runtime i_runtime)
 
     FreeCodePages (i_runtime->pagesOpen);
     FreeCodePages (i_runtime->pagesFull);
-    
+
     FreeCompilationPatches (& i_runtime->compilation);
 
     m3Free (i_runtime->stack);
@@ -199,14 +198,14 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     // create a temporary runtime context
     M3Runtime runtime;
     M3_INIT (runtime);
-    
+
     runtime.environment = i_module->runtime->environment;
     runtime.numStackSlots = d_m3MaxFunctionStackHeight;
     runtime.stack = & stack;
 
     IM3Runtime savedRuntime = i_module->runtime;
     i_module->runtime = & runtime;
-    
+
     IM3Compilation o = & runtime.compilation;
     o->runtime = & runtime;
     o->module =  i_module;
@@ -264,7 +263,7 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
     {
         u32 maxPages = i_module->memoryInfo.maxPages;
         io_runtime->memory.maxPages = maxPages ? maxPages : 65536;
-        
+
         result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
     }
 
@@ -275,7 +274,7 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 {
     M3Result result = m3Err_none;
-    
+
     u32 numPagesToAlloc = i_numPages;
 
     M3Memory * memory = & io_runtime->memory;
@@ -298,29 +297,29 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         size_t numPreviousBytes = memory->numPages * d_m3MemPageSize;
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
-        
+
         memory->mallocated = (M3MemoryHeader *) m3Realloc (memory->mallocated, numBytes, numPreviousBytes);
-        
+
         if (memory->mallocated)
         {
 #if d_m3LogRuntime
             u8 * oldMallocated = memory->mallocated;
 #endif
             memory->numPages = numPagesToAlloc;
-            
+
             memory->mallocated->length =  numPageBytes;
             memory->mallocated->runtime = io_runtime;
-            
+
              // TODO: track max function stack height and use this instead of hard-coded constant
             d_m3Assert(io_runtime->numStackSlots > d_m3MaxFunctionStackHeight);
             memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + (io_runtime->numStackSlots - d_m3MaxFunctionStackHeight);
-            
+
             m3log (runtime, "resized old: %p; mem: %p; end: %p; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->end, memory->numPages);
         }
         else result = m3Err_mallocFailed;
     }
     else result = m3Err_wasmMemoryOverflow;
-    
+
     return result;
 }
 
@@ -383,7 +382,7 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
         if (io_memory->mallocated)
         {
             u8 * dest = m3MemData(io_memory->mallocated) + segmentOffset;
-            
+
             if ((size_t)segmentOffset + segment->size <= io_memory->mallocated->length)
                 memcpy (dest, segment->data, segment->size);
             else
@@ -482,7 +481,7 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
     if (not io_module->runtime)
     {
         io_module->runtime = io_runtime;
-		M3Memory * memory = & io_runtime->memory;
+        M3Memory * memory = & io_runtime->memory;
 
 _       (InitMemory (io_runtime, io_module));
 _       (InitGlobals (io_module));
@@ -499,7 +498,7 @@ _       (InitStartFunc (io_module));
 
     if (result)
         io_module->runtime = NULL;
-    
+
     _catch: return result;
 }
 
@@ -567,7 +566,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         runtime->argv = i_argv;
         if (strcmp (i_function->name, "_start") == 0) // WASI
             i_argc = 0;
-            
+
         IM3FuncType ftype = i_function->funcType;
 
         m3stack_t stack = (m3stack_t)(runtime->stack);
@@ -702,7 +701,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
 IM3CodePage  AcquireCodePage  (IM3Runtime i_runtime)
 {
     IM3CodePage page = NULL;
-    
+
     if (i_runtime->pagesOpen)
     {
         page = PopCodePage (& i_runtime->pagesOpen);
@@ -754,13 +753,13 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 u32  CountPages  (IM3CodePage i_page)
 {
     u32 numPages = 0;
-    
+
     while (i_page)
     {
         ++numPages;
         i_page = i_page->info.next;
     }
-    
+
     return numPages;
 }
 
@@ -782,20 +781,20 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 
         PushCodePage (list, i_codePage);                                                m3log (emit, "release page: %d to queue: '%s'", i_codePage->info.sequence, pageFull ? "full" : "open")
         env->numActiveCodePages--;
-        
+
 #       if defined (DEBUG)
             u32 numOpen = CountPages (i_runtime->pagesOpen);
             u32 numFull = CountPages (i_runtime->pagesFull);
-        
+
             m3log (code, "runtime: %p; open-pages: %d; full-pages: %d; active: %d; total: %d", i_runtime, numOpen, numFull, env->numActiveCodePages, env->numCodePages);
-        
+
             d_m3Assert (numOpen + numFull + env->numActiveCodePages == env->numCodePages);
-		
+
 #           if d_m3LogCodePages
                 dump_code_page (i_codePage, /* startPC: */ NULL);
 #           endif
 #       endif
-        
+
 
     }
 }
@@ -842,7 +841,7 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
 void  GetStackInfo  (M3StackInfo * io_info)
 {
     io_info->startAddr = (void *) io_info;
-    
+
     bool stackGrowsDown = false;
     stackGrowsDown = io_info->startAddr > (void *) & stackGrowsDown;
 
@@ -855,6 +854,6 @@ M3StackInfo  m3_GetNativeStackInfo  (i32 i_stackSize)
 {
     M3StackInfo info = { NULL, i_stackSize };
     GetStackInfo (& info);
-    
+
     return info;
 }

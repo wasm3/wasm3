@@ -1,4 +1,5 @@
 //
+//  m3_core.c
 //
 //  Created by Steven Massey on 4/15/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -169,10 +170,10 @@ void        m3StackCheck ()
 {
     char stack;
     size_t addr = (size_t)&stack;
-    
+
     size_t stackEnd = stack_end;
     stack_end = min(stack_end, addr);
-    
+
 //    if (stackEnd != stack_end)
 //        printf ("maxStack: %ld\n", m3StackGetMax ());
 }
@@ -189,16 +190,16 @@ size_t      m3StackGetMax  ()
 M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
 {
     M3Result result = m3Err_none;
-    
+
     u8 type = -i_convolutedWasmType;
-    
+
     if (type == 0x40)
         type = c_m3Type_none;
     else if (type < c_m3Type_i32 or type > c_m3Type_f64)
         result = m3Err_invalidTypeId;
-    
+
     * o_type = type;
-    
+
     return result;
 }
 

@@ -1,6 +1,5 @@
 //
 //  m3_env.h
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/19/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -84,8 +83,8 @@ typedef struct M3Memory
 {
     M3MemoryHeader *        mallocated;
 
-	u32 					numPages;
-	u32 					maxPages;
+    u32                     numPages;
+    u32                     maxPages;
 }
 M3Memory;
 
@@ -163,9 +162,9 @@ typedef struct M3Module                 // TODO add env owner? also discriminate
     IM3Function *           table0;
     u32                     table0Size;
 
-	M3MemoryInfo			memoryInfo;
-	bool					memoryImported;
-	
+    M3MemoryInfo            memoryInfo;
+    bool                    memoryImported;
+
 //  m3reg_t *               globalMemory;
 
     struct M3Module *       next;
@@ -195,12 +194,15 @@ M3Environment;
 typedef M3Environment *     IM3Environment;
 
 //---------------------------------------------------------------------------------------------------------------------------------
+
+// OPTZ: function types need to move to the runtime structure so that all modules can share types
+// then type equality can be a simple pointer compare for indirect call checks
 typedef struct M3Runtime
 {
     M3Compilation           compilation;
-    
+
     IM3Environment          environment;
-    
+
     M3CodePage *            pagesOpen;      // linked list of code pages with writable space on them
     M3CodePage *            pagesFull;      // linked list of at-capacity pages
 
@@ -215,10 +217,10 @@ typedef struct M3Runtime
 
     u32                     argc;
     ccstr_t *               argv;
-    
+
     M3Result                runtimeError;
 
-	M3Memory                memory;
+    M3Memory                memory;
 
     M3ErrorInfo             error;
 #if defined(d_m3VerboseLogs)
@@ -253,4 +255,4 @@ void                        ReleaseCodePage             (IM3Runtime io_runtime, 
 M3Result                    m3Error                     (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
 
 
-#endif /* m3_env_h */
+#endif // m3_env_h

@@ -1,6 +1,5 @@
 //
 //  m3_config.h
-//  m3
 //
 //  Created by Steven Massey on 5/4/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -69,4 +68,4 @@
 //#define d_m3SkipStackCheck
 //#define d_m3SkipMemoryBoundsCheck
 
-#endif /* m3_config_h */
+#endif // m3_config_h

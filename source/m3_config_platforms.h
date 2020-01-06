@@ -1,3 +1,10 @@
+//
+//  m3_config_platforms.h
+//
+//  Created by Volodymyr Shymanskyy on 11/20/19.
+//  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
+//
+
 #ifndef m3_config_platforms_h
 #define m3_config_platforms_h
 

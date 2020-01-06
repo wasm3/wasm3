@@ -1,6 +1,5 @@
 //
 //  m3_exec.h
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/17/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -246,7 +245,7 @@ d_m3Op(TYPE##_##NAME##_##FROM##_r_r)                \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_r_s)                \
 {                                                   \
-	FROM * stack = slot_ptr (FROM);                 \
+    FROM * stack = slot_ptr (FROM);                 \
     OP((DEST), (* stack), ##__VA_ARGS__);           \
     return nextOp ();                               \
 }                                                   \
@@ -275,10 +274,10 @@ d_m3TruncMacro(_r0, _fp0, i64, Trunc, f64, OP_I64_TRUNC_F64)
 d_m3TruncMacro(_r0, _fp0, u64, Trunc, f64, OP_U64_TRUNC_F64)
 
 
-#define d_m3TypeModifyOp(REG_TO, REG_FROM, TO, NAME, FROM) \
+#define d_m3TypeModifyOp(REG_TO, REG_FROM, TO, NAME, FROM)  \
 d_m3Op(TO##_##NAME##_##FROM##_r)                            \
 {                                                           \
-	REG_TO = (TO) ((FROM) REG_FROM);                        \
+    REG_TO = (TO) ((FROM) REG_FROM);                        \
     return nextOp ();                                       \
 }                                                           \
                                                             \
@@ -301,13 +300,13 @@ d_m3TypeModifyOp (_fp0, _fp0, f64, Promote, f32);
 #define d_m3TypeConvertOp(REG_TO, REG_FROM, TO, NAME, FROM) \
 d_m3Op(TO##_##NAME##_##FROM##_r_r)                          \
 {                                                           \
-	REG_TO = (TO) ((FROM) REG_FROM);                        \
+    REG_TO = (TO) ((FROM) REG_FROM);                        \
     return nextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s_r)                          \
 {                                                           \
-	slot (TO) = (TO) ((FROM) REG_FROM);                     \
+    slot (TO) = (TO) ((FROM) REG_FROM);                     \
     return nextOp ();                                       \
 }                                                           \
                                                             \
@@ -556,7 +555,7 @@ d_m3Op  (ContinueLoop)
     // TODO: this is where execution can "escape" the M3 code and callback to the client / fiber switch
     // OR it can go in the Loop operation. I think it's best to do here. adding code to the loop operation
     // has the potential to increase its native-stack usage. (don't forget ContinueLoopIf too.)
-    
+
     void * loopId = immediate (void *);
     return loopId;
 }
@@ -696,9 +695,9 @@ d_m3SetRegisterSetSlot (f64, _fp0)
 #endif
 
 #ifdef DEBUG
-  #define d_outOfBounds return ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,	\
-                        _mem->runtime, "memory size: %zu; access offset: %zu",  	\
-                       	_mem->length, operand)
+  #define d_outOfBounds return ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess, \
+                        _mem->runtime, "memory size: %zu; access offset: %zu",      \
+                        _mem->length, operand)
 #else
   #define d_outOfBounds return m3Err_trapOutOfBoundsMemoryAccess
 #endif
@@ -884,7 +883,7 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
     if (bracket) {
         *bracket  = 0;
     }
-    
+
     puts (name);
     return nextOpDirect();
 }
@@ -916,4 +915,4 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 
 
 
-#endif /* m3_exec_h */
+#endif // m3_exec_h

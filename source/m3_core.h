@@ -1,10 +1,12 @@
 //
+//  m3_core.h
+//
 //  Created by Steven Massey on 4/15/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
-#ifndef M3UTIL_H
-#define M3UTIL_H
+#ifndef m3_core_h
+#define m3_core_h
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -223,4 +225,4 @@ size_t      SPrintArg               (char * o_string, size_t i_n, m3stack_t i_sp
 
 void        ReportError             (IM3Runtime io_runtime, IM3Module i_module, IM3Function i_function, ccstr_t i_errorMessage, ccstr_t i_file, u32 i_lineNum);
 
-#endif
+#endif // m3_core_h

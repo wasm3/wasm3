@@ -1,6 +1,5 @@
 //
 //  m3_bind.c
-//  m3
 //
 //  Created by Steven Massey on 4/29/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -91,11 +90,11 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
                                     const M3Linker  i_linker)
 {
     M3Result result = m3Err_functionLookupFailed;
-    
+
     for (u32 i = 0; i < io_module->numFunctions; ++i)
     {
         IM3Function f = & io_module->functions [i];
-        
+
         if (f->import.moduleUtf8 and f->import.fieldUtf8)
         {
             if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
@@ -120,7 +119,7 @@ _try {
 _   (ValidateSignature (io_function, signature));
 
     IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 2);
-    
+
     if (page)
     {
         io_function->compiled = GetPagePC (page);
@@ -128,7 +127,7 @@ _   (ValidateSignature (io_function, signature));
 
         EmitWord (page, op_CallRawFunction);
         EmitWord (page, i_function);
-        
+
         ReleaseCodePage (io_module->runtime, page);
     }
     else _throw(m3Err_mallocFailedCodePage);

@@ -1,6 +1,5 @@
 //
 //  m3_exec_defs.h
-//  m3
 //
 //  Created by Steven Massey on 5/1/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -20,4 +19,4 @@
 
 typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 
-#endif /* m3_exec_defs_h */
+#endif // m3_exec_defs_h

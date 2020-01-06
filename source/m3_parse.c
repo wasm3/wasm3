@@ -23,17 +23,17 @@ M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end
 M3Result  ParseType_Memory  (M3MemoryInfo * o_memory, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
-    
-	u8 flag;
-	
-_   (ReadLEB_u7 (& flag, io_bytes, i_end));  				  // really a u1
+
+    u8 flag;
+
+_   (ReadLEB_u7 (& flag, io_bytes, i_end));                   // really a u1
 _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
-	o_memory->maxPages = 0;
-	if (flag)
+    o_memory->maxPages = 0;
+    if (flag)
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
 
-	_catch: return result;
+    _catch: return result;
 }
 
 
@@ -162,8 +162,8 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
 
             case d_externalKind_memory:
             {
-_				(ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
-				io_module->memoryImported = true;
+_               (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
+                io_module->memoryImported = true;
             }
             break;
 
@@ -191,7 +191,7 @@ _               (Module_AddGlobal (io_module, & global, type, isMutable, true /*
     }
 
     _catch:
-    
+
     FreeImportInfo (& import);
 
     return result;
@@ -386,15 +386,15 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
 M3Result  ParseSection_Memory  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
-	
-	// TODO: MVP; assert no memory imported
+
+    // TODO: MVP; assert no memory imported
 
     u32 numMemories;
-_   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));  							 m3log (parse, "** Memory [%d]", numMemories);
-    
+_   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                             m3log (parse, "** Memory [%d]", numMemories);
+
     if (numMemories == 1)
     {
-		ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
+        ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
     }
     else _throw (m3Err_tooManyMemorySections);
 
@@ -417,7 +417,7 @@ _   (ReadLEB_u32 (& numGlobals, & i_bytes, i_end));                             
 _       (ReadLEB_i7 (& waType, & i_bytes, i_end));
 _       (NormalizeType (& type, waType));
 _       (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                                 m3log (parse, "  - add global: [%d] %s mutable: %d", i, c_waTypes [type],   (u32) isMutable);
-        
+
         IM3Global global;
 _       (Module_AddGlobal (io_module, & global, type, isMutable, false /* isImport */));
 
@@ -499,7 +499,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Import,    // 2
         ParseSection_Function,  // 3
         NULL,                   // 4: Table
-		ParseSection_Memory,    // 5
+        ParseSection_Memory,    // 5
         ParseSection_Global,    // 6
         ParseSection_Export,    // 7
         ParseSection_Start,     // 8

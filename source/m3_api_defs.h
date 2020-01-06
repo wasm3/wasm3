@@ -22,4 +22,4 @@
 #define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return m3Err_none; }
 #define m3ApiTrap(VALUE)           { return VALUE; }
 
-#endif /* m3_api_defs_h */
+#endif // m3_api_defs_h

@@ -182,7 +182,7 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
     for (u32 i = 0; i < runtime->argc; ++i)
     {
         argv_offset [i] = m3ApiPtrToOffset (argv_buf_offset);
-        
+
         size_t len = strlen (runtime->argv [i]);
         memcpy (argv_buf_offset, runtime->argv [i], len);
         argv_buf_offset += len;
@@ -267,7 +267,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     m3ApiGetArgMem   (__wasi_fdstat_t*     , fdstat)
 
     if (runtime == NULL || fdstat == NULL) { m3ApiReturn(__WASI_EINVAL); }
-    
+
 #ifdef _WIN32
 
     // TODO: This needs a proper implementation
@@ -276,7 +276,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     }else{
         fdstat->fs_filetype= __WASI_FILETYPE_REGULAR_FILE;
     }
-    
+
     fdstat->fs_flags = 0;
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights

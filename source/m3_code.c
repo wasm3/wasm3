@@ -1,6 +1,5 @@
 //
 //  m3_code.c
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/19/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -23,7 +22,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
     {
         page->info.sequence = ++s_sequence;
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
-        
+
         m3log (code, "new page: %p; seq: %d; bytes: %d; lines: %d", GetPagePC (page), page->info.sequence, pageSize, page->info.numLines);
     }
 

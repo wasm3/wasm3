@@ -1,6 +1,5 @@
 //
 //  m3_emit.c
-//  m3
 //
 //  Created by Steven Massey on 7/9/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -25,7 +24,7 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
         {
             d_m3Assert (NumFreeLines (o->page) >= 2);
             m3log (emit, "bridging new code page from: %d %p (free slots: %d) to: %d", o->page->info.sequence, GetPC (o), NumFreeLines (o->page), page->info.sequence);
-            
+
             EmitWord (o->page, op_Bridge);
             EmitWord (o->page, GetPagePC (page));
 

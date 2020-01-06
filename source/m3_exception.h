@@ -1,6 +1,5 @@
 //
 //  m3_exception.h
-//  m3
 //
 //  Created by Steven Massey on 7/5/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -18,4 +17,4 @@
 #define _(TRY)          { result = TRY; if (result) { EXCEPTION_PRINT; goto _catch; } }
 #define _throw(ERROR)   { result = ERROR; EXCEPTION_PRINT; goto _catch; }
 
-#endif /* m3_exception_h */
+#endif // m3_exception_h

@@ -1,33 +1,8 @@
 //
-//  m3.h
+//  Wasm3, high performance WebAssembly interpreter
 //
-//  M3 / Massey Meta Machine: a WebAssembly interpreter
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy. All rights reserved.
 //
-//  Created by Steven Massey on 4/21/19.
-//  Copyright © 2019 Steven Massey. All rights reserved.
-//
-
-/*
-    NOTES:
-        - define d_m3LogOutput=1 to see printf log info
-
-    FIX:
-        - function types need to move to the runtime structure so that all modules can share types
-            then type equality can be a simple pointer compare for indirect call checks
-
-    TODO:
-        - assumes little-endian CPU
-        - needs work for a 32-bit architecture
-            - e.g. m3 code stream should be 32-bit aligned, but still needs to handle 64-bit constants
-
-    POSSIBLE FUTURE FEATURES:
-        - segmented stack
-        - M3 stack that lives on the C stack (this might be useful in a memory constrained environment)
-        - i32, f32 could occupy 4 bytes on M3 stack
-        - support of tail calls wasm extension
-        - WASI support
- */
-
 
 #ifndef m3_h
 #define m3_h
@@ -67,11 +42,11 @@ M3ErrorInfo;
 
 typedef struct M3StackInfo
 {
-	void *			startAddr;
-	int32_t			stackSize;
+    void *          startAddr;
+    int32_t         stackSize;
 }
 M3StackInfo;
-	
+
 
 enum // EWaTypes
 {
@@ -177,15 +152,15 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //  initialization
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
-	M3StackInfo 		m3_GetNativeStackInfo		(int32_t 				i_stackSize);
-	// GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread, at the start of the thread
-	// start function.
-	
+    M3StackInfo         m3_GetNativeStackInfo       (int32_t                i_stackSize);
+    // GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread, at the start of the thread
+    // start function.
+
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  global environment than can host multiple runtimes
 //--------------------------------------------------------------------------------------------------------------------------------------------
     IM3Environment      m3_NewEnvironment           (void);
-    
+
     void                m3_FreeEnvironment          (IM3Environment i_environment);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -194,7 +169,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
                                                      uint32_t               i_stackSizeInBytes,
-													 M3StackInfo *			i_nativeStackInfo);		// i_nativeStackInfo can be NULL
+                                                     M3StackInfo *          i_nativeStackInfo);     // i_nativeStackInfo can be NULL
 
     void                m3_FreeRuntime              (IM3Runtime i_runtime);
 
@@ -221,7 +196,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
 
     typedef const void * (* M3RawCall) (IM3Runtime runtime, uint64_t * _sp, void * _mem);
-    
+
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,

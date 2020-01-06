@@ -1,6 +1,5 @@
 //
 //  m3_info.h
-//  m3
 //
 //  Created by Steven Massey on 12/6/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.

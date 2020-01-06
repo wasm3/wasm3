@@ -1,6 +1,5 @@
 //
 //  m3_info.c
-//  m3
 //
 //  Created by Steven Massey on 4/27/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -171,7 +170,7 @@ d_m3Decoder  (Call)
 {
     void * function = fetch (void *);
     u16 stackOffset = fetch (u16);
-    
+
     sprintf (o_string, "%p; stack-offset: %d", function, stackOffset);
 }
 
@@ -179,7 +178,7 @@ d_m3Decoder  (Call)
 d_m3Decoder (Entry)
 {
     IM3Function function = fetch (IM3Function);
-    
+
     sprintf (o_string, "%s", function->name);
 }
 
@@ -190,10 +189,10 @@ d_m3Decoder (f64_Store)
     {
         u32 operand = fetch (u32);
         u32 offset = fetch (u32);
-        
+
         sprintf (o_string, "offset= slot:%d + immediate:%d", operand, offset);
     }
-    
+
 //    sprintf (o_string, "%s", function->name);
 }
 
@@ -207,22 +206,22 @@ d_m3Decoder  (Branch)
 d_m3Decoder  (BranchTable)
 {
     u16 slot = fetch (u16);
-    
+
     sprintf (o_string, "slot: %" PRIu16 "; targets: ", slot);
-    
+
 //    IM3Function function = fetch2 (IM3Function);
-    
+
     m3reg_t targets = fetch (m3reg_t);
-    
+
     char str [1000];
-    
+
     for (m3reg_t i = 0; i <targets; ++i)
     {
         pc_t addr = fetch (pc_t);
         sprintf (str, "%" PRIu64 "=%p, ", i, addr);
         strcat (o_string, str);
     }
-    
+
     pc_t addr = fetch (pc_t);
     sprintf (str, "def=%p ", addr);
     strcat (o_string, str);
@@ -260,7 +259,7 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3Operation i_operation, 
 void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
 {
         m3log (code, "code page seq: %d", i_codePage->info.sequence);
-    
+
         pc_t pc = i_startPC ? i_startPC : GetPageStartPC (i_codePage);
         pc_t end = GetPagePC (i_codePage);
 
@@ -276,7 +275,7 @@ void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
                 if (i.info)
                 {
                     char infoString [1000] = { 0 };
-                    
+
                     DecodeOperation (infoString, i.opcode, op, i.info, & pc);
 
                     m3log (code, "%p | %20s  %s", operationPC, i.info->name, infoString);
@@ -287,7 +286,7 @@ void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
         }
 
         m3log (code, "---------------------------------------------------------------------------------------");
-    
+
         m3log (code, "free-lines: %d", i_codePage->info.numLines - i_codePage->info.lineIndex);
 }
 # endif
@@ -305,41 +304,41 @@ void  dump_type_stack  (IM3Compilation o)
      -- (does Wasm ever write to an arg? I dunno/don't remember.)
      -- the number for the dynamic stack values represents the slot number.
      -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'
-     
+
      */
-    
+
     // for the assert at end of dump:
     i32 regAllocated [2] = { (i32) IsRegisterAllocated (o, 0), (i32) IsRegisterAllocated (o, 1) };
-    
+
     // display whether r0 or fp0 is allocated. these should then also be reflected somewhere in the stack too.
     printf ("                                                        ");
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
-    
+
     u32 numArgs = GetFunctionNumArgs (o->function);
-    
+
     for (u32 i = 0; i < o->stackIndex; ++i)
     {
         if (i == o->firstConstSlotIndex)
             printf (" | ");                     // divide the static & dynamic portion of the stack
-        
+
         //        printf (" %d:%s.", i, c_waTypes [o->typeStack [i]]);
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
         if (i < o->firstConstSlotIndex)
         {
             u16 writeCount = o->wasmStack [i];
-            
+
             printf ((i < numArgs) ? "A" : "L");     // arg / local
             printf ("%d", (i32) writeCount);        // writeCount
         }
         else
         {
             u16 slot = o->wasmStack [i];
-            
+
             if (IsRegisterLocation (slot))
             {
                 bool isFp = IsFpRegisterLocation (slot);
                 printf ("%s", isFp ? "f0" : "r0");
-                
+
                 regAllocated [isFp]--;
             }
             else
@@ -353,14 +352,14 @@ void  dump_type_stack  (IM3Compilation o)
                     else
                         printf ("a");
                 }
-                
+
                 printf ("%d", (i32) slot);  // slot
             }
         }
-        
+
         printf (" ");
     }
-    
+
     for (u32 r = 0; r < 2; ++r)
         d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
 
@@ -370,16 +369,16 @@ void  dump_type_stack  (IM3Compilation o)
 const char *  GetOpcodeIndentionString  (IM3Compilation o)
 {
     i32 blockDepth = o->block.depth + 1;
-    
+
     if (blockDepth < 0)
         blockDepth = 0;
-    
+
     static const char * s_spaces = ".......................................................................................";
     const char * indent = s_spaces + strlen (s_spaces);
     indent -= (blockDepth * 2);
     if (indent < s_spaces)
         indent = s_spaces;
-    
+
     return indent;
 }
 
@@ -389,7 +388,7 @@ const char *  get_indention_string  (IM3Compilation o)
     o->block.depth += 4;
     const char *indent = GetOpcodeIndentionString (o);
     o->block.depth -= 4;
-    
+
     return indent;
 }
 
@@ -398,13 +397,13 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 {
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
         o->block.depth--;
-    
+
 #   ifdef DEBUG
         m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o), c_operations [i_opcode].name);
 #   else
         m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
 #   endif
-        
+
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
         o->block.depth++;
 }
@@ -419,7 +418,7 @@ void emit_stack_dump (IM3Compilation o)
         EmitConstant    (o, o->numOpcodes);
         EmitConstant    (o, GetMaxExecSlot (o));
         EmitConstant    (o, (u64) o->function);
-        
+
         o->numEmits = 0;
     }
 #   endif
@@ -430,7 +429,7 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 {
 # ifdef DEBUG
     OpInfo i = find_operation_info (i_operation);
-    
+
     if (i.info)
     {
         printf ("%p: %s", GetPC (o),  i.info->name);

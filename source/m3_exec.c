@@ -1,6 +1,5 @@
 //
 //  m3_exec.c
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/17/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
@@ -15,7 +14,7 @@ static inline
 IM3Memory GetMemoryInfo (M3MemoryHeader * header)
 {
     IM3Memory memory = & header->runtime->memory;
-    
+
     return memory;
 }
 
@@ -71,7 +70,7 @@ d_m3OpDef  (CallIndirect)
         {
             // TODO: this can eventually be simplified. by using a shared set of unique M3FuncType objects in
             // M3Environment, the compare can be reduced to a single pointer-compare operation
-            
+
             if (type->numArgs != function->funcType->numArgs)
             {
                 return m3Err_trapIndirectCallTypeMismatch;
@@ -116,7 +115,7 @@ d_m3OpDef  (CallRawFunction)
 {
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = GetRuntime (_mem);
-    
+
     m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem));
     return possible_trap;
 }
@@ -125,7 +124,7 @@ d_m3OpDef  (CallRawFunction)
 d_m3OpDef  (MemCurrent)
 {
     // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
-    
+
     IM3Memory memory            = GetMemoryInfo (_mem);
 
     _r0 = memory->numPages;
@@ -145,14 +144,14 @@ d_m3OpDef  (MemGrow)
     if (numPagesToGrow)
     {
         u32 requiredPages = memory->numPages + numPagesToGrow;
-        
+
         M3Result r = ResizeMemory (runtime, requiredPages);
         if (r)
             _r0 = -1;
-        
+
         _mem = memory->mallocated;
     }
-    
+
     return nextOp ();
 }
 
@@ -234,7 +233,7 @@ d_m3OpDef  (GetGlobal)
 {
     i64 * global = immediate (i64 *);
     slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
-    
+
     return nextOp ();
 }
 
@@ -243,7 +242,7 @@ d_m3OpDef  (SetGlobal_i)
 {
     i64 * global = immediate (i64 *);
     * global = _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
-    
+
     return nextOp ();
 }
 
@@ -254,7 +253,7 @@ d_m3OpDef  (Loop)
     m3ret_t r;
 
     IM3Memory memory = GetMemoryInfo (_mem);
-    
+
     do
     {
         // linear memory pointer needs refreshed here because the block it's loop over
@@ -318,12 +317,12 @@ d_m3OpDef  (BranchTable)
 {
     i32 branchIndex = slot (i32);           // branch index is always in a slot
     i32 numTargets  = immediate (i32);
-    
+
     pc_t * branches = (pc_t *) _pc;
-    
+
     if (branchIndex < 0 or branchIndex > numTargets)
         branchIndex = numTargets; // the default index
-    
+
     return jumpOp (branches [branchIndex]);
 }
 
@@ -333,9 +332,9 @@ d_m3OpDef (CopySlot_32)
 {
     u32 * dst = slot_ptr (u32);
     u32 * src = slot_ptr (u32);
-    
+
     * dst = * src;
-    
+
     return nextOp ();
 }
 
@@ -344,9 +343,9 @@ d_m3OpDef (CopySlot_64)
 {
     u64 * dst = slot_ptr (u64);
     u64 * src = slot_ptr (u64);
-    
+
     * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
-    
+
     return nextOp ();
 }
 
