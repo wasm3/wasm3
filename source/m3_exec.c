@@ -63,7 +63,7 @@ d_m3OpDef  (CallIndirect)
 
     if (tableIndex >= 0 and (u32)tableIndex < module->table0Size)
     {
-        m3ret_t r = c_m3Err_none;
+        m3ret_t r = m3Err_none;
 
         IM3Function function = module->table0 [tableIndex];
 
@@ -74,19 +74,19 @@ d_m3OpDef  (CallIndirect)
             
             if (type->numArgs != function->funcType->numArgs)
             {
-                return c_m3Err_trapIndirectCallTypeMismatch;
+                return m3Err_trapIndirectCallTypeMismatch;
             }
 
             if (type->returnType != function->funcType->returnType)
             {
-                return c_m3Err_trapIndirectCallTypeMismatch;
+                return m3Err_trapIndirectCallTypeMismatch;
             }
 
             for (u32 argIndex = 0; argIndex < type->numArgs; ++argIndex)
             {
                 if (type->argTypes[argIndex] != function->funcType->argTypes[argIndex])
                 {
-                    return c_m3Err_trapIndirectCallTypeMismatch;
+                    return m3Err_trapIndirectCallTypeMismatch;
                 }
             }
 
@@ -108,7 +108,7 @@ d_m3OpDef  (CallIndirect)
 
         return r;
     }
-    else return c_m3Err_trapTableIndexOutOfRange;
+    else return m3Err_trapTableIndexOutOfRange;
 }
 
 
@@ -168,7 +168,7 @@ d_m3OpDef  (Compile)
 
     IM3Function function        = immediate (IM3Function);
 
-    m3ret_t result = c_m3Err_none;
+    m3ret_t result = m3Err_none;
 
     if (not function->compiled) // check to see if function was compiled since this operation was emitted.
         result = Compile_Function (function);
@@ -226,7 +226,7 @@ d_m3OpDef  (Entry)
 
         return r;
     }
-    else return c_m3Err_trapStackOverflow;
+    else return m3Err_trapStackOverflow;
 }
 
 

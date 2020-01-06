@@ -36,7 +36,7 @@ int puts(const char *str) {
 
 bool run_wasm()
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
     size_t fsize = fib32_wasm_len-1;

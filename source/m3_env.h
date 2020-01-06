@@ -221,6 +221,9 @@ typedef struct M3Runtime
 	M3Memory                memory;
 
     M3ErrorInfo             error;
+#if defined(d_m3VerboseLogs)
+    char                    error_message[256];
+#endif
 }
 M3Runtime;
 

@@ -27,7 +27,7 @@ u8  ConvertTypeCharToTypeId (char i_code)
 static
 M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     cstr_t sig = i_linkingSignature;
 
@@ -37,7 +37,7 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
     bool parsingArgs = false;
     while (* sig)
     {
-        if (numArgs >= c_m3MaxNumFunctionArgs)
+        if (numArgs >= d_m3MaxNumFunctionArgs)
             _throw ("arg count overflow");
 
         char typeChar = * sig++;
@@ -90,7 +90,7 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
                                     voidptr_t       i_function,
                                     const M3Linker  i_linker)
 {
-    M3Result result = c_m3Err_functionLookupFailed;
+    M3Result result = m3Err_functionLookupFailed;
     
     for (u32 i = 0; i < io_module->numFunctions; ++i)
     {
@@ -114,7 +114,7 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
 
 M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr_t signature,  const void * i_function)
 {
-    M3Result result = c_m3Err_none;                                                 d_m3Assert (io_module->runtime);
+    M3Result result = m3Err_none;                                                 d_m3Assert (io_module->runtime);
 
 _try {
 _   (ValidateSignature (io_function, signature));
@@ -131,7 +131,7 @@ _   (ValidateSignature (io_function, signature));
         
         ReleaseCodePage (io_module->runtime, page);
     }
-    else _throw(c_m3Err_mallocFailedCodePage);
+    else _throw(m3Err_mallocFailedCodePage);
 
 } _catch:
     return result;

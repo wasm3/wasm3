@@ -12,7 +12,7 @@
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
 
     IM3Environment env = m3_NewEnvironment ();

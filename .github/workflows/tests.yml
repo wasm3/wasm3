@@ -173,7 +173,7 @@ jobs:
 
   build-platformio:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
@@ -189,6 +189,11 @@ jobs:
       run: |
         cd platforms/arduino
         pio run -e mkr1000
+    - name: Build Arduino Mega 1280
+      run: |
+        cd platforms/arduino
+        pio run -e mega1280
+        ! nm .pio/build/mega1280/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
         cd platforms/esp8266
@@ -209,6 +214,14 @@ jobs:
       run: |
         cd platforms/arduino
         pio run -e tinyBLE
+    - name: Build MXChip AZ3166
+      run: |
+        cd platforms/arduino
+        pio run -e az3166
+    - name: Build Sipeed MAIX
+      run: |
+        cd platforms/arduino
+        pio run -e maix
 
   build-esp32-idf:
     runs-on: ubuntu-latest

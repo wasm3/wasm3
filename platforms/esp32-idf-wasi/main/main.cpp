@@ -12,7 +12,7 @@
 
 static void run_wasm(void)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)wasi_test_wasm;
     uint32_t fsize = wasi_test_wasm_len-1;
