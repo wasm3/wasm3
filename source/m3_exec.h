@@ -914,5 +914,4 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 # endif
 
 
-
 #endif // m3_exec_h

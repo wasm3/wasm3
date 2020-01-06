@@ -593,4 +593,3 @@ _                   (ParseModuleSection (module, sectionCode, pos, sectionLength
 
     return result;
 }
-

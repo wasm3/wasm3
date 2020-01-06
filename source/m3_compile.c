@@ -2129,8 +2129,3 @@ _           (m3Alloc (& io_function->constants, u64, numConstants));
 
     return result;
 }
-
-
-
-
-

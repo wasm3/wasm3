@@ -31,7 +31,6 @@ typedef struct M3ErrorInfo
     IM3Module       module;
     IM3Function     function;
 
-    // compilation constants
     const char *    file;
     uint32_t        line;
 
@@ -144,28 +143,28 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
-//  configuration                                                                                           (found in m3_core.h)
+//  configuration, can be found in m3_config.h, m3_config_platforms.h, m3_core.h)
 //-------------------------------------------------------------------------------------------------------------------------------
 
 
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 //  initialization
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
     M3StackInfo         m3_GetNativeStackInfo       (int32_t                i_stackSize);
-    // GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread, at the start of the thread
-    // start function.
+    // GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread,
+    // at the start of the thread start function.
 
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 //  global environment than can host multiple runtimes
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
     IM3Environment      m3_NewEnvironment           (void);
 
     void                m3_FreeEnvironment          (IM3Environment i_environment);
 
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 //  execution context
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
                                                      uint32_t               i_stackSizeInBytes,
@@ -173,30 +172,22 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     void                m3_FreeRuntime              (IM3Runtime i_runtime);
 
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 //  modules
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
     M3Result            m3_ParseModule              (IM3Environment         i_environment,
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
-                                                     uint32_t               i_numWasmBytes
-                             // M3Free              i_releaseHandler        // i_ref argument type provided to M3Free() handler is <IM3Module>
-                             );
-    //  If i_wasmReleaseHandler is provided, then i_wasmBytes must be persistent until the handler is invoked.
-    //  If the handler is NULL, ParseModule will make a copy of i_wasmBytes and releases ownership of the pointer.
-    //  if a result is return, * o_module will be set to NULL
-
+                                                     uint32_t               i_numWasmBytes);
 
     void                m3_FreeModule               (IM3Module i_module);
-    //  Only unloaded modules need to be freed.
+    //  Only unloaded modules need to be freed
 
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
-    //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime.
-
+    //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime
 
     typedef const void * (* M3RawCall) (IM3Runtime runtime, uint64_t * _sp, void * _mem);
-
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,
@@ -204,9 +195,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      const char * const     i_signature,
                                                      M3RawCall              i_function);
 
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 //  functions
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
@@ -214,16 +205,15 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     M3Result            m3_Call                     (IM3Function i_function);
     M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
-//  M3Result            m3_CallMain                 (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
 
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 //  debug info
-//--------------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
     void                m3_PrintRuntimeInfo         (IM3Runtime i_runtime);
     void                m3_PrintM3Info              (void);
@@ -233,4 +223,4 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 }
 #endif
 
-#endif /* m3_h */
+#endif // m3_h

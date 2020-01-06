@@ -109,7 +109,3 @@ pc_t GetPC (IM3Compilation o)
 {
     return GetPagePC (o->page);
 }
-
-
-
-

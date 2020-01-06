@@ -93,4 +93,3 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 
     return func;
 }
-

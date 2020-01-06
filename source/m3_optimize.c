@@ -27,5 +27,3 @@ bool  PeekNextOpcode  (IM3Compilation o, u8 i_opcode)
 
     return found;
 }
-
-
