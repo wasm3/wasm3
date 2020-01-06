@@ -11,7 +11,7 @@
 
 M3Result repl_load  (IM3Runtime runtime, const char* fn)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     u8* wasm = NULL;
     u32 fsize = 0;
@@ -54,7 +54,7 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
 
 M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char* argv[])
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     IM3Function func;
     result = m3_FindFunction (&func, runtime, name);
@@ -87,7 +87,7 @@ M3Result repl_init(IM3Environment env, IM3Runtime* runtime)
     if (*runtime == NULL) {
         return "m3_NewRuntime failed";
     }
-    return c_m3Err_none;
+    return m3Err_none;
 }
 
 static
@@ -161,7 +161,7 @@ void print_usage() {
 
 int  main  (int i_argc, const char* i_argv[])
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
     
     IM3Environment env = m3_NewEnvironment ();
     IM3Runtime runtime = NULL;
@@ -238,7 +238,7 @@ int  main  (int i_argc, const char* i_argv[])
         if (argc <= 0) {
             continue;
         }
-        result = c_m3Err_none;
+        result = m3Err_none;
         if (!strcmp(":init", argv[0])) {
             result = repl_init(env, &runtime);
         } else if (!strcmp(":version", argv[0])) {

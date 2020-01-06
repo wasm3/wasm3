@@ -138,23 +138,21 @@ typedef struct M3CodePageHeader
 M3CodePageHeader;
 
 
-#define c_m3CodePageFreeLinesThreshold      4       // max is probably: select _sss 
+#define d_m3CodePageFreeLinesThreshold      4       // max is probably: select _sss
 
-#define c_m3MemPageSize                     65536
-#define c_m3MaxFunctionStackHeight          d_m3MaxFunctionStackHeight
+#define d_m3MemPageSize                     65536
 
-#define c_m3Reg0SlotAlias                   c_m3MaxFunctionStackHeight + 1
-#define c_m3Fp0SlotAlias                    c_m3MaxFunctionStackHeight + 2
+#define d_m3Reg0SlotAlias                   d_m3MaxFunctionStackHeight + 1
+#define d_m3Fp0SlotAlias                    d_m3MaxFunctionStackHeight + 2
 
-#define c_m3MaxNumFunctionConstants         60
+#define d_m3MaxNumFunctionConstants         60
 
-#define c_m3MaxSaneUtf8Length               2000
-#define c_m3MaxNumFunctionArgs              d_m3MaxNumFunctionArgs
+#define d_m3MaxSaneUtf8Length               2000
 
-#define c_externalKind_function             0
-#define c_externalKind_table                1
-#define c_externalKind_memory               2
-#define c_externalKind_global               3
+#define d_externalKind_function             0
+#define d_externalKind_table                1
+#define d_externalKind_memory               2
+#define d_externalKind_global               3
 
 static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
 static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v", "*" };

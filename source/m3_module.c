@@ -31,7 +31,7 @@ void  m3_FreeModule  (IM3Module i_module)
 
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     u32 index = io_module->numGlobals++;
     io_module->globals = (M3Global *) m3RellocArray (io_module->globals, M3Global, io_module->numGlobals, index);
@@ -47,7 +47,7 @@ M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_typ
         if (o_global)
             * o_global = global;
     }
-    else result = c_m3Err_mallocFailed;
+    else result = m3Err_mallocFailed;
 
     return result;
 }
@@ -55,7 +55,7 @@ M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_typ
 
 M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     u32 index = io_module->numFunctions++;
     io_module->functions = (M3Function*)m3RellocArray (io_module->functions, M3Function, io_module->numFunctions, index);
@@ -79,7 +79,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
         }
         else result = "unknown type sig index";
     }
-    else result = c_m3Err_mallocFailed;
+    else result = m3Err_mallocFailed;
 
     return result;
 }
@@ -99,7 +99,7 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 #if 0
 M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, size_t i_memorySize)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     // TODO: Handle case when memory is not there at all
     //if (i_memorySize <= io_memory->virtualSize)
@@ -128,10 +128,10 @@ M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, si
 
                 io_memory->heapOffset = i_memorySize;
             }
-            else result = c_m3Err_mallocFailed;
+            else result = m3Err_mallocFailed;
         }
     //}
-    //else result = c_m3Err_wasmMemoryOverflow;
+    //else result = m3Err_wasmMemoryOverflow;
 
     return result;
 }

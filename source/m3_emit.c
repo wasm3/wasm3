@@ -13,7 +13,7 @@
 
 M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     i_numLines += 2; // room for Bridge
 
@@ -33,7 +33,7 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 
             o->page = page;
         }
-        else result = c_m3Err_mallocFailedCodePage;
+        else result = m3Err_mallocFailedCodePage;
     }
 
     return result;
@@ -43,13 +43,13 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
 // have execution jump to a new page if slots are critically low
 M3Result  BridgeToNewPageIfNecessary  (IM3Compilation o)
 {
-    return EnsureCodePageNumLines (o, c_m3CodePageFreeLinesThreshold);
+    return EnsureCodePageNumLines (o, d_m3CodePageFreeLinesThreshold);
 }
 
 
 M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 {
-    M3Result result = c_m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic(o));
+    M3Result result = m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic(o));
 
     // it's OK for page to be null; when compile-walking the bytecode without emitting
     if (o->page)

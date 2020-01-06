@@ -190,16 +190,16 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
 
 M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
-    u64 stack [c_m3MaxFunctionStackHeight]; // stack on the stack
+    u64 stack [d_m3MaxFunctionStackHeight]; // stack on the stack
 
     // create a temporary runtime context
     M3Runtime runtime;
     M3_INIT (runtime);
     
     runtime.environment = i_module->runtime->environment;
-    runtime.numStackSlots = c_m3MaxFunctionStackHeight;
+    runtime.numStackSlots = d_m3MaxFunctionStackHeight;
     runtime.stack = & stack;
 
     IM3Runtime savedRuntime = i_module->runtime;
@@ -242,7 +242,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
         // TODO: EraseCodePage (...) see OPTZ above
         ReleaseCodePage (& runtime, o->page);
     }
-    else result = c_m3Err_mallocFailedCodePage;
+    else result = m3Err_mallocFailedCodePage;
 
     runtime.stack = NULL;        // prevent free(stack) in ReleaseRuntime
     ReleaseRuntime (& runtime);
@@ -256,7 +256,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
 M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 {
-    M3Result result = c_m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
+    M3Result result = m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
 
     if (not i_module->memoryImported)
     {
@@ -272,7 +272,7 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 
 M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
     
     u32 numPagesToAlloc = i_numPages;
 
@@ -290,10 +290,10 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
     if (numPagesToAlloc <= memory->maxPages)
     {
-        size_t numPageBytes = numPagesToAlloc * c_m3MemPageSize;
+        size_t numPageBytes = numPagesToAlloc * d_m3MemPageSize;
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
 
-        size_t numPreviousBytes = memory->numPages * c_m3MemPageSize;
+        size_t numPreviousBytes = memory->numPages * d_m3MemPageSize;
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
         
@@ -310,13 +310,14 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
             memory->mallocated->runtime = io_runtime;
             
              // TODO: track max function stack height and use this instead of hard-coded constant
-            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + (io_runtime->numStackSlots - c_m3MaxFunctionStackHeight);
+            d_m3Assert(io_runtime->numStackSlots > d_m3MaxFunctionStackHeight);
+            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + (io_runtime->numStackSlots - d_m3MaxFunctionStackHeight);
             
             m3log (runtime, "resized old: %p; mem: %p; end: %p; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->end, memory->numPages);
         }
-        else result = c_m3Err_mallocFailed;
+        else result = m3Err_mallocFailed;
     }
-    else result = c_m3Err_wasmMemoryOverflow;
+    else result = m3Err_wasmMemoryOverflow;
     
     return result;
 }
@@ -324,7 +325,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
 M3Result  InitGlobals  (IM3Module io_module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     if (io_module->numGlobals)
     {
@@ -356,7 +357,7 @@ M3Result  InitGlobals  (IM3Module io_module)
                 }
             }
         }
-        //          else result = ErrorModule (c_m3Err_mallocFailed, io_module, "could allocate globals for module: '%s", io_module->name);
+        //          else result = ErrorModule (m3Err_mallocFailed, io_module, "could allocate globals for module: '%s", io_module->name);
     }
 
     return result;
@@ -365,7 +366,7 @@ M3Result  InitGlobals  (IM3Module io_module)
 
 M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {
@@ -395,7 +396,7 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
 M3Result  InitElements  (IM3Module io_module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     bytes_t bytes = io_module->elementSection;
     cbytes_t end = io_module->elementSectionEnd;
@@ -436,7 +437,7 @@ _                       (ReadLEB_u32 (& functionIndex, & bytes, end));
                         else _throw ("function index out of range");
                     }
                 }
-                else _throw (c_m3Err_mallocFailed);
+                else _throw (m3Err_mallocFailed);
             }
             else _throw ("table overflow");
         }
@@ -448,7 +449,7 @@ _                       (ReadLEB_u32 (& functionIndex, & bytes, end));
 
 M3Result  InitStartFunc  (IM3Module io_module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     if (io_module->startFunction >= 0) {
         if ((u32)io_module->startFunction >= io_module->numFunctions) {
@@ -474,7 +475,7 @@ _       (m3_Call(function));
 // TODO: deal with main + side-modules loading efforcement
 M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     if (not io_module->runtime)
     {
@@ -492,7 +493,7 @@ _       (InitElements (io_module));
         // Functions expect module to be linked to a runtime, so we call start here
 _       (InitStartFunc (io_module));
     }
-    else result = c_m3Err_moduleAlreadyLinked;
+    else result = m3Err_moduleAlreadyLinked;
 
     if (result)
         io_module->runtime = NULL;
@@ -520,7 +521,7 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     if (!i_runtime->modules) {
         return "no modules loaded";
@@ -537,7 +538,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
                 function = NULL;
         }
     }
-    else result = ErrorModule (c_m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
+    else result = ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
 
     * o_function = function;
 
@@ -553,7 +554,7 @@ M3Result  m3_Call  (IM3Function i_function)
 
 M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     if (i_function->compiled)
     {
@@ -634,7 +635,7 @@ _       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated
         //u64 value = * (u64 *) (stack);
         //m3log (runtime, "return64: %" PRIu64 " return32: %u", value, (u32) value);
     }
-    else _throw (c_m3Err_missingCompiledCode);
+    else _throw (m3Err_missingCompiledCode);
 
     _catch: return result;
 }
@@ -642,7 +643,7 @@ _       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated
 #if 0
 M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     if (i_function->compiled)
     {
@@ -690,7 +691,7 @@ _       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaul
         //u64 value = * (u64 *) (stack);
         //m3log (runtime, "return64: % " PRIu64 " return32: %" PRIu32, value, (u32) value);
     }
-    else _throw (c_m3Err_missingCompiledCode);
+    else _throw (m3Err_missingCompiledCode);
 
     _catch: return result;
 }
@@ -771,7 +772,7 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
         IM3Runtime env = i_runtime;
         IM3CodePage * list;
 
-        bool pageFull = (NumFreeLines (i_codePage) < c_m3CodePageFreeLinesThreshold);
+        bool pageFull = (NumFreeLines (i_codePage) < d_m3CodePageFreeLinesThreshold);
         if (pageFull)
             list = & i_runtime->pagesFull;
         else

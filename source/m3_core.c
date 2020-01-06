@@ -47,7 +47,7 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     {
         * o_ptr = NULL;
 
-        return c_m3Err_mallocFailed;
+        return m3Err_mallocFailed;
     }
 
     memset (ptr, 0x0, i_size);
@@ -56,7 +56,7 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
 
     //printf("== alloc %d => %p\n", i_size, ptr);
 
-    return c_m3Err_none;
+    return m3Err_none;
 }
 
 void        m3Free_impl             (void * o_ptr)
@@ -102,14 +102,14 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     void * ptr = malloc (i_size);
     if (ptr)
     {
         memset (ptr, 0x0, i_size);
     }
-    else result = c_m3Err_mallocFailed;
+    else result = m3Err_mallocFailed;
 
     * o_ptr = ptr;
     //printf("== alloc %d => %p\n", i_size, ptr);
@@ -186,14 +186,14 @@ size_t      m3StackGetMax  ()
 
 M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
     
     u8 type = -i_convolutedWasmType;
     
     if (type == 0x40)
         type = c_m3Type_none;
     else if (type < c_m3Type_i32 or type > c_m3Type_f64)
-        result = c_m3Err_invalidTypeId;
+        result = m3Err_invalidTypeId;
     
     * o_type = type;
     
@@ -246,9 +246,9 @@ M3Result  Read_u64  (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
     {
         memcpy(o_value, * io_bytes, sizeof(u64));
         * io_bytes = ptr;
-        return c_m3Err_none;
+        return m3Err_none;
     }
-    else return c_m3Err_wasmUnderrun;
+    else return m3Err_wasmUnderrun;
 }
 
 
@@ -261,9 +261,9 @@ M3Result  Read_u32  (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
     {
         memcpy(o_value, * io_bytes, sizeof(u32));
         * io_bytes = ptr;
-        return c_m3Err_none;
+        return m3Err_none;
     }
-    else return c_m3Err_wasmUnderrun;
+    else return m3Err_wasmUnderrun;
 }
 
 M3Result  Read_f64  (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
@@ -275,9 +275,9 @@ M3Result  Read_f64  (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
     {
         memcpy(o_value, * io_bytes, sizeof(f64));
         * io_bytes = ptr;
-        return c_m3Err_none;
+        return m3Err_none;
     }
-    else return c_m3Err_wasmUnderrun;
+    else return m3Err_wasmUnderrun;
 }
 
 
@@ -290,9 +290,9 @@ M3Result  Read_f32  (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
     {
         memcpy(o_value, * io_bytes, sizeof(f32));
         * io_bytes = ptr;
-        return c_m3Err_none;
+        return m3Err_none;
     }
-    else return c_m3Err_wasmUnderrun;
+    else return m3Err_wasmUnderrun;
 }
 
 
@@ -306,15 +306,15 @@ M3Result  Read_u8  (u8 * o_value, bytes_t  * io_bytes, cbytes_t i_end)
         ptr += sizeof (u8);
         * io_bytes = ptr;
 
-        return c_m3Err_none;
+        return m3Err_none;
     }
-    else return c_m3Err_wasmUnderrun;
+    else return m3Err_wasmUnderrun;
 }
 
 
 M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end)
 {
-    M3Result result = c_m3Err_wasmUnderrun;
+    M3Result result = m3Err_wasmUnderrun;
 
     u64 value = 0;
 
@@ -330,13 +330,13 @@ M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes,
 
         if ((byte & 0x80) == 0)
         {
-            result = c_m3Err_none;
+            result = m3Err_none;
             break;
         }
 
         if (shift > i_maxNumBits)
         {
-            result = c_m3Err_lebOverflow;
+            result = m3Err_lebOverflow;
             break;
         }
     }
@@ -350,7 +350,7 @@ M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes,
 
 M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end)
 {
-    M3Result result = c_m3Err_wasmUnderrun;
+    M3Result result = m3Err_wasmUnderrun;
 
     i64 value = 0;
 
@@ -366,7 +366,7 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
 
         if ((byte & 0x80) == 0)
         {
-            result = c_m3Err_none;
+            result = m3Err_none;
 
             if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
@@ -380,7 +380,7 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
 
         if (shift > i_maxNumBits)
         {
-            result = c_m3Err_lebOverflow;
+            result = m3Err_lebOverflow;
             break;
         }
     }
@@ -451,7 +451,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 
     if (not result)
     {
-        if (utf8Length <= c_m3MaxSaneUtf8Length)
+        if (utf8Length <= d_m3MaxSaneUtf8Length)
         {
             const u8 * ptr = * io_bytes;
             const u8 * end = ptr + utf8Length;
@@ -470,9 +470,9 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 
                 * io_bytes = end;
             }
-            else result = c_m3Err_wasmUnderrun;
+            else result = m3Err_wasmUnderrun;
         }
-        else result = c_m3Err_missingUTF8;
+        else result = m3Err_missingUTF8;
     }
 
     return result;

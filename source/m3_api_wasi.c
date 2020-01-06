@@ -607,15 +607,15 @@ m3ApiRawFunction(m3_wasi_unstable_proc_exit)
         fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", code);
     }
 
-    m3ApiTrap(c_m3Err_trapExit);
+    m3ApiTrap(m3Err_trapExit);
 }
 
 
 static
 M3Result SuppressLookupFailure(M3Result i_result)
 {
-    if (i_result == c_m3Err_functionLookupFailed)
-        return c_m3Err_none;
+    if (i_result == m3Err_functionLookupFailed)
+        return m3Err_none;
     else
         return i_result;
 }
@@ -623,7 +623,7 @@ M3Result SuppressLookupFailure(M3Result i_result)
 
 M3Result  m3_LinkWASI  (IM3Module module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     const char* wasi  = "wasi_unstable";
 

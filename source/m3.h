@@ -107,9 +107,9 @@ typedef M3ImportInfo * IM3ImportInfo;
 // -------------------------------------------------------------------------------------------------------------------------------
 
 # if defined(M3_IMPLEMENT_ERROR_STRINGS)
-#   define d_m3ErrorConst(LABEL, STRING)        M3Result c_m3Err_##LABEL = { STRING };
+#   define d_m3ErrorConst(LABEL, STRING)        M3Result m3Err_##LABEL = { STRING };
 # else
-#   define d_m3ErrorConst(LABEL, STRING)        extern M3Result c_m3Err_##LABEL;
+#   define d_m3ErrorConst(LABEL, STRING)        extern M3Result m3Err_##LABEL;
 # endif
 
 // -------------------------------------------------------------------------------------------------------------------------------

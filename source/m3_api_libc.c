@@ -21,14 +21,14 @@
 
 m3ApiRawFunction(m3_libc_abort)
 {
-    m3ApiTrap(c_m3Err_trapAbort);
+    m3ApiTrap(m3Err_trapAbort);
 }
 
 m3ApiRawFunction(m3_libc_exit)
 {
     m3ApiGetArg     (int32_t, code)
 
-    m3ApiTrap(c_m3Err_trapExit);
+    m3ApiTrap(m3Err_trapExit);
 }
 
 
@@ -67,15 +67,15 @@ m3ApiRawFunction(m3_libc_clock)
 static
 M3Result  SuppressLookupFailure (M3Result i_result)
 {
-    if (i_result == c_m3Err_functionLookupFailed)
-        return c_m3Err_none;
+    if (i_result == m3Err_functionLookupFailed)
+        return m3Err_none;
     else
         return i_result;
 }
 
 m3ApiRawFunction(m3_spectest_dummy)
 {
-    return c_m3Err_none;
+    return m3Err_none;
 }
 
 m3ApiRawFunction(m3_wasm3_raw_sum)
@@ -88,7 +88,7 @@ m3ApiRawFunction(m3_wasm3_raw_sum)
 
     m3ApiReturn(val1 + val2 + val3 + val4);
 
-    return c_m3Err_none;
+    return m3Err_none;
 }
 
 /* TODO: implement direct native function calls (using libffi?)
@@ -101,7 +101,7 @@ i64 m3_wasm3_native_sum(i32 val1, i32 val2, i32 val3, i32 val4)
 
 M3Result  m3_LinkSpecTest  (IM3Module module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     const char* spectest = "spectest";
     const char* wasm3    = "wasm3";
@@ -125,7 +125,7 @@ _catch:
 
 M3Result  m3_LinkLibC  (IM3Module module)
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     const char* env = "env";
 

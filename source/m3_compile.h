@@ -89,14 +89,14 @@ typedef struct
     u16                 firstConstSlotIndex;
     u16                 constSlotIndex;             // as const's are encountered during compilation this tracks their location in the "real" stack
 
-    u64                 constants                   [c_m3MaxNumFunctionConstants];
+    u64                 constants                   [d_m3MaxNumFunctionConstants];
 
     // for args/locals this wasmStack tracks write counts. for the dynamic portion of the stack, the array holds slot locations
-    u16                 wasmStack                   [c_m3MaxFunctionStackHeight];
-    u8                  typeStack                   [c_m3MaxFunctionStackHeight];
+    u16                 wasmStack                   [d_m3MaxFunctionStackHeight];
+    u8                  typeStack                   [d_m3MaxFunctionStackHeight];
 
     // OPTZ: this array just contains single bit allocation flags.  could be fused with the typeStack to conserve space
-    u8                  m3Slots                     [c_m3MaxFunctionStackHeight];
+    u8                  m3Slots                     [d_m3MaxFunctionStackHeight];
 
     u16                 numAllocatedExecSlots;
 

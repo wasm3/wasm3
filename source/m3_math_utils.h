@@ -124,25 +124,25 @@ u64 rotr64(u64 n, unsigned c) {
  */
 
 #define OP_DIV_U(RES, A, B)                                  \
-    if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
+    if (UNLIKELY(B == 0)) return m3Err_trapDivisionByZero; \
     RES = A / B;
 
 #define OP_REM_U(RES, A, B)                                  \
-    if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
+    if (UNLIKELY(B == 0)) return m3Err_trapDivisionByZero; \
     RES = A % B;
 
 // 2's complement detection
 #if (INT_MIN != -INT_MAX)
 
     #define OP_DIV_S(RES, A, B, TYPE_MIN)                        \
-        if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
+        if (UNLIKELY(B == 0)) return m3Err_trapDivisionByZero; \
         if (UNLIKELY(B == -1 and A == TYPE_MIN)) {               \
-            return c_m3Err_trapIntegerOverflow;                  \
+            return m3Err_trapIntegerOverflow;                  \
         }                                                        \
         RES = A / B;
 
     #define OP_REM_S(RES, A, B, TYPE_MIN)                        \
-        if (UNLIKELY(B == 0)) return c_m3Err_trapDivisionByZero; \
+        if (UNLIKELY(B == 0)) return m3Err_trapDivisionByZero; \
         if (UNLIKELY(B == -1 and A == TYPE_MIN)) RES = 0;        \
         else RES = A % B;
 
@@ -159,10 +159,10 @@ u64 rotr64(u64 n, unsigned c) {
 
 #define OP_TRUNC(RES, A, TYPE, RMIN, RMAX)                  \
     if (UNLIKELY(isnan(A))) {                               \
-        return c_m3Err_trapIntegerConversion;               \
+        return m3Err_trapIntegerConversion;               \
     }                                                       \
     if (UNLIKELY(A <= RMIN or A >= RMAX)) {                 \
-        return c_m3Err_trapIntegerOverflow;                 \
+        return m3Err_trapIntegerOverflow;                 \
     }                                                       \
     RES = (TYPE)A;
 

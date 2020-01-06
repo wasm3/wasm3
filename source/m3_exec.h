@@ -599,7 +599,7 @@ d_m3Op  (Const)
 d_m3Op  (Unreachable)
 {                                                   m3log (exec, "*** trapping ***");
     m3StackCheck();
-    return c_m3Err_trapUnreachable;
+    return m3Err_trapUnreachable;
 }
 
 
@@ -696,11 +696,11 @@ d_m3SetRegisterSetSlot (f64, _fp0)
 #endif
 
 #ifdef DEBUG
-  #define d_outOfBounds return ErrorRuntime (c_m3Err_trapOutOfBoundsMemoryAccess,	\
+  #define d_outOfBounds return ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,	\
                         _mem->runtime, "memory size: %zu; access offset: %zu",  	\
                        	_mem->length, operand)
 #else
-  #define d_outOfBounds return c_m3Err_trapOutOfBoundsMemoryAccess
+  #define d_outOfBounds return m3Err_trapOutOfBoundsMemoryAccess
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.
