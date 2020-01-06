@@ -39,6 +39,11 @@ typedef uint32_t __wasi_size_t;
 #  include <NTSecAPI.h>
 #  undef SystemFunction036
 #  define ssize_t SSIZE_T
+
+#  define open  _open
+#  define read  _read
+#  define write _write
+#  define close _close
 #endif
 
 struct wasi_iovec
@@ -46,16 +51,6 @@ struct wasi_iovec
     __wasi_size_t iov_base;
     __wasi_size_t iov_len;
 };
-
-static inline
-uint32_t addr2offset(IM3Runtime m, void *addr) {
-    return (u8*)addr - (u8*)(m->memory.mallocated+1);
-}
-
-static inline
-void *offset2addr(IM3Runtime m, uint32_t offset) {
-    return (u8*)(m->memory.mallocated+1) + offset;
-}
 
 #define PREOPEN_CNT   5
 
@@ -161,12 +156,12 @@ __wasi_timestamp_t convert_timespec(const struct timespec *ts) {
 #if defined(HAS_IOVEC)
 
 static
-void copy_iov_to_host(struct iovec* host_iov, IM3Runtime runtime, uint32_t iov_offset, int32_t iovs_len)
+void copy_iov_to_host(struct iovec* host_iov, void* _mem, uint32_t iov_offset, int32_t iovs_len)
 {
     // Convert wasi_memory offsets to host addresses
-    struct wasi_iovec *wasi_iov = offset2addr(runtime, iov_offset);
+    struct wasi_iovec *wasi_iov = m3ApiOffsetToPtr(iov_offset);
     for (int i = 0; i < iovs_len; i++) {
-        host_iov[i].iov_base = offset2addr(runtime, wasi_iov[i].iov_base);
+        host_iov[i].iov_base = m3ApiOffsetToPtr(wasi_iov[i].iov_base);
         host_iov[i].iov_len  = wasi_iov[i].iov_len;
     }
 }
@@ -187,7 +182,7 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
 
     for (u32 i = 0; i < runtime->argc; ++i)
     {
-        argv_offset [i] = addr2offset (runtime, argv_buf_offset);
+        argv_offset [i] = m3ApiPtrToOffset (argv_buf_offset);
         
         size_t len = strlen (runtime->argv [i]);
         memcpy (argv_buf_offset, runtime->argv [i], len);
@@ -361,7 +356,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
 
     //printf ("== path_open: %s\n", host_path);
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // TODO: This all needs a proper implementation
 
     int flags = ((oflags & __WASI_O_CREAT)             ? _O_CREAT     : 0) |
@@ -379,7 +374,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     }
     int mode = 0644;
 
-    int host_fd = _open (host_path, flags, mode);
+    int host_fd = open (host_path, flags, mode);
 
     if (host_fd < 0)
     {
@@ -436,7 +431,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
-    copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
+    copy_iov_to_host(iovs, _mem, iovs_offset, iovs_len);
 
     ssize_t ret = readv(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
@@ -444,13 +439,13 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     m3ApiReturn(__WASI_ESUCCESS);
 #else
     ssize_t res = 0;
-    struct wasi_iovec *wasi_iov = offset2addr(runtime, iovs_offset);
+    struct wasi_iovec *wasi_iov = m3ApiOffsetToPtr(iovs_offset);
     for (__wasi_size_t i = 0; i < iovs_len; i++) {
-        void* addr = offset2addr(runtime, wasi_iov[i].iov_base);
+        void* addr = m3ApiOffsetToPtr(wasi_iov[i].iov_base);
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
 
-        int ret = _read (fd, addr, len);
+        int ret = read (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
         if ((size_t)ret < len) break;
@@ -472,7 +467,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
-    copy_iov_to_host(iovs, runtime, iovs_offset, iovs_len);
+    copy_iov_to_host(iovs, _mem, iovs_offset, iovs_len);
 
     ssize_t ret = writev(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
@@ -480,13 +475,13 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     m3ApiReturn(__WASI_ESUCCESS);
 #else
     ssize_t res = 0;
-    struct wasi_iovec *wasi_iov = offset2addr(runtime, iovs_offset);
+    struct wasi_iovec *wasi_iov = m3ApiOffsetToPtr(iovs_offset);
     for (__wasi_size_t i = 0; i < iovs_len; i++) {
-        void* addr = offset2addr(runtime, wasi_iov[i].iov_base);
+        void* addr = m3ApiOffsetToPtr(wasi_iov[i].iov_base);
         size_t len = wasi_iov[i].iov_len;
         if (len == 0) continue;
 
-        int ret = _write (fd, addr, len);
+        int ret = write (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
         if ((size_t)ret < len) break;
@@ -511,11 +506,13 @@ m3ApiRawFunction(m3_wasi_unstable_fd_datasync)
     m3ApiGetArg      (__wasi_fd_t, fd)
 
 #if defined(_WIN32)
-    int ret = fflush(fd);
+    int ret = _commit(fd);
 #elif defined(__APPLE__)
     int ret = fsync(fd);
-#else
+#elif defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__)
     int ret = fdatasync(fd);
+#else
+    int ret = __WASI_ENOSYS;
 #endif
     m3ApiReturn(ret == 0 ? __WASI_ESUCCESS : ret);
 }
@@ -609,7 +606,8 @@ m3ApiRawFunction(m3_wasi_unstable_proc_exit)
     if (code) {
         fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", code);
     }
-    exit(code);
+
+    m3ApiTrap(c_m3Err_trapExit);
 }
 
 
@@ -668,13 +666,6 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "proc_exit",      
 
 _catch:
     return result;
-}
-
-#else  // d_m3HasWASI
-
-M3Result  m3_LinkWASI  (IM3Module module)
-{
-    return c_m3Err_none;
 }
 
 #endif // d_m3HasWASI
