@@ -7,7 +7,7 @@
 //
 
 
-#include "m3_module.h"
+#include "m3_env.h"
 
 void  m3_FreeModule  (IM3Module i_module)
 {
@@ -94,65 +94,4 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 
     return func;
 }
-
-
-#if 0
-M3Result  Module_EnsureMemorySize  (IM3Module i_module, M3Memory * io_memory, size_t i_memorySize)
-{
-    M3Result result = m3Err_none;
-
-    // TODO: Handle case when memory is not there at all
-    //if (i_memorySize <= io_memory->virtualSize)
-    //{
-    	const size_t i_memorySizeFull = i_memorySize + sizeof (M3MemoryHeader);
-        size_t actualSize = 0;
-
-        if (io_memory->mallocated)
-            actualSize = (u8 *) io_memory->mallocated->end - (u8 *) io_memory->mallocated;
-
-        if (i_memorySizeFull > actualSize)
-        {
-            io_memory->mallocated = (M3MemoryHeader *)m3Realloc (io_memory->mallocated, i_memorySizeFull, actualSize);
-
-            m3log (runtime, "resized WASM linear memory to %lu bytes (%p)", i_memorySize, io_memory->mallocated);
-
-            if (io_memory->mallocated)
-            {
-                // store pointer to module and end of memory. gives the runtime access to this info.
-                io_memory->mallocated->runtime = i_module->runtime;
-                io_memory->mallocated->end = (u8 *)(io_memory->mallocated) + i_memorySizeFull;
-
-                io_memory->wasmPages = (u8 *) (io_memory->mallocated + 1);
-
-//              printf ("start= %p  end= %p \n", ptr, end);
-
-                io_memory->heapOffset = i_memorySize;
-            }
-            else result = m3Err_mallocFailed;
-        }
-    //}
-    //else result = m3Err_wasmMemoryOverflow;
-
-    return result;
-}
-#endif 
-
-
-i32  AllocatePrivateHeap  (M3Memory * io_memory, i32 i_size)
-{
-	/*
-    i_size = (i_size + 7) & ~7;
-    size_t ptrOffset = io_memory->heapOffset + (io_memory->heapAllocated += i_size);
-
-    size_t size = (u8 *) io_memory->mallocated->end - io_memory->wasmPages;
-
-    if (ptrOffset >= size) {
-        m3Abort("ptrOffset >= size");
-    }
-
-    return (i32) ptrOffset;*/
-
-	return 0;
-}
-
 

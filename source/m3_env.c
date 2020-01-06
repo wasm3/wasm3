@@ -9,7 +9,7 @@
 #include <stdarg.h>
 
 #include "m3.h"
-#include "m3_module.h"
+#include "m3_env.h"
 #include "m3_compile.h"
 #include "m3_exec.h"
 #include "m3_exception.h"
