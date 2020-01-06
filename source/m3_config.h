@@ -26,13 +26,13 @@
 #   define d_m3LogOutput                        1
 # endif
 
+# ifndef d_m3VerboseLogs
+#   define d_m3VerboseLogs                      1
+# endif
+
 # ifndef d_m3FixedHeap
 #   define d_m3FixedHeap                        false
 //# define d_m3FixedHeap                        (32*1024)
-# endif
-
-# ifndef d_m3VerboseErrorMessages
-#   define d_m3VerboseErrorMessages           	1
 # endif
 
 # ifndef d_m3FixedHeapAlign

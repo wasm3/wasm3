@@ -257,7 +257,8 @@ int  main  (int i_argc, const char* i_argv[])
 
         if (result) {
             fprintf (stderr, "Error: %s", result);
-            M3ErrorInfo info = m3_GetErrorInfo (runtime);
+            M3ErrorInfo info;
+            m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)\n", info.message);
         }
     }
@@ -267,7 +268,8 @@ _onfatal:
         fprintf (stderr, "Error: %s", result);
         if (runtime)
         {
-            M3ErrorInfo info = m3_GetErrorInfo (runtime);
+            M3ErrorInfo info;
+            m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)", info.message);
         }
         fprintf (stderr, "\n");

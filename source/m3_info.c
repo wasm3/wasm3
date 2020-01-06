@@ -11,6 +11,15 @@
 #include "m3_emit.h"
 #include "m3_compile.h"
 
+#if d_m3LogOutput
+
+typedef struct OpInfo
+{
+    IM3OpInfo   info;
+    u8          opcode;
+}
+OpInfo;
+
 void  m3_PrintM3Info  ()
 {
     printf ("\n-- m3 configuration --------------------------------------------\n");
@@ -124,7 +133,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
     return string;
 }
 
-
+static
 OpInfo find_operation_info  (IM3Operation i_operation)
 {
     OpInfo opInfo;
@@ -299,8 +308,6 @@ void  dump_type_stack  (IM3Compilation o)
      
      */
     
-#   if d_m3LogOutput
-    
     // for the assert at end of dump:
     i32 regAllocated [2] = { (i32) IsRegisterAllocated (o, 0), (i32) IsRegisterAllocated (o, 1) };
     
@@ -356,8 +363,7 @@ void  dump_type_stack  (IM3Compilation o)
     
     for (u32 r = 0; r < 2; ++r)
         d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
-    
-#   endif
+
 }
 
 
@@ -432,4 +438,6 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
     else printf ("not found: %p", i_operation);
 # endif
 }
+
+#endif //d_m3LogOutput
 

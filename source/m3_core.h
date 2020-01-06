@@ -162,19 +162,21 @@ static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v"
 #define m3RellocArray(PTR, STRUCT, NEW, OLD)    m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define m3Free(P)                               { m3Free_impl((void*)(P)); P = NULL; }
 
-# if d_m3VerboseErrorMessages
-#	define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) m3Error (RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ##__VA_ARGS__)
+# if d_m3VerboseLogs
+
+M3Result m3Error (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
+                  const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
+
+#  define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) \
+            m3Error (RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ##__VA_ARGS__)
+
 # else
-#	define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) (RESULT)
-#endif
+#  define _m3Error(RESULT, RT, MOD, FUN, FILE, LINE, FORMAT, ...) (RESULT)
+# endif
 
 #define ErrorRuntime(RESULT, RUNTIME, FORMAT, ...)      _m3Error (RESULT, RUNTIME, NULL, NULL,  __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 #define ErrorModule(RESULT, MOD, FORMAT, ...)           _m3Error (RESULT, MOD->runtime, MOD, NULL,  __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 #define ErrorCompile(RESULT, COMP, FORMAT, ...)         _m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
-
-#if d_m3VerboseErrorMessages
-M3Result    m3Error                 (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
-#endif
 
 #if d_m3LogNativeStack
 void        m3StackCheckInit        ();

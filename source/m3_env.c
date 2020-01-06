@@ -107,8 +107,10 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
 
     if (runtime)
     {
+        m3_ResetErrorInfo(runtime);
+
 		runtime->environment = i_environment;
-		
+
         m3Malloc (& runtime->stack, i_stackSizeInBytes);
 
         if (runtime->stack)
@@ -799,20 +801,19 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 }
 
 
-#if d_m3VerboseErrorMessages
+#if d_m3VerboseLogs
 M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
                     const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...)
 {
     if (i_runtime)
     {
-        M3ErrorInfo info = { i_result, i_runtime, i_module, i_function, i_file, i_lineNum };
+        i_runtime->error = (M3ErrorInfo){ i_result, i_runtime, i_module, i_function, i_file, i_lineNum };
+        i_runtime->error.message = i_runtime->error_message;
 
         va_list args;
         va_start (args, i_errorMessage);
-        vsnprintf (info.message, sizeof(info.message), i_errorMessage, args);
+        vsnprintf (i_runtime->error_message, sizeof(i_runtime->error_message), i_errorMessage, args);
         va_end (args);
-
-        i_runtime->error = info;
     }
 
     return i_result;
@@ -820,22 +821,21 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 #endif
 
 
-M3ErrorInfo  m3_GetErrorInfo  (IM3Runtime i_runtime)
+void  m3_GetErrorInfo  (IM3Runtime i_runtime, M3ErrorInfo* info)
 {
-    M3ErrorInfo info = i_runtime->error;
+    *info = i_runtime->error;
 
-    m3_IgnoreErrorInfo (i_runtime);
-
-    return info;
+    m3_ResetErrorInfo (i_runtime);
 }
 
 
-void m3_IgnoreErrorInfo (IM3Runtime i_runtime)
+void m3_ResetErrorInfo (IM3Runtime i_runtime)
 {
-    M3ErrorInfo reset;
-    M3_INIT(reset);
-
-    i_runtime->error = reset;
+    M3_INIT(i_runtime->error);
+    i_runtime->error.message = "";
+#if d_m3VerboseLogs
+    i_runtime->error_message[0] = "\0";
+#endif
 }
 
 

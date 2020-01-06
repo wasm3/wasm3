@@ -60,7 +60,7 @@ typedef struct M3ErrorInfo
     const char *    file;
     uint32_t        line;
 
-    char            message         [256];
+    const char *    message;
 }
 M3ErrorInfo;
 
@@ -243,8 +243,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     // IM3Functions are valid during the lifetime of the originating runtime
 
-    M3ErrorInfo         m3_GetErrorInfo             (IM3Runtime i_runtime);
-    void                m3_IgnoreErrorInfo          (IM3Runtime i_runtime);
+    void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* info);
+    void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //  debug info
