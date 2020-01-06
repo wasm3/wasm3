@@ -185,33 +185,40 @@ static inline uint64_t strtoull ( const char* str, char ** endptr, int base ) { 
 # elif defined (FOMU)
 #   define vectorcall __attribute__((section(".ramtext")))
 # elif defined(HIFIVE1)
-#   include <metal/itim.h>
 #   define vectorcall
 # else
 #   define vectorcall
 # endif
 
 
-# if defined(PARTICLE)
+// Device-specific defaults
+# if defined(ESP8266)
 #  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            256
-# elif defined(ESP8266)
-#  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            256
+#  define d_m3MaxFunctionStackHeight            64
 #  define d_m3FixedHeap                         (8*1024)
 # elif defined(WM_W600)
-#  define d_m3MaxFunctionStackHeight            256
+#  define d_m3MaxFunctionStackHeight            64
 # elif defined(BLUE_PILL)
 #  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            256
+#  define d_m3MaxFunctionStackHeight            64
 #  define d_m3FixedHeap                         (8*1024)
 # elif defined(FOMU)
 #  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            256
-#  define d_m3FixedHeap                         (8*1024)
-# elif defined(__AVR__)
-#  define d_m3LogOutput                         false
 #  define d_m3MaxFunctionStackHeight            64
+#  define d_m3FixedHeap                         (8*1024)
+#endif
+
+// Platform-specific defaults
+# if defined(ARDUINO) || defined(PARTICLE) || defined(__MBED__)
+#  ifndef d_m3LogOutput
+#    define d_m3LogOutput                       false
+#  endif
+#  ifndef d_m3VerboseLogs
+#    define d_m3VerboseLogs                     false
+#  endif
+#  ifndef d_m3MaxFunctionStackHeight
+#    define d_m3MaxFunctionStackHeight          64
+#  endif
 # endif
 
-#endif
+#endif // m3_config_platforms_h
