@@ -4,6 +4,7 @@
 #include "m3/m3.h"
 #include "esp_system.h"
 #include "m3/m3_env.h"
+
 #include "m3/extra/fib32.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
