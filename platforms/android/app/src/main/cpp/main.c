@@ -49,12 +49,12 @@ void run_wasm()
 
 int main()
 {
-    printf("wasm3 on Android (" M3_ARCH ")\n");
+    printf("wasm3 v" M3_VERSION " on Android (" M3_ARCH ")\n");
     printf("Build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
     run_wasm();
     clock_t end = clock();
 
-    printf("Elapsed: %d ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
+    printf("Elapsed: %ld ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
 }

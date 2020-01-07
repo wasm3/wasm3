@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 add_definitions(-DANDROID -Wno-format-security -O3
-                -Dd_m3AllocateLinearMemory=1
                 #-fno-optimize-sibling-calls
-                -fstrict-aliasing -flto -fno-fat-lto-objects)
+                -fomit-frame-pointer -fno-stack-check -fno-stack-protector
+                -fstrict-aliasing -flto)
 
 file(GLOB M3_SRC FOLLOW_SYMLINKS "m3/*.c" "*.c")
 
