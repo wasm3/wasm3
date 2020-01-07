@@ -54,7 +54,7 @@ void run_wasm()
 
 int  main  (int i_argc, const char * i_argv [])
 {
-    printf("wasm3 on WASM, build " __DATE__ " " __TIME__ "\n");
+    printf("Wasm3 v" M3_VERSION " on WASM, build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
     run_wasm();

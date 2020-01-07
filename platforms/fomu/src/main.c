@@ -120,7 +120,7 @@ int main(int argc, char **argv)
         msleep(1);
     }
 
-    puts("\nwasm3 on Fomu, build " __DATE__ " " __TIME__ "\n");
+    puts("\nWasm3 v" M3_VERSION " on Fomu, build " __DATE__ " " __TIME__ "\n");
 
     rgb_set(0, 0, 255);
     if (run_wasm()) {

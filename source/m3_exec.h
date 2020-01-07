@@ -18,7 +18,7 @@
 #include <math.h>
 #include <limits.h>
 
-# define rewrite_op(OP)           * ((void **) (_pc-1)) = (void*)(OP)
+# define rewrite_op(OP)             * ((void **) (_pc-1)) = (void*)(OP)
 
 # define d_m3RetSig                 static inline m3ret_t vectorcall
 # define d_m3Op(NAME)               d_m3RetSig op_##NAME (d_m3OpSig)

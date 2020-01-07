@@ -13,7 +13,7 @@ int puts(const char* s) {
 
 void run_wasm()
 {
-    M3Result result = c_m3Err_none;
+    M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
     size_t fsize = fib32_wasm_len-1;
@@ -55,7 +55,7 @@ void setup()
   Serial.begin(115200);
   delay(10);
 
-  Serial.println("wasm3 on Particle, build " __DATE__ " " __TIME__);
+  Serial.println("Wasm3 v" M3_VERSION " on Particle, build " __DATE__ " " __TIME__);
 
   u32 start = millis();
   run_wasm();

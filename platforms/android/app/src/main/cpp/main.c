@@ -49,7 +49,7 @@ void run_wasm()
 
 int main()
 {
-    printf("wasm3 v" M3_VERSION " on Android (" M3_ARCH ")\n");
+    printf("Wasm3 v" M3_VERSION " on Android (" M3_ARCH ")\n");
     printf("Build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();

@@ -53,7 +53,7 @@ int main()
   enableSysTick();
   led.mode(Pinmode::out);
 
-  puts("wasm3 on BluePill, build " __DATE__ " " __TIME__ "\n");
+  puts("Wasm3 v" M3_VERSION " on BluePill, build " __DATE__ " " __TIME__ "\n");
 
   led = 0;
   run_wasm();

@@ -51,7 +51,7 @@ void setup()
   Serial.begin(115200);
   delay(10);
 
-  Serial.print("\nwasm3 on ESP8266, build " __DATE__ " " __TIME__ "\n");
+  Serial.print("\nWasm3 v" M3_VERSION " on ESP8266, build " __DATE__ " " __TIME__ "\n");
 
   u32 start = millis();
   run_wasm();

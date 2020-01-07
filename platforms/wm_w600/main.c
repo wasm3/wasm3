@@ -53,7 +53,7 @@ static u8 user_task_stk[USER_TASK_STK_SIZE];
 
 void wasm3_task(void *data)
 {
-    printf("\nwasm3 on W600, build " __DATE__ " " __TIME__ "\n");
+    printf("\nWasm3 v" M3_VERSION " on W600, build " __DATE__ " " __TIME__ "\n");
 
     u32 start = millis();
     run_wasm();
