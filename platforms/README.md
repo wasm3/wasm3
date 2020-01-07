@@ -45,6 +45,7 @@ Arduino MKR1000      Arm M0+ @ 48MHz          1.93s       2.06s      TCO failed
 TinyBLE (nRF51)       Arm M0 @ 16MHz          5.58s       5.93s      TCO failed
 BluePill              Arm M3 @ 72MHz          7.62s       8.20s
 HiFive1 (FE310)     rv32imac @ 320MHz         9.10s       9.82s   <- something wrong here?
+ATmega1284               avr @ 16MHz         12.55s        ---       TCO failed
 Fomu                   rv32i @ 12MHz         25.20s      26.10s
 ```
 
