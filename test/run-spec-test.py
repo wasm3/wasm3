@@ -462,7 +462,7 @@ for fn in jsonFiles:
 
     print(f"Running {fn}")
 
-    #wasm3.init()
+    wasm3.init()
 
     for cmd in data["commands"]:
         test = dotdict()

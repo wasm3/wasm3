@@ -325,6 +325,9 @@ M3Result  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
 
     if (stackIndex < d_m3MaxFunctionStackHeight)
     {
+        if (o->function && o->function->maxStackSlots < stackIndex)
+            o->function->maxStackSlots = stackIndex;
+
         // wasmStack tracks read counts for args & locals. otherwise, wasmStack represents slot location.
         if (stackIndex < GetFunctionNumArgsAndLocals (o->function))
             i_location = 0;
