@@ -652,10 +652,6 @@ M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * co
 
         IM3Runtime runtime = module->runtime;
 
-//#if d_m3AllocateLinearMemory
-//_       (Module_EnsureMemorySize (module, & i_function->module->memory, 16777216));
-//#endif
-
         u8 * linearMemory = runtime->memory.wasmPages;
 
         m3stack_t stack = (m3stack_t) runtime->stack;
