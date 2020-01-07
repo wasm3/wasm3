@@ -242,7 +242,6 @@ jobs:
         cd platforms/esp32-idf
         make-flash-img.sh wasm3 flash_img.bin
         qemu-system-xtensa -machine esp32 -nographic -drive file=flash_img.bin,if=mtd,format=raw -no-reboot | tee out.txt
-        grep "wasm3 on ESP32, build " out.txt
         grep "Result: 46368" out.txt
         grep "Elapsed: " out.txt
         grep "Restarting..." out.txt
