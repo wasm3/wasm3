@@ -2098,11 +2098,6 @@ _       (Compile_ReserveConstants (o));
         o->numAllocatedExecSlots = 0;               // this var only tracks dynamic slots so clear local+constant allocations
         o->block.initStackIndex = o->stackIndex;
 
-        pc_t pc2 = GetPagePC (o->page);
-        if (pc2 != pc) {
-            m3Abort("pc2 != pc");
-        }
-
 _       (EmitOp (o, op_Entry));
         EmitPointer (o, io_function);
 
