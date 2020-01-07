@@ -188,13 +188,14 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
+    IM3Function function = immediate (IM3Function);
+
 #if defined(d_m3SkipStackCheck)
     if (true)
 #else
-    if ((void *) _sp <= _mem->maxStack)
+    if ((void*)(_sp + function->maxStackSlots) < _mem->maxStack)
 #endif
     {
-        IM3Function function = immediate (IM3Function);
         function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
         u32 numLocals = function->numLocals;

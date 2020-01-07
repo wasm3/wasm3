@@ -310,9 +310,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
             memory->mallocated->length =  numPageBytes;
             memory->mallocated->runtime = io_runtime;
 
-             // TODO: track max function stack height and use this instead of hard-coded constant
-            d_m3Assert(io_runtime->numStackSlots > d_m3MaxFunctionStackHeight);
-            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + (io_runtime->numStackSlots - d_m3MaxFunctionStackHeight);
+            memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + io_runtime->numStackSlots;
 
             m3log (runtime, "resized old: %p; mem: %p; end: %p; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->end, memory->numPages);
         }

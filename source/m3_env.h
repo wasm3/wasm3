@@ -46,6 +46,8 @@ typedef struct M3Function
     IM3Operation            callOp;
     pc_t                    compiled;
 
+    u32                     maxStackSlots;
+
     u32                     numLocals;          // not including args
 
     u32                     numConstants;

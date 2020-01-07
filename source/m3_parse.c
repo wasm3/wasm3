@@ -331,6 +331,9 @@ _                   (NormalizeType (& normalizedType, varType));
                 func->wasm = start;
                 func->wasmEnd = i_bytes;
                 func->numLocals = numLocalVars;
+
+                // TODO: track max function stack height and use this instead of hard-coded constant
+                func->maxStackSlots = 4;
             }
             else _throw (m3Err_wasmSectionOverrun);
         }
