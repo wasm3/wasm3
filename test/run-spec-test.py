@@ -313,7 +313,7 @@ class Wasm3():
 
 wasm3 = Wasm3(args.exec, args.engine)
 
-print("Version: " + wasm3.version())
+print(wasm3.version())
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
@@ -462,7 +462,7 @@ for fn in jsonFiles:
 
     print(f"Running {fn}")
 
-    wasm3.init()
+    #wasm3.init()
 
     for cmd in data["commands"]:
         test = dotdict()
