@@ -86,6 +86,38 @@ int __builtin_clzll(uint64_t value) {
             ((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : __signbitd(__x))
 #endif
 
+#if defined(__AVR__)
+
+static inline
+float rintf( float arg ) {
+  union { float f; uint32_t i; } u;
+  u.f = arg;
+  uint32_t ux = u.i & 0x7FFFFFFF;
+  if (UNLIKELY(ux == 0 || ux > 0x5A000000)) {
+    return arg;
+  }
+  return (float)lrint(arg);
+}
+
+static inline
+double rint( double arg ) {
+  union { double f; uint32_t i[2]; } u;
+  u.f = arg;
+  uint32_t ux = u.i[1] & 0x7FFFFFFF;
+  if (UNLIKELY((ux == 0 && u.i[0] == 0) || ux > 0x433FFFFF)) {
+    return arg;
+  }
+  return (double)lrint(arg);
+}
+
+//TODO
+static inline
+uint64_t strtoull(const char* str, char** endptr, int base) {
+  return 0;
+}
+
+#endif
+
 /*
  * Rotr, Rotl
  */

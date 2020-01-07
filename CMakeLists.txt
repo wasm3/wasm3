@@ -113,7 +113,7 @@ else()
   endif()
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0")
 
-  set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -Wfatal-errors -fstrict-aliasing -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
+  set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
