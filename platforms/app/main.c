@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "m3.h"
 #include "m3_api_wasi.h"
@@ -39,6 +40,50 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
         return "cannot read file";
     }
     fclose (f);
+
+    IM3Module module;
+    result = m3_ParseModule (runtime->environment, &module, wasm, fsize);
+    if (result) return result;
+
+    result = m3_LoadModule (runtime, module);
+    if (result) return result;
+
+    result = m3_LinkSpecTest (runtime->modules);
+
+    return result;
+}
+
+M3Result repl_load_hex  (IM3Runtime runtime, u32 fsize)
+{
+    M3Result result = m3Err_none;
+
+    if (fsize < 8) {
+        return "file is too small";
+    } else if (fsize > 10*1024*1024) {
+        return "file too big";
+    }
+
+    u8* wasm = (u8*) malloc(fsize);
+    if (!wasm) {
+        return "cannot allocate memory for wasm binary";
+    }
+
+    {   // Load hex data from stdin
+        u32 wasm_idx = 0;
+        char hex[3] = {};
+        int hex_idx = 0;
+        while (wasm_idx < fsize) {
+            int c = fgetc(stdin);
+            if (!isxdigit(c)) continue; // Skip non-hex chars
+            hex[hex_idx++] = c;
+            if (hex_idx == 2) {
+                int val = strtol(hex, NULL, 16);
+                wasm[wasm_idx++] = val;
+                hex_idx = 0;
+            }
+        }
+        fgets(hex, 3, stdin); // Consume a newline
+    }
 
     IM3Module module;
     result = m3_ParseModule (runtime->environment, &module, wasm, fsize);
@@ -246,8 +291,10 @@ int  main  (int i_argc, const char* i_argv[])
         } else if (!strcmp(":exit", argv[0])) {
             repl_free(&runtime);
             return 0;
-        } else if (!strcmp(":load", argv[0])) {
+        } else if (!strcmp(":load", argv[0])) {             // :load <filename>
             result = repl_load(runtime, argv[1]);
+        } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
+            result = repl_load_hex(runtime, atol(argv[1]));
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
