@@ -189,11 +189,11 @@ jobs:
       run: |
         cd platforms/arduino
         pio run -e mkr1000
-    - name: Build Arduino Mega 1280
+    - name: Build AVR ATmega1284
       run: |
         cd platforms/arduino
-        pio run -e mega1280
-        ! nm .pio/build/mega1280/firmware.elf | grep printf
+        pio run -e mega1284
+        ! nm .pio/build/mega1284/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
         cd platforms/esp8266
