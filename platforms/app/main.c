@@ -70,7 +70,7 @@ M3Result repl_load_hex  (IM3Runtime runtime, u32 fsize)
 
     {   // Load hex data from stdin
         u32 wasm_idx = 0;
-        char hex[3] = {};
+        char hex[3] = { 0, };
         int hex_idx = 0;
         while (wasm_idx < fsize) {
             int c = fgetc(stdin);
