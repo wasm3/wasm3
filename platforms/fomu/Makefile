@@ -37,7 +37,8 @@ SRC_DIR    := $(BASE_DIR)/src
 DBG_CFLAGS := -ggdb -g -DDEBUG -Wall
 DBG_LFLAGS := -ggdb -g -Wall
 CFLAGS     := $(ADD_CFLAGS) \
-			  -Wall -Wextra -Wno-unused-parameter \
+			  -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable \
+			  -Wno-missing-field-initializers \
 			  -ffunction-sections -fdata-sections -fno-common \
 			  -fomit-frame-pointer -Os $(LTO) \
 			  -march=rv32i -mabi=ilp32 \

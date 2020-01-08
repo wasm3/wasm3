@@ -1,12 +1,18 @@
-
-#define FATAL(func, msg) {           \
-  Serial.print("Fatal: " func ": "); \
-  Serial.println(msg); return; }
+//
+//  Wasm3 - high performance WebAssembly interpreter written in C.
+//
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
+//  All rights reserved.
+//
 
 #include "m3.h"
 #include "m3_env.h"
 
 #include "extra/fib32.wasm.h"
+
+#define FATAL(func, msg) {           \
+  Serial.print("Fatal: " func ": "); \
+  Serial.println(msg); return; }
 
 // Redefine puts
 int puts(const char* s) {

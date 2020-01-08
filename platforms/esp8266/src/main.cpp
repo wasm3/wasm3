@@ -1,3 +1,10 @@
+//
+//  Wasm3 - high performance WebAssembly interpreter written in C.
+//
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
+//  All rights reserved.
+//
+
 #include "Arduino.h"
 
 #include <stdio.h>

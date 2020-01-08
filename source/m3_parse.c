@@ -1,6 +1,5 @@
 //
 //  m3_parse.c
-//  M3: Massey Meta Machine
 //
 //  Created by Steven Massey on 4/19/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.

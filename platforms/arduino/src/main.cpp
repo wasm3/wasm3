@@ -1,13 +1,20 @@
-#include "Arduino.h"
+//
+//  Wasm3 - high performance WebAssembly interpreter written in C.
+//
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
+//  All rights reserved.
+//
 
-#define FATAL(func, msg) {           \
-  Serial.print("Fatal: " func ": "); \
-  Serial.println(msg); return; }
+#include "Arduino.h"
 
 #include "m3/m3.h"
 #include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
+
+#define FATAL(func, msg) {           \
+  Serial.print("Fatal: " func ": "); \
+  Serial.println(msg); return; }
 
 void run_wasm()
 {

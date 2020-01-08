@@ -1,3 +1,10 @@
+//
+//  Wasm3 - high performance WebAssembly interpreter written in C.
+//
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
+//  All rights reserved.
+//
+
 #include <stdio.h>
 #include <time.h>
 #include "m3/m3.h"

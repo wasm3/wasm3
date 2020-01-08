@@ -1,6 +1,14 @@
+//
+//  Wasm3 - high performance WebAssembly interpreter written in C.
+//
+//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
+//  All rights reserved.
+//
+
 #include "wm_include.h"
 
 #include "m3/m3.h"
+#include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
 
@@ -16,10 +24,9 @@ void run_wasm()
     M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
-    size_t fsize = fib32_wasm_len-1;
+    uint32_t fsize = fib32_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
-
     IM3Environment env = m3_NewEnvironment ();
     if (!env) FATAL("m3_NewEnvironment failed");
 
@@ -43,6 +50,9 @@ void run_wasm()
     result = m3_CallWithArgs (f, 1, i_argv);
 
     if (result) FATAL("m3_CallWithArgs: %s", result);
+
+    long value = *(uint64_t*)(runtime->stack);
+    printf("Result: %ld\n", value);
 }
 
 
@@ -59,7 +69,7 @@ void wasm3_task(void *data)
     run_wasm();
     u32 end = millis();
 
-    printf("Elapsed: %d ms\n", (end - start));
+    printf("Elapsed: %ld ms\n", (end - start));
 }
 
 void UserMain(void)
@@ -74,4 +84,3 @@ void UserMain(void)
             USER_TASK_PRIO,
             0);
 }
-
