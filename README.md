@@ -3,7 +3,7 @@
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
 
-[![WAPM](https://img.shields.io/badge/wapm-v0.4.0-654ff0.svg)](https://wapm.io/package/vshymanskyy/wasm3)
+[![WAPM](https://img.shields.io/badge/wapm-v0.4.2-654ff0.svg)](https://wapm.io/package/vshymanskyy/wasm3)
 [![GitHub issues](https://img.shields.io/github/issues-raw/wasm3/wasm3.svg?label=issues&color=success)](https://github.com/wasm3/wasm3/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/wasm3/wasm3)
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests.svg?label=tests)](https://github.com/wasm3/wasm3/actions)
@@ -38,7 +38,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
  Arduino MKR*, Arduino Due, Particle Photon,  
  ESP8266, ESP32, Air602 (W600), nRF52, nRF51,  
  Blue Pill (STM32F103C8T6), MXChip AZ3166 (EMW3166),  
- Maix (K210), HiFive1 (E310), Fomu (ICE40UP5K), etc.
+ Maix (K210), HiFive1 (E310), Fomu (ICE40UP5K), ATmega1284 etc.
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)

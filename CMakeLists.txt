@@ -39,8 +39,6 @@ endif()
 if(WASIENV)
   set(CMAKE_C_COMPILER   "wasicc")
   set(CMAKE_CXX_COMPILER "wasic++")
-
-  set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -flto -Wl,--lto-O3 -Wl,-z,stack-size=8388608")
 endif()
 
 if(BUILD_32BIT)
@@ -77,7 +75,6 @@ include_directories("./source/")
 
 #-fno-optimize-sibling-calls
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1")
 
 if(EMSCRIPTEN)
@@ -86,7 +83,19 @@ if(EMSCRIPTEN)
   if(WASM_TCO)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Xclang -target-feature -Xclang +tail-call")
   endif()
+elseif(WASIENV)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
+
+  set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
+
+  # TODO: LTO breaks wasm imports currently:
+  # https://www.mail-archive.com/llvm-bugs@lists.llvm.org/msg36273.html
+
+  #-flto -Wl,--lto-O3
+  set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
 elseif(WIN32)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
 
   string(REGEX REPLACE "/W[0-4]" "/W0" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
@@ -105,6 +114,8 @@ elseif(WIN32)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608") # stack size
 
 else()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow -Werror=implicit-function-declaration") # -Werror=cast-align
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
@@ -123,7 +134,7 @@ else()
 endif()
 
 check_ipo_supported(RESULT result)
-if(result)
+if(result AND NOT WASIENV) # TODO: LTO breaks wasm imports
   set_property(TARGET ${OUT_FILE} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   message("LTO:        ON")
 else()
