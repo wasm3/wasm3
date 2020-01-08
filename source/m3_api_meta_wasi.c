@@ -77,20 +77,20 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
 m3ApiRawFunction(m3_wasi_unstable_environ_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (u32*                 , environ)
-    m3ApiGetArgMem   (char*                , environ_buf)
+    m3ApiGetArgMem   (u32*                 , env)
+    m3ApiGetArgMem   (char*                , env_buf)
 
     __wasi_errno_t ret;
-    __wasi_size_t environ_count, environ_buf_size;
+    __wasi_size_t env_count, env_buf_size;
 
-    ret = __wasi_environ_sizes_get(&environ_count, &environ_buf_size);
+    ret = __wasi_environ_sizes_get(&env_count, &env_buf_size);
     if (ret != __WASI_ESUCCESS) m3ApiReturn(ret);
 
-    ret = __wasi_environ_get(environ, environ_buf);
+    ret = __wasi_environ_get(env, env_buf);
     if (ret != __WASI_ESUCCESS) m3ApiReturn(ret);
 
-    for (u32 i = 0; i < environ_count; ++i) {
-        environ[i] = m3ApiPtrToOffset (environ[i]);
+    for (u32 i = 0; i < env_count; ++i) {
+        env[i] = m3ApiPtrToOffset (env[i]);
     }
 
     m3ApiReturn(ret);
@@ -99,10 +99,10 @@ m3ApiRawFunction(m3_wasi_unstable_environ_get)
 m3ApiRawFunction(m3_wasi_unstable_environ_sizes_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (__wasi_size_t*       , environ_count)
-    m3ApiGetArgMem   (__wasi_size_t*       , environ_buf_size)
+    m3ApiGetArgMem   (__wasi_size_t*       , env_count)
+    m3ApiGetArgMem   (__wasi_size_t*       , env_buf_size)
 
-    __wasi_errno_t ret = __wasi_environ_sizes_get(environ_count, environ_buf_size);
+    __wasi_errno_t ret = __wasi_environ_sizes_get(env_count, env_buf_size);
 
     m3ApiReturn(ret);
 }

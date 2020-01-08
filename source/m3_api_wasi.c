@@ -211,8 +211,8 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
 m3ApiRawFunction(m3_wasi_unstable_environ_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (u32*                 , environ)
-    m3ApiGetArgMem   (char*                , environ_buf)
+    m3ApiGetArgMem   (u32*                 , env)
+    m3ApiGetArgMem   (char*                , env_buf)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     // TODO
@@ -222,13 +222,13 @@ m3ApiRawFunction(m3_wasi_unstable_environ_get)
 m3ApiRawFunction(m3_wasi_unstable_environ_sizes_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (__wasi_size_t*       , environ_count)
-    m3ApiGetArgMem   (__wasi_size_t*       , environ_buf_size)
+    m3ApiGetArgMem   (__wasi_size_t*       , env_count)
+    m3ApiGetArgMem   (__wasi_size_t*       , env_buf_size)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     // TODO
-    *environ_count = 0;
-    *environ_buf_size = 0;
+    *env_count = 0;
+    *env_buf_size = 0;
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
