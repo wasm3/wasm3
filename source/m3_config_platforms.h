@@ -77,7 +77,41 @@
 #  elif defined(__xtensa__)
 #   define M3_ARCH "xtensa"
 #  elif defined(__riscv)
-#   define M3_ARCH "riscv"
+#   if defined(__riscv_32e)
+#    define _M3_ARCH_RV "rv32e"
+#   elif __riscv_xlen == 128
+#    define _M3_ARCH_RV "rv128i"
+#   elif __riscv_xlen == 64
+#    define _M3_ARCH_RV "rv64i"
+#   elif __riscv_xlen == 32
+#    define _M3_ARCH_RV "rv32i"
+#   endif
+#   if defined(__riscv_muldiv)
+#    define _M3_ARCH_RV_M _M3_ARCH_RV "m"
+#   else
+#    define _M3_ARCH_RV_M _M3_ARCH_RV
+#   endif
+#   if defined(__riscv_atomic)
+#    define _M3_ARCH_RV_A _M3_ARCH_RV_M "a"
+#   else
+#    define _M3_ARCH_RV_A _M3_ARCH_RV_M
+#   endif
+#   if defined(__riscv_flen)
+#    define _M3_ARCH_RV_F _M3_ARCH_RV_A "f"
+#   else
+#    define _M3_ARCH_RV_F _M3_ARCH_RV_A
+#   endif
+#   if defined(__riscv_flen) && __riscv_flen >= 64
+#    define _M3_ARCH_RV_D _M3_ARCH_RV_F "d"
+#   else
+#    define _M3_ARCH_RV_D _M3_ARCH_RV_F
+#   endif
+#   if defined(__riscv_compressed)
+#    define _M3_ARCH_RV_C _M3_ARCH_RV_D "c"
+#   else
+#    define _M3_ARCH_RV_C _M3_ARCH_RV_D
+#   endif
+#   define M3_ARCH _M3_ARCH_RV_C
 #  elif defined(__AVR__)
 #   define M3_ARCH "avr"
 #  endif
