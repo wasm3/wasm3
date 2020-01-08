@@ -45,11 +45,11 @@ typedef uint32_t __wasi_size_t;
 #  define close _close
 #endif
 
-struct wasi_iovec
+typedef struct wasi_iovec_t
 {
-    __wasi_size_t iov_base;
-    __wasi_size_t iov_len;
-};
+    __wasi_size_t buf;
+    __wasi_size_t buf_len;
+} wasi_iovec_t;
 
 #define PREOPEN_CNT   5
 
@@ -154,14 +154,13 @@ __wasi_timestamp_t convert_timespec(const struct timespec *ts) {
 
 #if defined(HAS_IOVEC)
 
-static
-void copy_iov_to_host(struct iovec* host_iov, void* _mem, uint32_t iov_offset, int32_t iovs_len)
+static inline
+void copy_iov_to_host(void* _mem, struct iovec* host_iov, wasi_iovec_t* wasi_iov, int32_t iovs_len)
 {
-    // Convert wasi_memory offsets to host addresses
-    struct wasi_iovec *wasi_iov = m3ApiOffsetToPtr(iov_offset);
+    // Convert wasi memory offsets to host addresses
     for (int i = 0; i < iovs_len; i++) {
-        host_iov[i].iov_base = m3ApiOffsetToPtr(wasi_iov[i].iov_base);
-        host_iov[i].iov_len  = wasi_iov[i].iov_len;
+        host_iov[i].iov_base = m3ApiOffsetToPtr(wasi_iov[i].buf);
+        host_iov[i].iov_len  = wasi_iov[i].buf_len;
     }
 }
 
@@ -174,19 +173,19 @@ void copy_iov_to_host(struct iovec* host_iov, void* _mem, uint32_t iov_offset, i
 m3ApiRawFunction(m3_wasi_unstable_args_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (u32 *                , argv_offset)
-    m3ApiGetArgMem   (u8 *                 , argv_buf_offset)
+    m3ApiGetArgMem   (u32*                 , argv)
+    m3ApiGetArgMem   (char*                , argv_buf)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
 
     for (u32 i = 0; i < runtime->argc; ++i)
     {
-        argv_offset [i] = m3ApiPtrToOffset (argv_buf_offset);
+        argv[i] = m3ApiPtrToOffset (argv_buf);
 
         size_t len = strlen (runtime->argv [i]);
-        memcpy (argv_buf_offset, runtime->argv [i], len);
-        argv_buf_offset += len;
-        * argv_buf_offset++ = 0;
+        memcpy (argv_buf, runtime->argv [i], len);
+        argv_buf += len;
+        * argv_buf++ = 0;
     }
 
     m3ApiReturn(__WASI_ESUCCESS);
@@ -212,8 +211,8 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
 m3ApiRawFunction(m3_wasi_unstable_environ_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArg      (uint32_t             , environ_ptrs_offset)
-    m3ApiGetArg      (uint32_t             , environ_strs_offset)
+    m3ApiGetArgMem   (u32*                 , environ)
+    m3ApiGetArgMem   (char*                , environ_buf)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     // TODO
@@ -302,6 +301,17 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
     m3ApiReturn(__WASI_ESUCCESS);
 #endif
+}
+
+m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_set_flags)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (__wasi_fd_t          , fd)
+    m3ApiGetArg      (__wasi_fdflags_t     , flags)
+
+    // TODO
+
+    m3ApiReturn(__WASI_ESUCCESS);
 }
 
 m3ApiRawFunction(m3_wasi_unstable_fd_seek)
@@ -422,7 +432,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
-    m3ApiGetArg      (uint32_t             , iovs_offset)
+    m3ApiGetArgMem   (wasi_iovec_t*        , wasi_iovs)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (__wasi_size_t*       , nread)
 
@@ -430,7 +440,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
-    copy_iov_to_host(iovs, _mem, iovs_offset, iovs_len);
+    copy_iov_to_host(_mem, iovs, wasi_iovs, iovs_len);
 
     ssize_t ret = readv(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
@@ -438,10 +448,9 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     m3ApiReturn(__WASI_ESUCCESS);
 #else
     ssize_t res = 0;
-    struct wasi_iovec *wasi_iov = m3ApiOffsetToPtr(iovs_offset);
     for (__wasi_size_t i = 0; i < iovs_len; i++) {
-        void* addr = m3ApiOffsetToPtr(wasi_iov[i].iov_base);
-        size_t len = wasi_iov[i].iov_len;
+        void* addr = m3ApiOffsetToPtr(wasi_iovs[i].buf);
+        size_t len = wasi_iovs[i].buf_len;
         if (len == 0) continue;
 
         int ret = read (fd, addr, len);
@@ -458,7 +467,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
-    m3ApiGetArg      (uint32_t             , iovs_offset)
+    m3ApiGetArgMem   (wasi_iovec_t*        , wasi_iovs)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (__wasi_size_t*       , nwritten)
 
@@ -466,7 +475,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
-    copy_iov_to_host(iovs, _mem, iovs_offset, iovs_len);
+    copy_iov_to_host(_mem, iovs, wasi_iovs, iovs_len);
 
     ssize_t ret = writev(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
@@ -474,10 +483,9 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     m3ApiReturn(__WASI_ESUCCESS);
 #else
     ssize_t res = 0;
-    struct wasi_iovec *wasi_iov = m3ApiOffsetToPtr(iovs_offset);
     for (__wasi_size_t i = 0; i < iovs_len; i++) {
-        void* addr = m3ApiOffsetToPtr(wasi_iov[i].iov_base);
-        size_t len = wasi_iov[i].iov_len;
+        void* addr = m3ApiOffsetToPtr(wasi_iovs[i].buf);
+        size_t len = wasi_iovs[i].buf_len;
         if (len == 0) continue;
 
         int ret = write (fd, addr, len);
@@ -648,6 +656,7 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_get", 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",            "i(ii*iiiii*)",  &m3_wasi_unstable_path_open)));
 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_unstable_fd_fdstat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_flags",  "i(ii)",   &m3_wasi_unstable_fd_fdstat_set_flags)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(iii*)", &m3_wasi_unstable_fd_write)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_read",              "i(iii*)", &m3_wasi_unstable_fd_read)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_seek",              "i(iii*)", &m3_wasi_unstable_fd_seek)));
