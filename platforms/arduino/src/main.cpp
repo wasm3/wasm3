@@ -63,6 +63,7 @@ void setup()
   delay(10);
   while (!Serial) {}
 
+  Serial.println();
   Serial.println("Wasm3 v" M3_VERSION " on Arduino (" M3_ARCH "), build " __DATE__ " " __TIME__);
 
   digitalWrite(LED_BUILTIN, HIGH);

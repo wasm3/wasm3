@@ -233,7 +233,8 @@ typedef int8_t          i8;
  * Platform-specific defaults
  */
 
-# if defined(ARDUINO) || defined(PARTICLE) || defined(PLATFORMIO) || defined(__MBED__) || defined(ESP8266) || defined(ESP32) || defined(BLUE_PILL) || defined(WM_W600) || defined(FOMU)
+# if defined(ARDUINO) || defined(PARTICLE) || defined(PLATFORMIO) || defined(__MBED__) || \
+     defined(ESP8266) || defined(ESP32) || defined(BLUE_PILL) || defined(WM_W600) || defined(FOMU)
 #  ifndef d_m3LogOutput
 #    define d_m3LogOutput                       false
 #  endif

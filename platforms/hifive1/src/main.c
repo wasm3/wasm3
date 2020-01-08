@@ -51,7 +51,8 @@ void run_wasm()
 }
 
 int main() {
-    printf("\nWasm3 v" M3_VERSION " on HiFive1, build " __DATE__ " " __TIME__ "\n");
+    printf("\n");
+    printf("Wasm3 v" M3_VERSION " on HiFive1 (" M3_ARCH "), build " __DATE__ " " __TIME__ "\n");
     // TODO: fix clock (shows wrong time)
     clock_t start = clock();
     run_wasm();

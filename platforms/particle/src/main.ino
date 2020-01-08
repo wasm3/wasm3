@@ -63,6 +63,7 @@ void setup()
   Serial.begin(115200);
   delay(10);
 
+  Serial.println();
   Serial.println("Wasm3 v" M3_VERSION " on Particle, build " __DATE__ " " __TIME__);
 
   u32 start = millis();
