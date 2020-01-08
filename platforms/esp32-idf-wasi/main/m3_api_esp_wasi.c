@@ -11,7 +11,6 @@
 
 #include "m3/m3_api_defs.h"
 #include "m3/m3_env.h"
-#include "m3/m3_module.h"
 #include "m3/m3_exception.h"
 
 #if defined(ESP32)
