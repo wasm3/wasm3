@@ -1,5 +1,7 @@
 
-#define FATAL(msg, ...) { Serial.println("Fatal: " msg "\n"); return; }
+#define FATAL(func, msg) {           \
+  Serial.print("Fatal: " func ": "); \
+  Serial.println(msg); return; }
 
 #include "m3.h"
 #include "m3_env.h"
@@ -21,28 +23,28 @@ void run_wasm()
     Serial.println("Loading WebAssembly...");
 
     IM3Environment env = m3_NewEnvironment ();
-    if (!env) FATAL("m3_NewEnvironment failed");
+    if (!env) FATAL("m3_NewEnvironment", "failed");
 
     IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
-    if (!runtime) FATAL("m3_NewRuntime failed");
+    if (!runtime) FATAL("m3_NewRuntime", "failed");
 
     IM3Module module;
     result = m3_ParseModule (env, &module, wasm, fsize);
-    if (result) FATAL("m3_ParseModule: %s", result);
+    if (result) FATAL("m3_ParseModule", result);
 
     result = m3_LoadModule (runtime, module);
-    if (result) FATAL("m3_LoadModule: %s", result);
+    if (result) FATAL("m3_LoadModule", result);
 
     IM3Function f;
     result = m3_FindFunction (&f, runtime, "fib");
-    if (result) FATAL("m3_FindFunction: %s", result);
+    if (result) FATAL("m3_FindFunction", result);
 
     Serial.println("Running...");
 
     const char* i_argv[2] = { "24", NULL };
     result = m3_CallWithArgs (f, 1, i_argv);
 
-    if (result) FATAL("m3_CallWithArgs: %s", result);
+    if (result) FATAL("m3_CallWithArgs", result);
 
     long value = *(uint64_t*)(runtime->stack);
 

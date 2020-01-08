@@ -1,23 +1,21 @@
-#include <stdio.h>
-
 #include "Arduino.h"
 
-#define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
-
+#include <stdio.h>
 #include "m3/m3.h"
 #include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
+
+#define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
 void run_wasm()
 {
     M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
-    size_t fsize = fib32_wasm_len-1;
+    uint32_t fsize = fib32_wasm_len-1;
 
     printf("Loading WebAssembly...\n");
-
     IM3Environment env = m3_NewEnvironment ();
     if (!env) FATAL("m3_NewEnvironment failed");
 
