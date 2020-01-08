@@ -193,25 +193,11 @@ typedef int8_t          i8;
 # endif
 
 
-// Device-specific defaults
-# if defined(ESP8266)
-#  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            64
-#  define d_m3FixedHeap                         (8*1024)
-# elif defined(WM_W600)
-#  define d_m3MaxFunctionStackHeight            64
-# elif defined(BLUE_PILL)
-#  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            64
-#  define d_m3FixedHeap                         (8*1024)
-# elif defined(FOMU)
-#  define d_m3LogOutput                         false
-#  define d_m3MaxFunctionStackHeight            64
-#  define d_m3FixedHeap                         (8*1024)
-#endif
+/*
+ * Platform-specific defaults
+ */
 
-// Platform-specific defaults
-# if defined(ARDUINO) || defined(PARTICLE) || defined(__MBED__)
+# if defined(ARDUINO) || defined(PARTICLE) || defined(__MBED__) || defined(ESP8266) || defined(ESP32) || defined(BLUE_PILL) || defined(WM_W600) || defined(FOMU)
 #  ifndef d_m3LogOutput
 #    define d_m3LogOutput                       false
 #  endif
@@ -220,6 +206,12 @@ typedef int8_t          i8;
 #  endif
 #  ifndef d_m3MaxFunctionStackHeight
 #    define d_m3MaxFunctionStackHeight          64
+#  endif
+# endif
+
+# if defined(ESP8266) || defined(BLUE_PILL) || defined(FOMU)
+#  ifndef d_m3FixedHeap
+#    define d_m3FixedHeap                       (8*1024)
 #  endif
 # endif
 
