@@ -9,7 +9,7 @@
 #   ./run-spec-test.py --exec "../build-custom/wasm3 --repl"
 #
 # Running WASI verison with different engines:
-#   cp wasm3.wasm ./
+#   cp ../build-wasi/wasm3.wasm ./
 #   ./run-spec-test.py --exec "../build/wasm3 wasm3.wasm --repl"
 #   ./run-spec-test.py --exec "wasmtime --dir=. wasm3.wasm -- --repl"
 #   ./run-spec-test.py --exec "wasmer run --dir=. wasm3.wasm -- --repl"
