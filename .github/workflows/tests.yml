@@ -110,13 +110,11 @@ jobs:
     - name: Install Wasmer
       run: curl https://get.wasmer.io -sSfL | sh
     - name: Run CMake
-      env:
-        CC: wasicc
       run: |
         source $HOME/.wasienv/wasienv.sh
         mkdir build-wasi
         cd build-wasi
-        cmake ..
+        cmake -DWASIENV=1 ..
     - name: Build
       run: |
         cmake --build build-wasi
@@ -124,21 +122,15 @@ jobs:
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        ./run-spec-test.py --engine "wasmer run" --exec "../build-wasi/wasm3.wasm"
+        ./run-spec-test.py --exec "wasirun ../build-wasi/wasm3.wasm --repl"
+    #   ./run-spec-test.py --exec "wasmer run --dir=. ../build-wasi/wasm3.wasm -- --repl"
 
-    - name: Run CMake for native build
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-    - name: Build native
-      run: |
-        cmake --build build
-    - name: Run spec tests (self-hosting)
-      continue-on-error: true    # TODO
-      run: |
-        cd test
-        ./run-spec-test.py --engine "../build/wasm3" --exec "../build-wasi/wasm3.wasm"
+    #- name: Run spec tests (self-hosting)
+    #  continue-on-error: true    # TODO
+    #  run: |
+    #    cd test
+    #    cp ../build-wasi/wasm3.wasm ./
+    #    ./run-spec-test.py --engine "wasmer run" --exec "wasm3.wasm"
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]

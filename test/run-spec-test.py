@@ -6,9 +6,17 @@
 #   ./run-spec-test.py ./core/i32.json
 #   ./run-spec-test.py ./core/float_exprs.json --line 2070
 #   ./run-spec-test.py ./proposals/tail-call/*.json
-#   ./run-spec-test.py --exec ../build-custom/wasm3
-#   ./run-spec-test.py --engine "wasmer run" --exec ../build-wasi/wasm3.wasm
-#   ./run-spec-test.py --engine "wasmer run --backend=llvm" --exec ../build-wasi/wasm3.wasm
+#   ./run-spec-test.py --exec "../build-custom/wasm3 --repl"
+#
+# Running WASI verison with different engines:
+#   cp wasm3.wasm ./
+#   ./run-spec-test.py --exec "wasmtime --dir=. wasm3.wasm -- --repl"
+#   ./run-spec-test.py --exec "wasmer run --dir=. wasm3.wasm -- --repl"
+#   ./run-spec-test.py --exec "wasmer run --dir=. --backend=llvm wasm3.wasm -- --repl"
+#   ./run-spec-test.py --exec "wasmer-js run wasm3.wasm --dir=. -- --repl"
+#   ./run-spec-test.py --exec "wasirun wasm3.wasm --repl"
+#   ./run-spec-test.py --exec "wavm run --mount-root ./ wasm3.wasm -- --repl"
+#   ./run-spec-test.py --exec "iwasm --dir=. wasm3.wasm --repl"
 #
 
 # TODO
@@ -39,7 +47,6 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
-parser.add_argument("--engine", metavar="<engine>")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
@@ -172,30 +179,9 @@ from queue import Queue, Empty
 
 import shlex
 
-def get_engine_cmd(engine, exe):
-    if engine:
-        cmd = shlex.split(engine)
-        if "wasirun" in engine or "wasm3" in engine:
-            return cmd + [exe, "--repl"]
-        elif "wasmer" in engine:
-            return cmd + ["--dir=.", exe, "--", "--repl"]
-        elif "wasmtime" in engine:
-            return cmd + ["--dir=.", exe, "--", "--repl"]
-        elif "iwasm" in engine:
-            return cmd + ["--dir=.", exe, "--repl"]
-        elif "wavm" in engine:
-            return cmd + ["--mount-root", ".", exe, "--repl"] # TODO, fix path
-        else:
-            fatal(f"Don't know how to run engine {engine}")
-    else:
-        if exe.endswith(".wasm"):
-            fatal(f"Need engine to execute wasm")
-        return shlex.split(exe) + ["--repl"]
-
 class Wasm3():
-    def __init__(self, exe, engine=None):
+    def __init__(self, exe):
         self.exe = exe
-        self.engine = engine
         self.p = None
         self.loaded = None
         self.timeout = args.timeout
@@ -207,7 +193,7 @@ class Wasm3():
         if self.p:
             self.terminate()
 
-        cmd = get_engine_cmd(self.engine, self.exe)
+        cmd = shlex.split(self.exe)
 
         #print(f"wasm3: Starting {' '.join(cmd)}")
 
@@ -250,6 +236,10 @@ class Wasm3():
         return self._run_cmd(f":version\n")
 
     def load(self, fn):
+        # WAVM mounts root, so it expects an absolute path
+        if "wavm run" in self.exe:
+            fn = "/" + fn
+
         self.loaded = None
         res = self._run_cmd(f":load {fn}\n")
         self.loaded = fn
@@ -311,7 +301,7 @@ class Wasm3():
 # Actual test
 #
 
-wasm3 = Wasm3(args.exec, args.engine)
+wasm3 = Wasm3(args.exec)
 
 print(wasm3.version())
 
