@@ -1,6 +1,6 @@
 # Wasm3 development notes
 
-M3/Wasm project uses CMake. It can also be easily integarted into any build system.
+This project uses CMake.
 General build steps look like:
 ```sh
 mkdir -p build
@@ -9,14 +9,12 @@ cmake ..
 make -j8
 ```
 
-It's recommended to use Clang/Ninja to build the project.
-
-**Note:** When using GCC or Microsoft C++ Compiler, all `.c` files are forced to be comiled as `C++` to eliminate some errors.
-Currently, support for these compilers was added for evaluation purposes.
+Wasm3 is continuously tested with Clang, GCC, MSVC compilers, and on multiple platforms.
+It can be easily integarted into any build system, as shown in `platforms`.
 
 ## Build on Linux
 
-### Clang (recommended)
+### Clang
 
 ```sh
 mkdir -p build
@@ -53,32 +51,38 @@ set PATH=C:\Program Files\LLVM\bin;%PATH%
 set PATH=C:\Python36-32\;C:\Python36-32\Scripts\;%PATH%
 ```
 
-### Clang with Ninja (recommended)
+### Build with MSBuild
 
-```bat
+```sh
+# Create a build directory as usual, then build a specific configuration
 mkdir build
 cd build
+
+# Clang, x64
+cmake -G"Visual Studio 16 2019" -A x64 -T ClangCL ..
+cmake --build . --config Release
+
+# Clang, x86
+cmake -G"Visual Studio 16 2019" -A Win32 -T ClangCL ..
+cmake --build . --config Release
+
+# MSVC, x64
+cmake -G"Visual Studio 16 2019" -A x64 ..
+cmake --build . --config Release
+
+# MSVC, x86
+cmake -G"Visual Studio 16 2019" -A Win32 ..
+cmake --build . --config Release
+```
+
+### Build with Ninja
+
+```sh
+# Clang
 cmake -GNinja -DCLANG_CL=1 ..
 ninja
-```
 
-### Clang with MSBuild
-
-```bat
-cmake -G"Visual Studio 16 2019" -A x64 -T ClangCL ..
-MSBuild /p:Configuration=Release wasm3.sln
-```
-
-### MSVC with MSBuild
-
-```bat
-cmake -G"Visual Studio 16 2019" -A x64 ..
-MSBuild /p:Configuration=Release wasm3.sln
-```
-
-### MSVC with Ninja
-
-```bat
+# MSVC
 cmake -GNinja ..
 ninja
 ```
