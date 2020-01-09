@@ -118,12 +118,16 @@ jobs:
     - name: Build
       run: |
         cmake --build build-wasi
-    - name: Run spec tests
+    - name: Run spec tests (wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
+        ./run-spec-test.py --exec "wasmer run --dir=. ../build-wasi/wasm3.wasm -- --repl"
+    - name: Run spec tests (wasirun)
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        cd test
         ./run-spec-test.py --exec "wasirun ../build-wasi/wasm3.wasm --repl"
-    #   ./run-spec-test.py --exec "wasmer run --dir=. ../build-wasi/wasm3.wasm -- --repl"
 
     #- name: Run spec tests (self-hosting)
     #  continue-on-error: true    # TODO
