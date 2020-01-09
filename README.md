@@ -14,7 +14,7 @@ A high performance WebAssembly interpreter written in C.
 **∼ 15.8x faster** than other wasm interpreters (`wac`, `life`, `wasm-micro-runtime`)  
 **∼ 4..5x slower** than state of the art wasm `JIT` engines (`liftoff`, `cranelift`)  
 **∼ 11.5x slower** than native execution  
-<sub>* Based on [**CoreMark 1.0** benchmark](/test/benchmark/coremark). Your mileage may vary.</sub>
+<sub>* Based on [**CoreMark 1.0** benchmark](/test/benchmark/coremark/README.md). Your mileage may vary.</sub>
 
 ## Getting Started
 
@@ -28,7 +28,7 @@ Here's an online demo and a small [getting started](https://wapm.io/package/vshy
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
-`wasm3` currently runs on a wide range of [platforms](/platforms):
+`wasm3` runs on a wide range of [platforms](/platforms):
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/linux.svg" width="18" height="18" /> Linux,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/windows.svg" width="18" height="18" /> Windows,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X
