@@ -118,23 +118,26 @@ jobs:
     - name: Build
       run: |
         cmake --build build-wasi
-    - name: Run spec tests (wasmer)
+    - name: Run spec tests (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
         ./run-spec-test.py --exec "wasmer run --dir=. ../build-wasi/wasm3.wasm -- --repl"
-    - name: Run spec tests (wasirun)
-      run: |
-        source $HOME/.wasienv/wasienv.sh
-        cd test
-        ./run-spec-test.py --exec "wasirun ../build-wasi/wasm3.wasm --repl"
 
-    #- name: Run spec tests (self-hosting)
-    #  continue-on-error: true    # TODO
-    #  run: |
-    #    cd test
-    #    cp ../build-wasi/wasm3.wasm ./
-    #    ./run-spec-test.py --engine "wasmer run" --exec "wasm3.wasm"
+    - name: Run CMake (native)
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build (native)
+      run: |
+        cmake --build build
+    - name: Run spec tests (in Wasm3, self-hosting)
+      continue-on-error: true    # TODO
+      run: |
+        cd test
+        cp ../build-wasi/wasm3.wasm ./
+        ./run-spec-test.py --exec "../build/wasm3 ./wasm3.wasm --repl"
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
