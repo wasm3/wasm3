@@ -46,7 +46,7 @@ from pprint import pprint
 #
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --repl")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
