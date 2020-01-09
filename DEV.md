@@ -17,7 +17,7 @@ It can be easily integarted into any build system, as shown in `platforms`.
 ### Clang
 
 ```sh
-mkdir -p build
+mkdir build
 cd build
 cmake -GNinja -DCLANG_SUFFIX="-9" ..
 ninja
@@ -26,6 +26,8 @@ ninja
 ### GCC
 
 ```sh
+mkdir build
+cd build
 cmake -GNinja ..
 ninja
 ```
@@ -43,8 +45,8 @@ Recommended tools:
 - [Python3](https://www.python.org/downloads/)
 - [ptime](http://www.pc-tools.net/win32/ptime/)
 
-```bat
-REM  Prepare environment (if needed):
+```sh
+# Prepare environment (if needed):
 "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 set PATH=C:\Program Files\CMake\bin;%PATH%
 set PATH=C:\Program Files\LLVM\bin;%PATH%
