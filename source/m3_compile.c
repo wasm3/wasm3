@@ -324,8 +324,12 @@ M3Result  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
 
     if (stackIndex < d_m3MaxFunctionStackHeight)
     {
-        if (o->function && o->function->maxStackSlots < stackIndex)
-            o->function->maxStackSlots = stackIndex;
+        if (o->function)
+        {
+            // op_Entry uses this value to track and detect stack overflow
+            if (stackIndex > o->function->maxStackSlots)
+                o->function->maxStackSlots = stackIndex;
+        }
 
         // wasmStack tracks read counts for args & locals. otherwise, wasmStack represents slot location.
         if (stackIndex < GetFunctionNumArgsAndLocals (o->function))
@@ -2096,6 +2100,9 @@ _       (CompileLocals (o));
             o->wasmStack [i] = 0;
 
 _       (Compile_ReserveConstants (o));
+
+        // start tracking the max stack used (Push() also updates this value) so that op_Entry can precisely detect stack overflow
+        o->function->maxStackSlots = o->firstSlotIndex;
 
         o->numAllocatedExecSlots = 0;               // this var only tracks dynamic slots so clear local+constant allocations
         o->block.initStackIndex = o->stackIndex;

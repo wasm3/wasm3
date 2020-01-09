@@ -330,8 +330,6 @@ _                   (NormalizeType (& normalizedType, varType));
                 func->wasm = start;
                 func->wasmEnd = i_bytes;
                 func->numLocals = numLocalVars;
-
-                func->maxStackSlots = 4; // TODO
             }
             else _throw (m3Err_wasmSectionOverrun);
         }
