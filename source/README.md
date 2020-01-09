@@ -131,15 +131,6 @@ m3`op_u64_Or_sr:
    More simplistically, the interpreter runtime can also periodically call back to the client (in the either the Loop or LoopContinue operation).  This is necessary, regardless, to detect hangs and break out of infinite loops.
 
 
-### Thoughts & Questions about WebAssembly
-
-There are some really fundamental things about WebAssembly that I don't understand yet.  There are a bunch of mysteries about this thing that don't seem sufficiently explained in plain English anywhere. Can someone orient me?
-
-Some examples:
-
-* Linear memory:  Modules seem hardcoded to request 16MB of memory. What?  Why? As the host, where can I safely allocate things in linear memory? Who's in charge of this 16MB?
-* Traps: The spec says "Signed and unsigned operators trap whenever the result cannot be represented in the result type."  Really? That's cool, but how can the behavior of source languages be modeled (efficiently)? C integer operations wrap and sometimes that's what you want.
-
 ## The M3 strategy for other languages (is rad)
 
 The Gestalt M3 interpreter works slightly differently than this Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
