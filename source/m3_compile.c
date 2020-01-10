@@ -1920,45 +1920,21 @@ M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
 
     u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
 
-    // save and clear the locals modification slots
-#if defined(M3_COMPILER_MSVC)
-    u16 locals [128];               // hmm, heap allocate?...
-
-    if (numArgsAndLocals > 128)
-        _throw ("argument/local count overflow");
-#else
-    u16 locals [numArgsAndLocals];
-#endif
-
-    memcpy (locals, o->wasmStack, numArgsAndLocals * sizeof (u16));
+    // it's hard to predict which args/locals need to be preserved, so here try to preserve them all.
     for (u32 i = 0; i < numArgsAndLocals; ++i)
     {
-//      printf ("enter -- %d local: %d \n", (i32) i, (i32) o->wasmStack [i]);
-    }
+        u16 preserveToSlot;
+_       (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
 
-    memset (o->wasmStack, 0, numArgsAndLocals * sizeof (u16));
+        if (preserveToSlot != i)
+        {
+_           (EmitOp (o, op_CopySlot_64));
+            EmitConstant (o, preserveToSlot);
+            EmitConstant (o, i);
+        }
+    }
 
 _   (Compile_BlockScoped (o, i_blockType, i_blockOpcode));
-
-    for (u32 i = 0; i < numArgsAndLocals; ++i)
-    {
-        if (o->wasmStack [i])
-        {
-//          printf ("modified: %d \n", (i32) i);
-            u16 preserveToSlot;
-_           (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
-
-            if (preserveToSlot != i)
-            {
-//              printf ("preserving local: %d to slot: %d\n", i, preserveToSlot);
-                m3NotImplemented(); // TODO
-            }
-        }
-
-        o->wasmStack [i] += locals [i];
-
-//      printf ("local usage: [%d] = %d\n", i, o->wasmStack [i]);
-    }
 
     _catch: return result;
 }
