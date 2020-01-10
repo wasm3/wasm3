@@ -677,6 +677,28 @@ M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preserve
 }
 
 
+M3Result  PreserveArgsAndLocals  (IM3Compilation o) {
+    M3Result result = m3Err_none;
+    
+    u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
+
+    // it's hard to predict which args/locals need to be preserved, so here try to preserve them all.
+    for (u32 i = 0; i < numArgsAndLocals; ++i)
+    {
+        u16 preserveToSlot;
+_       (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
+
+        if (preserveToSlot != i)
+        {
+_           (EmitOp (o, op_CopySlot_64));
+            EmitConstant (o, preserveToSlot);
+            EmitConstant (o, i);
+        }
+    }
+
+    _catch: return result;
+}
+
 
 bool  WasLocalModified  (u8 * i_bitmask, u32 i_localIndex)
 {
@@ -1274,6 +1296,7 @@ M3Result  Compile_LoopOrBlock  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
 _   (PreserveRegisters (o));
+_   (PreserveArgsAndLocals(o));
 
     u8 blockType;
 _   (ReadBlockType (o, & blockType));
@@ -1292,6 +1315,7 @@ M3Result  Compile_If  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
 _   (PreserveNonTopRegisters (o));
+_   (PreserveArgsAndLocals(o));
 
     IM3Operation op = IsStackTopInRegister (o) ? op_If_r : op_If_s;
 
@@ -1917,22 +1941,6 @@ _       (MoveStackTopToRegister (o));
 M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
 {                                                                                       d_m3Assert (not IsRegisterAllocated (o, 0));
     M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 1));
-
-    u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
-
-    // it's hard to predict which args/locals need to be preserved, so here try to preserve them all.
-    for (u32 i = 0; i < numArgsAndLocals; ++i)
-    {
-        u16 preserveToSlot;
-_       (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
-
-        if (preserveToSlot != i)
-        {
-_           (EmitOp (o, op_CopySlot_64));
-            EmitConstant (o, preserveToSlot);
-            EmitConstant (o, i);
-        }
-    }
 
 _   (Compile_BlockScoped (o, i_blockType, i_blockOpcode));
 
