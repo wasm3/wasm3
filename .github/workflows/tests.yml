@@ -139,6 +139,21 @@ jobs:
         cp ../build-wasi/wasm3.wasm ./
         ./run-spec-test.py --exec "../build/wasm3 ./wasm3.wasm --repl"
 
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: List Xcode versions
+      run: ls /Applications | grep Xcode
+    - name: Select Xcode 11
+      run: sudo xcode-select -switch /Applications/Xcode_11.3.app
+    - name: Build (iPhone 11)
+      run: |
+        cd platforms/ios
+        xcodebuild build -scheme "wasm3 (Release)" -project wasm3.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 11,OS=13.3'
+
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
     if: "false"    # TODO: implement QEMU-based RPi build/test environment
