@@ -680,19 +680,52 @@ M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preserve
 M3Result  PreserveArgsAndLocals  (IM3Compilation o) {
     M3Result result = m3Err_none;
     
+    if (o->block.initStackIndex >= o->stackIndex) // return if block stack is empty.
+        return result;
+    
+    bool needed = false;
     u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
-
-    // it's hard to predict which args/locals need to be preserved, so here try to preserve them all.
-    for (u32 i = 0; i < numArgsAndLocals; ++i)
+    
+    for (u32 i = o->block.initStackIndex; i < o->stackIndex; ++i)
     {
-        u16 preserveToSlot;
-_       (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
-
-        if (preserveToSlot != i)
+        if (o->wasmStack [i] < numArgsAndLocals)
         {
-_           (EmitOp (o, op_CopySlot_64));
-            EmitConstant (o, preserveToSlot);
-            EmitConstant (o, i);
+            needed = true;
+            break;
+        }
+    }
+    
+    if (!needed) // return if no references to locals.
+        return result;
+
+#if defined(M3_COMPILER_MSVC)
+    u16 preservedStackIndex [128];               // hmm, heap allocate?...
+
+    if (numArgsAndLocals > 128)
+        _throw ("argument/local count overflow");
+#else
+    u16 preservedStackIndex [numArgsAndLocals];
+#endif
+
+    memset (preservedStackIndex, 0xff, numArgsAndLocals * sizeof (u16));
+    
+    for (u32 i = o->block.initStackIndex; i < o->stackIndex; ++i)
+    {
+        if (o->wasmStack [i] < numArgsAndLocals)
+        {
+            u16 localSlot = o->wasmStack [i];
+            
+            if (preservedStackIndex [localSlot] == 0xffff)
+            {
+                if (not AllocateExecSlot (o, & preservedStackIndex [localSlot]))
+                    _throw (m3Err_functionStackOverflow);
+                
+_               (EmitOp (o, op_CopySlot_64));
+                EmitConstant (o, preservedStackIndex [localSlot]);
+                EmitConstant (o, localSlot);
+            }
+            
+            o->wasmStack [i] = preservedStackIndex [localSlot];
         }
     }
 
