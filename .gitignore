@@ -10,3 +10,4 @@ __pycache__/
 .cproject
 .settings
 .vscode
+.DS_Store
