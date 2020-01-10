@@ -152,7 +152,7 @@ jobs:
     - name: Build (iPhone 11)
       run: |
         cd platforms/ios
-        xcodebuild build -scheme "wasm3 (Release)" -project wasm3.xcodeproj -destination 'platform=iOS Simulator,name=iPhone 11,OS=13.3'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=13.3'
 
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
