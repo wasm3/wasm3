@@ -154,6 +154,20 @@ jobs:
         cd platforms/ios
         xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=13.3'
 
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Build
+      run: |
+        cd platforms/android
+        ./gradlew build
+
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
     if: "false"    # TODO: implement QEMU-based RPi build/test environment
