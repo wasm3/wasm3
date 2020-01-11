@@ -259,7 +259,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Set up Particle CLI
-      run: npm install -g particle-cli
+      run: sudo npm install -g particle-cli
     - name: Log in
       env:
         PARTICLE_TOKEN: ${{ secrets.PARTICLE_TOKEN }}
