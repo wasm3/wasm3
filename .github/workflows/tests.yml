@@ -251,6 +251,23 @@ jobs:
       run: |
         cd platforms/arduino
         pio run -e maix
+        
+  build-particle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Particle CLI
+      run: npm install -g particle-cli
+    - name: Log in
+      env:
+        PARTICLE_TOKEN: ${{ secrets.PARTICLE_TOKEN }}
+      run: particle login --token $PARTICLE_TOKEN
+    - name: Build Photon
+      run: |
+        cd platforms/particle
+        particle compile --followSymlinks photon
 
   build-esp32-idf:
     runs-on: ubuntu-latest
