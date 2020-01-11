@@ -851,3 +851,22 @@ M3StackInfo  m3_GetNativeStackInfo  (i32 i_stackSize)
 
     return info;
 }
+
+
+bytes_t  m3_GetMemory  (IM3Runtime i_runtime, u32 * o_memorySizeInBytes, u32 i_memoryIndex)
+{
+    bytes_t memory = NULL;                          d_m3Assert (i_memoryIndex == 0);
+    
+    if (i_runtime)
+    {
+        u32 size = (u32) i_runtime->memory.mallocated->length;
+        
+        if (o_memorySizeInBytes)
+            * o_memorySizeInBytes = size;
+        
+        if (size)
+            memory = m3MemData (i_runtime->memory.mallocated);
+    }
+
+    return memory;
+}
