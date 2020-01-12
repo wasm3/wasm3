@@ -202,8 +202,36 @@ jobs:
 
   build-platformio:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install -U platformio
+    - name: Build AVR ATmega1284
+      run: |
+        cd platforms/arduino
+        pio run -e mega1284
+        ! nm .pio/build/mega1284/firmware.elf | grep printf
+    - name: Build ESP8266
+      run: |
+        cd platforms/esp8266
+        pio run
+    - name: Build ESP32
+      run: |
+        cd platforms/esp32-pio
+        pio run
+
+  build-platformio-arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python
@@ -218,23 +246,6 @@ jobs:
       run: |
         cd platforms/arduino
         pio run -e mkr1000
-    - name: Build AVR ATmega1284
-      run: |
-        cd platforms/arduino
-        pio run -e mega1284
-        ! nm .pio/build/mega1284/firmware.elf | grep printf
-    - name: Build ESP8266
-      run: |
-        cd platforms/esp8266
-        pio run
-    - name: Build ESP32
-      run: |
-        cd platforms/esp32-pio
-        pio run
-    - name: Build HiFive1
-      run: |
-        cd platforms/hifive1
-        pio run
     - name: Build Blue Pill (JeeH)
       run: |
         cd platforms/bluepill
@@ -247,14 +258,34 @@ jobs:
       run: |
         cd platforms/arduino
         pio run -e az3166
+
+  build-platformio-riscv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install -U platformio
+    - name: Build HiFive1
+      run: |
+        cd platforms/hifive1
+        pio run
     - name: Build Sipeed MAIX
       run: |
         cd platforms/arduino
         pio run -e maix
-        
+
   build-particle:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: "github.event_name == push"
 
     steps:
     - uses: actions/checkout@v1
