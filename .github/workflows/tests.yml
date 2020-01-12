@@ -285,7 +285,7 @@ jobs:
   build-particle:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "github.event_name == push"
+    if: "github.event_name == 'push'"
 
     steps:
     - uses: actions/checkout@v1
