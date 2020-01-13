@@ -26,7 +26,9 @@ typedef uint32_t __wasi_size_t;
 #include <fcntl.h>
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__)
-#  include <TargetConditionals.h>
+#  if defined(__APPLE__)
+#    include <TargetConditionals.h>
+#  endif
 #  include <unistd.h>
 #  include <sys/uio.h>
 #  if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
