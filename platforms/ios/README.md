@@ -5,7 +5,7 @@
 
 Install Xcode, then open and build the project as usual.
 
-**Note:** Xcode runs apps in `Debug` mode by default. Select `Release` mode for signignificantly better performance.
+**Note:** Xcode runs apps in `Debug` mode by default. Select `Release` mode for significantly better performance.
 
 You can also build the project from command line:
 
