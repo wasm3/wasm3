@@ -177,7 +177,12 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      uint32_t               i_stackSizeInBytes,
                                                      M3StackInfo *          i_nativeStackInfo);     // i_nativeStackInfo can be NULL
 
-    void                m3_FreeRuntime              (IM3Runtime i_runtime);
+    void                m3_FreeRuntime              (IM3Runtime             i_runtime);
+    
+    const uint8_t *     m3_GetMemory                (IM3Runtime             i_runtime,
+                                                     uint32_t *             o_memorySizeInBytes,
+                                                     uint32_t               i_memoryIndex);
+    // Wasm currently only supports one memory region. i_memoryIndex should be zero.
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  modules
@@ -187,6 +192,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes);
+    // i_wasmBytes data must be persistent during the lifetime of the module
 
     void                m3_FreeModule               (IM3Module i_module);
     //  Only unloaded modules need to be freed

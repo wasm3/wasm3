@@ -40,21 +40,21 @@ typedef struct M3Function
     cstr_t                  name;
     u32                     index;
 
-    u32                     hits;
-
     IM3FuncType             funcType;
 
     IM3Operation            callOp;
     pc_t                    compiled;
 
-    u32                     maxStackSlots;
+    u32                     hits;
 
-    u32                     numLocals;          // not including args
+    u16                     maxStackSlots;
 
-    u32                     numConstants;
+    u16                     numLocals;          // not including args
+
+    u16                     numConstants;
     void *                  constants;
 
-    bool                    callNeedsRuntime;
+//    bool                    callNeedsRuntime;
 }
 M3Function;
 
@@ -217,7 +217,7 @@ typedef struct M3Runtime
     void *                  stack;
     u32                     stackSize;
     u32                     numStackSlots;
-    
+
     u64*                    stackTops[d_m3MaxNumStackTops];
     u32                     numStackTops;
 
@@ -255,12 +255,6 @@ void                        ReleaseCodePage             (IM3Runtime io_runtime, 
 u64*                        RuntimeStackTop             (IM3Runtime i_runtime);
 M3Result                    PushRuntimeStackTop         (IM3Runtime i_runtime, u64* stackTop);
 M3Result                    PopRuntimeStackTop          (IM3Runtime i_runtime);
-
-
-// Wasm MVP: i_memoryIndex must be zero
-//void *                    m3_GetMemory        (IM3Runtime i_runtime, u32 i_memoryIndex);
-//size_t                    m3_GetMemorySize    (void * i_memory);
-
 
 M3Result                    m3Error                     (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
 

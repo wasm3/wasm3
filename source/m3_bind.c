@@ -91,6 +91,8 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
 {
     M3Result result = m3Err_functionLookupFailed;
 
+    bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
+    
     for (u32 i = 0; i < io_module->numFunctions; ++i)
     {
         IM3Function f = & io_module->functions [i];
@@ -98,7 +100,7 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
         if (f->import.moduleUtf8 and f->import.fieldUtf8)
         {
             if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
-                strcmp (f->import.moduleUtf8, i_moduleName) == 0)
+               (wildcardModule or strcmp (f->import.moduleUtf8, i_moduleName) == 0))
             {
                 result = i_linker (io_module, f, i_signature, i_function);
                 if (result) return result;

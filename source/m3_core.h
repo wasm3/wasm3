@@ -135,7 +135,7 @@ typedef struct M3CodePageHeader
     u32                     lineIndex;
     u32                     numLines;
     u32                     sequence;       // this is just used for debugging; could be removed
-    u32                     __;
+    u32                     usageCount;
 }
 M3CodePageHeader;
 
