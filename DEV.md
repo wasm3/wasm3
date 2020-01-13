@@ -12,7 +12,7 @@ make -j8
 Wasm3 is continuously tested with Clang, GCC, MSVC compilers, and on multiple platforms.
 It can be easily integarted into any build system, as shown in `platforms`.
 
-## Build on Linux
+## Build on Linux, OS X
 
 ### Clang
 

@@ -1,5 +1,8 @@
 ## Build for Android
 
+<p align="center"><img width="50%" src="https://github.com/wasm3/wasm3/raw/master/extra/screenshot-android.png"></p>
+
+
 Install Android SDK Tools, then:
 
 ```sh
