@@ -29,7 +29,12 @@ typedef uint32_t __wasi_size_t;
 #  include <unistd.h>
 #  include <sys/uio.h>
 #  if defined(__APPLE__)
-#      include <Security/Security.h>
+#      include <TargetConditionals.h>
+#      if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+#          include <Security/Security.h>
+#      else // Mac, Android and etc
+#          include <sys/random.h>
+#      endif
 #  else
 #      include <sys/random.h>
 #  endif
@@ -539,7 +544,7 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
         size_t reqlen = min(buflen, 256);
-#   if defined(__APPLE__)
+#   if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
         retlen = SecRandomCopyBytes(kSecRandomDefault, reqlen, buf) < 0 ? -1 : reqlen;
 #   else
         retlen = getentropy(buf, reqlen) < 0 ? -1 : reqlen;
