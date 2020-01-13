@@ -38,6 +38,7 @@ typedef struct M3Function
     bytes_t                 wasmEnd;
 
     cstr_t                  name;
+    u32                     index;
 
     u32                     hits;
 
@@ -216,6 +217,9 @@ typedef struct M3Runtime
     void *                  stack;
     u32                     stackSize;
     u32                     numStackSlots;
+    
+    u64*                    stackTops[d_m3MaxNumStackTops];
+    u32                     numStackTops;
 
     u32                     argc;
     ccstr_t *               argv;
@@ -247,6 +251,10 @@ void *                      v_FindFunction              (IM3Module i_module, con
 IM3CodePage                 AcquireCodePage             (IM3Runtime io_runtime);
 IM3CodePage                 AcquireCodePageWithCapacity (IM3Runtime io_runtime, u32 i_slotCount);
 void                        ReleaseCodePage             (IM3Runtime io_runtime, IM3CodePage i_codePage);
+
+u64*                        RuntimeStackTop             (IM3Runtime i_runtime);
+M3Result                    PushRuntimeStackTop         (IM3Runtime i_runtime, u64* stackTop);
+M3Result                    PopRuntimeStackTop          (IM3Runtime i_runtime);
 
 
 // Wasm MVP: i_memoryIndex must be zero

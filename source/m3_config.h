@@ -11,14 +11,19 @@
 #include "m3_config_platforms.h"
 
 # ifndef d_m3MaxNumFunctionArgs
-#   define d_m3MaxNumFunctionArgs               16
+#   define d_m3MaxNumFunctionArgs               32
 # endif
 
 # ifndef d_m3CodePageAlignSize
 #   define d_m3CodePageAlignSize                4096
 # endif
+
 # ifndef d_m3MaxFunctionStackHeight
 #   define d_m3MaxFunctionStackHeight           2000
+# endif
+
+# ifndef d_m3MaxNumStackTops
+#   define d_m3MaxNumStackTops                  16
 # endif
 
 # ifndef d_m3LogOutput

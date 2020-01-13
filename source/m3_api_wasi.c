@@ -28,7 +28,11 @@ typedef uint32_t __wasi_size_t;
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__)
 #  include <unistd.h>
 #  include <sys/uio.h>
+#if defined(__APPLE__)
+#  import <Security/Security.h>
+#else
 #  include <sys/random.h>
+#endif
 #  define HAS_IOVEC
 #elif defined(_WIN32)
 #  include <Windows.h>
@@ -535,7 +539,11 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
         size_t reqlen = min(buflen, 256);
+#if defined(__APPLE__)
+        if (SecRandomCopyBytes(kSecRandomDefault, reqlen, buf) < 0) {
+#else
         if (getentropy(buf, reqlen) < 0) {
+#endif
             retlen = -1;
         } else {
             retlen = reqlen;
@@ -632,7 +640,7 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = m3Err_none;
 
-    const char* wasi  = "wasi_unstable";
+    const char* wasi  = "wasi_snapshot_preview1";
 
 #ifdef _WIN32
     setmode(fileno(stdin),  O_BINARY);

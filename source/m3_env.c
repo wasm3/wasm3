@@ -189,6 +189,39 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
 }
 
 
+u64*  RuntimeStackTop  (IM3Runtime i_runtime)
+{
+    if (!i_runtime->numStackTops)
+    {
+        return i_runtime->stack;
+    }
+    
+    return i_runtime->stackTops[i_runtime->numStackTops - 1];
+}
+
+
+M3Result  PushRuntimeStackTop  (IM3Runtime i_runtime, u64* stackTop)
+{
+    if (i_runtime->numStackTops >= d_m3MaxNumStackTops)
+    {
+        return "too many runtime stacktops. check d_m3MaxNumStackTops";
+    }
+    
+    i_runtime->stackTops[i_runtime->numStackTops++] = stackTop;
+    return m3Err_none;
+}
+
+M3Result  PopRuntimeStackTop  (IM3Runtime i_runtime)
+{
+    if (i_runtime->numStackTops <= 0)
+    {
+        return "runtime stacktops is already zero";
+    }
+    
+    i_runtime->numStackTops--;
+    return m3Err_none;
+}
+
 M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
@@ -544,6 +577,32 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
     return result;
 }
 
+M3Result  m3_FindIndirectFunction  (IM3Function * o_function, IM3Module i_module, int i_functionIndex)
+{
+    M3Result result = m3Err_none;
+
+    if (0 <= i_functionIndex && i_functionIndex < i_module->table0Size)
+    {
+        IM3Function function = i_module->table0[i_functionIndex];
+        if (function) {
+            if (not function->compiled)
+            {
+                result = Compile_Function (function);
+                if (result)
+                    function = NULL;
+            }
+            
+            *o_function = function;
+        }
+        else
+            return "trap: table element is null";
+    }
+    else
+        return m3Err_trapTableIndexOutOfRange;
+    
+    return result;
+}
+
 
 M3Result  m3_Call  (IM3Function i_function)
 {
@@ -567,7 +626,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
 
         IM3FuncType ftype = i_function->funcType;
 
-        m3stack_t stack = (m3stack_t)(runtime->stack);
+        m3stack_t stack = (m3stack_t)(RuntimeStackTop(runtime));
 
         m3logif (runtime, PrintFuncTypeSignature (ftype));
 
@@ -637,6 +696,36 @@ _       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated
     else _throw (m3Err_missingCompiledCode);
 
     _catch: return result;
+}
+
+M3Result  m3_CallDirect  (IM3Function function, u64* argv, u64* r)
+{
+    M3Result result = m3Err_none;
+        
+    IM3Runtime runtime = function->module->runtime;
+    u64* stack = RuntimeStackTop(runtime);
+    M3MemoryHeader* mem = runtime->memory.mallocated;
+    
+    IM3FuncType ftype = function->funcType;
+    for (u32 i = 0; i < ftype->numArgs; ++i)
+    {
+        stack[i] = argv[i];
+    }
+
+    if (not function->compiled)
+_       (Compile_Function(function))
+            
+_   ((M3Result) Call(function->compiled, stack, mem, d_m3OpDefaultArgs))
+        
+    if (ftype->returnType != c_m3Type_none)
+    {
+        if (r) {
+            *r = stack[0];
+        }
+    }
+
+_catch:
+    return result;
 }
 
 #if 0
@@ -807,6 +896,8 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
         va_start (args, i_errorMessage);
         vsnprintf (i_runtime->error_message, sizeof(i_runtime->error_message), i_errorMessage, args);
         va_end (args);
+        
+        printf ("m3Error: %s: ", i_runtime->error_message);
     }
 
     return i_result;

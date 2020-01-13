@@ -97,7 +97,7 @@ typedef M3ImportInfo * IM3ImportInfo;
 d_m3ErrorConst  (none,                          NULL)
 
 // general errors
-d_m3ErrorConst  (typeListOverflow,              "type list count exceeds 32 types")
+d_m3ErrorConst  (typeListOverflow,              "type list arg count overflow")
 d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
 
 // parse errors
@@ -209,9 +209,14 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
+    M3Result            m3_FindIndirectFunction     (IM3Function *          o_function,
+                                                     IM3Module              i_module,
+                                                     int                    i_functionIndex);
+
 
     M3Result            m3_Call                     (IM3Function i_function);
     M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
+    M3Result            m3_CallDirect               (IM3Function function, uint64_t* argv, uint64_t* r);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 

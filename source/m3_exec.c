@@ -116,7 +116,9 @@ d_m3OpDef  (CallRawFunction)
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = GetRuntime (_mem);
 
+    PushRuntimeStackTop(runtime, _sp);
     m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem));
+    PopRuntimeStackTop(runtime);
     return possible_trap;
 }
 
@@ -345,7 +347,7 @@ d_m3OpDef (CopySlot_64)
     u64 * dst = slot_ptr (u64);
     u64 * src = slot_ptr (u64);
 
-    * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
+    * dst = * src;                   //printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
     return nextOp ();
 }

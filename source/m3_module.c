@@ -67,6 +67,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
 
             IM3Function func = Module_GetFunction (io_module, index);
             func->funcType = ft;
+            func->index = index;
 
             if (i_importInfo)
             {
