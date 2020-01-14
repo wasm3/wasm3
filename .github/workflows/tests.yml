@@ -156,7 +156,7 @@ jobs:
 
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v1
     - uses: seanmiddleditch/gha-setup-ninja@master
