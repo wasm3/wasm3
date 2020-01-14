@@ -34,13 +34,13 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/android.svg" width="18" height="18" /> Android,
 <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> iOS
+- <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi, Orange Pi and other **SBC**s
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/cpu.svg" width="18" height="18" /> **MCU**s:  
  Arduino MKR*, Arduino Due, Particle Photon,  
  ESP8266, ESP32, Air602 (W600), nRF52, nRF51,  
  Blue Pill (STM32F103C8T6), MXChip AZ3166 (EMW3166),  
  Maix (K210), HiFive1 (E310), Fomu (ICE40UP5K), ATmega1284 etc.
-- <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> **OpenWRT**-enabled routers
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/mozillafirefox.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
@@ -56,6 +56,10 @@ See [DEV.md](./DEV.md)
 ## Testing & Fuzzing
 
 See [test/README.md](./test/README.md)
+
+## Performance
+
+See [PERFORMANCE.md](./PERFORMANCE.md)
 
 ### License
 This project is released under The MIT License (MIT)
