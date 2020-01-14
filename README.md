@@ -49,6 +49,12 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - `WASI` support
 - Support of `x86`, `x64`, `ARM`, `MIPS`, `RISC-V`, `Xtensa` architectures
 
+## Motivation
+
+**Why using "slow interpreter", instead of "fast JIT"?**
+
+In many situations, speed is not the main concern. Runtime executable size, code density, memory usage, startup latency can be all improved with the interpreter approach. Portability and security are much easier to achieve and maintain. Also on some platforms (i.e. iOS and WebAssembly itself) you can't generate executable code pages in runtime (so JIT is unavailable).
+
 ## Building
 
 See [DEV.md](./DEV.md)
