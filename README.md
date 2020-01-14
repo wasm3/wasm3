@@ -57,7 +57,7 @@ In many situations, speed is not the main concern. Runtime executable size, code
 
 **Why would you want to run WASM on microcontrollers?**
 
-Wasm3 started as a reasearch project, and remains so by many means. Adding different platforms and evaluating the engine in those environments is part of the research. But given that we have Lua, JS, Python, Lisp, (...) running on MCUs, WebAssembly is actually a promising alternative. It provides completely sandboxed, well-defined and predictible environment. Among practical use cases, we can list edge computing, running IoT rules, blockchain contracts, etc.
+Wasm3 started as a research project and remains so by many means. Adding different platforms and evaluating the engine in those environments is part of the research. But given that we have Lua, JS, Python, Lisp, (...) running on MCUs, WebAssembly is actually a promising alternative. It provides completely sandboxed, well-defined and predictible environment. Among practical use cases, we can list edge computing, running IoT rules, blockchain contracts, simple scripting, etc.
 
 
 ## Building
