@@ -655,11 +655,21 @@ M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preserve
 {
     M3Result result = m3Err_none;
 
-//  printf ("IsLocalReferenced: %d --> %d\n", o->block.initStackIndex, o->stackIndex);
+	IM3CompilationScope scope = & o->block;
+	i16 startIndex = scope->initStackIndex;
 
+	while (scope->opcode == c_waOp_block)
+	{
+		scope = scope->outer;
+		if (not scope)
+			break;
+
+		startIndex = scope->initStackIndex;
+	}
+	
     * o_preservedStackIndex = (u16) i_localIndex;
 
-    for (u32 i = o->block.initStackIndex; i < o->stackIndex; ++i)
+    for (u32 i = startIndex; i < o->stackIndex; ++i)
     {
         if (o->wasmStack [i] == i_localIndex)
         {
