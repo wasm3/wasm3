@@ -53,7 +53,12 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 **Why using "slow interpreter", instead of "fast JIT"?**
 
-In many situations, speed is not the main concern. Runtime executable size, code density, memory usage, startup latency can be all improved with the interpreter approach. Portability and security are much easier to achieve and maintain. Also on some platforms (i.e. iOS and WebAssembly itself) you can't generate executable code pages in runtime (so JIT is unavailable).
+In many situations, speed is not the main concern. Runtime executable size, code density, memory usage, startup latency can be all improved with the interpreter approach. Portability and security are much easier to achieve and maintain. Also on some platforms (i.e. iOS and WebAssembly itself) you can't generate executable code pages in runtime, so JIT is unavailable.
+
+**Why would you want to run WASM on microcontrollers?**
+
+Wasm3 started as a reasearch project, and remains so by many means. Adding different platforms and evaluating the engine in those environments is part of the research. But given that we have Lua, JS, Python, Lisp, (...) running on MCUs, WebAssembly is actually a promising alternative. It provides completely sandboxed, well-defined and predictible environment. Among practical use cases, we can list edge computing, running IoT rules, blockchain contracts, etc.
+
 
 ## Building
 
