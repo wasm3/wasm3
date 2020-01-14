@@ -2,24 +2,7 @@
 
 https://github.com/eembc/coremark
 
-### Results
-
-```log
-Node v13.0.1 (interpreter)       28     59.5x
-wasm-micro-runtime               54     30.8x
-wac (wax)                       105     15.8x ▲ slower
-wasm3                          1666      1.0
-Wasmer 0.11.0 singlepass       4285      2.6x ▼ faster
-wasmtime 0.7.0 (--optimize)    4615      2.8x
-Webassembly.sh (Chromium 78)   6111      3.7x
-Webassembly.sh (Firefox 70)    6470      3.9x
-Wasmer 0.11.0 cranelift        6875      4.1x
-wasmer-js (Node v13.0.1)       9090      5.4x
-Wasmer 0.11.0 llvm            10526      6.3x
-WAVM                          15384      9.2x
-Native (GCC 7.4.0, 32-bit)    17976     10.8x
-Native (GCC 7.4.0, 64-bit)    19104     11.5x
-```
+Results: https://github.com/wasm3/wasm3/PERFORMANCE.md
 
 ### Building
 
