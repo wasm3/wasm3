@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -48,7 +48,7 @@ jobs:
 
   build-mac:
     runs-on: macos-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
@@ -71,7 +71,7 @@ jobs:
 
   build-win:
     runs-on: windows-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -101,7 +101,7 @@ jobs:
 
   build-wasi:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
@@ -141,7 +141,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
@@ -172,7 +172,7 @@ jobs:
   build-raspberry:
     runs-on: [self-hosted, linux, ARM]
     if: "false"    # TODO: implement QEMU-based RPi build/test environment
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -202,7 +202,7 @@ jobs:
 
   build-platformio:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
@@ -230,7 +230,7 @@ jobs:
 
   build-platformio-arm:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v1
@@ -261,7 +261,7 @@ jobs:
 
   build-platformio-riscv:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v1
@@ -303,7 +303,7 @@ jobs:
   build-esp32-idf:
     runs-on: ubuntu-latest
     container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
