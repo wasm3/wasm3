@@ -309,7 +309,7 @@ print(wasm3.version())
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
   "imports.wast:*",
-  "names.wast:630 *", # name that starts with '\0'
+  "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
@@ -389,12 +389,12 @@ def runInvoke(test):
             expect = "result " + value
 
             if actual_val != None:
-                if (t == "f32" or t == "f64") and (value == "<Canonical NaN>" or value == "<Arithmetic NaN>"):
+                if (t == "f32" or t == "f64") and (value == "nan:canonical" or value == "nan:arithmetic"):
                     val = binaryToFloat(actual_val, t)
                     #warning(f"{actual_val} => {val}")
                     if math.isnan(val):
-                        actual = "<Some NaN>"
-                        expect = "<Some NaN>"
+                        actual = "nan:any"
+                        expect = "nan:any"
                 else:
                     expect = "result " + formatValue(value, t)
                     actual = "result " + formatValue(actual_val, t)
@@ -490,10 +490,10 @@ for fn in jsonFiles:
                 test.expected = cmd["expected"]
             elif test.type == "assert_return_canonical_nan":
                 test.expected = cmd["expected"]
-                test.expected[0]["value"] = "<Canonical NaN>"
+                test.expected[0]["value"] = "nan:canonical"
             elif test.type == "assert_return_arithmetic_nan":
                 test.expected = cmd["expected"]
-                test.expected[0]["value"] = "<Arithmetic NaN>"
+                test.expected[0]["value"] = "nan:arithmetic"
             elif test.type == "assert_trap":
                 test.expected_trap = cmd["text"]
             elif test.type == "assert_exhaustion":
