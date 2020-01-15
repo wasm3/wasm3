@@ -781,7 +781,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
 {                                                       \
     SRC_TYPE value = slot (SRC_TYPE);                   \
-    u64 operand = (u32) REG;                            \
+    u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \
