@@ -3,7 +3,7 @@
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
 
-[![WAPM](https://img.shields.io/badge/wapm-v0.4.2-654ff0?style=flat-square&logo=WebAssembly)](https://wapm.io/package/vshymanskyy/wasm3)
+[![WAPM](https://wapm.io/package/vshymanskyy/wasm3/badge.svg)](https://wapm.io/package/vshymanskyy/wasm3) 
 [![GitHub issues](https://img.shields.io/github/issues-raw/wasm3/wasm3?style=flat-square&label=issues&color=success)](https://github.com/wasm3/wasm3/issues)
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests/master?style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
