@@ -123,8 +123,6 @@ d_m3OpDef  (CallRawFunction)
 
 d_m3OpDef  (MemCurrent)
 {
-    // TODO: get memory from _mem, so that compiled code isn't tied to a specific runtime
-
     IM3Memory memory            = GetMemoryInfo (_mem);
 
     _r0 = memory->numPages;
@@ -257,9 +255,9 @@ d_m3OpDef  (Loop)
 
     do
     {
-        // linear memory pointer needs refreshed here because the block it's loop over
-        // can potentially invoke the grow operator.
         r = nextOp ();                     // printf ("loop: %p\n", r);
+        // linear memory pointer needs refreshed here because the block it's looping over
+        // can potentially invoke the grow operation.
         _mem = memory->mallocated;
     }
     while (r == _pc);
@@ -298,15 +296,31 @@ d_m3OpDef  (If_s)
 }
 
 
-d_m3OpDef  (IfPreserve)
+d_m3OpDef  (IfPreserve_r)
 {
     i32 condition = (i32) _r0;
 
-    pc_t p = immediate (pc_t);
-    jumpOp (p);
+    pc_t preservations = immediate (pc_t);
+    jumpOp (preservations);
 
     pc_t elsePC = immediate (pc_t);         //printf ("else: %p\n", elsePC);
 
+    if (condition)
+        return nextOp ();
+    else
+        return jumpOp (elsePC);
+}
+
+
+d_m3OpDef  (IfPreserve_s)
+{
+    i32 condition = slot (i32);
+    
+    pc_t preservations = immediate (pc_t);
+    jumpOp (preservations);
+
+    pc_t elsePC = immediate (pc_t);
+    
     if (condition)
         return nextOp ();
     else

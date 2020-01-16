@@ -714,7 +714,7 @@ IM3CodePage  AcquireCodePage  (IM3Runtime i_runtime)
 }
 
 
-IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount)
+IM3CodePage  AcquireCodePageWithCapacityR  (IM3Runtime i_runtime, u32 i_lineCount)
 {
     IM3CodePage page;
 
@@ -724,7 +724,7 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
 
         if (NumFreeLines (page) < i_lineCount)
         {
-            IM3CodePage tryAnotherPage = AcquireCodePageWithCapacity (i_runtime, i_lineCount);
+            IM3CodePage tryAnotherPage = AcquireCodePageWithCapacityR (i_runtime, i_lineCount);
 
             ReleaseCodePage (i_runtime, page);
             page = tryAnotherPage;
@@ -737,9 +737,17 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount
             i_runtime->numCodePages++;
     }
 
+    return page;
+}
+
+
+IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount)
+{
+    IM3CodePage page = AcquireCodePageWithCapacityR (i_runtime, i_lineCount);
+    
     if (page)
         i_runtime->numActiveCodePages++;
-
+    
     return page;
 }
 

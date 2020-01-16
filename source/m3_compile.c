@@ -266,7 +266,7 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_registerType)
             u8 type = o->typeStack [stackIndex];
 
 _           (EmitOp (o, c_setSetOps [type]));
-            EmitConstant (o, slot);
+            EmitSlotOffset (o, slot);
         }
         else _throw (m3Err_functionStackOverflow);
     }
@@ -417,7 +417,7 @@ M3Result  _PushAllocatedSlotAndEmit  (IM3Compilation o, u8 i_m3Type, bool i_doEm
 _       (Push (o, i_m3Type, slot));
 
         if (i_doEmit)
-            EmitConstant (o, slot);
+            EmitSlotOffset (o, slot);
     }
     else result = m3Err_functionStackOverflow;
 
@@ -480,7 +480,7 @@ _           (PushAllocatedSlotAndEmit (o, i_m3Type));
 M3Result  EmitTopSlotAndPop  (IM3Compilation o)
 {
     if (IsStackTopInSlot (o))
-        EmitConstant (o, GetStackTopSlotIndex (o));
+        EmitSlotOffset (o, GetStackTopSlotIndex (o));
 
     return Pop (o);
 }
@@ -568,10 +568,10 @@ M3Result CopyTopSlot (IM3Compilation o, u16 i_destSlot)
     else op = Is64BitType (type) ? op_CopySlot_64 : op_CopySlot_32;
 
 _   (EmitOp (o, op));
-    EmitConstant (o, i_destSlot);
+    EmitSlotOffset (o, i_destSlot);
 
     if (IsStackTopInSlot (o))
-        EmitConstant (o, GetStackTopSlotIndex (o));
+        EmitSlotOffset (o, GetStackTopSlotIndex (o));
 
     _catch: return result;
 }
@@ -595,12 +595,12 @@ M3Result  PreservedCopyTopSlot  (IM3Compilation o, u16 i_destSlot, u16 i_preserv
     else op = op_PreserveCopySlot_64;
 
 _   (EmitOp (o, op));
-    EmitConstant (o, i_destSlot);
+    EmitSlotOffset (o, i_destSlot);
 
     if (IsStackTopInSlot (o))
-        EmitConstant (o, GetStackTopSlotIndex (o));
+        EmitSlotOffset (o, GetStackTopSlotIndex (o));
 
-    EmitConstant (o, i_preserveSlot);
+    EmitSlotOffset (o, i_preserveSlot);
 
     _catch: return result;
 }
@@ -920,7 +920,7 @@ _      (EmitOp (o, op));
         EmitPointer (o, & i_global->intValue);
 
         if (op == op_SetGlobal_s)
-            EmitConstant (o, GetStackTopSlotIndex (o));
+            EmitSlotOffset (o, GetStackTopSlotIndex (o));
 
 _      (Pop (o));
     }
@@ -1030,9 +1030,9 @@ _               (MoveStackTopToRegister (o));
 
 _       (EmitOp (o, op));
         if (IsValidSlot (conditionSlot))
-            EmitConstant (o, conditionSlot);
+            EmitSlotOffset (o, conditionSlot);
         if (IsValidSlot (valueSlot))
-            EmitConstant (o, valueSlot);
+            EmitSlotOffset (o, valueSlot);
 
         IM3BranchPatch patch;
 _       (AcquirePatch (o, & patch));
@@ -1069,7 +1069,7 @@ _      (MoveStackTopToRegister (o));
 _   (EnsureCodePageNumLines (o, numCodeLines));
 
 _   (EmitOp (o, op_BranchTable));
-    EmitConstant (o, slot);
+    EmitSlotOffset (o, slot);
     EmitConstant (o, targetCount);
 
     ++targetCount; // include default
@@ -1193,7 +1193,7 @@ _           (CompileCallArgsReturn (o, & slotTop, function->funcType, false));
 
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
-            EmitOffset  (o, slotTop);
+            EmitSlotOffset  (o, slotTop);
         }
         else
         {
@@ -1225,7 +1225,7 @@ _       (CompileCallArgsReturn (o, & execTop, type, true));
 _       (EmitOp     (o, op_CallIndirect));
         EmitPointer (o, o->module);
         EmitPointer (o, type);              // TODO: unify all types in M3Environment
-        EmitOffset  (o, execTop);
+        EmitSlotOffset  (o, execTop);
     }
     else _throw ("function type index out of range");
 
@@ -1403,7 +1403,7 @@ _          (PreserveRegisterIfOccupied (o, type));
     for (u32 i = 0; i < 3; i++)
     {
         if (IsValidSlot (slots [i]))
-            EmitConstant (o, slots [i]);
+            EmitSlotOffset (o, slots [i]);
     }
 _   (PushRegister (o, type));
 
@@ -1548,11 +1548,11 @@ M3Result  Compile_Load_Store  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-    u32 alignHint, offset;
+    u32 alignHint, memoryOffset;
 
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
-_   (ReadLEB_u32 (& offset, & o->wasm, o->wasmEnd));
-                                                                        m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), offset);
+_   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
+                                                                        m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), memoryOffset);
     const M3OpInfo * op = & c_operations [i_opcode];
 
     if (IsFpType (op->type)) // loading a float?
@@ -1560,7 +1560,7 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
 _   (Compile_Operator (o, i_opcode));
 
-    EmitConstant (o, offset);
+    EmitConstant (o, memoryOffset);
 
     _catch: return result;
 }

@@ -84,7 +84,7 @@ void  EmitConstant64  (IM3Compilation o, const u64 i_const)
 }
 
 
-void  EmitOffset  (IM3Compilation o, const i32 i_offset)
+void  EmitSlotOffset  (IM3Compilation o, const i32 i_offset)
 {
     if (o->page)
         EmitWord (o->page, i_offset);

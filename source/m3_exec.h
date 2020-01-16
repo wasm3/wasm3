@@ -588,8 +588,8 @@ d_m3OpDecl  (MemGrow)
 d_m3Op  (Const)
 {
     u64 constant    = constant64 (u64);
-    i32 offset      = immediate (i32);
-    * (_sp + offset) = constant;
+
+    slot (u64) = constant;
 
     return nextOp ();
 }
