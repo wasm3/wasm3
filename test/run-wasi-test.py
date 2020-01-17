@@ -63,7 +63,6 @@ commands = [
     "args":           ["-s", "128x128"],
     "expect_sha1":    "90f86845ae227466a06ea8db06e753af4838f2fa"
   }, {
-    "skip":           True,  # TODO: Crashes
     "name":           "smallpt (explicit light sampling)",
     "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
     "args":           ["16", "64"],
