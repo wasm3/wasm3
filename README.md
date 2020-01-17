@@ -11,9 +11,9 @@
 
 A high performance WebAssembly interpreter written in C.
 
-**∼ 15.8x faster** than other wasm interpreters (`wac`, `life`, `wasm-micro-runtime`)  
-**∼ 4-5x slower** than state of the art wasm `JIT` engines (`liftoff`, `cranelift`)  
-**∼ 11.5x slower** than native execution  
+**∼ 9.1x faster** than other known wasm interpreters  
+**∼ 4-5x slower** than state of the art wasm `JIT` engines  
+**∼ 12.6x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](/PERFORMANCE.md). Your mileage may vary.</sub>
 
 ## Getting Started
