@@ -270,8 +270,6 @@ d_m3OpDef  (If_r)
 {
     i32 condition = (i32) _r0;
 
-    skip_immediate (pc_t);                      // empty preservation chain
-
     pc_t elsePC = immediate (pc_t);
 
     if (condition)
@@ -285,42 +283,8 @@ d_m3OpDef  (If_s)
 {
     i32 condition = slot (i32);
 
-    skip_immediate (pc_t);                      // empty preservation chain
-
     pc_t elsePC = immediate (pc_t);
 
-    if (condition)
-        return nextOp ();
-    else
-        return jumpOp (elsePC);
-}
-
-
-d_m3OpDef  (IfPreserve_r)
-{
-    i32 condition = (i32) _r0;
-
-    pc_t preservations = immediate (pc_t);
-    jumpOp (preservations);
-
-    pc_t elsePC = immediate (pc_t);         //printf ("else: %p\n", elsePC);
-
-    if (condition)
-        return nextOp ();
-    else
-        return jumpOp (elsePC);
-}
-
-
-d_m3OpDef  (IfPreserve_s)
-{
-    i32 condition = slot (i32);
-    
-    pc_t preservations = immediate (pc_t);
-    jumpOp (preservations);
-
-    pc_t elsePC = immediate (pc_t);
-    
     if (condition)
         return nextOp ();
     else

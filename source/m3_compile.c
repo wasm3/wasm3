@@ -650,8 +650,8 @@ M3Result  ReturnStackTop  (IM3Compilation o)
 
 
 
-// if local is unreferenced, o_preservedStackIndex will be equal to localIndex on return
-M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preservedStackIndex, u32 i_localIndex)
+// if local is unreferenced, o_preservedSlotIndex will be equal to localIndex on return
+M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preservedSlotIndex, u32 i_localIndex)
 {
     M3Result result = m3Err_none;
 
@@ -667,34 +667,25 @@ M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preserve
 		startIndex = scope->initStackIndex;
 	}
 	
-    * o_preservedStackIndex = (u16) i_localIndex;
+    * o_preservedSlotIndex = (u16) i_localIndex;
 
     for (u32 i = startIndex; i < o->stackIndex; ++i)
     {
         if (o->wasmStack [i] == i_localIndex)
         {
-            if (* o_preservedStackIndex == i_localIndex)
+            if (* o_preservedSlotIndex == i_localIndex)
             {
-                if (not AllocateExecSlot (o, o_preservedStackIndex))
+                if (not AllocateExecSlot (o, o_preservedSlotIndex))
                     _throw (m3Err_functionStackOverflow);
             }
 
-            o->wasmStack [i] = * o_preservedStackIndex;
+            o->wasmStack [i] = * o_preservedSlotIndex;
         }
     }
 
     _catch: return result;
 }
 
-
-
-bool  WasLocalModified  (u8 * i_bitmask, u32 i_localIndex)
-{
-    u32 byte = i_localIndex >> 3;
-    u32 bit = i_localIndex & 0x7;
-
-    return i_bitmask [byte] & (1 << bit);
-}
 
 
 M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i_depth)
@@ -853,15 +844,7 @@ _   (ReadLEB_u32 (& localSlot, & o->wasm, o->wasmEnd));             //  printf (
         u16 preserveSlot;
 _       (IsLocalReferencedWithCurrentBlock (o, & preserveSlot, localSlot));  // preserve will be different than local, if referenced
 
-        // increment modify count. modification count is just debug info
-        #ifdef DEBUG
-            o->wasmStack [localSlot] ++;
-            if (o->wasmStack [localSlot] == 0)
-                o->wasmStack [localSlot] --;
-        #else
-            // but a modication flag is not
-            o->wasmStack [localSlot] |= 0x8000;
-        #endif
+//        o->wasmStack [localSlot] |= 0x8000;
 
         if (preserveSlot == localSlot)
 _           (CopyTopSlot (o, localSlot))
@@ -1279,11 +1262,46 @@ _   (NormalizeType (o_blockType, type));                                if (* o_
 }
 
 
+// This preemptively preserves args and locals on the stack that might be written-to in the subsequent block
+// (versus the COW strategy that happens in SetLocal within a block).  Initially, I thought I'd have to be clever and
+// retroactively insert preservation code to avoid impacting general performance, but this compilation pattern doesn't
+// really occur in compiled Wasm code, so PreserveArgsAndLocals generally does nothing. Still waiting on a real-world case!
+M3Result  PreserveArgsAndLocals  (IM3Compilation o)
+{
+    M3Result result = m3Err_none;
+
+    if (o->stackIndex > o->firstSlotIndex)
+    {
+        u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
+        
+        for (u32 i = 0; i < numArgsAndLocals; ++i)
+        {
+            u16 preservedSlotIndex;
+_           (IsLocalReferencedWithCurrentBlock (o, & preservedSlotIndex, i));
+            
+            if (preservedSlotIndex != i)
+            {
+                u8 type = GetStackType (o, i);
+                IM3Operation op = Is64BitType (type) ? op_CopySlot_64 : op_CopySlot_32;
+                
+                EmitOp          (o, op);
+                EmitSlotOffset  (o, preservedSlotIndex);
+                EmitSlotOffset  (o, i);
+            }
+        }
+    }
+    
+    _catch:
+    return result;
+}
+
+
 M3Result  Compile_LoopOrBlock  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
 _   (PreserveRegisters (o));
+_   (PreserveArgsAndLocals (o));
 
     u8 blockType;
 _   (ReadBlockType (o, & blockType));
@@ -1297,11 +1315,42 @@ _   (CompileBlock (o, blockType, i_opcode));
 }
 
 
+M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, u8 i_blockType)
+{
+    M3Result result;
+
+    IM3CodePage elsePage = AcquireCodePage (o->runtime);
+
+    if (elsePage)
+    {
+        * o_startPC = GetPagePC (elsePage);
+
+        IM3CodePage savedPage = o->page;
+        o->page = elsePage;
+
+_       (CompileBlock (o, i_blockType, c_waOp_else));
+
+_       (EmitOp (o, op_Branch));
+        EmitPointer (o, GetPagePC (savedPage));
+
+        ReleaseCompilationCodePage (o);
+
+        o->page = savedPage;
+    }
+    else result = m3Err_mallocFailedCodePage;
+
+    _catch:
+
+    return result;
+}
+
+
 M3Result  Compile_If  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
 _   (PreserveNonTopRegisters (o));
+_   (PreserveArgsAndLocals (o));
 
     IM3Operation op = IsStackTopInRegister (o) ? op_If_r : op_If_s;
 
@@ -1310,7 +1359,6 @@ _   (EmitTopSlotAndPop (o));
 
     i32 stackIndex = o->stackIndex;
 
-    ReservePointer (o);
     pc_t * pc = (pc_t *) ReservePointer (o);
 
     u8 blockType;
@@ -1325,7 +1373,7 @@ _   (CompileBlock (o, blockType, i_opcode));
 _           (Pop (o));
         }
 
-_       (Compile_ElseBlock (o, pc, blockType));
+_       (CompileElseBlock (o, pc, blockType));
     }
     else * pc = GetPC (o);
 
@@ -1892,10 +1940,10 @@ _       (UnwindBlockStack (o));
 }
 
 
-M3Result  Compile_BlockScoped  (IM3Compilation o, /*pc_t * o_startPC,*/ u8 i_blockType, u8 i_blockOpcode)
+M3Result  CompileBlock  (IM3Compilation o, /*pc_t * o_startPC,*/ u8 i_blockType, u8 i_blockOpcode)
 {
-    M3Result result;
-
+    M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 0));
+                                                                                        d_m3Assert (not IsRegisterAllocated (o, 1));
     M3CompilationScope outerScope = o->block;
     M3CompilationScope * block = & o->block;
 
@@ -1921,86 +1969,6 @@ _       (MoveStackTopToRegister (o));
     o->block = outerScope;
 
     _catch: return result;
-}
-
-
-M3Result  CompileBlock  (IM3Compilation o, u8 i_blockType, u8 i_blockOpcode)
-{                                                                                       d_m3Assert (not IsRegisterAllocated (o, 0));
-    M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 1));
-
-    u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
-
-    // save and clear the locals modification slots
-#if defined(M3_COMPILER_MSVC)
-    u16 locals [128];               // hmm, heap allocate?...
-
-    if (numArgsAndLocals > 128)
-        _throw ("argument/local count overflow");
-#else
-    u16 locals [numArgsAndLocals];
-#endif
-
-    memcpy (locals, o->wasmStack, numArgsAndLocals * sizeof (u16));
-    for (u32 i = 0; i < numArgsAndLocals; ++i)
-    {
-//      printf ("enter -- %d local: %d \n", (i32) i, (i32) o->wasmStack [i]);
-    }
-
-    memset (o->wasmStack, 0, numArgsAndLocals * sizeof (u16));
-
-_   (Compile_BlockScoped (o, i_blockType, i_blockOpcode));
-
-    for (u32 i = 0; i < numArgsAndLocals; ++i)
-    {
-        if (o->wasmStack [i])
-        {
-//          printf ("modified: %d \n", (i32) i);
-            u16 preserveToSlot;
-_           (IsLocalReferencedWithCurrentBlock (o, & preserveToSlot, i));
-
-            if (preserveToSlot != i)
-            {
-//              printf ("preserving local: %d to slot: %d\n", i, preserveToSlot);
-                m3NotImplemented(); // TODO
-            }
-        }
-
-        o->wasmStack [i] += locals [i];
-
-//      printf ("local usage: [%d] = %d\n", i, o->wasmStack [i]);
-    }
-
-    _catch: return result;
-}
-
-
-M3Result  Compile_ElseBlock  (IM3Compilation o, pc_t * o_startPC, u8 i_blockType)
-{
-    M3Result result;
-
-    IM3CodePage elsePage = AcquireCodePage (o->runtime);
-
-    if (elsePage)
-    {
-        * o_startPC = GetPagePC (elsePage);
-
-        IM3CodePage savedPage = o->page;
-        o->page = elsePage;
-
-_       (CompileBlock (o, i_blockType, c_waOp_else));
-
-_       (EmitOp (o, op_Branch));
-        EmitPointer (o, GetPagePC (savedPage));
-
-        ReleaseCompilationCodePage (o);
-
-        o->page = savedPage;
-    }
-    else result = m3Err_mallocFailedCodePage;
-
-    _catch:
-
-    return result;
 }
 
 
