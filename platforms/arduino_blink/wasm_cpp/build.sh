@@ -1,12 +1,12 @@
 # Compile
 wasicc  -Os                                                   \
         -z stack-size=4096 -Wl,--initial-memory=65536         \
-        -Wl,--allow-undefined-file=arduino_wasm_api.syms      \
+        -Wl,--allow-undefined-file=arduino_api.syms           \
         -Wl,--strip-all -nostdlib                             \
-        -o arduino_app.wasm arduino_app.cpp
+        -o app.wasm app.cpp
 
 # Optimize (optional)
-#wasm-opt -O3 arduino_app.wasm -o arduino_app.wasm
+wasm-opt -O3 app.wasm -o app.wasm
 
 # Convert to header
-xxd -i arduino_app.wasm > arduino_app.wasm.h
+xxd -i app.wasm > app.wasm.h

@@ -9,7 +9,7 @@
 
 #include "m3/m3.h"
 
-#include "../wasm/arduino_app.wasm.h"
+#include "../wasm_cpp/app.wasm.h"
 
 M3Result  m3_LinkArduino (IM3Runtime runtime);
 
@@ -26,7 +26,7 @@ void wasm_task(void*)
     if (!runtime) FATAL("m3_NewRuntime failed");
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, arduino_app_wasm, arduino_app_wasm_len-1);
+    result = m3_ParseModule (env, &module, app_wasm, app_wasm_len-1);
     if (result) FATAL("m3_ParseModule: %s", result);
 
     result = m3_LoadModule (runtime, module);

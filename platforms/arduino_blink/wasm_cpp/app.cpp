@@ -1,5 +1,5 @@
 
-#include "arduino_wasm_api.h"
+#include "arduino_api.h"
 
 int LED_BUILTIN;
 
