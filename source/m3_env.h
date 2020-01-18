@@ -228,6 +228,7 @@ typedef struct M3Runtime
 #if defined(d_m3VerboseLogs)
     char                    error_message[256];
 #endif
+    i32                     exit_code;
 }
 M3Runtime;
 
