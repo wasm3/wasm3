@@ -90,7 +90,7 @@ typedef struct
 
     u64                 constants                   [d_m3MaxNumFunctionConstants];
 
-    // for args/locals this wasmStack tracks write counts. for the dynamic portion of the stack, the array holds slot locations
+    // 'wasmStack' is unused for args/locals. for the dynamic portion of the stack, 'wasmStack' holds slot locations
     u16                 wasmStack                   [d_m3MaxFunctionStackHeight];
     u8                  typeStack                   [d_m3MaxFunctionStackHeight];
 

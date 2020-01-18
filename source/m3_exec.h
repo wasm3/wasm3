@@ -65,23 +65,23 @@ d_m3RetSig  Call  (d_m3OpSig)
 #define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OP, ...) \
 d_m3Op(TYPE##_##NAME##_sr)                              \
 {                                                       \
-    TYPE * stack = (TYPE *) (_sp + immediate (i32));    \
-    OP((RES), (* stack), ((TYPE) REG), ##__VA_ARGS__);  \
+    TYPE operand = slot (TYPE);                         \
+    OP((RES), operand, ((TYPE) REG), ##__VA_ARGS__);    \
     return nextOp ();                                   \
 }                                                       \
 d_m3Op(TYPE##_##NAME##_ss)                              \
 {                                                       \
-    TYPE * stackB = (TYPE *) (_sp + immediate (i32));   \
-    TYPE * stackA = (TYPE *) (_sp + immediate (i32));   \
-    OP((RES), (* stackA), (* stackB), ##__VA_ARGS__);   \
+    TYPE operandB = slot (TYPE);                        \
+    TYPE operandA = slot (TYPE);                        \
+    OP((RES), operandA, operandB, ##__VA_ARGS__);       \
     return nextOp ();                                   \
 }
 
 #define d_m3OpMacro(RES, REG, TYPE, NAME, OP, ...)      \
 d_m3Op(TYPE##_##NAME##_rs)                              \
 {                                                       \
-    TYPE * stack = (TYPE *) (_sp + immediate (i32));    \
-    OP((RES), ((TYPE) REG), (* stack), ##__VA_ARGS__);  \
+    TYPE operand = slot (TYPE);                         \
+    OP((RES), ((TYPE) REG), operand, ##__VA_ARGS__);    \
     return nextOp ();                                   \
 }                                                       \
 d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
@@ -194,8 +194,8 @@ d_m3Op(TYPE##_##NAME##_r)                           \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_s)                           \
 {                                                   \
-    TYPE * stack = (TYPE *) (_sp + immediate (i32));\
-    OP((RES), (* stack), ##__VA_ARGS__);            \
+    TYPE operand = slot (TYPE);                     \
+    OP((RES), operand, ##__VA_ARGS__);              \
     return nextOp ();                               \
 }
 
@@ -656,36 +656,16 @@ d_m3Op (PreserveCopySlot_64)
     return nextOp ();
 }
 
+#define d_m3SetRegisterSetSlotDecl(TYPE)    \
+                                            \
+d_m3OpDecl (SetRegister_##TYPE)             \
+d_m3OpDecl (SetSlot_##TYPE)                 \
+d_m3OpDecl (PreserveSetSlot_##TYPE)         \
 
-#define d_m3SetRegisterSetSlot(TYPE, REG) \
-d_m3Op  (SetRegister_##TYPE)            \
-{                                       \
-    REG = slot (TYPE);                  \
-    return nextOp ();                   \
-}                                       \
-                                        \
-d_m3Op (SetSlot_##TYPE)                 \
-{                                       \
-    slot (TYPE) = (TYPE) REG;           \
-    return nextOp ();                   \
-}                                       \
-                                        \
-d_m3Op (PreserveSetSlot_##TYPE)         \
-{                                       \
-    TYPE * stack     = slot_ptr (TYPE); \
-    TYPE * preserve  = slot_ptr (TYPE); \
-                                        \
-    * preserve = * stack;               \
-    * stack = (TYPE) REG;               \
-                                        \
-    return nextOp ();                   \
-}
-
-
-d_m3SetRegisterSetSlot (i32, _r0)
-d_m3SetRegisterSetSlot (i64, _r0)
-d_m3SetRegisterSetSlot (f32, _fp0)
-d_m3SetRegisterSetSlot (f64, _fp0)
+d_m3SetRegisterSetSlotDecl (i32)
+d_m3SetRegisterSetSlotDecl (i64)
+d_m3SetRegisterSetSlotDecl (f32)
+d_m3SetRegisterSetSlotDecl (f64)
 
 
 #if defined(d_m3SkipMemoryBoundsCheck)
@@ -724,7 +704,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
 }                                                       \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
 {                                                       \
-    u64 operand = * (u32 *) (_sp + immediate (i32));    \
+    u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
                                                         \

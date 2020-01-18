@@ -11,7 +11,7 @@
 #include "m3_config_platforms.h"
 
 # ifndef d_m3MaxNumFunctionArgs
-#   define d_m3MaxNumFunctionArgs               16
+#   define d_m3MaxNumFunctionArgs               31
 # endif
 
 # ifndef d_m3CodePageAlignSize

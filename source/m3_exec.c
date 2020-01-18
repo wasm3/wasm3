@@ -246,7 +246,6 @@ d_m3OpDef  (SetGlobal_i)
 }
 
 
-
 d_m3OpDef  (Loop)
 {
     m3ret_t r;
@@ -305,6 +304,35 @@ d_m3OpDef  (BranchTable)
     return jumpOp (branches [branchIndex]);
 }
 
+
+#define d_m3SetRegisterSetSlot(TYPE, REG) \
+d_m3OpDef  (SetRegister_##TYPE)         \
+{                                       \
+    REG = slot (TYPE);                  \
+    return nextOp ();                   \
+}                                       \
+                                        \
+d_m3OpDef (SetSlot_##TYPE)              \
+{                                       \
+    slot (TYPE) = (TYPE) REG;           \
+    return nextOp ();                   \
+}                                       \
+                                        \
+d_m3OpDef (PreserveSetSlot_##TYPE)      \
+{                                       \
+    TYPE * stack     = slot_ptr (TYPE); \
+    TYPE * preserve  = slot_ptr (TYPE); \
+                                        \
+    * preserve = * stack;               \
+    * stack = (TYPE) REG;               \
+                                        \
+    return nextOp ();                   \
+}
+
+d_m3SetRegisterSetSlot (i32, _r0)
+d_m3SetRegisterSetSlot (i64, _r0)
+d_m3SetRegisterSetSlot (f32, _fp0)
+d_m3SetRegisterSetSlot (f64, _fp0)
 
 
 d_m3OpDef (CopySlot_32)

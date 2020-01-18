@@ -331,10 +331,6 @@ M3Result  Push  (IM3Compilation o, u8 i_m3Type, i16 i_location)
                 o->function->maxStackSlots = stackIndex;
         }
 
-        // wasmStack tracks read counts for args & locals. otherwise, wasmStack represents slot location.
-        if (stackIndex < GetFunctionNumArgsAndLocals (o->function))
-            i_location = 0;
-
         o->wasmStack        [stackIndex] = i_location;
         o->typeStack        [stackIndex] = i_m3Type;
 
@@ -843,8 +839,6 @@ _   (ReadLEB_u32 (& localSlot, & o->wasm, o->wasmEnd));             //  printf (
     {
         u16 preserveSlot;
 _       (IsLocalReferencedWithCurrentBlock (o, & preserveSlot, localSlot));  // preserve will be different than local, if referenced
-
-//        o->wasmStack [localSlot] |= 0x8000;
 
         if (preserveSlot == localSlot)
 _           (CopyTopSlot (o, localSlot))
@@ -2072,10 +2066,6 @@ _           (PushAllocatedSlot (o, type));
         }
 
 _       (CompileLocals (o));
-
-        // the stack for args/locals is used to track # of Sets
-        for (u32 i = 0; i < o->stackIndex; ++i)
-            o->wasmStack [i] = 0;
 
 _       (Compile_ReserveConstants (o));
 
