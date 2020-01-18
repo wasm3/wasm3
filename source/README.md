@@ -158,3 +158,9 @@ return_t Operation_NewObject (registers...)
 Likewise, a "defer" function (like in Go) becomes absolutely effortless to implement.  Exceptions (try/catch) as well.  
 
 
+## Prior Art
+
+After the Wasm3 project was posted to Hacker News (https://news.ycombinator.com/item?id=22024758), I finally discovered precedent for this tail-call interpreter design.  It has previously been called "threaded code". See the "Continuation-passing style" section: http://www.complang.tuwien.ac.at/forth/threaded-code.html).
+
+If this style of interpreter was discussed back in the 70's, why hasn't it been more popular?  I suspect because there was no benefit until more recently.  Older calling conventions only used the stack to pass arguments, older CPUs didn't have branch prediction and compiler tail-call optimization maybe wasn't ubiqutous.
+
