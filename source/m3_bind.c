@@ -145,5 +145,5 @@ M3Result  m3_LinkRawFunction  (IM3Module            io_module,
                               const char * const    i_signature,
                               M3RawCall             i_function)
 {
-    return FindAndLinkFunction (io_module, i_moduleName, i_functionName, i_signature, i_function, LinkRawFunction);
+    return FindAndLinkFunction (io_module, i_moduleName, i_functionName, i_signature, (voidptr_t)i_function, LinkRawFunction);
 }
