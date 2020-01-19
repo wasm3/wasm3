@@ -6,7 +6,11 @@ wasicc  -Os                                                   \
         -o app.wasm app.cpp
 
 # Optimize (optional)
-wasm-opt -O3 app.wasm -o app.wasm
+#wasm-opt -O3 app.wasm -o app.wasm
+wasm-strip app.wasm
 
-# Convert to header
+# Convert to WAT
+#wasm2wat app.wasm -o app.wat
+
+# Convert to C header
 xxd -i app.wasm > app.wasm.h

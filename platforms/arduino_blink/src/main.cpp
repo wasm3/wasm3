@@ -9,7 +9,14 @@
 
 #include "m3/m3.h"
 
+// C++ app
 #include "../wasm_cpp/app.wasm.h"
+
+// Rust app
+//#include "../wasm_rust/app.wasm.h"
+
+// TinyGO app. For this, change _start to cwa_main below
+//#include "../wasm_tinygo/app.wasm.h"
 
 M3Result  m3_LinkArduino (IM3Runtime runtime);
 

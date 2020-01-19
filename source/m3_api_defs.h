@@ -21,5 +21,6 @@
 #define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, uint64_t * _sp, void * _mem)
 #define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return m3Err_none; }
 #define m3ApiTrap(VALUE)           { return VALUE; }
+#define m3ApiSuccess()             { return m3Err_none; }
 
 #endif // m3_api_defs_h

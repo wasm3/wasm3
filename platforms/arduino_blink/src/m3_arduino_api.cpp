@@ -68,6 +68,11 @@ m3ApiRawFunction(m3_arduino_getPinLED)
     m3ApiReturn(LED_BUILTIN);
 }
 
+// Dummy, for TinyGO
+m3ApiRawFunction(m3_dummy)
+{
+    m3ApiSuccess();
+}
 
 M3Result  m3_LinkArduino  (IM3Runtime runtime)
 {
@@ -80,6 +85,8 @@ M3Result  m3_LinkArduino  (IM3Runtime runtime)
     m3_LinkRawFunction (module, arduino, "digitalWrite",     "v(ii)",  &m3_arduino_digitalWrite);
 
     m3_LinkRawFunction (module, arduino, "getPinLED",        "i()",    &m3_arduino_getPinLED);
+
+    m3_LinkRawFunction (module, "env",   "io_get_stdout",    "i()",    &m3_dummy);
 
     return m3Err_none;
 }
