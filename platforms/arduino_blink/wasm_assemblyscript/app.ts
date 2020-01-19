@@ -36,7 +36,6 @@ function run(): void {
 /*
  * Entry point
  */
-@start
 export function _start(): void {
   setup();
   while (1) run();
