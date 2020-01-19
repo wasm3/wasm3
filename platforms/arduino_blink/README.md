@@ -35,6 +35,10 @@ Before building the app, please install npm dependencies:
 ```sh
 yarn install
 ```
+or
+```sh
+npm install
+```
 To rebuild, use `wasm_assemblyscript/build.sh`.
 
 ## TinyGO app
