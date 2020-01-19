@@ -1,7 +1,3 @@
-
-# Prepare
-#rustup target add wasm32-unknown-unknown
-
 # Compile
 asc app.ts -b app.wasm  \
   -O3z                  \
