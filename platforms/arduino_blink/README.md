@@ -39,7 +39,7 @@ or
 ```sh
 npm install
 ```
-To rebuild, use `wasm_assemblyscript/build.sh`.
+To rebuild, use `wasm_assemblyscript/build.sh` or `npm run build`.
 
 ## TinyGO app
 

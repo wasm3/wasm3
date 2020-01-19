@@ -1,8 +1,8 @@
 # Compile
-asc app.ts -b app.wasm  \
-  -O3z                  \
-  --runtime half        \
-  --noAssert            \
+npx asc app.ts -b app.wasm  \
+  -O3z                      \
+  --runtime half            \
+  --noAssert                \
   --use abort=
 
 # Convert to WAT
