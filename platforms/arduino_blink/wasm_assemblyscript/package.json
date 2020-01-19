@@ -1,5 +1,5 @@
 {
-  "stripts": {
+  "scripts": {
     "build": "npm asbuild:optimized && xxd -i app.wasm > app.wasm.h",
     "asbuild:optimized": "asc app.ts -b app.wasm -O3z --runtime half --noAssert --use abort="
   },
