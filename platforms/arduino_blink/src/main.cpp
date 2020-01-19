@@ -15,6 +15,9 @@
 // Rust app
 //#include "../wasm_rust/app.wasm.h"
 
+// AssemblyScript app
+//#include "../wasm_assemblyscript/app.wasm.h"
+
 // TinyGO app. For this, change _start to cwa_main below
 //#include "../wasm_tinygo/app.wasm.h"
 
