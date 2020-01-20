@@ -46,6 +46,7 @@ typedef struct M3Function
     pc_t                    compiled;
 
     u32                     hits;
+    f64                     hits1;
 
     u16                     maxStackSlots;
 

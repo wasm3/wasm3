@@ -8,6 +8,7 @@
 #include "m3_env.h"
 #include "m3_exec.h"
 #include "m3_compile.h"
+#include "time.h"
 
 
 static inline
@@ -116,7 +117,7 @@ d_m3OpDef  (CallRawFunction)
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = GetRuntime (_mem);
 
-    PushRuntimeStackTop(runtime, _sp);
+    PushRuntimeStackTop(runtime, _sp + 32); // temporary hack to allocate enough space.
     m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem));
     PopRuntimeStackTop(runtime);
     return possible_trap;
@@ -198,6 +199,13 @@ d_m3OpDef  (Entry)
     if ((void*)(_sp + function->maxStackSlots) < _mem->maxStack)
 #endif
     {
+    // struct timespec tp;
+
+    //       f64 begin = 0.0;
+    // if (!clock_gettime(CLOCK_MONOTONIC, &tp)) {
+    //     begin = tp.tv_sec * 1000.0 + tp.tv_nsec / 1000000.0;
+    // }
+        
         function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
         u32 numLocals = function->numLocals;
@@ -212,6 +220,14 @@ d_m3OpDef  (Entry)
 
         m3ret_t r = nextOp ();
 
+    //       f64 end = 0.0;
+    // if (!clock_gettime(CLOCK_MONOTONIC, &tp)) {
+    //     end = tp.tv_sec * 1000.0 + tp.tv_nsec / 1000000.0;
+    // }
+
+    //     //clock_t end = clock();
+    //      function->hits1 += end - begin;
+        
 #       if d_m3LogExec
             u8 returnType = function->funcType->returnType;
 

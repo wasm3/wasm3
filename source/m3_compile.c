@@ -186,7 +186,7 @@ bool  AllocateExecSlot  (IM3Compilation o, u16 * o_execSlot)
 void DeallocateSlot (IM3Compilation o, i16 i_slotIndex)
 {                                                                                       d_m3Assert (i_slotIndex >= o->firstSlotIndex);
     o->numAllocatedExecSlots--;                                                         d_m3Assert (o->m3Slots [i_slotIndex]);
-    o->m3Slots [i_slotIndex] = 0;
+    o->m3Slots [i_slotIndex]--;
 }
 
 
@@ -667,6 +667,9 @@ M3Result  IsLocalReferencedWithCurrentBlock  (IM3Compilation o, u16 * o_preserve
             {
                 if (not AllocateExecSlot (o, o_preservedStackIndex))
                     _throw (m3Err_functionStackOverflow);
+            } else {
+                o->m3Slots [*o_preservedStackIndex] += 1;
+                o->numAllocatedExecSlots++;
             }
 
             o->wasmStack [i] = * o_preservedStackIndex;
@@ -723,6 +726,9 @@ M3Result  PreserveArgsAndLocals  (IM3Compilation o) {
 _               (EmitOp (o, op_CopySlot_64));
                 EmitConstant (o, preservedStackIndex [localSlot]);
                 EmitConstant (o, localSlot);
+            } else {
+                o->m3Slots [preservedStackIndex [localSlot]] += 1;
+                o->numAllocatedExecSlots++;
             }
             
             o->wasmStack [i] = preservedStackIndex [localSlot];
