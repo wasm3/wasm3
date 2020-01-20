@@ -4,10 +4,10 @@
  * All rights reserved.
  */
 
+#include <Arduino.h>
+
 #include "m3/m3_api_defs.h"
 #include "m3/m3_env.h"
-
-#include <Arduino.h>
 
 /*
  * Note: each RawFunction should complete with one of these calls:

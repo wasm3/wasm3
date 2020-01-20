@@ -7,7 +7,7 @@ To run the example:
 ```sh
 pio run -e <device> -t upload && pio device monitor
 ```
-Where `<device>` is one of: `ESP32`, `ESP8266`, `MKR1000`, `TinyBLE`, `Teensy31`, `WildFireV3`
+Where `<device>` is one of: `ESP32`, `ESP8266`, `MKR1000`, `BluePill`, `TinyBLE`, `Teensy31`, `WildFireV3`
 
 ## Building the WebAssembly app
 
