@@ -6,7 +6,7 @@
 
 #include "Arduino.h"
 
-#include "m3/m3.h"
+#include "m3/wasm3.h"
 #include "m3/m3_env.h"
 
 /*
@@ -16,7 +16,7 @@
 #define WASM_STACK_SLOTS  1024
 #define NATIVE_STACK_SIZE 32768
 
-// Most devices that cannot allocate a 64KiB wasm page
+// For (most) devices that cannot allocate a 64KiB wasm page
 #define WASM_MEMORY_LIMIT 2048
 
 /*

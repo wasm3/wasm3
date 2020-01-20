@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 #include <time.h>
-#include "m3/m3.h"
+#include "m3/wasm3.h"
 #include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"

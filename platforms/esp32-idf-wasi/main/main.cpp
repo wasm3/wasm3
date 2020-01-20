@@ -5,11 +5,13 @@
 //  All rights reserved.
 //
 
+#include "esp_system.h"
+
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
-#include "m3/m3.h"
-#include "esp_system.h"
+
+#include "m3/wasm3.h"
 #include "m3/m3_env.h"
 
 #include "m3_api_esp_wasi.h"

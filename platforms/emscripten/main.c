@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "m3.h"
+#include "wasm3.h"
 #include "m3_api_wasi.h"
 #include "m3_api_libc.h"
 #include "m3_env.h"

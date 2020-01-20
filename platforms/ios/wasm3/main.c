@@ -12,7 +12,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "m3.h"
+#include "wasm3.h"
 #include "m3_env.h"
 #include "m3_config.h"
 
