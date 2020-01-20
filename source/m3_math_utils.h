@@ -81,7 +81,7 @@ int __builtin_clzll(uint64_t value) {
 
 
 // TODO: not sure why, signbit is actually defined in math.h
-#if defined (PLATFORMIO) && (defined(ESP8266) || defined(ESP32))
+#if defined(ESP8266) || defined(ESP32)
     #define signbit(__x) \
             ((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : __signbitd(__x))
 #endif

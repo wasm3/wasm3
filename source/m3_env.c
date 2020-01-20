@@ -7,7 +7,6 @@
 
 #include <stdarg.h>
 
-#include "m3.h"
 #include "m3_env.h"
 #include "m3_compile.h"
 #include "m3_exec.h"
@@ -292,6 +291,12 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
     if (numPagesToAlloc <= memory->maxPages)
     {
         size_t numPageBytes = numPagesToAlloc * d_m3MemPageSize;
+
+        // Limit the amount of memory that gets allocated
+        if (io_runtime->memoryLimit) {
+            numPageBytes = min(numPageBytes, io_runtime->memoryLimit);
+        }
+
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
 
         size_t numPreviousBytes = memory->numPages * d_m3MemPageSize;

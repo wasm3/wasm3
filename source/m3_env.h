@@ -223,6 +223,7 @@ typedef struct M3Runtime
     M3Result                runtimeError;
 
     M3Memory                memory;
+    u32                     memoryLimit;
 
     M3ErrorInfo             error;
 #if defined(d_m3VerboseLogs)

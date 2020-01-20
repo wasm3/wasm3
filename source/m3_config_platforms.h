@@ -248,7 +248,7 @@ typedef int8_t          i8;
 
 # if defined(ESP8266) || defined(BLUE_PILL) || defined(FOMU)
 #  ifndef d_m3FixedHeap
-#    define d_m3FixedHeap                       (8*1024)
+#    define d_m3FixedHeap                       (12*1024)
 #  endif
 # endif
 

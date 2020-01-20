@@ -21,7 +21,8 @@ m3ApiRawFunction(m3_arduino_delay)
 {
     m3ApiGetArg     (uint32_t, ms)
 
-    //printf("api: delay %d\n", ms); // you can also trace API calls
+    // You can also trace API calls
+    //Serial.print("api: delay "); Serial.println(ms);
 
     delay(ms);
 
@@ -33,9 +34,9 @@ m3ApiRawFunction(m3_arduino_delay)
 uint8_t mapPinMode(uint8_t mode)
 {
     switch(mode) {
-    case (0): return INPUT;
-    case (1): return OUTPUT;
-    case (2): return INPUT_PULLUP;
+    case 0: return INPUT;
+    case 1: return OUTPUT;
+    case 2: return INPUT_PULLUP;
     }
     return INPUT;
 }
@@ -45,7 +46,10 @@ m3ApiRawFunction(m3_arduino_pinMode)
     m3ApiGetArg     (uint32_t, pin)
     m3ApiGetArg     (uint32_t, mode)
 
-    pinMode(pin, mapPinMode(mode));
+#if !defined(PARTICLE)
+    typedef uint8_t PinMode;
+#endif
+    pinMode(pin, (PinMode)mapPinMode(mode));
 
     m3ApiSuccess();
 }
@@ -74,7 +78,7 @@ m3ApiRawFunction(m3_dummy)
     m3ApiSuccess();
 }
 
-M3Result  m3_LinkArduino  (IM3Runtime runtime)
+M3Result  LinkArduino  (IM3Runtime runtime)
 {
     IM3Module module = runtime->modules;
     const char* arduino = "arduino";
