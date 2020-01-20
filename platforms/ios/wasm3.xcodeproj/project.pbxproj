@@ -77,6 +77,7 @@
 		3D1ED52123C8CB550072E395 /* Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bridging-Header.h"; sourceTree = "<group>"; };
 		3D1ED52223C8CB560072E395 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		3D3C322D23C9319A00DB9F7E /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
+		3D3EC19D23D558D5008FD665 /* wasm3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasm3.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				3D1B3AED23C8E20C00142C16 /* extra */,
+				3D3EC19D23D558D5008FD665 /* wasm3.h */,
 				3D1B3AF223C8E20C00142C16 /* m3.h */,
 				3D1B3AF323C8E20C00142C16 /* m3_api_defs.h */,
 				3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */,
