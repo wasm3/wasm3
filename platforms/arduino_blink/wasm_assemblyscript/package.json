@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "build": "npm run asbuild:optimized && xxd -i app.wasm > app.wasm.h",
-    "asbuild:optimized": "npx asc app.ts -b app.wasm -O3z --runtime half --noAssert --use abort="
-  },
-  "devDependencies": {
-    "assemblyscript": "^0.8.1-nightly.20200119"
-  }
-}

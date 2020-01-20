@@ -1,3 +1,9 @@
+/*
+ * Wasm3 - high performance WebAssembly interpreter written in C.
+ * Copyright © 2020 Volodymyr Shymanskyy, Steven Massey.
+ * All rights reserved.
+ */
+
 #include "m3/m3_api_defs.h"
 #include "m3/m3_env.h"
 
@@ -69,7 +75,7 @@ m3ApiRawFunction(m3_arduino_getPinLED)
 {
     m3ApiReturnType (uint32_t)
 
-    m3ApiReturn(LED_BUILTIN);
+    m3ApiReturn(LED_PIN);
 }
 
 // Dummy, for TinyGO
