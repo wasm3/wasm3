@@ -8,7 +8,7 @@
 #ifndef m3_env_h
 #define m3_env_h
 
-#include "m3.h"
+#include "wasm3.h"
 #include "m3_code.h"
 #include "m3_exec.h"
 #include "m3_compile.h"

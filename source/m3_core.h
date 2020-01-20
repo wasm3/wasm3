@@ -14,7 +14,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "m3.h"
+#include "wasm3.h"
 #include "m3_config.h"
 
 #if !defined(d_m3ShortTypesDefined)

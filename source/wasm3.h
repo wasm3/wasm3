@@ -5,13 +5,13 @@
 //  All rights reserved.
 //
 
-#ifndef m3_h
-#define m3_h
+#ifndef wasm3_h
+#define wasm3_h
 
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 4
-#define M3_VERSION_REV   2
-#define M3_VERSION       "0.4.2"
+#define M3_VERSION_REV   4
+#define M3_VERSION       "0.4.4"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -236,4 +236,4 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 }
 #endif
 
-#endif // m3_h
+#endif // wasm3_h
