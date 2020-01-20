@@ -47,7 +47,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 `wasm3` is built on top of [Steven Massey](https://github.com/soundandform)'s novel [interpreter topology](/source/README.md), with:
 - Wasm 1.0 spec conformance
 - `WASI` support
-- Support of `x86`, `x64`, `ARM`, `MIPS`, `RISC-V`, `Xtensa` architectures
+- Support of `x86`, `x64`, `ARM`, `MIPS`, `RISC-V`, `Xtensa`, `ARC32` architectures
 
 ## Motivation
 

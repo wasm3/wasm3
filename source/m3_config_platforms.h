@@ -244,6 +244,9 @@ typedef int8_t          i8;
 #  ifndef d_m3MaxFunctionStackHeight
 #    define d_m3MaxFunctionStackHeight          64
 #  endif
+#  ifndef d_m3CodePageAlignSize
+#    define d_m3CodePageAlignSize               1024
+#  endif
 # endif
 
 # if defined(ESP8266) || defined(BLUE_PILL) || defined(FOMU)
