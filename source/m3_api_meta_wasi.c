@@ -187,6 +187,20 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     m3ApiReturn(ret);
 }
 
+m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (__wasi_fd_t          , fd)
+    m3ApiGetArg      (__wasi_lookupflags_t , flags)
+    m3ApiGetArgMem   (const char *         , path)
+    m3ApiGetArg      (uint32_t             , path_len)
+    m3ApiGetArgMem   (__wasi_filestat_t *  , buf)
+
+    __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, buf);
+
+    m3ApiReturn(ret);
+}
+
 m3ApiRawFunction(m3_wasi_unstable_fd_read)
 {
     m3ApiReturnType  (uint32_t)
@@ -325,6 +339,7 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_dir_na
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_get",       "i(i*)",   &m3_wasi_unstable_fd_prestat_get)));
 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",            "i(ii*iiiii*)",  &m3_wasi_unstable_path_open)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_filestat_get",    "i(ii*i*)",  &m3_wasi_unstable_path_filestat_get)));
 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_unstable_fd_fdstat_get)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_flags",  "i(ii)",   &m3_wasi_unstable_fd_fdstat_set_flags)));
