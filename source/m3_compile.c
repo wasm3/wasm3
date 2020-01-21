@@ -589,8 +589,10 @@ M3Result  PreservedCopyTopSlot  (IM3Compilation o, u16 i_destSlot, u16 i_preserv
 
     if (IsStackTopInRegister (o))
     {
-        bool isFp = IsStackTopTypeFp (o);
-        op = isFp ? op_PreserveSetSlot_f64 : op_PreserveSetSlot_i64;
+        u8 type = GetStackTopType (o);
+        
+        static IM3Operation preserve_ops[] = {NULL, op_PreserveSetSlot_i32, op_PreserveSetSlot_i64, op_PreserveSetSlot_f32, op_PreserveSetSlot_f64};
+        op = preserve_ops[type];
     }
     else op = op_PreserveCopySlot_64;
 
@@ -963,7 +965,12 @@ M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
         IM3Operation op;
 
         if (IsStackTopInRegister (o))
-            op = IsStackTopTypeFp (o) ? op_SetGlobal_f64 : op_SetGlobal_i;
+        {
+            u8 type = GetStackTopType (o);
+            
+            static IM3Operation set_global_ops[] = {NULL, op_SetGlobal_i32, op_SetGlobal_i, op_SetGlobal_f32, op_SetGlobal_f64};
+            op = set_global_ops[type];
+        }
         else
             op = op_SetGlobal_s;
 

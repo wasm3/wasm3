@@ -611,6 +611,7 @@ d_m3Op  (End)
 
 d_m3OpDecl  (GetGlobal)
 d_m3OpDecl  (SetGlobal_i)
+d_m3OpDecl  (SetGlobal_i32)
 
 
 d_m3Op  (SetGlobal_s)
@@ -677,7 +678,7 @@ d_m3Op (PreserveSetSlot_##TYPE)         \
                                         \
     * preserve = * stack;               \
     * stack = (TYPE) REG;               \
-                                        \
+\
     return nextOp ();                   \
 }
 

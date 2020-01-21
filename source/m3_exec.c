@@ -265,6 +265,13 @@ d_m3OpDef  (SetGlobal_i)
     return nextOp ();
 }
 
+d_m3OpDef  (SetGlobal_i32)
+{
+    i32 * global = immediate (i32 *);
+    * global = (i32) _r0;                   //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
+
+    return nextOp ();
+}
 
 
 d_m3OpDef  (Loop)
