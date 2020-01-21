@@ -21,10 +21,10 @@
 # define rewrite_op(OP)             * ((void **) (_pc-1)) = (void*)(OP)
 
 # define d_m3RetSig                 static inline m3ret_t vectorcall
-# define d_m3Op(NAME)               d_m3RetSig op_##NAME (d_m3OpSig)
+# define d_m3Op(NAME)               op_section d_m3RetSig op_##NAME (d_m3OpSig)
 
-# define d_m3OpDef(NAME)            m3ret_t vectorcall op_##NAME (d_m3OpSig)
-# define d_m3OpDecl(NAME)           d_m3OpDef (NAME);
+# define d_m3OpDef(NAME)            op_section m3ret_t vectorcall op_##NAME (d_m3OpSig)
+# define d_m3OpDecl(NAME)                      m3ret_t vectorcall op_##NAME (d_m3OpSig);
 
 # define immediate(TYPE)            * ((TYPE *) _pc++)
 # define skip_immediate(TYPE)       (_pc++)
