@@ -49,6 +49,14 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - `WASI` support
 - Support of `x86`, `x64`, `ARM`, `MIPS`, `RISC-V`, `Xtensa`, `ARC32` architectures
 
+## Libraries
+
+Wasm3 can be used as a library for:
+
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3)
+
 ## Motivation
 
 **Why use a "slow interpreter" versus a "fast JIT"?**
