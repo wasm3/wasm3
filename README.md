@@ -12,7 +12,7 @@ A high performance WebAssembly interpreter written in C.
 **∼ 9.1x faster** than other known wasm interpreters  
 **∼ 4-5x slower** than state of the art wasm `JIT` engines  
 **∼ 12.6x slower** than native execution  
-<sub>* Based on [**CoreMark 1.0** benchmark](/PERFORMANCE.md). Your mileage may vary.</sub>
+<sub>* Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
 
 [![Twitter](https://img.shields.io/twitter/follow/wasm3_engine?label=Follow&style=social)](https://twitter.com/wasm3_engine)
 
