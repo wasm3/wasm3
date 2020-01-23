@@ -68,17 +68,13 @@ In many situations, speed is not the main concern. Runtime executable size, code
 Wasm3 started as a research project and remains so by many means. Evaluating the engine in different environments is part of the research. Given that we have Lua, JS, Python, Lisp, (...) running on MCUs, WebAssembly is actually a promising alternative. It provides a completely sandboxed, well-defined and predictible environment. Among practical use cases, we can list edge computing, scripting, running IoT rules, blockchain contracts, etc.
 
 
-## Building
+## Further resources
 
-See [DEV.md](./DEV.md)
+[Build and Development instructions](./docs/Development.md)
 
-## Testing & Fuzzing
+[Testing & Fuzzing](./docs/Testing.md)
 
-See [test/README.md](./test/README.md)
-
-## Performance
-
-See [PERFORMANCE.md](./PERFORMANCE.md)
+[Performance](./docs/Performance.md)
 
 ### License
 This project is released under The MIT License (MIT)
