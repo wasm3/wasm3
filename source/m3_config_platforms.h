@@ -240,7 +240,7 @@ typedef int8_t          i8;
  */
 
 # ifndef d_m3MaxFunctionStackHeight
-#  if defined(ESP32) || defined(ARDUINO_AMEBA)
+#  if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_AMEBA)
 #    define d_m3MaxFunctionStackHeight          128
 #  endif
 # endif
@@ -248,7 +248,7 @@ typedef int8_t          i8;
 # ifndef d_m3FixedHeap
 #  if defined(ARDUINO_AMEBA)
 #    define d_m3FixedHeap                       (128*1024)
-#  elif defined(ESP8266) || defined(BLUE_PILL) || defined(FOMU)
+#  elif defined(BLUE_PILL) || defined(FOMU)
 #    define d_m3FixedHeap                       (12*1024)
 #  elif defined(ARDUINO_ARCH_ARC32) // Arduino 101
 #    define d_m3FixedHeap                       (10*1024)
