@@ -1,0 +1,22 @@
+# Wasm3 hardware support
+
+- Arduino MKR WiFi 1010
+- Arduino MKR1000
+- Arduino Due
+- Arduino 101
+- Espressif ESP32
+- Espressif ESP8266
+- Particle Photon, Electron, Argon, Boron, Xenon
+- Air602 (WinnerMicro W600)
+- Realtek RTL8711
+- Nordic nRF51822
+- Nordic nRF52832
+- Teensy 3.1/3.2 (NXP MK20DX256VLH7)
+- Teensy 4.0 (NXP iMXRT1062)
+- P-Nucleo WB55RG (ST STM32WB55RG)
+- Blue Pill (ST STM32F103C8T6)
+- MXChip AZ3166 (EMW3166)
+- Sipeed MAIX (Kendryte K210)
+- SiFive HiFive1 (Freedom E310)
+- Fomu (RISC-V on Lattice ICE40UP5K FPGA)
+- Wicked Device WildFire (AVR ATmega1284)
