@@ -94,7 +94,7 @@ typedef struct
     u16                 wasmStack                   [d_m3MaxFunctionStackHeight];
     u8                  typeStack                   [d_m3MaxFunctionStackHeight];
 
-    // OPTZ: this array just contains single bit allocation flags.  could be fused with the typeStack to conserve space
+    // 'm3Slots' contains allocation usage counts
     u8                  m3Slots                     [d_m3MaxFunctionStackHeight];
 
     u16                 numAllocatedExecSlots;
