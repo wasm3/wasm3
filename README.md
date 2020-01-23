@@ -54,8 +54,9 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 Wasm3 can be used as a library for:
 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3)
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino)
 
 ## Motivation
 
@@ -68,7 +69,7 @@ In many situations, speed is not the main concern. Runtime executable size, code
 Wasm3 started as a research project and remains so by many means. Evaluating the engine in different environments is part of the research. Given that we have Lua, JS, Python, Lisp, (...) running on MCUs, WebAssembly is actually a promising alternative. It provides a completely sandboxed, well-defined and predictible environment. Among practical use cases, we can list edge computing, scripting, running IoT rules, blockchain contracts, etc.
 
 
-## Further resources
+## Further Resources
 
 [Build and Development instructions](./docs/Development.md)
 
