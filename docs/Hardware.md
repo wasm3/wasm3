@@ -28,7 +28,7 @@ Espressif ESP8266             |           | Xtensa L106 | 160MHz    |  4 MB | ~5
 Teensy 3.1/3.2            | NXP MK20DX256 |  Cortex-M4  | 72MHz     | 288KB | 64KB
 Blue Pill                     | STM32F103 |  Cortex-M3  | 72MHz     |  64KB | 20KB
 Arduino MKR*                  | SAMD21    |  Cortex-M0+ | 48MHz     | 256KB | 32KB
-Arduino 101                   |           | Intel Curie | 32MHz     | 196KB | 24KB
+Arduino 101                   | Intel Curie |     ARC32 | 32MHz     | 196KB | 24KB
 Nordic nRF52832               |           |  Cortex-M4F | 64MHz | 256/512KB | 32/64KB
 Nordic nRF51822               |           |  Cortex-M0  | 16MHz | 128/256KB | 16/32KB
-Wicked Device WildFire   | AVR ATmega1284 |  8-bit AVR  | 20MHz     | 128KB | 16KB
+Wicked Device WildFire       | ATmega1284 |  8-bit AVR  | 20MHz     | 128KB | 16KB
