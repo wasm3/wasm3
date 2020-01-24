@@ -1,0 +1,6 @@
+[mapping:wasm3]
+archive: libm3.a
+entries:
+    m3_core (noflash_text)
+    m3_exec (noflash_text)
+    m3_compile (noflash_text)

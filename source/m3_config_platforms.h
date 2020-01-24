@@ -220,8 +220,12 @@ typedef int8_t          i8;
 #   include <c_types.h>
 #   define op_section   //ICACHE_FLASH_ATTR
 # elif defined (ESP32)
-#   include "esp_system.h"
-#   define op_section   IRAM_ATTR
+#   if defined(M3_IN_IRAM)  // the interpreter is in IRAM, attribute not needed
+#     define op_section
+#   else
+#     include "esp_system.h"
+#     define op_section   IRAM_ATTR
+#   endif
 # elif defined (FOMU)
 #   define op_section   __attribute__((section(".ramtext")))
 # endif
