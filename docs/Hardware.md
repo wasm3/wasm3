@@ -24,11 +24,11 @@ This means `memoryLimit` should be set to the actual amount of RAM available, an
 
 Device                        | Chipset   | Architecture | Clock     | Flash | RAM
 ---                           |:---:      | ---         |     -----:| ---   | ---
-Blue Pill                     | STM32F103 |  Cortex-M3  | 72 MHz    |  64KB | 20KB
-Arduino 101                   |           | Intel Curie | 32 MHz    | 196KB | 24KB
-Arduino MKR*                  | SAMD21    |  Cortex-M0+ | 48 MHz    | 256KB | 32KB
 Espressif ESP8266             |           | Xtensa L106 | 160 MHz   |  4 MB | ~50KB (available)
-Nordic nRF51822               |           |  Cortex-M0  | 16MHz | 128/256KB | 16/32KB
-Nordic nRF52832               |           |  Cortex-M4F | 64MHz | 256/512KB | 32/64KB
 Teensy 3.1/3.2            | NXP MK20DX256 |  Cortex-M4  | 72MHz     | 288KB | 64KB
+Blue Pill                     | STM32F103 |  Cortex-M3  | 72 MHz    |  64KB | 20KB
+Arduino MKR*                  | SAMD21    |  Cortex-M0+ | 48 MHz    | 256KB | 32KB
+Arduino 101                   |           | Intel Curie | 32 MHz    | 196KB | 24KB
+Nordic nRF52832               |           |  Cortex-M4F | 64MHz | 256/512KB | 32/64KB
+Nordic nRF51822               |           |  Cortex-M0  | 16MHz | 128/256KB | 16/32KB
 Wicked Device WildFire   | AVR ATmega1284 |  8-bit AVR  | 20MHz     | 128KB | 16KB
