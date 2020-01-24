@@ -11,6 +11,7 @@ Nordic nRF52840               |           | Cortex-M4F | 64MHz      |  1 MB | 25
 Nordic nRF52833               |           | Cortex-M4F | 64MHz      | 512KB | 128KB
 P-Nucleo WB55RG             | STM32WB55RG | Cortex-M4F | 64MHz      |  1 MB | 256KB
 Teensy 4.0               |  NXP iMXRT1062 | Cortex-M7  | 600MHz     |  2 MB | 1 MB
+Teensy 3.5                    | MK64FX512 | Cortex-M4F | 120MHz     | 512KB | 192KB
 MXChip AZ3166            | EMW3166        | Cortex-M4  | 100MHz | 1 MB+2 MB | 256KB
 Arduino Due                 | AT91SAM3X8E | Cortex-M3  | 84MHz      | 512KB | 96KB
 Sipeed MAIX              |  Kendryte K210 | RV64IMAFDC | 400MHz     | 16 MB | 8 MB
