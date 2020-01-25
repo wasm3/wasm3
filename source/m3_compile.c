@@ -1634,13 +1634,14 @@ _   (Compile_Operator (o, i_opcode));
 }
 
 
-#define d_singleOp(OP)                      { op_##OP, NULL, NULL, NULL }       // these aren't actually used by the compiler, just codepage decoding
-#define d_emptyOpList()                     { NULL, NULL, NULL, NULL }
-#define d_unaryOpList(TYPE, NAME)           { op_##TYPE##_##NAME##_r, op_##TYPE##_##NAME##_s, NULL, NULL }
-#define d_binOpList(TYPE, NAME)             { op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss, NULL }
-#define d_storeFpOpList(TYPE, NAME)         { op_##TYPE##_##NAME##_sr, op_##TYPE##_##NAME##_rs, op_##TYPE##_##NAME##_ss, op_##TYPE##_##NAME##_rr }
-#define d_commutativeBinOpList(TYPE, NAME)  { op_##TYPE##_##NAME##_sr, NULL, op_##TYPE##_##NAME##_ss, NULL }
-#define d_convertOpList(OP)                 { op_##OP##_r_r, op_##OP##_r_s, op_##OP##_s_r, op_##OP##_s_s }
+// d_singleOp macros aren't actually used by the compiler, just codepage decoding
+#define d_singleOp(OP)                      { op_##OP,                  NULL,                       NULL,                       NULL }
+#define d_emptyOpList()                     { NULL,                     NULL,                       NULL,                       NULL }
+#define d_unaryOpList(TYPE, NAME)           { op_##TYPE##_##NAME##_r,   op_##TYPE##_##NAME##_s,     NULL,                       NULL }
+#define d_binOpList(TYPE, NAME)             { op_##TYPE##_##NAME##_rs,  op_##TYPE##_##NAME##_sr,    op_##TYPE##_##NAME##_ss,    NULL }
+#define d_storeFpOpList(TYPE, NAME)         { op_##TYPE##_##NAME##_rs,  op_##TYPE##_##NAME##_sr,    op_##TYPE##_##NAME##_ss,    op_##TYPE##_##NAME##_rr }
+#define d_commutativeBinOpList(TYPE, NAME)  { op_##TYPE##_##NAME##_rs,  NULL,                       op_##TYPE##_##NAME##_ss,    NULL }
+#define d_convertOpList(OP)                 { op_##OP##_r_r,            op_##OP##_r_s,              op_##OP##_s_r,              op_##OP##_s_s }
 
 
 const M3OpInfo c_operations [] =
@@ -1872,10 +1873,7 @@ const M3OpInfo c_operations [] =
     d_m3DebugOp (CopySlot_32),      d_m3DebugOp (PreserveCopySlot_32),
     d_m3DebugOp (CopySlot_64),      d_m3DebugOp (PreserveCopySlot_64),
 
-    d_m3DebugOp (i32_BranchIf_rs),
-    d_m3DebugOp (i32_BranchIf_ss),
-    d_m3DebugOp (i64_BranchIf_rs),
-    d_m3DebugOp (i64_BranchIf_ss),
+    d_m3DebugOp (i32_BranchIf_rs),  d_m3DebugOp (i32_BranchIf_ss),  d_m3DebugOp (i64_BranchIf_rs),  d_m3DebugOp (i64_BranchIf_ss),
 
     d_m3DebugOp (Select_i32_rss),   d_m3DebugOp (Select_i32_srs),   d_m3DebugOp (Select_i32_ssr),   d_m3DebugOp (Select_i32_sss),
     d_m3DebugOp (Select_i64_rss),   d_m3DebugOp (Select_i64_srs),   d_m3DebugOp (Select_i64_ssr),   d_m3DebugOp (Select_i64_sss),
