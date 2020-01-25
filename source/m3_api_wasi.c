@@ -39,6 +39,17 @@ typedef uint32_t __wasi_size_t;
 #      include <sys/random.h>
 #  endif
 #  define HAS_IOVEC
+#elif defined(__vita__)
+#  include <unistd.h>
+#  include <psp2/kernel/rng.h>
+#  include <psp2/kernel/processmgr.h>
+#  include <psp2/io/dirent.h>
+#  include <psp2/io/fcntl.h>
+#  include <psp2/rtc.h>
+#  define getrandom(buf, buflen, flags) sceKernelGetRandomNumber((buf), (buflen))
+#  define CLOCK_MONOTONIC 0
+// CLOCK_REALTIME is defined in <time.h> but MONOTONIC is not, so we use
+// the clock implementation from DaveeFTW's musl port to vita https://github.com/DaveeFTW/musl/blob/vita/COPYRIGHT
 #elif defined(_WIN32)
 #  include <Windows.h>
 #  include <io.h>
@@ -136,6 +147,50 @@ static inline
 int convert_clockid(__wasi_clockid_t in) {
     return 0;
 }
+
+#elif defined(__vita__)
+
+static inline
+int clock_getres(int clk_id, struct timespec *spec) {
+    return sceRtcGetTickResolution();
+}
+
+static inline
+int clock_gettime(int clk_id, struct timespec *tp) {
+    if (clk_id == CLOCK_MONOTONIC)
+    {
+        SceKernelSysClock ticks;
+        sceKernelGetProcessTime(&ticks);
+
+        tp->tv_sec = ticks/(1000*1000);
+        tp->tv_nsec = (ticks * 1000) % (1000*1000*1000);
+
+        return 0;
+    }
+
+    else if (clk_id == CLOCK_REALTIME)
+    {
+        time_t seconds;
+        SceDateTime time;
+        sceRtcGetCurrentClockLocalTime(&time);
+
+        sceRtcGetTime_t(&time, &seconds);
+
+        tp->tv_sec = seconds;
+        tp->tv_nsec = time.microsecond * 1000;
+        return 0;
+    }
+
+    return -ENOSYS;
+}
+
+static inline
+int convert_clockid(__wasi_clockid_t in) {
+    switch (in) {
+    case __WASI_CLOCK_MONOTONIC:            return CLOCK_MONOTONIC;
+    case __WASI_CLOCK_REALTIME:             return CLOCK_REALTIME;
+    default: return -1;
+    }}
 
 #else // _WIN32
 
@@ -276,7 +331,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
 
     if (runtime == NULL || fdstat == NULL) { m3ApiReturn(__WASI_EINVAL); }
 
-#ifdef _WIN32
+#if defined(_WIN32)
 
     // TODO: This needs a proper implementation
     if (fd < PREOPEN_CNT){
@@ -286,6 +341,26 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     }
 
     fdstat->fs_flags = 0;
+    fdstat->fs_rights_base = (uint64_t)-1; // all rights
+    fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
+    m3ApiReturn(__WASI_ESUCCESS);
+#elif defined(__vita__)
+    struct stat fd_stat;
+    int fl = fcntl(fd, F_GETFL);
+    if (fl < 0) { m3ApiReturn(errno_to_wasi(errno)); }
+    fstat(fd, &fd_stat);
+    int mode = fd_stat.st_mode;
+    fdstat->fs_filetype = (S_ISBLK(mode)   ? __WASI_FILETYPE_BLOCK_DEVICE     : 0) |
+                          (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
+                          (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
+                          (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
+                          //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
+                          (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
+    fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
+                       //((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
+                       ((fl & O_NONBLOCK)  ? __WASI_FDFLAG_NONBLOCK  : 0) |
+                       //((fl & O_RSYNC)     ? __WASI_FDFLAG_RSYNC     : 0) |
+                       ((fl & O_SYNC)      ? __WASI_FDFLAG_SYNC      : 0);
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
     m3ApiReturn(__WASI_ESUCCESS);
@@ -346,7 +421,6 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
-
 m3ApiRawFunction(m3_wasi_unstable_path_open)
 {
     m3ApiReturnType  (uint32_t)
@@ -363,6 +437,10 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     if (path_len >= 512)
         m3ApiReturn(__WASI_EINVAL);
 
+#if defined(__vita__)
+    m3ApiReturn(__WASI_ENOSYS)
+#endif
+    
     // copy path so we can ensure it is NULL terminated
 #if defined(M3_COMPILER_MSVC)
     char host_path [512];
@@ -393,6 +471,37 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     int mode = 0644;
 
     int host_fd = open (host_path, flags, mode);
+
+    if (host_fd < 0)
+    {
+        m3ApiReturn(errno_to_wasi (errno));
+    }
+    else
+    {
+        * fd = host_fd;
+        m3ApiReturn(__WASI_ESUCCESS);
+    }
+#elif defined(__vita__)
+    // translate o_flags and fs_flags into flags and mode
+    int flags = ((oflags & __WASI_O_CREAT)             ? O_CREAT     : 0) |
+                //((oflags & __WASI_O_DIRECTORY)         ? O_DIRECTORY : 0) |
+                ((oflags & __WASI_O_EXCL)              ? O_EXCL      : 0) |
+                ((oflags & __WASI_O_TRUNC)             ? O_TRUNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_APPEND)     ? O_APPEND    : 0) |
+                //((fs_flags & __WASI_FDFLAG_DSYNC)      ? O_DSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_NONBLOCK)   ? O_NONBLOCK  : 0) |
+                //((fs_flags & __WASI_FDFLAG_RSYNC)      ? O_RSYNC     : 0) |
+                ((fs_flags & __WASI_FDFLAG_SYNC)       ? O_SYNC      : 0);
+    if ((fs_rights_base & __WASI_RIGHT_FD_READ) &&
+        (fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= O_RDWR;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_WRITE)) {
+        flags |= O_WRONLY;
+    } else if ((fs_rights_base & __WASI_RIGHT_FD_READ)) {
+        flags |= O_RDONLY; // no-op because O_RDONLY is 0
+    }
+    int mode = 0644;
+    int host_fd = openat (dirfd, host_path, flags, mode);
 
     if (host_fd < 0)
     {
@@ -549,7 +658,7 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 #   else
         retlen = getentropy(buf, reqlen) < 0 ? -1 : reqlen;
 #   endif
-#elif defined(__FreeBSD__) || defined(__linux__)
+#elif defined(__FreeBSD__) || defined(__linux__) || defined(__vita__)
         retlen = getrandom(buf, buflen, 0);
 #elif defined(_WIN32)
         if (RtlGenRandom(buf, buflen) == TRUE) {

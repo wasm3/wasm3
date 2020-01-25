@@ -62,9 +62,14 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+if(VITA)
+  set(APP_DIR "platforms/vita")
+endif()
 
 file(GLOB app_srcs "${APP_DIR}/*.c")
 add_executable(${OUT_FILE} ${app_srcs})
+
+message(${app_srcs})
 
 #-fno-optimize-sibling-calls
 
@@ -105,6 +110,24 @@ elseif(WIN32)
   endif()
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608") # stack size
+elseif(VITA)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow -Werror=implicit-function-declaration") # -Werror=cast-align
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
+  if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # TODO: Place clang-specific options here
+  elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wjump-misses-init")
+  endif()
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0")
+
+  set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
+  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
+
+  target_link_libraries(${OUT_FILE} m SceCommonDialog_stub SceGxm_stub SceSysmodule_stub SceDisplay_stub SceAppUtil_stub ScePgf_stub vita2d)
 
 else()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
@@ -123,7 +146,6 @@ else()
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
-  target_link_libraries(${OUT_FILE} m)
 endif()
 
 check_ipo_supported(RESULT result)
@@ -136,6 +158,27 @@ endif()
 
 add_subdirectory(source)
 target_link_libraries(${OUT_FILE} m3)
+
+if(VITA)
+  include("${VITASDK}/share/vita.cmake" REQUIRED)
+  ## Configuration options for this app
+  # Display name (under bubble in LiveArea)
+  set(VITA_APP_NAME "WASM3")
+  # Unique ID must be exactly 9 characters. Recommended: XXXXYYYYY where X =
+  # unique string of developer and Y = a unique number for this app
+  set(VITA_TITLEID  "WASM00001")
+  # Optional version string to show in LiveArea's more info screen
+  set(VITA_VERSION  "01.00")
+  vita_create_self(${OUT_FILE}.self ${OUT_FILE})
+  vita_create_vpk(${OUT_FILE}.vpk ${VITA_TITLEID} ${OUT_FILE}.self
+    VERSION ${VITA_VERSION}
+    NAME ${VITA_APP_NAME}
+    FILE platforms/vita/sce_sys/icon0.png sce_sys/icon0.png
+    FILE platforms/vita/sce_sys/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
+    FILE platforms/vita/sce_sys/livearea/contents/startup.png sce_sys/livearea/contents/startup.png
+    FILE platforms/vita/sce_sys/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
+  )
+endif()
 
 message("Flags:         ${CMAKE_C_FLAGS}")
 message("Debug flags:   ${CMAKE_C_FLAGS_DEBUG}")
