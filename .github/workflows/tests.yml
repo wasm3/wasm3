@@ -328,3 +328,23 @@ jobs:
       run: |
         diff -q platforms/esp32-idf/main/main.cpp platforms/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
+
+  build-cpp:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Run CMake
+        run: |
+          cd platforms/cpp
+          mkdir build
+          cd build
+          cmake ..
+      - name: Build
+        run: |
+          cd platforms/cpp
+          cmake --build build
+      - name: Run
+        run: |
+          cd platforms/cpp/build
+          ./wasm3_cpp_example
