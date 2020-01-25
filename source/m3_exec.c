@@ -70,7 +70,7 @@ d_m3OpDef  (CallIndirect)
         {
             // TODO: this can eventually be simplified. by using a shared set of unique M3FuncType objects in
             // M3Environment, the compare can be reduced to a single pointer-compare operation
-
+#if !defined(d_m3SkipCallCheck)
             if (type->numArgs != function->funcType->numArgs)
             {
                 return m3Err_trapIndirectCallTypeMismatch;
@@ -88,7 +88,7 @@ d_m3OpDef  (CallIndirect)
                     return m3Err_trapIndirectCallTypeMismatch;
                 }
             }
-
+#endif
             if (not function->compiled)
                 r = Compile_Function (function);
 

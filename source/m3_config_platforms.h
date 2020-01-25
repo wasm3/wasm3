@@ -220,8 +220,12 @@ typedef int8_t          i8;
 #   include <c_types.h>
 #   define op_section   //ICACHE_FLASH_ATTR
 # elif defined (ESP32)
-#   include "esp_system.h"
-#   define op_section   IRAM_ATTR
+#   if defined(M3_IN_IRAM)  // the interpreter is in IRAM, attribute not needed
+#     define op_section
+#   else
+#     include "esp_system.h"
+#     define op_section   IRAM_ATTR
+#   endif
 # elif defined (FOMU)
 #   define op_section   __attribute__((section(".ramtext")))
 # endif
@@ -240,7 +244,7 @@ typedef int8_t          i8;
  */
 
 # ifndef d_m3MaxFunctionStackHeight
-#  if defined(ESP32) || defined(ARDUINO_AMEBA)
+#  if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_AMEBA)
 #    define d_m3MaxFunctionStackHeight          128
 #  endif
 # endif
@@ -248,7 +252,7 @@ typedef int8_t          i8;
 # ifndef d_m3FixedHeap
 #  if defined(ARDUINO_AMEBA)
 #    define d_m3FixedHeap                       (128*1024)
-#  elif defined(ESP8266) || defined(BLUE_PILL) || defined(FOMU)
+#  elif defined(BLUE_PILL) || defined(FOMU)
 #    define d_m3FixedHeap                       (12*1024)
 #  elif defined(ARDUINO_ARCH_ARC32) // Arduino 101
 #    define d_m3FixedHeap                       (10*1024)

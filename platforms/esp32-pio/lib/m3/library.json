@@ -1,0 +1,5 @@
+{
+    "build" : {
+        "flags": "-DESP32 -Dd_m3LogOutput=false -O3 -Wfatal-errors -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers"
+    }
+}
