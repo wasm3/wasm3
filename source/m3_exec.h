@@ -610,13 +610,23 @@ d_m3Op  (End)
 
 
 d_m3OpDecl  (GetGlobal)
-d_m3OpDecl  (SetGlobal_i)
+d_m3OpDecl  (SetGlobal_i32)
+d_m3OpDecl  (SetGlobal_i64)
 
 
-d_m3Op  (SetGlobal_s)
+d_m3Op  (SetGlobal_s32)
 {
-    i64 * global = immediate (i64 *);
-    * global = slot (i64);
+    u32 * global = immediate (u32 *);
+    * global = slot (u32);
+
+    return nextOp ();
+}
+
+
+d_m3Op  (SetGlobal_s64)
+{
+    u64 * global = immediate (u64 *);
+    * global = slot (u64);
 
     return nextOp ();
 }
