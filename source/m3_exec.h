@@ -641,20 +641,10 @@ d_m3Op  (SetGlobal_f64)
 
 
 d_m3OpDecl (CopySlot_32)
+d_m3OpDecl (PreserveCopySlot_32)
+
 d_m3OpDecl (CopySlot_64)
-
-
-d_m3Op (PreserveCopySlot_64)
-{
-    u64 * dest      = slot_ptr (u64);
-    u64 * src       = slot_ptr (u64);
-    u64 * preserve  = slot_ptr (u64);
-
-    * preserve = * dest;
-    * dest = * src;
-
-    return nextOp ();
-}
+d_m3OpDecl (PreserveCopySlot_64)
 
 #define d_m3SetRegisterSetSlotDecl(TYPE)    \
                                             \

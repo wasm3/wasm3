@@ -663,7 +663,7 @@ M3Result  ReturnStackTop  (IM3Compilation o)
 
 
 // if local is unreferenced, o_preservedSlotIndex will be equal to localIndex on return
-M3Result  FindReferencedLocalsWithCurrentBlock  (IM3Compilation o, u16 * o_preservedSlotIndex, u32 i_localIndex)
+M3Result  FindReferencedLocalWithinCurrentBlock  (IM3Compilation o, u16 * o_preservedSlotIndex, u32 i_localIndex)
 {
     M3Result result = m3Err_none;
 
@@ -856,7 +856,7 @@ _   (ReadLEB_u32 (& localSlot, & o->wasm, o->wasmEnd));             //  printf (
     if (localSlot < GetFunctionNumArgsAndLocals (o->function))
     {
         u16 preserveSlot;
-_       (FindReferencedLocalsWithCurrentBlock (o, & preserveSlot, localSlot));  // preserve will be different than local, if referenced
+_       (FindReferencedLocalWithinCurrentBlock (o, & preserveSlot, localSlot));  // preserve will be different than local, if referenced
 
         if (preserveSlot == localSlot)
 _           (CopyTopSlot (o, localSlot))
@@ -1289,7 +1289,7 @@ M3Result  PreserveArgsAndLocals  (IM3Compilation o)
         for (u32 i = 0; i < numArgsAndLocals; ++i)
         {
             u16 preservedSlotIndex;
-_           (FindReferencedLocalsWithCurrentBlock (o, & preservedSlotIndex, i));
+_           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, i));
             
             if (preservedSlotIndex != i)
             {

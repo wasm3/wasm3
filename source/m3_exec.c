@@ -346,6 +346,19 @@ d_m3OpDef (CopySlot_32)
 }
 
 
+d_m3OpDef (PreserveCopySlot_32)
+{
+    u32 * dest      = slot_ptr (u32);
+    u32 * src       = slot_ptr (u32);
+    u32 * preserve  = slot_ptr (u32);
+    
+    * preserve = * dest;
+    * dest = * src;
+    
+    return nextOp ();
+}
+
+
 d_m3OpDef (CopySlot_64)
 {
     u64 * dst = slot_ptr (u64);
@@ -356,6 +369,18 @@ d_m3OpDef (CopySlot_64)
     return nextOp ();
 }
 
+
+d_m3OpDef (PreserveCopySlot_64)
+{
+    u64 * dest      = slot_ptr (u64);
+    u64 * src       = slot_ptr (u64);
+    u64 * preserve  = slot_ptr (u64);
+    
+    * preserve = * dest;
+    * dest = * src;
+    
+    return nextOp ();
+}
 
 
 #if d_m3RuntimeStackDumps
