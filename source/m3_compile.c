@@ -90,17 +90,6 @@ bool  BlockHasType  (IM3Compilation o)
 }
 
 
-bool  IsStackTopTypeInt  (IM3Compilation o)
-{
-    return IsIntType (GetStackTopType (o));
-}
-
-
-bool  IsStackTopTypeFp  (IM3Compilation o)
-{
-    return IsFpType (GetStackTopType (o));
-}
-
 i16  GetNumBlockValues  (IM3Compilation o)
 {
     return o->stackIndex - o->block.initStackIndex;
@@ -812,8 +801,7 @@ _   (EmitOp (o, op_Return));
 }
 
 
-// todo: else maps to nop now.
-M3Result  Compile_Else_End  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_End  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result = m3Err_none;
 
@@ -1416,8 +1404,6 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
                                                             { op_Select_f32_rss, op_Select_f32_rrs, op_Select_f32_rsr } },      // selector in reg
                                                           { { op_Select_f64_sss, op_Select_f64_srs, op_Select_f64_ssr },        // selector in slot
                                                             { op_Select_f64_rss, op_Select_f64_rrs, op_Select_f64_rsr } } };    // selector in reg
-
-
     M3Result result = m3Err_none;
 
     u16 slots [3] = { c_slotUnused, c_slotUnused, c_slotUnused };
@@ -1658,11 +1644,11 @@ const M3OpInfo c_operations [] =
     M3OP( "block",               0, none,   d_emptyOpList(),                    Compile_LoopOrBlock ),  // 0x02
     M3OP( "loop",                0, none,   d_singleOp (Loop),                  Compile_LoopOrBlock ),  // 0x03
     M3OP( "if",                 -1, none,   d_emptyOpList(),                    Compile_If ),           // 0x04
-    M3OP( "else",                0, none,   d_emptyOpList(),                    Compile_Else_End ),     // 0x05
+    M3OP( "else",                0, none,   d_emptyOpList(),                    Compile_Nop ),          // 0x05
 
     M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                          // 0x06 - 0x0a
 
-    M3OP( "end",                 0, none,   d_emptyOpList(),                    Compile_Else_End ),     // 0x0b
+    M3OP( "end",                 0, none,   d_emptyOpList(),                    Compile_End ),          // 0x0b
     M3OP( "br",                  0, none,   d_singleOp (Branch),                Compile_Branch ),       // 0x0c
     M3OP( "br_if",              -1, none,   { op_BranchIf_r, op_BranchIf_s },   Compile_Branch ),       // 0x0d
     M3OP( "br_table",           -1, none,   d_singleOp (BranchTable),           Compile_BranchTable ),  // 0x0e
