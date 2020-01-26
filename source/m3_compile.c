@@ -1854,6 +1854,19 @@ const M3OpInfo c_operations [] =
     M3OP( "f32.reinterpret/i32", 0, f_32,   d_convertOpList (f32_Reinterpret_i32),  Compile_Convert ),  // 0xbe
     M3OP( "f64.reinterpret/i64", 0, f_64,   d_convertOpList (f64_Reinterpret_i64),  Compile_Convert ),  // 0xbf
 
+// instr ::= ...
+//         | 0xC0                  =>  i32.extend8_s
+//         | 0xC1                  =>  i32.extend16_s
+//         | 0xC2                  =>  i64.extend8_s
+//         | 0xC3                  =>  i64.extend16_s
+//         | 0xC4                  =>  i64.extend32_s
+//
+    M3OP( "i32.extend8_s",       0,  i_32,   d_unaryOpList (i32, Extend8_s)          ),                 // 0xc0
+    M3OP( "i32.extend16_s",      0,  i_32,   d_unaryOpList (i32, Extend16_s)         ),                 // 0xc1
+    M3OP( "i64.extend8_s",       0,  i_64,   d_unaryOpList (i64, Extend8_s)          ),                 // 0xc2
+    M3OP( "i64.extend16_s",      0,  i_64,   d_unaryOpList (i64, Extend16_s)         ),                 // 0xc3
+    M3OP( "i64.extend32_s",      0,  i_64,   d_unaryOpList (i64, Extend32_s)         ),                 // 0xc4
+
 # ifdef DEBUG // for codepage logging:
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
