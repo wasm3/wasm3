@@ -48,27 +48,34 @@ i16  GetStackTopIndex  (IM3Compilation o)
 }
 
 
+u8  GetStackTopTypeAtOffset  (IM3Compilation o, u16 i_offset)
+{
+    u8 type = c_m3Type_none;
+    
+    ++i_offset;
+    if (o->stackIndex >= i_offset)
+        type = o->typeStack [o->stackIndex - i_offset];
+    
+    return type;
+}
+
+
 u8  GetStackTopType  (IM3Compilation o)
 {
-    u8 type = c_m3Type_none;
-
-    if (o->stackIndex)
-        type = o->typeStack [o->stackIndex - 1];
-
-    return type;
+    return GetStackTopTypeAtOffset (o, 0);
 }
 
 
-u8  GetStackType  (IM3Compilation o, u16 i_offset)
+u8  GetStackBottomType  (IM3Compilation o, u16 i_offset)
 {
     u8 type = c_m3Type_none;
-
-    ++i_offset;
-    if (o->stackIndex > i_offset)
-        type = o->typeStack [o->stackIndex - i_offset];
-
+    
+    if (i_offset < o->stackIndex)
+        type = o->typeStack [i_offset];
+    
     return type;
 }
+
 
 
 u8  GetBlockType  (IM3Compilation o)
@@ -1300,7 +1307,7 @@ _           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, i))
             
             if (preservedSlotIndex != i)
             {
-                u8 type = GetStackType (o, i);
+                u8 type = GetStackBottomType (o, i);
                 IM3Operation op = Is64BitType (type) ? op_CopySlot_64 : op_CopySlot_32;
                 
                 EmitOp          (o, op);
@@ -1415,7 +1422,7 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 
     u16 slots [3] = { c_slotUnused, c_slotUnused, c_slotUnused };
 
-    u8 type = GetStackType (o, 1); // get type of selection
+    u8 type = GetStackTopTypeAtOffset (o, 1); // get type of selection
 
     IM3Operation op = NULL;
 
