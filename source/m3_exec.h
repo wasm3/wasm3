@@ -247,6 +247,18 @@ d_m3UnaryOp_i (u64, Popcnt, __builtin_popcountll)
 
 d_m3UnaryOp_i (i32, Wrap_i64, OP_WRAP_I64)
 
+// Integer sign extension operations
+#define OP_EXTEND8_S_I32(X)  ((int32_t)(int8_t)(X))
+#define OP_EXTEND16_S_I32(X) ((int32_t)(int16_t)(X))
+#define OP_EXTEND8_S_I64(X)  ((int64_t)(int8_t)(X))
+#define OP_EXTEND16_S_I64(X) ((int64_t)(int16_t)(X))
+#define OP_EXTEND32_S_I64(X) ((int64_t)(int32_t)(X))
+
+d_m3UnaryOp_i (i32, Extend8_s,  OP_EXTEND8_S_I32)
+d_m3UnaryOp_i (i32, Extend16_s, OP_EXTEND16_S_I32)
+d_m3UnaryOp_i (i64, Extend8_s,  OP_EXTEND8_S_I64)
+d_m3UnaryOp_i (i64, Extend16_s, OP_EXTEND16_S_I64)
+d_m3UnaryOp_i (i64, Extend32_s, OP_EXTEND32_S_I64)
 
 #define d_m3TruncMacro(DEST, SRC, TYPE, NAME, FROM, OP, ...)   \
 d_m3Op(TYPE##_##NAME##_##FROM##_r_r)                \
