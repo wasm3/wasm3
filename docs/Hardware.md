@@ -2,7 +2,7 @@
 
 Device                        | Chipset   | Architecture | Clock    | Flash | RAM
 ---                           |:---:      | ---        |      -----:| ---   | ---
-Espressif ESP32               |           | Xtensa LX6 | 240MHz     |  4 MB | 520KB
+Espressif ESP32               |           | Xtensa LX6 <sup>⚠️1</sup> | 240MHz     |  4 MB | 520KB
 Particle Argon, Boron, Xenon  | nRF52840  | Cortex-M4F | 64MHz      |  1 MB | 256KB
 Particle Photon, Electron     | STM32F205 | Cortex-M3  | 120Mhz     |  1 MB | 128KB
 Air602                        | WM W600   | Cortex-M3  | 80MHz      |  1 MB | 160KB+128KB
@@ -25,11 +25,14 @@ This means `memoryLimit` should be set to the actual amount of RAM available, an
 
 Device                        | Chipset   | Architecture | Clock     | Flash | RAM
 ---                           |:---:      | ---         |     -----:| ---   | ---
-Espressif ESP8266             |           | Xtensa L106 | 160MHz    |  4 MB | ~50KB (available)
+Espressif ESP8266             |           | Xtensa L106 <sup>⚠️1</sup> | 160MHz    |  4 MB | ~50KB (available)
 Teensy 3.1/3.2            | NXP MK20DX256 |  Cortex-M4  | 72MHz     | 288KB | 64KB
 Blue Pill                     | STM32F103 |  Cortex-M3  | 72MHz     |  64KB | 20KB
-Arduino MKR*                  | SAMD21    |  Cortex-M0+ | 48MHz     | 256KB | 32KB
+Arduino MKR*                  | SAMD21    |  Cortex-M0+ <sup>⚠️1</sup> | 48MHz     | 256KB | 32KB
 Arduino 101                   | Intel Curie |     ARC32 | 32MHz     | 196KB | 24KB
 Nordic nRF52832               |           |  Cortex-M4F | 64MHz | 256/512KB | 32/64KB
-Nordic nRF51822               |           |  Cortex-M0  | 16MHz | 128/256KB | 16/32KB
-Wicked Device WildFire       | ATmega1284 |  8-bit AVR  | 20MHz     | 128KB | 16KB
+Nordic nRF51822               |           |  Cortex-M0 <sup>⚠️1</sup>  | 16MHz | 128/256KB | 16/32KB
+Wicked Device WildFire       | ATmega1284 |  8-bit AVR <sup>⚠️1</sup>  | 20MHz     | 128KB | 16KB
+
+### Legend:
+ ⚠️1. This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), wich leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance). There are plans to improve this in future 🦄.
