@@ -32,25 +32,27 @@ void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 
 d_m3OpDef  (Call)
 {
+    d_usesMemory(_mem);
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
     IM3Memory memory            = GetMemoryInfo (_mem);
 
     m3stack_t sp = _sp + stackOffset;
 
-    m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+    m3ret_t r = Call (callPC, sp, d_m3OpDefaultArgs);
 
     if (r == 0)
     {
-        _mem = memory->mallocated;
-        return nextOp ();
+        d_updateMem(memory->mallocated);
+        tailCallNextOp ();
     }
-    else return r;
+    else returnError(r);
 }
 
 
 d_m3OpDef  (CallIndirect)
 {
+    d_usesMemory(_mem);
     IM3Module module            = immediate (IM3Module);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
@@ -73,19 +75,19 @@ d_m3OpDef  (CallIndirect)
 #if !defined(d_m3SkipCallCheck)
             if (type->numArgs != function->funcType->numArgs)
             {
-                return m3Err_trapIndirectCallTypeMismatch;
+                returnError(m3Err_trapIndirectCallTypeMismatch);
             }
 
             if (type->returnType != function->funcType->returnType)
             {
-                return m3Err_trapIndirectCallTypeMismatch;
+                returnError(m3Err_trapIndirectCallTypeMismatch);
             }
 
             for (u32 argIndex = 0; argIndex < type->numArgs; ++argIndex)
             {
                 if (type->argTypes[argIndex] != function->funcType->argTypes[argIndex])
                 {
-                    return m3Err_trapIndirectCallTypeMismatch;
+                    returnError(m3Err_trapIndirectCallTypeMismatch);
                 }
             }
 #endif
@@ -94,45 +96,48 @@ d_m3OpDef  (CallIndirect)
 
             if (not r)
             {
-                r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+                r = Call (function->compiled, sp, d_m3OpDefaultArgs);
 
                 if (not r)
                 {
-                    _mem = memory->mallocated;
-                    r = nextOp ();
+                    d_updateMem(memory->mallocated);
+                    r = startAtNextOp ();
                 }
             }
         }
         else r = "trap: table element is null";
 
-        return r;
+        returnError(r);
     }
-    else return m3Err_trapTableIndexOutOfRange;
+    else returnError(m3Err_trapTableIndexOutOfRange);
 }
 
 
 d_m3OpDef  (CallRawFunction)
 {
+    d_usesMemory(_mem);
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = GetRuntime (_mem);
 
     m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem));
-    return possible_trap;
+    returnError(possible_trap);
 }
 
 
 d_m3OpDef  (MemCurrent)
 {
+    d_usesMemory(_mem);
     IM3Memory memory            = GetMemoryInfo (_mem);
 
     _r0 = memory->numPages;
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
 d_m3OpDef  (MemGrow)
 {
+    d_usesMemory(_mem);
     IM3Runtime runtime          = GetRuntime (_mem);
     IM3Memory memory            = & runtime->memory;
 
@@ -147,10 +152,10 @@ d_m3OpDef  (MemGrow)
         if (r)
             _r0 = -1;
 
-        _mem = memory->mallocated;
+        d_updateMem(memory->mallocated);
     }
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -175,17 +180,18 @@ d_m3OpDef  (Compile)
         // patch up compiled pc and call rewriten op_Call
         *((size_t *) --_pc) = (size_t) (function->compiled);
         --_pc;
-        result = nextOp ();
+        result = startAtNextOp ();
     }
     else ReportError2 (function, result);
 
-    return result;
+    returnError(result);
 }
 
 
 
 d_m3OpDef  (Entry)
 {
+    d_usesMemory(_mem);
     IM3Function function = immediate (IM3Function);
 
 #if defined(d_m3SkipStackCheck)
@@ -206,7 +212,7 @@ d_m3OpDef  (Entry)
             memcpy (stack, function->constants, function->numConstants * sizeof (u64));
         }
 
-        m3ret_t r = nextOp ();
+        m3ret_t r = startAtNextOp ();
 
 #       if d_m3LogExec
             u8 returnType = function->funcType->returnType;
@@ -222,9 +228,9 @@ d_m3OpDef  (Entry)
                 printf (" ** %s  %p\n", function->name, _sp);
 #       endif
 
-        return r;
+        returnError(r);
     }
-    else return m3Err_trapStackOverflow;
+    else returnError(m3Err_trapStackOverflow);
 }
 
 
@@ -233,7 +239,7 @@ d_m3OpDef  (GetGlobal)
     i64 * global = immediate (i64 *);
     slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -242,7 +248,7 @@ d_m3OpDef  (SetGlobal_i32)
     u32 * global = immediate (u32 *);
     * global = (u32) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -251,26 +257,27 @@ d_m3OpDef  (SetGlobal_i64)
     u64 * global = immediate (u64 *);
     * global = (u64) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
 d_m3OpDef  (Loop)
 {
+    d_usesMemory(_mem);
     m3ret_t r;
 
     IM3Memory memory = GetMemoryInfo (_mem);
 
     do
     {
-        r = nextOp ();                     // printf ("loop: %p\n", r);
+        r = startAtNextOp ();                     // printf ("loop: %p\n", r);
         // linear memory pointer needs refreshed here because the block it's looping over
         // can potentially invoke the grow operation.
-        _mem = memory->mallocated;
+        d_updateMem(memory->mallocated);
     }
     while (r == _pc);
 
-    return r;
+    returnError(r);
 }
 
 
@@ -281,9 +288,9 @@ d_m3OpDef  (If_r)
     pc_t elsePC = immediate (pc_t);
 
     if (condition)
-        return nextOp ();
+        tailCallNextOp ();
     else
-        return jumpOp (elsePC);
+        tailCallJumpOp (elsePC);
 }
 
 
@@ -294,9 +301,9 @@ d_m3OpDef  (If_s)
     pc_t elsePC = immediate (pc_t);
 
     if (condition)
-        return nextOp ();
+        tailCallNextOp ();
     else
-        return jumpOp (elsePC);
+        tailCallJumpOp (elsePC);
 }
 
 
@@ -310,7 +317,7 @@ d_m3OpDef  (BranchTable)
     if (branchIndex < 0 or branchIndex > numTargets)
         branchIndex = numTargets; // the default index
 
-    return jumpOp (branches [branchIndex]);
+    tailCallJumpOp (branches [branchIndex]);
 }
 
 
@@ -318,13 +325,13 @@ d_m3OpDef  (BranchTable)
 d_m3OpDef  (SetRegister_##TYPE)         \
 {                                       \
     REG = slot (TYPE);                  \
-    return nextOp ();                   \
+    tailCallNextOp ();                   \
 }                                       \
                                         \
 d_m3OpDef (SetSlot_##TYPE)              \
 {                                       \
     slot (TYPE) = (TYPE) REG;           \
-    return nextOp ();                   \
+    tailCallNextOp ();                   \
 }                                       \
                                         \
 d_m3OpDef (PreserveSetSlot_##TYPE)      \
@@ -335,7 +342,7 @@ d_m3OpDef (PreserveSetSlot_##TYPE)      \
     * preserve = * stack;               \
     * stack = (TYPE) REG;               \
                                         \
-    return nextOp ();                   \
+    tailCallNextOp ();                   \
 }
 
 d_m3SetRegisterSetSlot (i32, _r0)
@@ -351,7 +358,7 @@ d_m3OpDef (CopySlot_32)
 
     * dst = * src;
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -364,7 +371,7 @@ d_m3OpDef (PreserveCopySlot_32)
     * preserve = * dest;
     * dest = * src;
     
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -375,7 +382,7 @@ d_m3OpDef (CopySlot_64)
 
     * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -388,7 +395,7 @@ d_m3OpDef (PreserveCopySlot_64)
     * preserve = * dest;
     * dest = * src;
     
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -420,7 +427,7 @@ d_m3OpDef  (DumpStack)
     }
     printf ("---------------------------------------------------------------------------------------------------------\n");
 
-    return nextOpDirect();
+    tailCallNextOpDirect ();
 }
 #endif
 
@@ -463,3 +470,23 @@ void  m3_PrintProfilerInfo  ()
 void  m3_PrintProfilerInfo  () {}
 
 # endif
+
+#ifdef d_m3NoTailCalls
+
+M3MemoryHeader * g_mem;
+
+extern m3ret_t runOp(pc_t _pc, u64 * _sp, m3reg_t _r0, f64 _fp0)
+{
+    while (true) {
+        m3_ret_struct_t rs = ((IM3Operation) *_pc)(_pc+1, _sp, _r0, _fp0);
+        _pc = rs.pc;
+        _sp = rs.sp;
+        _r0 = rs.r0;
+        _fp0 = rs.fp0;
+        if (_sp == NULL) {
+            return rs.err;
+        }
+    }
+}
+
+#endif // d_m3NoTailCalls

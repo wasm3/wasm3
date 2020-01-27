@@ -31,12 +31,6 @@
 
 # define rewrite_op(OP)             * ((void **) (_pc-1)) = (void*)(OP)
 
-# define d_m3RetSig                 static inline m3ret_t vectorcall
-# define d_m3Op(NAME)               op_section d_m3RetSig op_##NAME (d_m3OpSig)
-
-# define d_m3OpDef(NAME)            op_section m3ret_t vectorcall op_##NAME (d_m3OpSig)
-# define d_m3OpDecl(NAME)                      m3ret_t vectorcall op_##NAME (d_m3OpSig);
-
 # define immediate(TYPE)            * ((TYPE *) _pc++)
 # define skip_immediate(TYPE)       (_pc++)
 
@@ -52,6 +46,37 @@
 #define nextOpDirect()              ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 #define jumpOpDirect(PC)            ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
 
+
+// see notes in m3_exec_defs.h
+#ifndef d_m3NoTailCalls
+# define d_m3RetSig                 static inline m3ret_t vectorcall
+# define d_m3Op(NAME)               op_section d_m3RetSig op_##NAME (d_m3OpSig)
+
+# define d_m3OpDef(NAME)            op_section m3ret_t vectorcall op_##NAME (d_m3OpSig)
+# define d_m3OpDecl(NAME)                      m3ret_t vectorcall op_##NAME (d_m3OpSig);
+
+#define tailCallNextOp()        return nextOp()
+#define tailCallNextOpDirect()  return nextOpDirect()
+#define tailCallJumpOp(PC)      return jumpOp(PC)
+#define tailCallJumpOpDirect()  return jumpOpDirect(PC)
+#define startAtNextOp()         nextOp()
+#define returnError(e)          return e
+#else
+# define d_m3RetSig                 static inline m3_ret_struct_t vectorcall
+# define d_m3Op(NAME)               op_section d_m3RetSig op_##NAME (d_m3OpSig)
+
+# define d_m3OpDef(NAME)            op_section m3_ret_struct_t vectorcall op_##NAME (d_m3OpSig)
+# define d_m3OpDecl(NAME)                      m3_ret_struct_t vectorcall op_##NAME (d_m3OpSig);
+
+#define tailCallNextOp()        d_m3OpRetTailCall((_pc))
+#define tailCallNextOpDirect()  d_m3OpRetTailCall((_pc))
+#define tailCallJumpOp(PC)      d_m3OpRetTailCall((PC))
+#define tailCallJumpOpDirect(PC)  d_m3OpRetTailCall((PC))
+extern m3ret_t runOp(d_m3OpSig);
+#define startAtNextOp()         runOp(_pc, d_m3OpArgs)
+#define returnError(e)          d_m3OpRetError(e)
+#endif
+
 # if d_m3EnableOpProfiling
 
 d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName);
@@ -65,11 +90,19 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName);
 
 #define jumpOp(PC)                  jumpOpDirect((pc_t)PC)
 
-d_m3RetSig  Call  (d_m3OpSig)
+#ifndef d_m3NoTailCalls
+static inline m3ret_t Call  (d_m3OpSig)
 {
     m3Yield ();
-    return nextOpDirect();
+    return nextOp();
 }
+#else
+static inline m3ret_t Call  (d_m3OpSig)
+{
+    m3Yield ();
+    return runOp(_pc, d_m3OpArgs);
+}
+#endif // d_m3NoTailCalls
 
 // TODO: OK, this needs some explanation here ;0
 
@@ -78,14 +111,14 @@ d_m3Op(TYPE##_##NAME##_rs)                              \
 {                                                       \
     TYPE operand = slot (TYPE);                         \
     OP((RES), operand, ((TYPE) REG), ##__VA_ARGS__);    \
-    return nextOp ();                                   \
+    tailCallNextOp ();                                   \
 }                                                       \
 d_m3Op(TYPE##_##NAME##_ss)                              \
 {                                                       \
     TYPE operand2 = slot (TYPE);                        \
     TYPE operand1 = slot (TYPE);                        \
     OP((RES), operand1, operand2, ##__VA_ARGS__);       \
-    return nextOp ();                                   \
+    tailCallNextOp ();                                   \
 }
 
 #define d_m3OpMacro(RES, REG, TYPE, NAME, OP, ...)      \
@@ -93,7 +126,7 @@ d_m3Op(TYPE##_##NAME##_sr)                              \
 {                                                       \
     TYPE operand = slot (TYPE);                         \
     OP((RES), ((TYPE) REG), operand, ##__VA_ARGS__);    \
-    return nextOp ();                                   \
+    tailCallNextOp ();                                   \
 }                                                       \
 d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 
@@ -201,13 +234,13 @@ d_m3OpFunc_f(f64, CopySign, copysign);
 d_m3Op(TYPE##_##NAME##_r)                           \
 {                                                   \
     OP((RES), (TYPE) REG, ##__VA_ARGS__);           \
-    return nextOp ();                               \
+    tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_s)                           \
 {                                                   \
     TYPE operand = slot (TYPE);                     \
     OP((RES), operand, ##__VA_ARGS__);              \
-    return nextOp ();                               \
+    tailCallNextOp ();                               \
 }
 
 #define M3_UNARY(RES, X, OP) (RES) = OP(X)
@@ -264,26 +297,26 @@ d_m3UnaryOp_i (i64, Extend32_s, OP_EXTEND32_S_I64)
 d_m3Op(TYPE##_##NAME##_##FROM##_r_r)                \
 {                                                   \
     OP((DEST), (FROM) SRC, ##__VA_ARGS__);          \
-    return nextOp ();                               \
+    tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_r_s)                \
 {                                                   \
     FROM * stack = slot_ptr (FROM);                 \
     OP((DEST), (* stack), ##__VA_ARGS__);           \
-    return nextOp ();                               \
+    tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_s_r)                \
 {                                                   \
     TYPE * dest = slot_ptr (TYPE);                  \
     OP((* dest), (FROM) SRC, ##__VA_ARGS__);        \
-    return nextOp ();                               \
+    tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_s_s)                \
 {                                                   \
     FROM * stack = slot_ptr (FROM);                 \
     TYPE * dest = slot_ptr (TYPE);                  \
     OP((* dest), (* stack), ##__VA_ARGS__);         \
-    return nextOp ();                               \
+    tailCallNextOp ();                               \
 }
 
 d_m3TruncMacro(_r0, _fp0, i32, Trunc, f32, OP_I32_TRUNC_F32)
@@ -301,14 +334,14 @@ d_m3TruncMacro(_r0, _fp0, u64, Trunc, f64, OP_U64_TRUNC_F64)
 d_m3Op(TO##_##NAME##_##FROM##_r)                            \
 {                                                           \
     REG_TO = (TO) ((FROM) REG_FROM);                        \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s)                            \
 {                                                           \
     FROM from = slot (FROM);                                \
     REG_TO = (TO) (from);                                   \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }
 
 // Int to int
@@ -324,27 +357,27 @@ d_m3TypeModifyOp (_fp0, _fp0, f64, Promote, f32);
 d_m3Op(TO##_##NAME##_##FROM##_r_r)                          \
 {                                                           \
     REG_TO = (TO) ((FROM) REG_FROM);                        \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s_r)                          \
 {                                                           \
     slot (TO) = (TO) ((FROM) REG_FROM);                     \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_r_s)                          \
 {                                                           \
     FROM from = slot (FROM);                                \
     REG_TO = (TO) (from);                                   \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s_s)                          \
 {                                                           \
     FROM from = slot (FROM);                                \
     slot (TO) = (TO) (from);                                \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }
 
 // Int to float
@@ -365,7 +398,7 @@ d_m3Op(TO##_Reinterpret_##FROM##_r_r)                       \
     union { FROM c; TO t; } u;                              \
     u.c = (FROM) SRC;                                       \
     REG = u.t;                                              \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_Reinterpret_##FROM##_r_s)                       \
@@ -373,7 +406,7 @@ d_m3Op(TO##_Reinterpret_##FROM##_r_s)                       \
     union { FROM c; TO t; } u;                              \
     u.c = slot (FROM);                                      \
     REG = u.t;                                              \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_Reinterpret_##FROM##_s_r)                       \
@@ -381,7 +414,7 @@ d_m3Op(TO##_Reinterpret_##FROM##_s_r)                       \
     union { FROM c; TO t; } u;                              \
     u.c = (FROM) SRC;                                       \
     slot (TO) = u.t;                                        \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_Reinterpret_##FROM##_s_s)                       \
@@ -389,7 +422,7 @@ d_m3Op(TO##_Reinterpret_##FROM##_s_s)                       \
     union { FROM c; TO t; } u;                              \
     u.c = slot (FROM);                                      \
     slot (TO) = u.t;                                        \
-    return nextOp ();                                       \
+    tailCallNextOp ();                                       \
 }
 
 d_m3ReinterpretOp (_r0, i32, _fp0, f32)
@@ -413,7 +446,7 @@ d_m3Op  (Select_##TYPE##_rss)                   \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_srs)                   \
@@ -425,7 +458,7 @@ d_m3Op  (Select_##TYPE##_srs)                   \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_ssr)                   \
@@ -437,7 +470,7 @@ d_m3Op  (Select_##TYPE##_ssr)                   \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_sss)                   \
@@ -449,7 +482,7 @@ d_m3Op  (Select_##TYPE##_sss)                   \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }
 
 
@@ -467,7 +500,7 @@ d_m3Op  (Select_##TYPE##_##LABEL##ss)           \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_##LABEL##rs)           \
@@ -479,7 +512,7 @@ d_m3Op  (Select_##TYPE##_##LABEL##rs)           \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_##LABEL##sr)           \
@@ -491,7 +524,7 @@ d_m3Op  (Select_##TYPE##_##LABEL##sr)           \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
-    return nextOp ();                           \
+    tailCallNextOp ();                           \
 }
 
 
@@ -505,19 +538,19 @@ d_m3Select_f (f64, _fp0, s, slot (i32))
 d_m3Op  (Return)
 {
     m3StackCheck();
-    return NULL;
+    returnError(NULL);
 }
 
 
 d_m3Op  (Branch)
 {
-    return jumpOp (* _pc);
+    tailCallJumpOp ((pc_t) * _pc);
 }
 
 
 d_m3Op  (Bridge)
 {
-    return jumpOp (* _pc);
+    tailCallJumpOp ((pc_t) * _pc);
 }
 
 
@@ -528,9 +561,9 @@ d_m3Op  (BranchIf_r)
 
     if (condition)
     {
-        return jumpOp (branch);
+        tailCallJumpOp (branch);
     }
-    else return nextOp ();
+    else tailCallNextOp ();
 }
 
 
@@ -541,9 +574,9 @@ d_m3Op  (BranchIf_s)
 
     if (condition)
     {
-        return jumpOp (branch);
+        tailCallJumpOp (branch);
     }
-    else return nextOp ();
+    else tailCallNextOp ();
 }
 
 
@@ -558,9 +591,9 @@ d_m3Op  (TYPE##_BranchIf_##LABEL##s)            \
     if (condition)                              \
     {                                           \
         _r0 = value;                            \
-        return jumpOp (branch);                 \
+        tailCallJumpOp (branch);                 \
     }                                           \
-    else return nextOp ();                      \
+    else tailCallNextOp ();                      \
 }
 
 
@@ -580,7 +613,7 @@ d_m3Op  (ContinueLoop)
     // has the potential to increase its native-stack usage. (don't forget ContinueLoopIf too.)
 
     void * loopId = immediate (void *);
-    return loopId;
+    returnError(loopId);
 }
 
 
@@ -591,9 +624,9 @@ d_m3Op  (ContinueLoopIf)
 
     if (condition)
     {
-        return loopId;
+        returnError(loopId);
     }
-    else return nextOp ();
+    else tailCallNextOp ();
 }
 
 
@@ -614,21 +647,21 @@ d_m3Op  (Const)
 
     slot (u64) = constant;
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
 d_m3Op  (Unreachable)
 {                                                   m3log (exec, "*** trapping ***");
     m3StackCheck();
-    return m3Err_trapUnreachable;
+    returnError(m3Err_trapUnreachable);
 }
 
 
 d_m3Op  (End)
 {
     m3StackCheck();
-    return 0;
+    returnError(0);
 }
 
 
@@ -642,7 +675,7 @@ d_m3Op  (SetGlobal_s32)
     u32 * global = immediate (u32 *);
     * global = slot (u32);
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -651,7 +684,7 @@ d_m3Op  (SetGlobal_s64)
     u64 * global = immediate (u64 *);
     * global = slot (u64);
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -660,7 +693,7 @@ d_m3Op  (SetGlobal_f32)
     f32 * global = immediate (f32 *);
     * global = _fp0;
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -669,7 +702,7 @@ d_m3Op  (SetGlobal_f64)
     f64 * global = immediate (f64 *);
     * global = _fp0;
 
-    return nextOp ();
+    tailCallNextOp ();
 }
 
 
@@ -698,11 +731,11 @@ d_m3SetRegisterSetSlotDecl (f64)
 #endif
 
 #ifdef DEBUG
-  #define d_outOfBounds return ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess, \
+  #define d_outOfBounds returnError(ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess, \
                         _mem->runtime, "memory size: %zu; access offset: %zu",      \
-                        _mem->length, operand)
+                        _mem->length, operand))
 #else
-  #define d_outOfBounds return m3Err_trapOutOfBoundsMemoryAccess
+  #define d_outOfBounds returnError(m3Err_trapOutOfBoundsMemoryAccess)
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.
@@ -711,6 +744,7 @@ d_m3SetRegisterSetSlotDecl (f64)
 #define d_m3Load(REG,DEST_TYPE,SRC_TYPE)                \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
 {                                                       \
+    d_usesMemory(_mem);                                 \
     u32 offset = immediate (u32);                       \
     u64 operand = (u32) _r0;                            \
     operand += offset;                                  \
@@ -722,11 +756,12 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
         REG = (DEST_TYPE)value;                         \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
 {                                                       \
+    d_usesMemory(_mem);                                 \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
@@ -738,7 +773,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
         REG = (DEST_TYPE)value;                         \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }
 
@@ -768,6 +803,7 @@ d_m3Load_i (i64, i64);
 #define d_m3Store(REG, SRC_TYPE, DEST_TYPE)             \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
 {                                                       \
+    d_usesMemory(_mem);                                 \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
@@ -778,11 +814,12 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
         u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) REG;                \
         memcpy(mem8, &val, sizeof(val));                \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
 {                                                       \
+    d_usesMemory(_mem);                                 \
     SRC_TYPE value = slot (SRC_TYPE);                   \
     u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
@@ -794,11 +831,12 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
         u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) value;              \
         memcpy(mem8, &val, sizeof(val));                \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
 {                                                       \
+    d_usesMemory(_mem);                                 \
     SRC_TYPE value = slot (SRC_TYPE);                   \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
@@ -810,7 +848,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
         u8* mem8 = m3MemData(_mem) + operand;           \
         DEST_TYPE val = (DEST_TYPE) value;              \
         memcpy(mem8, &val, sizeof(val));                \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }
 
@@ -818,6 +856,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
 #define d_m3StoreFp(REG, TYPE)                          \
 d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
 {                                                       \
+    d_usesMemory(_mem);                                 \
     u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
@@ -828,7 +867,7 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
         u8* mem8 = m3MemData(_mem) + operand;           \
         TYPE val = (TYPE) REG;                          \
         memcpy(mem8, &val, sizeof(val));                \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }
 
@@ -858,7 +897,7 @@ d_m3Store_i (i64, i64)
     d_m3Op(TYPE##_##NAME)                               \
     {                                                   \
         _r0 = _r0 OPERATION 1;                          \
-        return nextOp ();                               \
+        tailCallNextOp ();                               \
     }
 
     d_m3BinaryOpWith1_i (u64, Increment,    +)
@@ -888,7 +927,7 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
     }
 
     puts (name);
-    return nextOpDirect();
+    tailCallNextOpDirect ();
 }
 # endif
 
@@ -912,7 +951,7 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
     ProfileHit (i_operationName);
 
-    return nextOpDirect();
+    tailCallNextOpDirect ();
 }
 # endif
 

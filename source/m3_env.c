@@ -223,7 +223,10 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
         if (not result)
         {
-            m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
+            M3MemoryHeader *_mem;
+            d_updateMem(NULL);
+
+            m3ret_t r = Call (m3code, stack, d_m3OpDefaultArgs);
             result = runtime.runtimeError;
 
             if (r == 0 and not result)
@@ -604,7 +607,9 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         }
 
         m3StackCheckInit();
-_       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+        M3MemoryHeader *_mem;
+        d_updateMem(runtime->memory.mallocated);
+_       ((M3Result)Call (i_function->compiled, stack, d_m3OpDefaultArgs));
 
 #if d_m3LogOutput
         switch (ftype->returnType) {
