@@ -7,16 +7,16 @@
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests/master?style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
 
-
-[![Gitter](https://img.shields.io/badge/chat-gitter-blueviolet?style=flat-square&logo=gitter)](https://gitter.im/wasm3_engine/community)
-[![Twitter](https://img.shields.io/badge/follow-twitter-1da1f2?style=flat-square&logo=twitter)](https://twitter.com/wasm3_engine)
-
 A high performance WebAssembly interpreter written in C.
 
 **∼ 9.1x faster** than other known wasm interpreters  
 **∼ 4-5x slower** than state of the art wasm `JIT` engines  
 **∼ 12.6x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
+
+[![Gitter](https://img.shields.io/badge/chat-gitter-753a88?style=flat-square&logo=gitter)](https://gitter.im/wasm3_engine/community) 
+[![Gitter](https://img.shields.io/badge/chat-telegram-0088cc?style=flat-square&logo=telegram)](https://t.me/joinchat/DD8s3xVG8Vj_LxRDm52eTQ) 
+[![Twitter](https://img.shields.io/badge/follow-twitter-1da1f2?style=flat-square&logo=twitter)](https://twitter.com/wasm3_engine)
 
 ## Getting Started
 
