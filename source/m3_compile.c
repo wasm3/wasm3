@@ -1239,7 +1239,7 @@ _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
 _   (EmitOp     (o, op_MemCurrent));
 
-_   (PushRegister (o, c_m3Type_i32));   // i32?
+_   (PushRegister (o, c_m3Type_i32));
 
     _catch: return result;
 }
@@ -1257,7 +1257,7 @@ _   (Pop (o));
 
 _   (EmitOp     (o, op_MemGrow));
 
-_   (PushRegister (o, c_m3Type_i32));   // i32?
+_   (PushRegister (o, c_m3Type_i32));
 
     _catch: return result;
 }
