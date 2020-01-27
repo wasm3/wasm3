@@ -7,6 +7,10 @@
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests/master?style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
 
+
+[![Gitter](https://img.shields.io/badge/chat-gitter-blueviolet?style=flat-square&logo=gitter)](https://gitter.im/wasm3_engine/community)
+[![Twitter](https://img.shields.io/badge/follow-twitter-1da1f2?style=flat-square&logo=twitter)](https://twitter.com/wasm3_engine)
+
 A high performance WebAssembly interpreter written in C.
 
 **∼ 9.1x faster** than other known wasm interpreters  
@@ -14,11 +18,9 @@ A high performance WebAssembly interpreter written in C.
 **∼ 12.6x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
 
-[![Twitter](https://img.shields.io/twitter/follow/wasm3_engine?label=Follow&style=social)](https://twitter.com/wasm3_engine)
-
 ## Getting Started
 
-Here's an online demo and a small [getting started](https://wapm.io/package/vshymanskyy/wasm3) guide:
+Here's an online demo and a small [getting started guide](https://wapm.io/package/vshymanskyy/wasm3):
 
 [![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)
 
