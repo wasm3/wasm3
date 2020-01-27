@@ -3,20 +3,22 @@
 ## CoreMark 1.0 results
 
 ```log
-Node v13.0.1 (interpreter)       28     51.0x
-wac (wax)                       105     13.6x
-wasm-micro-runtime              157      9.1x ▲ slower
-wasm3                          1428      1.0
-Wasmer 0.11.0 singlepass       4285      3.0x ▼ faster
-wasmtime 0.7.0 (--optimize)    4615      3.2x
-Webassembly.sh (Chromium 78)   6111      4.3x
-Webassembly.sh (Firefox 70)    6470      4.5x
-Wasmer 0.11.0 cranelift        6875      4.8x
-wasmer-js (Node v13.0.1)       9090      6.3x
-Wasmer 0.11.0 llvm            10526      7.4x
-WAVM                          15384     10.8x
-Native (GCC 7.4.0, 32-bit)    17976     12.6x
-Native (GCC 7.4.0, 64-bit)    19104     13.4x
+# Intel i5-8250U x64 (1.6-3.4GHz)
+
+Node v13.0.1 (interpreter)       28.544923     57.0x
+wac (wax)                       101.864113     16.0x
+wasm-micro-runtime              215.269805      7.6x ▲ slower
+wasm3                          1627.869119      1.0
+Wasmer 0.13.1 singlepass       4065.591544      2.5x ▼ faster
+wasmtime 0.8.0 (--optimize)    6453.505427      4.0x
+Wasmer 0.13.1 cranelift        6467.164442      4.0x
+Webassembly.sh (Chromium 78)   6914.325225      4.2x
+Webassembly.sh (Firefox 70)    7251.153593      4.5x
+wasmer-js (Node v13.0.1)      10043.827611      6.2x
+Wasmer 0.13.1 llvm            12450.199203      7.6x
+WAVM                          14946.566026      9.2x
+Native (GCC 7.4.0, 32-bit)    18070.112035     11.1x
+Native (GCC 7.4.0, 64-bit)    19144.862795     11.8x
 ```
 
 ## Simple recursive Fibonacci calculation test
