@@ -14,11 +14,14 @@ A high performance WebAssembly interpreter written in C.
 **∼ 12.6x slower** than native execution  
 <sub>* Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
 
-[![Twitter](https://img.shields.io/twitter/follow/wasm3_engine?label=Follow&style=social)](https://twitter.com/wasm3_engine)
+[![Twitter](https://img.shields.io/badge/follow-twitter-1da1f2?style=flat-square&logo=twitter)](https://twitter.com/wasm3_engine) 
+[![Gitter](https://img.shields.io/badge/chat-gitter-753a88?style=flat-square&logo=gitter)](https://gitter.im/wasm3_engine/community) 
+[![Discord](https://img.shields.io/badge/chat-discord-7289da?style=flat-square&logo=discord)](https://discord.gg/qmZjgnd) 
+[![Telegram](https://img.shields.io/badge/chat-telegram-0088cc?style=flat-square&logo=telegram)](https://t.me/joinchat/DD8s3xVG8Vj_LxRDm52eTQ)
 
 ## Getting Started
 
-Here's an online demo and a small [getting started](https://wapm.io/package/vshymanskyy/wasm3) guide:
+Here's an online demo and a small [getting started guide](https://wapm.io/package/vshymanskyy/wasm3):
 
 [![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wapm%20install%20vshymanskyy/wasm3)
 
