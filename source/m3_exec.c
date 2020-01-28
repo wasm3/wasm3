@@ -324,13 +324,17 @@ d_m3OpDef  (BranchTable)
 #define d_m3SetRegisterSetSlot(TYPE, REG) \
 d_m3OpDef  (SetRegister_##TYPE)         \
 {                                       \
+    d_usesFP(); \
     REG = slot (TYPE);                  \
+    d_saveFP(); \
     tailCallNextOp ();                   \
 }                                       \
                                         \
 d_m3OpDef (SetSlot_##TYPE)              \
 {                                       \
+    d_usesFP(); \
     slot (TYPE) = (TYPE) REG;           \
+    d_saveFP(); \
     tailCallNextOp ();                   \
 }                                       \
                                         \
@@ -338,10 +342,12 @@ d_m3OpDef (PreserveSetSlot_##TYPE)      \
 {                                       \
     TYPE * stack     = slot_ptr (TYPE); \
     TYPE * preserve  = slot_ptr (TYPE); \
+    d_usesFP(); \
                                         \
     * preserve = * stack;               \
     * stack = (TYPE) REG;               \
                                         \
+    d_saveFP(); \
     tailCallNextOp ();                   \
 }
 
@@ -475,18 +481,26 @@ void  m3_PrintProfilerInfo  () {}
 
 M3MemoryHeader * g_mem;
 
-extern m3ret_t runOp(pc_t _pc, u64 * _sp, m3reg_t _r0, f64 _fp0)
+#ifndef __xtensa__
+
+m3ret_t runOp(pc_t _pc, u64 * _sp, m3reg_t _r0)
 {
     while (true) {
-        m3_ret_struct_t rs = ((IM3Operation) *_pc)(_pc+1, _sp, _r0, _fp0);
+        m3_ret_struct_t rs = ((IM3Operation) *_pc)(_pc+1, _sp, _r0);
         _pc = rs.pc;
         _sp = rs.sp;
         _r0 = rs.r0;
-        _fp0 = rs.fp0;
         if (_sp == NULL) {
             return rs.err;
         }
     }
 }
+
+f64 g_fp0;
+
+#else // __xtensa__
+
+
+#endif // __xtensa__
 
 #endif // d_m3NoTailCalls

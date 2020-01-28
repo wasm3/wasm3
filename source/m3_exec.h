@@ -61,7 +61,9 @@
 #define tailCallJumpOpDirect()  return jumpOpDirect(PC)
 #define startAtNextOp()         nextOp()
 #define returnError(e)          return e
-#else
+
+#else // d_m3NoTailCalls
+
 # define d_m3RetSig                 static inline m3_ret_struct_t vectorcall
 # define d_m3Op(NAME)               op_section d_m3RetSig op_##NAME (d_m3OpSig)
 
@@ -75,7 +77,8 @@
 extern m3ret_t runOp(d_m3OpSig);
 #define startAtNextOp()         runOp(_pc, d_m3OpArgs)
 #define returnError(e)          d_m3OpRetError(e)
-#endif
+
+#endif // d_m3NoTailCalls
 
 # if d_m3EnableOpProfiling
 
@@ -109,23 +112,29 @@ static inline m3ret_t Call  (d_m3OpSig)
 #define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OP, ...) \
 d_m3Op(TYPE##_##NAME##_rs)                              \
 {                                                       \
+    d_usesFP(); \
     TYPE operand = slot (TYPE);                         \
     OP((RES), operand, ((TYPE) REG), ##__VA_ARGS__);    \
+    d_saveFP(); \
     tailCallNextOp ();                                   \
 }                                                       \
 d_m3Op(TYPE##_##NAME##_ss)                              \
 {                                                       \
+    d_usesFP(); \
     TYPE operand2 = slot (TYPE);                        \
     TYPE operand1 = slot (TYPE);                        \
     OP((RES), operand1, operand2, ##__VA_ARGS__);       \
+    d_saveFP(); \
     tailCallNextOp ();                                   \
 }
 
 #define d_m3OpMacro(RES, REG, TYPE, NAME, OP, ...)      \
 d_m3Op(TYPE##_##NAME##_sr)                              \
 {                                                       \
+    d_usesFP(); \
     TYPE operand = slot (TYPE);                         \
     OP((RES), ((TYPE) REG), operand, ##__VA_ARGS__);    \
+    d_saveFP(); \
     tailCallNextOp ();                                   \
 }                                                       \
 d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
@@ -233,13 +242,17 @@ d_m3OpFunc_f(f64, CopySign, copysign);
 #define d_m3UnaryMacro(RES, REG, TYPE, NAME, OP, ...)   \
 d_m3Op(TYPE##_##NAME##_r)                           \
 {                                                   \
+    d_usesFP(); \
     OP((RES), (TYPE) REG, ##__VA_ARGS__);           \
+    d_saveFP(); \
     tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_s)                           \
 {                                                   \
+    d_usesFP(); \
     TYPE operand = slot (TYPE);                     \
     OP((RES), operand, ##__VA_ARGS__);              \
+    d_saveFP(); \
     tailCallNextOp ();                               \
 }
 
@@ -296,26 +309,34 @@ d_m3UnaryOp_i (i64, Extend32_s, OP_EXTEND32_S_I64)
 #define d_m3TruncMacro(DEST, SRC, TYPE, NAME, FROM, OP, ...)   \
 d_m3Op(TYPE##_##NAME##_##FROM##_r_r)                \
 {                                                   \
+    d_usesFP(); \
     OP((DEST), (FROM) SRC, ##__VA_ARGS__);          \
+    d_saveFP(); \
     tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_r_s)                \
 {                                                   \
+    d_usesFP(); \
     FROM * stack = slot_ptr (FROM);                 \
     OP((DEST), (* stack), ##__VA_ARGS__);           \
+    d_saveFP(); \
     tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_s_r)                \
 {                                                   \
+    d_usesFP(); \
     TYPE * dest = slot_ptr (TYPE);                  \
     OP((* dest), (FROM) SRC, ##__VA_ARGS__);        \
+    d_saveFP(); \
     tailCallNextOp ();                               \
 }                                                   \
 d_m3Op(TYPE##_##NAME##_##FROM##_s_s)                \
 {                                                   \
+    d_usesFP(); \
     FROM * stack = slot_ptr (FROM);                 \
     TYPE * dest = slot_ptr (TYPE);                  \
     OP((* dest), (* stack), ##__VA_ARGS__);         \
+    d_saveFP(); \
     tailCallNextOp ();                               \
 }
 
@@ -333,14 +354,18 @@ d_m3TruncMacro(_r0, _fp0, u64, Trunc, f64, OP_U64_TRUNC_F64)
 #define d_m3TypeModifyOp(REG_TO, REG_FROM, TO, NAME, FROM)  \
 d_m3Op(TO##_##NAME##_##FROM##_r)                            \
 {                                                           \
+    d_usesFP(); \
     REG_TO = (TO) ((FROM) REG_FROM);                        \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s)                            \
 {                                                           \
+    d_usesFP(); \
     FROM from = slot (FROM);                                \
     REG_TO = (TO) (from);                                   \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }
 
@@ -356,27 +381,35 @@ d_m3TypeModifyOp (_fp0, _fp0, f64, Promote, f32);
 #define d_m3TypeConvertOp(REG_TO, REG_FROM, TO, NAME, FROM) \
 d_m3Op(TO##_##NAME##_##FROM##_r_r)                          \
 {                                                           \
+    d_usesFP(); \
     REG_TO = (TO) ((FROM) REG_FROM);                        \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s_r)                          \
 {                                                           \
+    d_usesFP(); \
     slot (TO) = (TO) ((FROM) REG_FROM);                     \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_r_s)                          \
 {                                                           \
+    d_usesFP(); \
     FROM from = slot (FROM);                                \
     REG_TO = (TO) (from);                                   \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_##NAME##_##FROM##_s_s)                          \
 {                                                           \
+    d_usesFP(); \
     FROM from = slot (FROM);                                \
     slot (TO) = (TO) (from);                                \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }
 
@@ -395,33 +428,41 @@ d_m3TypeConvertOp (_fp0, _r0, f32, Convert, u64);
 #define d_m3ReinterpretOp(REG, TO, SRC, FROM)               \
 d_m3Op(TO##_Reinterpret_##FROM##_r_r)                       \
 {                                                           \
+    d_usesFP(); \
     union { FROM c; TO t; } u;                              \
     u.c = (FROM) SRC;                                       \
     REG = u.t;                                              \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_Reinterpret_##FROM##_r_s)                       \
 {                                                           \
+    d_usesFP(); \
     union { FROM c; TO t; } u;                              \
     u.c = slot (FROM);                                      \
     REG = u.t;                                              \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_Reinterpret_##FROM##_s_r)                       \
 {                                                           \
+    d_usesFP(); \
     union { FROM c; TO t; } u;                              \
     u.c = (FROM) SRC;                                       \
     slot (TO) = u.t;                                        \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }                                                           \
                                                             \
 d_m3Op(TO##_Reinterpret_##FROM##_s_s)                       \
 {                                                           \
+    d_usesFP(); \
     union { FROM c; TO t; } u;                              \
     u.c = slot (FROM);                                      \
     slot (TO) = u.t;                                        \
+    d_saveFP(); \
     tailCallNextOp ();                                       \
 }
 
@@ -493,6 +534,7 @@ d_m3Select_i (i64, _r0)
 #define d_m3Select_f(TYPE, REG, LABEL, SELECTOR)  \
 d_m3Op  (Select_##TYPE##_##LABEL##ss)           \
 {                                               \
+    d_usesFP(); \
     i32 condition = (i32) SELECTOR;             \
                                                 \
     TYPE operand2 = slot (TYPE);                \
@@ -500,11 +542,13 @@ d_m3Op  (Select_##TYPE##_##LABEL##ss)           \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
+    d_saveFP(); \
     tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_##LABEL##rs)           \
 {                                               \
+    d_usesFP(); \
     i32 condition = (i32) SELECTOR;             \
                                                 \
     TYPE operand2 = (TYPE) REG;                 \
@@ -512,11 +556,13 @@ d_m3Op  (Select_##TYPE##_##LABEL##rs)           \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
+    d_saveFP(); \
     tailCallNextOp ();                           \
 }                                               \
                                                 \
 d_m3Op  (Select_##TYPE##_##LABEL##sr)           \
 {                                               \
+    d_usesFP(); \
     i32 condition = (i32) SELECTOR;             \
                                                 \
     TYPE operand2 = slot (TYPE);                \
@@ -524,6 +570,7 @@ d_m3Op  (Select_##TYPE##_##LABEL##sr)           \
                                                 \
     REG = (condition) ? operand1 : operand2;    \
                                                 \
+    d_saveFP(); \
     tailCallNextOp ();                           \
 }
 
@@ -691,6 +738,7 @@ d_m3Op  (SetGlobal_s64)
 d_m3Op  (SetGlobal_f32)
 {
     f32 * global = immediate (f32 *);
+    d_usesFP();
     * global = _fp0;
 
     tailCallNextOp ();
@@ -700,6 +748,7 @@ d_m3Op  (SetGlobal_f32)
 d_m3Op  (SetGlobal_f64)
 {
     f64 * global = immediate (f64 *);
+    d_usesFP();
     * global = _fp0;
 
     tailCallNextOp ();
@@ -745,6 +794,7 @@ d_m3SetRegisterSetSlotDecl (f64)
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
 {                                                       \
     d_usesMemory(_mem);                                 \
+    d_usesFP(); \
     u32 offset = immediate (u32);                       \
     u64 operand = (u32) _r0;                            \
     operand += offset;                                  \
@@ -756,12 +806,14 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
         REG = (DEST_TYPE)value;                         \
+        d_saveFP(); \
         tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
 {                                                       \
     d_usesMemory(_mem);                                 \
+    d_usesFP(); \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
@@ -773,6 +825,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
         SRC_TYPE value;                                 \
         memcpy(&value, src8, sizeof(value));            \
         REG = (DEST_TYPE)value;                         \
+        d_saveFP(); \
         tailCallNextOp ();                               \
     } else d_outOfBounds;                               \
 }
@@ -804,6 +857,7 @@ d_m3Load_i (i64, i64);
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
 {                                                       \
     d_usesMemory(_mem);                                 \
+    d_usesFP(); \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \
@@ -857,6 +911,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
 d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
 {                                                       \
     d_usesMemory(_mem);                                 \
+    d_usesFP(); \
     u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
     operand += offset;                                  \

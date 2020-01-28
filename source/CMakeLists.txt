@@ -15,6 +15,10 @@ set(srcs
     "m3_parse.c"
 )
 
+if (CMAKE_C_COMPILER MATCHES "xtensa-")
+    list(APPEND srcs m3_xtensa.S)
+endif()
+
 add_library(m3 STATIC ${srcs})
 
 target_include_directories(m3 PUBLIC .)
