@@ -16,12 +16,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include "m3_error.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-typedef const char *    M3Result;
 
 struct M3Environment;   typedef struct M3Environment *  IM3Environment;
 struct M3Runtime;       typedef struct M3Runtime *      IM3Runtime;
@@ -79,73 +78,6 @@ typedef struct M3ImportInfo
 M3ImportInfo;
 
 typedef M3ImportInfo * IM3ImportInfo;
-
-
-
-// -------------------------------------------------------------------------------------------------------------------------------
-//  error codes
-// -------------------------------------------------------------------------------------------------------------------------------
-
-# if defined(M3_IMPLEMENT_ERROR_STRINGS)
-#   define d_m3ErrorConst(LABEL, STRING)        M3Result m3Err_##LABEL = { STRING };
-# else
-#   define d_m3ErrorConst(LABEL, STRING)        extern M3Result m3Err_##LABEL;
-# endif
-
-// -------------------------------------------------------------------------------------------------------------------------------
-
-d_m3ErrorConst  (none,                          NULL)
-
-// general errors
-d_m3ErrorConst  (typeListOverflow,              "type list count exceeds 32 types")
-d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
-
-// parse errors
-d_m3ErrorConst  (incompatibleWasmVersion,       "incompatible Wasm binary version")
-d_m3ErrorConst  (wasmMalformed,                 "malformed Wasm binary")
-d_m3ErrorConst  (misorderedWasmSection,         "out of order Wasm section")
-d_m3ErrorConst  (wasmUnderrun,                  "underrun while parsing Wasm binary")
-d_m3ErrorConst  (wasmOverrun,                   "overrun while parsing Wasm binary")
-d_m3ErrorConst  (wasmMissingInitExpr,           "missing init_expr in Wasm binary")
-d_m3ErrorConst  (lebOverflow,                   "LEB encoded value overflow")
-d_m3ErrorConst  (missingUTF8,                   "invalid length UTF-8 string")
-d_m3ErrorConst  (wasmSectionUnderrun,           "section underrun while parsing Wasm binary")
-d_m3ErrorConst  (wasmSectionOverrun,            "section overrun while parsing Wasm binary")
-d_m3ErrorConst  (invalidTypeId,                 "unknown value_type")
-d_m3ErrorConst  (tooManyMemorySections,         "Wasm MVP can only define one memory per module")
-
-
-// link errors
-d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
-d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
-d_m3ErrorConst  (functionImportMissing,         "missing imported function")
-
-// compilation errors
-d_m3ErrorConst  (noCompiler,                    "no compiler found for opcode")
-d_m3ErrorConst  (unknownOpcode,                 "unknown opcode")
-d_m3ErrorConst  (functionStackOverflow,         "compiling function overrun its stack height limit")
-d_m3ErrorConst  (functionStackUnderrun,         "compiling function underran the stack")
-d_m3ErrorConst  (mallocFailedCodePage,          "memory allocation failed when acquiring a new M3 code page")
-d_m3ErrorConst  (settingImmutableGlobal,        "attempting to set an immutable global")
-d_m3ErrorConst  (optimizerFailed,               "optimizer failed") // not a fatal error. a result,
-
-// runtime errors
-d_m3ErrorConst  (missingCompiledCode,           "function is missing compiled m3 code")
-d_m3ErrorConst  (wasmMemoryOverflow,            "runtime ran out of memory")
-d_m3ErrorConst  (globalMemoryNotAllocated,      "global memory is missing from a module")
-d_m3ErrorConst  (globaIndexOutOfBounds,         "global index is too large")
-
-// traps
-d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory access")
-d_m3ErrorConst  (trapDivisionByZero,            "[trap] integer divide by zero")
-d_m3ErrorConst  (trapIntegerOverflow,           "[trap] integer overflow")
-d_m3ErrorConst  (trapIntegerConversion,         "[trap] invalid conversion to integer")
-d_m3ErrorConst  (trapIndirectCallTypeMismatch,  "[trap] indirect call type mismatch")
-d_m3ErrorConst  (trapTableIndexOutOfRange,      "[trap] undefined element")
-d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
-d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
-d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
-d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
 
 //-------------------------------------------------------------------------------------------------------------------------------

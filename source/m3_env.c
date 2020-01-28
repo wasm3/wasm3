@@ -389,9 +389,9 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
             if ((size_t)segmentOffset + segment->size <= io_memory->mallocated->length)
                 memcpy (dest, segment->data, segment->size);
             else
-                _throw ("data segment overflowing linear memory");
+                _throw (m3Err_dataSegmentOverflow);
         }
-        else _throw ("unallocated linear memory");
+        else _throw (m3Err_unallocatedLinearMemory);
     }
 
     _catch: return result;
@@ -438,14 +438,14 @@ _                       (ReadLEB_u32 (& functionIndex, & bytes, end));
                             IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
                             io_module->table0 [e + offset] = function;
                         }
-                        else _throw ("function index out of range");
+                        else _throw (m3Err_functionIndexOutOfBounds);
                     }
                 }
                 else _throw (m3Err_mallocFailed);
             }
-            else _throw ("table overflow");
+            else _throw (m3Err_tableOverflow);
         }
-        else _throw ("element table index must be zero for MVP");
+        else _throw (m3Err_nonZeroMVPTableIndex);
     }
 
     _catch: return result;
@@ -457,11 +457,11 @@ M3Result  InitStartFunc  (IM3Module io_module)
 
     if (io_module->startFunction >= 0) {
         if ((u32)io_module->startFunction >= io_module->numFunctions) {
-            return "start function index out of bounds";
+            return m3Err_startFunctionIndexOutOfBounds;
         }
         IM3Function function = &io_module->functions [io_module->startFunction];
         if (not function) {
-            return "start function not found";
+            return m3Err_noStartFunction;
         }
 
         if (not function->compiled)
@@ -528,7 +528,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
     M3Result result = m3Err_none;
 
     if (!i_runtime->modules) {
-        return "no modules loaded";
+        return m3Err_noModulesLoaded;
     }
 
     IM3Function function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
@@ -577,7 +577,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         m3logif (runtime, PrintFuncTypeSignature (ftype));
 
         if (i_argc != ftype->numArgs) {
-            _throw("arguments count mismatch");
+            _throw(m3Err_argumentCountMismatch);
         }
 
         // The format is currently not user-friendly by default,
@@ -599,7 +599,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
             case c_m3Type_f32:  *(u32*)(s) = strtoul(str, NULL, 10);  break;
             case c_m3Type_f64:  *(u64*)(s) = strtoull(str, NULL, 10); break;
 #endif
-            default: _throw("unknown argument type");
+            default: _throw(m3Err_unknownArgumentType);
             }
         }
 
@@ -626,7 +626,7 @@ _       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated
         case c_m3Type_f64:
             fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)(stack));  break;
 #endif // USE_HUMAN_FRIENDLY_ARGS
-        default: _throw("unknown return type");
+        default: _throw(m3Err_unknownReturnType);
         }
 
 #if d_m3LogNativeStack

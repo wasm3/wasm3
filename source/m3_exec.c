@@ -103,7 +103,7 @@ d_m3OpDef  (CallIndirect)
                 }
             }
         }
-        else r = "trap: table element is null";
+        else r = m3Err_trapNullTableElement;
 
         return r;
     }

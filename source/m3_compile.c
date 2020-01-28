@@ -188,7 +188,7 @@ M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot)
     {
         o->m3Slots [i_slot]++;
     }
-    else result = "slot usage count overflow";
+    else result = m3Err_slotUsageOverflow;
     
     return result;
 }
@@ -709,7 +709,7 @@ M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i
     {
         scope = scope->outer;
         if (not scope)
-            return "invalid block depth";
+            return m3Err_invalidBlockDepth;
     }
 
     * o_scope = scope;
@@ -864,7 +864,7 @@ _           (PreservedCopyTopSlot (o, localSlot, preserveSlot))
         if (i_opcode != c_waOp_teeLocal)
 _           (Pop (o));
     }
-    else _throw ("local index out of bounds");
+    else _throw (m3Err_localIndexOutOfBounds);
 
     _catch: return result;
 }
@@ -1224,7 +1224,7 @@ _       (EmitOp     (o, op_CallIndirect));
         EmitPointer (o, type);              // TODO: unify all types in M3Environment
         EmitSlotOffset  (o, execTop);
     }
-    else _throw ("function type index out of range");
+    else _throw (m3Err_functionTypeIndexOutOfBounds);
 
     _catch: return result;
 }
@@ -1570,9 +1570,9 @@ _           (PushRegister (o, op->type));
     else
     {
 #       ifdef DEBUG
-            result = ErrorCompile ("no operation found for opcode", o, "'%s'", op->name);
+            result = ErrorCompile (m3Err_noOperationForOpCode, o, "'%s'", op->name);
 #       else
-            result = ErrorCompile ("no operation found for opcode", o, "");
+            result = ErrorCompile (m3Err_noOperationForOpCode, o, "");
 #       endif
     }
 
@@ -1945,7 +1945,7 @@ _           (PushRegister (o, o->block.type));
                 {
                     * o_copyStackTopToRegister = IsStackTopInSlot (o);
                 }
-                else _throw ("unexpected block stack offset");
+                else _throw (m3Err_unexpectedBlockStackOffset);
             }
         }
     }

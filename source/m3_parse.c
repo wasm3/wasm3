@@ -272,7 +272,7 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
         io_module->elementSectionEnd = i_end;
         io_module->numElementSegments = numSegments;
     }
-    else result = "error parsing Element section";
+    else result = m3Err_malformedElementSection;
 
     return result;
 }

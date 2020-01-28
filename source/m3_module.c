@@ -76,7 +76,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
 
             //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
         }
-        else result = "unknown type sig index";
+        else result = m3Err_unknownTypeSigIndex;
     }
     else result = m3Err_mallocFailed;
 
