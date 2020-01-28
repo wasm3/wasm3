@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
             } else {
                 double r = sqrt(zx.hi*zx.hi + zy.hi*zy.hi);
                 double c = i - 1.28 + (logLogBailout - log(log(r))) * Q1LOG2;
-                int idx = fmod((log(c/64+1)/LOG2+0.45), 1)*GRADIENTLENGTH + 0.5;
+                int idx = fmod((log(c/64+1)/LOG2+0.45), 1)*(GRADIENTLENGTH-1) + 0.5;
                 fwrite(&colors[idx], 1, 3, stdout);
             }
         }

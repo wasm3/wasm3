@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
             } else {
                 double r = sqrtl(zx*zx + zy*zy);
                 double c = i - 1.28 + (logLogBailout - logl(logl(r))) * Q1LOG2;
-                int idx = fmodl((logl(c/64+1)/LOG2+0.45), 1)*GRADIENTLENGTH + 0.5;
+                int idx = fmodl((logl(c/64+1)/LOG2+0.45), 1)*(GRADIENTLENGTH-1) + 0.5;
                 fwrite(&colors[idx], 1, 3, stdout);
             }
         }
