@@ -26,33 +26,35 @@ emsdk activate latest
 ### Running
 
 ```sh
-export ENGINES_PATH=/opt/wasm_engines
-
 # Wasm3
 ../../../build/wasm3 coremark-wasi.wasm
 
 # WAC
-$ENGINES_PATH/wac/wax coremark-wasi.wasm
+wax coremark-wasi.wasm
 
 # wasm-micro-runtime
-$ENGINES_PATH/wasm-micro-runtime/core/iwasm/products/linux/build/iwasm coremark-wasi.wasm
+iwasm coremark-wasi.wasm
 
 # wasmtime
 wasmtime --optimize coremark-wasi.wasm
 
 # Wasmer
-wasmer run coremark-wasi.wasm
+wasmer run --backend singlepass coremark-wasi.wasm
+wasmer run --backend cranelift coremark-wasi.wasm
+wasmer run --backend llvm coremark-wasi.wasm
 
 # Webassembly.sh
-wapm upload
-coremark-wasi
+wapm install coremark
+coremark
 
 # Wasmer-JS (V8)
 wasmer-js run coremark-wasi.wasm
 
-
 # WAVM
-$ENGINES_PATH/WAVM/Release/bin/wavm run coremark-wasi.wasm
+wavm run coremark-wasi.wasm
+
+# V8 interpreter
+node --wasm_interpret_all $(which wasmer-js) run coremark-wasi.wasm
 ```
 
 ### Running EMCC version

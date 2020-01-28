@@ -244,7 +244,7 @@ typedef int8_t          i8;
  */
 
 # ifndef d_m3MaxFunctionStackHeight
-#  if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_AMEBA)
+#  if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_AMEBA) || defined(TEENSYDUINO)
 #    define d_m3MaxFunctionStackHeight          128
 #  endif
 # endif
