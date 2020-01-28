@@ -73,6 +73,11 @@ export STAGING_DIR=$OPT/openwrt-chaoscalmer/staging_dir
 export PATH=$OPT/openwrt-chaoscalmer/staging_dir/toolchain-mipsel_24kec+dsp_gcc-4.8-linaro_uClibc-0.9.33.2/bin:$PATH
 mipsel-openwrt-linux-gcc $FLAGS -mno-branch-likely -mips32r2 -mtune=24kc -fno-caller-saves -fno-plt -fhonour-copts -S ops.c -o mips24kc.S
 
+# gcc - arc
+
+export PATH=~/.platformio/packages/toolchain-intelarc32/bin:$PATH
+arc-elf32-gcc $FLAGS -S ops.c -o arc32.S
+
 # ----------------------
 # Just for fun ;)
 
