@@ -7,7 +7,7 @@
 
 Node v13.0.1 (interpreter)       28.544923     57.0x
 wac (wax)                       101.864113     16.0x
-wasm-micro-runtime              215.269805      7.6x ▲ slower
+wasm-micro-runtime              201.612903      8.1x ▲ slower
 wasm3                          1627.869119      1.0
 Wasmer 0.13.1 singlepass       4065.591544      2.5x ▼ faster
 wasmtime 0.8.0 (--optimize)    6453.505427      4.0x
