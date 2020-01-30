@@ -10,15 +10,15 @@
 
 #include "m3_core.h"
 
-# if defined(__cplusplus)
+#if defined(__cplusplus)
 extern "C" {
-# endif
+#endif
 
-    M3Result    m3_LinkLibC     (IM3Module io_module);
-    M3Result    m3_LinkSpecTest (IM3Module io_module);
+M3Result    m3_LinkLibC     (IM3Module io_module);
+M3Result    m3_LinkSpecTest (IM3Module io_module);
 
-# if defined(__cplusplus)
+#if defined(__cplusplus)
 }
-# endif
+#endif
 
 #endif // m3_api_libc_h

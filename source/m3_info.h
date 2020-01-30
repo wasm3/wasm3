@@ -10,6 +10,10 @@
 
 #include "m3_compile.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if d_m3LogOutput
 
 void            dump_type_stack         (IM3Compilation o);
@@ -27,5 +31,9 @@ void            log_emit                (IM3Compilation o, IM3Operation i_operat
 #define         log_emit(...)             {}
 
 #endif // d_m3LogOutput
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // m3_info_h

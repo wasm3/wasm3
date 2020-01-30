@@ -10,6 +10,10 @@
 
 #include "m3_compile.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 M3Result    BridgeToNewPageIfNecessary  (IM3Compilation o);
 M3Result    EnsureCodePageNumLines      (IM3Compilation o, u32 i_numLines);
 
@@ -21,5 +25,9 @@ void        EmitPointer                 (IM3Compilation o, const void * const i_
 void *      ReservePointer              (IM3Compilation o);
 
 pc_t        GetPC                       (IM3Compilation o);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // m3_emit_h
