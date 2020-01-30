@@ -71,7 +71,9 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName);
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
-    m3Yield ();
+    m3ret_t possible_trap = m3_Yield ();
+    if (UNLIKELY(possible_trap)) return possible_trap;
+
     return nextOpDirect();
 }
 

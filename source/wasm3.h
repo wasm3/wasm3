@@ -10,8 +10,8 @@
 
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 4
-#define M3_VERSION_REV   5
-#define M3_VERSION       "0.4.5"
+#define M3_VERSION_REV   6
+#define M3_VERSION       "0.4.6"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -211,6 +211,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //-------------------------------------------------------------------------------------------------------------------------------
 //  functions
 //-------------------------------------------------------------------------------------------------------------------------------
+    M3Result            m3_Yield                    (void);
 
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,

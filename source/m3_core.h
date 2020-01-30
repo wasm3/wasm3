@@ -197,8 +197,6 @@ size_t      m3StackGetMax           ();
 void        m3Abort                 (const char* message);
 void        m3NotImplemented        (void);
 
-void        m3Yield                 (void);
-
 M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
 void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3Free_impl             (void * o_ptr);
