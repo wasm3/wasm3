@@ -1771,9 +1771,9 @@ const M3OpInfo c_operations [] =
     M3OP( "i32.div_u",          -1, i_32,   d_binOpList (u32, Divide)               ),          // 0x6e
     M3OP( "i32.rem_s",          -1, i_32,   d_binOpList (i32, Remainder)            ),          // 0x6f
     M3OP( "i32.rem_u",          -1, i_32,   d_binOpList (u32, Remainder)            ),          // 0x70
-    M3OP( "i32.and",            -1, i_32,   d_commutativeBinOpList (u64, And)       ),          // 0x71
-    M3OP( "i32.or",             -1, i_32,   d_commutativeBinOpList (u64, Or)        ),          // 0x72
-    M3OP( "i32.xor",            -1, i_32,   d_commutativeBinOpList (u64, Xor)       ),          // 0x73
+    M3OP( "i32.and",            -1, i_32,   d_commutativeBinOpList (u32, And)       ),          // 0x71
+    M3OP( "i32.or",             -1, i_32,   d_commutativeBinOpList (u32, Or)        ),          // 0x72
+    M3OP( "i32.xor",            -1, i_32,   d_commutativeBinOpList (u32, Xor)       ),          // 0x73
     M3OP( "i32.shl",            -1, i_32,   d_binOpList (u32, ShiftLeft)            ),          // 0x74
     M3OP( "i32.shr_s",          -1, i_32,   d_binOpList (i32, ShiftRight)           ),          // 0x75
     M3OP( "i32.shr_u",          -1, i_32,   d_binOpList (u32, ShiftRight)           ),          // 0x76

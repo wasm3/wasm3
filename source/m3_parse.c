@@ -234,10 +234,14 @@ M3Result  ParseSection_Start  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_
 {
     M3Result result = m3Err_none;
 
-    u32 startFunc;
-_   (ReadLEB_u32 (& startFunc, & i_bytes, i_end));                               m3log (parse, "** Start Function: %d", startFunc);
+    u32 startFuncIndex;
+_   (ReadLEB_u32 (& startFuncIndex, & i_bytes, i_end));                               m3log (parse, "** Start Function: %d", startFunc);
 
-    io_module->startFunction = startFunc;
+	if (startFuncIndex < io_module->numFunctions)
+	{
+    	io_module->startFunction = startFuncIndex;
+	}
+	else result = "start function index out of bounds";
 
     _catch: return result;
 }

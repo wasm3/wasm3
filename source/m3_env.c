@@ -455,21 +455,15 @@ M3Result  InitStartFunc  (IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
-    if (io_module->startFunction >= 0) {
-        if ((u32)io_module->startFunction >= io_module->numFunctions) {
-            return "start function index out of bounds";
-        }
-        IM3Function function = &io_module->functions [io_module->startFunction];
-        if (not function) {
-            return "start function not found";
-        }
+    if (io_module->startFunction >= 0)
+	{
+		IM3Function function = & io_module->functions [io_module->startFunction];
 
         if (not function->compiled)
         {
 _           (Compile_Function (function));
-            if (result)
-                function = NULL;
         }
+		
 _       (m3_Call(function));
     }
 
