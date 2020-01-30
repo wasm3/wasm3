@@ -161,6 +161,10 @@ d_m3OpFunc_i (u32, ShiftLeft,       OP_SHL_32)      d_m3OpFunc_i (u64, ShiftLeft
 d_m3OpFunc_i (i32, ShiftRight,      OP_SHR_32)      d_m3OpFunc_i (i64, ShiftRight,      OP_SHR_64)
 d_m3OpFunc_i (u32, ShiftRight,      OP_SHR_32)      d_m3OpFunc_i (u64, ShiftRight,      OP_SHR_64)
 
+d_m3CommutativeOp_i (u32, And,              &)
+d_m3CommutativeOp_i (u32, Or,               |)
+d_m3CommutativeOp_i (u32, Xor,              ^)
+
 d_m3CommutativeOp_i (u64, And,              &)
 d_m3CommutativeOp_i (u64, Or,               |)
 d_m3CommutativeOp_i (u64, Xor,              ^)
