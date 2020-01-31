@@ -35,6 +35,6 @@ Nordic nRF51822               |           |  Cortex-M0 <sup>⚠️</sup>  | 16MH
 Wicked Device WildFire       | ATmega1284 |  8-bit AVR <sup>⚠️</sup>  | 20MHz     | 128KB | 16KB
 
 ### Legend:
- ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), wich leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance). There are plans to improve this in future 🦄.
+ ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), which leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance). There are plans to improve this in future 🦄.
  
  ⁑ Some flash space is used by the bootloader meaning usable space is less.
