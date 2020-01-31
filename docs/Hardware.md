@@ -16,7 +16,7 @@ MXChip AZ3166            | EMW3166        | Cortex-M4  | 100MHz | 1 MB+2 MB | 25
 Arduino Due                 | AT91SAM3X8E | Cortex-M3  | 84MHz      | 512KB | 96KB
 Sipeed MAIX              |  Kendryte K210 | RV64IMAFDC | 400MHz     | 16 MB | 8 MB
 SiFive HiFive1           |   Freedom E310 |   RV32IMAC | 320MHz     | 16 MB | 16KB
-Fomu (soft CPU)       | Lattice ICE40UP5K |      RV32I | 12MHz      |  1 MB | 128KB
+Fomu (soft CPU)       | Lattice ICE40UP5K |      RV32I | 12MHz      |  2 MB <sup>⁑</sup> | 128KB
 
 ## Limited support
 
@@ -35,4 +35,6 @@ Nordic nRF51822               |           |  Cortex-M0 <sup>⚠️</sup>  | 16MH
 Wicked Device WildFire       | ATmega1284 |  8-bit AVR <sup>⚠️</sup>  | 20MHz     | 128KB | 16KB
 
 ### Legend:
- ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), wich leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance). There are plans to improve this in future 🦄.
+ ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), which leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance). There are plans to improve this in future 🦄.
+ 
+ ⁑ Some flash space is used by the bootloader meaning usable space is less.
