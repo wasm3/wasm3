@@ -281,6 +281,12 @@ d_m3OpDef  (Loop)
 }
 
 
+d_m3OpDef  (Branch)
+{
+    return jumpOp (* _pc);
+}
+
+
 d_m3OpDef  (If_r)
 {
     i32 condition = (i32) _r0;

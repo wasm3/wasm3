@@ -519,16 +519,7 @@ d_m3Op  (Return)
 }
 
 
-d_m3Op  (Branch)
-{
-    return jumpOp (* _pc);
-}
-
-
-d_m3Op  (Bridge)
-{
-    return jumpOp (* _pc);
-}
+d_m3OpDecl (Branch)
 
 
 d_m3Op  (BranchIf_r)
