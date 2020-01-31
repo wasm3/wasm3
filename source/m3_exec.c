@@ -186,6 +186,8 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
+	d_m3ClearRegisters
+	
     IM3Function function = immediate (IM3Function);
 
 #if defined(d_m3SkipStackCheck)
@@ -196,10 +198,11 @@ d_m3OpDef  (Entry)
     {
         function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
+        m3stack_t stack = _sp + function->funcType->numArgs;
         u32 numLocals = function->numLocals;
 
-        m3stack_t stack = _sp + GetFunctionNumArgs (function);
-        while (numLocals--)                                     // it seems locals need to init to zero (at least for optimized Wasm code) TODO: see if this is still true.
+        // zero locals
+        while (numLocals--)
             * (stack++) = 0;
 
         if (function->constants) {
@@ -257,6 +260,10 @@ d_m3OpDef  (SetGlobal_i64)
 
 d_m3OpDef  (Loop)
 {
+	// regs are unused coming into a loop anyway
+	// this reduces code size & stack usage
+	d_m3ClearRegisters
+
     m3ret_t r;
 
     IM3Memory memory = GetMemoryInfo (_mem);
