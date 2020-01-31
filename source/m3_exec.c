@@ -60,39 +60,39 @@ d_m3OpDef  (CallIndirect)
 
     i32 tableIndex = * (i32 *) (sp + type->numArgs);
 
-    if (tableIndex >= 0 and (u32)tableIndex < module->table0Size)
+    if (LIKELY(tableIndex >= 0 and (u32)tableIndex < module->table0Size))
     {
         m3ret_t r = m3Err_none;
 
         IM3Function function = module->table0 [tableIndex];
 
-        if (function)
+        if (LIKELY(function))
         {
             // TODO: this can eventually be simplified. by using a shared set of unique M3FuncType objects in
             // M3Environment, the compare can be reduced to a single pointer-compare operation
 #if !defined(d_m3SkipCallCheck)
-            if (type->numArgs != function->funcType->numArgs)
+            if (UNLIKELY(type->numArgs != function->funcType->numArgs))
             {
                 return m3Err_trapIndirectCallTypeMismatch;
             }
 
-            if (type->returnType != function->funcType->returnType)
+            if (UNLIKELY(type->returnType != function->funcType->returnType))
             {
                 return m3Err_trapIndirectCallTypeMismatch;
             }
 
             for (u32 argIndex = 0; argIndex < type->numArgs; ++argIndex)
             {
-                if (type->argTypes[argIndex] != function->funcType->argTypes[argIndex])
+                if (UNLIKELY(type->argTypes[argIndex] != function->funcType->argTypes[argIndex]))
                 {
                     return m3Err_trapIndirectCallTypeMismatch;
                 }
             }
 #endif
-            if (not function->compiled)
+            if (UNLIKELY(not function->compiled))
                 r = Compile_Function (function);
 
-            if (not r)
+            if (LIKELY(not r))
             {
                 r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
 
@@ -139,7 +139,7 @@ d_m3OpDef  (MemGrow)
     u32 numPagesToGrow = (u32) _r0;
     _r0 = memory->numPages;
 
-    if (numPagesToGrow)
+    if (LIKELY(numPagesToGrow))
     {
         u32 requiredPages = memory->numPages + numPagesToGrow;
 
@@ -167,10 +167,10 @@ d_m3OpDef  (Compile)
 
     m3ret_t result = m3Err_none;
 
-    if (not function->compiled) // check to see if function was compiled since this operation was emitted.
+    if (UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
         result = Compile_Function (function);
 
-    if (not result)
+    if (LIKELY(not result))
     {
         // patch up compiled pc and call rewriten op_Call
         *((size_t *) --_pc) = (size_t) (function->compiled);
@@ -187,16 +187,16 @@ d_m3OpDef  (Compile)
 d_m3OpDef  (Entry)
 {
 	d_m3ClearRegisters
-	
+
     IM3Function function = immediate (IM3Function);
 
 #if defined(d_m3SkipStackCheck)
     if (true)
 #else
-    if ((void*)(_sp + function->maxStackSlots) < _mem->maxStack)
+    if (LIKELY((void*)(_sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
-        function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
+        function->hits++;  m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
         m3stack_t stack = _sp + function->funcType->numArgs;
         u32 numLocals = function->numLocals;
@@ -205,7 +205,7 @@ d_m3OpDef  (Entry)
         while (numLocals--)
             * (stack++) = 0;
 
-        if (function->constants) {
+        if (LIKELY(function->constants)) {
             memcpy (stack, function->constants, function->numConstants * sizeof (u64));
         }
 
@@ -293,7 +293,7 @@ d_m3OpDef  (If_r)
 
     pc_t elsePC = immediate (pc_t);
 
-    if (condition)
+    if (LIKELY(condition))
         return nextOp ();
     else
         return jumpOp (elsePC);
@@ -306,7 +306,7 @@ d_m3OpDef  (If_s)
 
     pc_t elsePC = immediate (pc_t);
 
-    if (condition)
+    if (LIKELY(condition))
         return nextOp ();
     else
         return jumpOp (elsePC);
@@ -320,7 +320,7 @@ d_m3OpDef  (BranchTable)
 
     pc_t * branches = (pc_t *) _pc;
 
-    if (branchIndex < 0 or branchIndex > numTargets)
+    if (UNLIKELY(branchIndex < 0 or branchIndex > numTargets))
         branchIndex = numTargets; // the default index
 
     return jumpOp (branches [branchIndex]);
@@ -373,10 +373,10 @@ d_m3OpDef (PreserveCopySlot_32)
     u32 * dest      = slot_ptr (u32);
     u32 * src       = slot_ptr (u32);
     u32 * preserve  = slot_ptr (u32);
-    
+
     * preserve = * dest;
     * dest = * src;
-    
+
     return nextOp ();
 }
 
@@ -397,10 +397,10 @@ d_m3OpDef (PreserveCopySlot_64)
     u64 * dest      = slot_ptr (u64);
     u64 * src       = slot_ptr (u64);
     u64 * preserve  = slot_ptr (u64);
-    
+
     * preserve = * dest;
     * dest = * src;
-    
+
     return nextOp ();
 }
 
