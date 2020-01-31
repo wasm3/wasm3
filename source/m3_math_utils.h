@@ -199,15 +199,14 @@ u64 rotr64(u64 n, unsigned c) {
 
 #define OP_TRUNC_SAT(RES, A, TYPE, RMIN, RMAX)              \
     if (UNLIKELY(isnan(A))) {                               \
-        return (TYPE)0;                                     \
-    }                                                       \
-    if (UNLIKELY(A <= RMIN)) {                              \
-        return (TYPE)RMIN;                                  \
-    }                                                       \
-    if (UNLIKELY(A >= RMAX)) {                              \
-        return (TYPE)RMAX;                                  \
-    }                                                       \
-    RES = (TYPE)A;
+        RES = (TYPE)0;                                      \
+    } else if (UNLIKELY(A <= RMIN)) {                       \
+        RES = (TYPE)RMIN;                                   \
+    } else if (UNLIKELY(A >= RMAX)) {                       \
+        RES = (TYPE)RMAX;                                   \
+    } else {                                                \
+        RES = (TYPE)A;                                      \
+    }
 
 #define OP_I32_TRUNC_F32(RES, A)    OP_TRUNC(RES, A, i32, -2147483904.0f, 2147483648.0f)
 #define OP_U32_TRUNC_F32(RES, A)    OP_TRUNC(RES, A, u32,          -1.0f, 4294967296.0f)
