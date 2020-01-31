@@ -239,10 +239,10 @@ d_m3UnaryOp_i (i32, EqualToZero, OP_EQZ)
 d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
 // clz(0), ctz(0) results are undefined, fix it
-#define OP_CLZ_32(x) (((x) == 0) ? 32 : __builtin_clz(x))
-#define OP_CTZ_32(x) (((x) == 0) ? 32 : __builtin_ctz(x))
-#define OP_CLZ_64(x) (((x) == 0) ? 64 : __builtin_clzll(x))
-#define OP_CTZ_64(x) (((x) == 0) ? 64 : __builtin_ctzll(x))
+#define OP_CLZ_32(x)   (__builtin_clz((x) | (1   <<  0)) + OP_EQZ(x))
+#define OP_CTZ_32(x)   (__builtin_ctz((x) | (1   << 31)) + OP_EQZ(x))
+#define OP_CLZ_64(x) (__builtin_clzll((x) | (1LL <<  0)) + OP_EQZ(x))
+#define OP_CTZ_64(x) (__builtin_ctzll((x) | (1LL << 63)) + OP_EQZ(x))
 
 d_m3UnaryOp_i (u32, Clz, OP_CLZ_32)
 d_m3UnaryOp_i (u64, Clz, OP_CLZ_64)
