@@ -21,6 +21,8 @@ Native (GCC 7.4.0, 32-bit)    18070.112035     11.1x
 Native (GCC 7.4.0, 64-bit)    19144.862795     11.8x
 ```
 
+**Note:** Here is more info on [how to run CoreMark benchmark](../test/benchmark/coremark).
+
 ## Simple recursive Fibonacci calculation test
 
 ```log
