@@ -199,13 +199,13 @@ u64 rotr64(u64 n, unsigned c) {
 
 #define OP_TRUNC_SAT(RES, A, TYPE, RMIN, RMAX)              \
     if (UNLIKELY(isnan(A))) {                               \
-        return 0;                                           \
+        return (TYPE)0;                                     \
     }                                                       \
     if (UNLIKELY(A <= RMIN)) {                              \
-        return RMIN;                                        \
+        return (TYPE)RMIN;                                  \
     }                                                       \
     if (UNLIKELY(A >= RMAX)) {                              \
-        return RMAX;                                        \
+        return (TYPE)RMAX;                                  \
     }                                                       \
     RES = (TYPE)A;
 
