@@ -43,7 +43,7 @@ d_m3OpDef  (Call)
     if (r == 0)
     {
         _mem = memory->mallocated;
-        return nextOp ();
+        nextOp ();
     }
     else return r;
 }
@@ -99,7 +99,7 @@ d_m3OpDef  (CallIndirect)
                 if (not r)
                 {
                     _mem = memory->mallocated;
-                    r = nextOp ();
+                    r = nextOpDirect ();
                 }
             }
         }
@@ -127,7 +127,7 @@ d_m3OpDef  (MemCurrent)
 
     _r0 = memory->numPages;
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -150,7 +150,7 @@ d_m3OpDef  (MemGrow)
         _mem = memory->mallocated;
     }
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -175,7 +175,7 @@ d_m3OpDef  (Compile)
         // patch up compiled pc and call rewriten op_Call
         *((size_t *) --_pc) = (size_t) (function->compiled);
         --_pc;
-        result = nextOp ();
+        result = nextOpDirect ();
     }
     else ReportError2 (function, result);
 
@@ -209,7 +209,7 @@ d_m3OpDef  (Entry)
             memcpy (stack, function->constants, function->numConstants * sizeof (u64));
         }
 
-        m3ret_t r = nextOp ();
+        m3ret_t r = nextOpDirect ();
 
 #       if d_m3LogExec
             u8 returnType = function->funcType->returnType;
@@ -236,7 +236,7 @@ d_m3OpDef  (GetGlobal)
     i64 * global = immediate (i64 *);
     slot (i64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -245,7 +245,7 @@ d_m3OpDef  (SetGlobal_i32)
     u32 * global = immediate (u32 *);
     * global = (u32) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -254,7 +254,7 @@ d_m3OpDef  (SetGlobal_i64)
     u64 * global = immediate (u64 *);
     * global = (u64) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -270,7 +270,7 @@ d_m3OpDef  (Loop)
 
     do
     {
-        r = nextOp ();                     // printf ("loop: %p\n", r);
+        r = nextOpDirect ();                     // printf ("loop: %p\n", r);
         // linear memory pointer needs refreshed here because the block it's looping over
         // can potentially invoke the grow operation.
         _mem = memory->mallocated;
@@ -294,7 +294,7 @@ d_m3OpDef  (If_r)
     pc_t elsePC = immediate (pc_t);
 
     if (condition)
-        return nextOp ();
+        nextOp ();
     else
         return jumpOp (elsePC);
 }
@@ -307,7 +307,7 @@ d_m3OpDef  (If_s)
     pc_t elsePC = immediate (pc_t);
 
     if (condition)
-        return nextOp ();
+        nextOp ();
     else
         return jumpOp (elsePC);
 }
@@ -331,13 +331,13 @@ d_m3OpDef  (BranchTable)
 d_m3OpDef  (SetRegister_##TYPE)         \
 {                                       \
     REG = slot (TYPE);                  \
-    return nextOp ();                   \
+    nextOp ();                   \
 }                                       \
                                         \
 d_m3OpDef (SetSlot_##TYPE)              \
 {                                       \
     slot (TYPE) = (TYPE) REG;           \
-    return nextOp ();                   \
+    nextOp ();                   \
 }                                       \
                                         \
 d_m3OpDef (PreserveSetSlot_##TYPE)      \
@@ -348,7 +348,7 @@ d_m3OpDef (PreserveSetSlot_##TYPE)      \
     * preserve = * stack;               \
     * stack = (TYPE) REG;               \
                                         \
-    return nextOp ();                   \
+    nextOp ();                   \
 }
 
 d_m3SetRegisterSetSlot (i32, _r0)
@@ -364,7 +364,7 @@ d_m3OpDef (CopySlot_32)
 
     * dst = * src;
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -377,7 +377,7 @@ d_m3OpDef (PreserveCopySlot_32)
     * preserve = * dest;
     * dest = * src;
     
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -388,7 +388,7 @@ d_m3OpDef (CopySlot_64)
 
     * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
-    return nextOp ();
+    nextOp ();
 }
 
 
@@ -401,7 +401,7 @@ d_m3OpDef (PreserveCopySlot_64)
     * preserve = * dest;
     * dest = * src;
     
-    return nextOp ();
+    nextOp ();
 }
 
 
