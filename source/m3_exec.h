@@ -238,12 +238,19 @@ d_m3UnaryOp_f (f32, Negate,     -);             d_m3UnaryOp_f (f64, Negate,     
 d_m3UnaryOp_i (i32, EqualToZero, OP_EQZ)
 d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
-// clz(0), ctz(0) results are undefined, fix it
+// clz(0), ctz(0) results are undefined for rest platforms, fix it
 #if (defined(__i386__) || defined(__x86_64__)) && !(defined(__AVX2__) || (defined(__ABM__) && defined(__BMI__)))
     #define OP_CLZ_32(x)   (__builtin_clz((x) | (1   <<  0)) + OP_EQZ(x))
     #define OP_CTZ_32(x)   (__builtin_ctz((x) | (1   << 31)) + OP_EQZ(x))
     #define OP_CLZ_64(x) (__builtin_clzll((x) | (1LL <<  0)) + OP_EQZ(x))
     #define OP_CTZ_64(x) (__builtin_ctzll((x) | (1LL << 63)) + OP_EQZ(x))
+#elif defined(__ppc__) || defined(__ppc64__)
+// PowerPC is defined for __builtin_clz(0) and __builtin_ctz(0).
+// See (https://github.com/aquynh/capstone/blob/master/MathExtras.h#L99)
+    #define OP_CLZ_32(x)   __builtin_clz(x)
+    #define OP_CTZ_32(x)   __builtin_ctz(x)
+    #define OP_CLZ_64(x) __builtin_clzll(x)
+    #define OP_CTZ_64(x) __builtin_ctzll(x)
 #else
     #define OP_CLZ_32(x) (((x) == 0) ? 32 : __builtin_clz(x))
     #define OP_CTZ_32(x) (((x) == 0) ? 32 : __builtin_ctz(x))
