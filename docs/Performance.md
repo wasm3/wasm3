@@ -21,6 +21,8 @@ Native (GCC 7.4.0, 32-bit)    18070.112035     11.1x
 Native (GCC 7.4.0, 64-bit)    19144.862795     11.8x
 ```
 
+**Note:** Here is more info on [how to run CoreMark benchmark](../test/benchmark/coremark).
+
 ## Simple recursive Fibonacci calculation test
 
 ```log
@@ -56,8 +58,8 @@ OpenWRT                                      3m 20s
 ----------------------------------------------------------------------------------------------------
 Maix (K210)        rv64imafc @ 400MHz          77ms        77ms
 ESP8266                LX106 @ 160MHz         308ms       321ms      TCO failed,   stack used: 9024
-ESP32                    LX6 @ 240MHz         340ms       350ms      TCO failed,   stack used: 10600
-ESP32-s2 (beta)          LX6 @ 240MHz         340ms       351ms      TCO failed
+ESP32                    LX6 @ 240MHz         297ms       314ms      TCO failed,   stack used: 10600
+ESP32-s2 (beta)          LX6 @ 240MHz         297ms       314ms      TCO failed
 Particle Photon       Arm M3 @ 120MHz         536ms       562ms
 MXChip AZ3166         Arm M4 @ 100MHz            ms          ms
 WM W600               Arm M3 @ 80MHz          698ms       782ms      TCO enabled,  stack used: 1325

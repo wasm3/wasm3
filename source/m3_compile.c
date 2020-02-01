@@ -1908,10 +1908,7 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
         if (not compiler)
             compiler = Compile_Operator;
 
-        if (compiler)
-            result = (* compiler) (o, opcode);
-        else
-            result = m3Err_noCompiler;
+        result = (* compiler) (o, opcode);
 
         o->previousOpcode = opcode;                             //                      m3logif (stack, dump_type_stack (o))
 

@@ -588,9 +588,9 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
             case c_m3Type_f32:  *(f32*)(s) = atof(str);  break;
             case c_m3Type_f64:  *(f64*)(s) = atof(str);  break;
 #else
-            case c_m3Type_i32:  *(u32*)(s) = strtoul(str, NULL, 10);  break;
-            case c_m3Type_i64:  *(u64*)(s) = strtoull(str, NULL, 10); break;
+            case c_m3Type_i32:
             case c_m3Type_f32:  *(u32*)(s) = strtoul(str, NULL, 10);  break;
+            case c_m3Type_i64:
             case c_m3Type_f64:  *(u64*)(s) = strtoull(str, NULL, 10); break;
 #endif
             default: _throw("unknown argument type");
