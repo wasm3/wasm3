@@ -239,7 +239,7 @@ d_m3UnaryOp_i (i32, EqualToZero, OP_EQZ)
 d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
 // clz(0), ctz(0) results are undefined, fix it
-#if defined(__i386__) || defined(__x86_64__)
+#if (defined(__i386__) || defined(__x86_64__)) && !defined(__AVX2__)
     #define OP_CLZ_32(x)   (__builtin_clz((x) | (1   <<  0)) + OP_EQZ(x))
     #define OP_CTZ_32(x)   (__builtin_ctz((x) | (1   << 31)) + OP_EQZ(x))
     #define OP_CLZ_64(x) (__builtin_clzll((x) | (1LL <<  0)) + OP_EQZ(x))
