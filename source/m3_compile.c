@@ -598,6 +598,8 @@ _   (EmitOp (o, op));
 // entry just has a index pointer to that local memory slot.
 // then, when a previously referenced local is set, the current value needs to be preserved for those references
 
+// TODO: consider getting rid of these specialized operations: PreserveSetSlot & PreserveCopySlot.
+// They likely just take up space without improving performance.
 M3Result  PreservedCopyTopSlot  (IM3Compilation o, u16 i_destSlot, u16 i_preserveSlot)
 {
     M3Result result = m3Err_none;             d_m3Assert (i_destSlot != i_preserveSlot);
@@ -738,7 +740,6 @@ M3Result  Compile_Const_i32  (IM3Compilation o, u8 i_opcode)
 
     i32 value;
 _   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", get_indention_string (o), value);
-
 _   (PushConst (o, value, c_m3Type_i32));
 
     _catch: return result;
@@ -751,7 +752,6 @@ M3Result  Compile_Const_i64  (IM3Compilation o, u8 i_opcode)
 
     i64 value;
 _   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", get_indention_string (o), value);
-
 _   (PushConst (o, value, c_m3Type_i64));
 
     _catch: return result;
@@ -762,14 +762,10 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-    f32 value;
+	union { u64 u; f32 f; } value = {};
 
-_   (Read_f32 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value);
-
-    union { u64 u; f32 f; } union64;
-    union64.f = value;
-
-_   (PushConst (o, union64.u, c_m3Type_f32));
+_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value);
+_   (PushConst (o, value.u, c_m3Type_f32));
 
     _catch: return result;
 }
@@ -779,14 +775,10 @@ M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-    f64 value;
+	union { u64 u; f64 f; } value = {};
 
-_   (Read_f64 (& value, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value);
-
-    union { u64 u; f64 f; } union64;
-    union64.f = value;
-
-_   (PushConst (o, union64.u, c_m3Type_f64));
+_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value);
+_   (PushConst (o, value.u, c_m3Type_f64));
 
     _catch: return result;
 }
@@ -1031,8 +1023,6 @@ _               (MoveStackTopToRegister (o));
 
             if (valueType != c_m3Type_none and not IsStackPolymorphic (o))
 _               (MoveStackTopToRegister (o));
-
-//_           (UnwindBlockStack (o));
 
             o->block.isPolymorphic = true;
         }
@@ -1373,6 +1363,7 @@ _       (EmitOp (o, op_Branch));
 M3Result  Compile_If  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
+	
 _try {
 _   (PreserveNonTopRegisters (o));
 _   (PreserveArgsAndLocals (o));
