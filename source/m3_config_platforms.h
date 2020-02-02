@@ -178,11 +178,16 @@
 #  define M3_WEAK __attribute__((weak))
 # endif
 
-# ifndef min
-#  define min(A,B) (((A) < (B)) ? (A) : (B))
-# endif
-# ifndef max
-#  define max(A,B) (((A) > (B)) ? (A) : (B))
+/* Don't define min and max when compiling C++ sources;
+ * this causes issues in STL where min() and max() member functions are defined.
+ */
+# ifndef __cplusplus
+#  ifndef min
+#   define min(A,B) (((A) < (B)) ? (A) : (B))
+#  endif
+#  ifndef max
+#   define max(A,B) (((A) > (B)) ? (A) : (B))
+#  endif
 # endif
 
 #define M3_INIT(field) memset(&field, 0, sizeof(field))
