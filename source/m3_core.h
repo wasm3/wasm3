@@ -165,7 +165,7 @@ static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v"
 
 
 #define m3Alloc(OPTR, STRUCT, NUM)              m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
-#define m3RellocArray(PTR, STRUCT, NEW, OLD)    m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define m3ReallocArray(PTR, STRUCT, NEW, OLD)   m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define m3Free(P)                               { m3Free_impl((void*)(P)); P = NULL; }
 
 # if d_m3VerboseLogs

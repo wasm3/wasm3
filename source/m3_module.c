@@ -33,7 +33,7 @@ M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_typ
     M3Result result = m3Err_none;
 
     u32 index = io_module->numGlobals++;
-    io_module->globals = (M3Global *) m3RellocArray (io_module->globals, M3Global, io_module->numGlobals, index);
+    io_module->globals = (M3Global *) m3ReallocArray (io_module->globals, M3Global, io_module->numGlobals, index);
 
     if (io_module->globals)
     {
@@ -57,7 +57,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 
     u32 index = io_module->numFunctions++;
-    io_module->functions = (M3Function*)m3RellocArray (io_module->functions, M3Function, io_module->numFunctions, index);
+    io_module->functions = (M3Function*)m3ReallocArray (io_module->functions, M3Function, io_module->numFunctions, index);
 
     if (io_module->functions)
     {
