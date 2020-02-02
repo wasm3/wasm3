@@ -175,6 +175,8 @@ void  ReleaseRuntime  (IM3Runtime i_runtime)
     FreeCompilationPatches (& i_runtime->compilation);
 
     m3Free (i_runtime->stack);
+
+    m3Free (i_runtime->memory.mallocated);
 }
 
 

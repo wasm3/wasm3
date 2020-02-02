@@ -8,6 +8,8 @@
 
 #include "m3_env.h"
 
+static void Module_FreeFunctions(IM3Module i_module);
+
 void  m3_FreeModule  (IM3Module i_module)
 {
     if (i_module)
@@ -15,10 +17,13 @@ void  m3_FreeModule  (IM3Module i_module)
         m3log (module, "freeing module: %s (funcs: %d; segments: %d)",
                i_module->name, i_module->numFunctions, i_module->numDataSegments);
 
+        Module_FreeFunctions (i_module);
+
         m3Free (i_module->functions);
         m3Free (i_module->imports);
         m3Free (i_module->funcTypes);
         m3Free (i_module->dataSegments);
+        m3Free (i_module->table0);
 
         // TODO: free importinfo
         m3Free (i_module->globals);
@@ -27,6 +32,20 @@ void  m3_FreeModule  (IM3Module i_module)
     }
 }
 
+static void Module_FreeFunctions(IM3Module i_module)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function func = &i_module->functions[i];
+        m3Free (func->constants);
+        if (func->name != func->import.fieldUtf8)
+        {
+            m3Free (func->name);
+        }
+
+        FreeImportInfo (&func->import);
+    }
+}
 
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
