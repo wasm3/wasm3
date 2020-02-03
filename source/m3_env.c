@@ -175,6 +175,8 @@ void  ReleaseRuntime  (IM3Runtime i_runtime)
     FreeCompilationPatches (& i_runtime->compilation);
 
     m3Free (i_runtime->stack);
+
+    m3Free (i_runtime->memory.mallocated);
 }
 
 
@@ -422,7 +424,7 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             if (endElement > offset) // TODO: check this, endElement depends on offset
             {
-                io_module->table0 = (IM3Function*)m3RellocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
+                io_module->table0 = (IM3Function*)m3ReallocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
 
                 if (io_module->table0)
                 {

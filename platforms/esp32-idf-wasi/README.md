@@ -1,5 +1,7 @@
 ## Build for ESP-IDF, with minimal WASI support
 
+**Note:** Currently, to run this example you need a PSRAM-enabled ESP32 module (this might be improved in future).
+
 Download and install ESP-IDF v4.0
 
 ```sh

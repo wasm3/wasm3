@@ -8,6 +8,8 @@
 
 #include "m3_env.h"
 
+static void Module_FreeFunctions(IM3Module i_module);
+
 void  m3_FreeModule  (IM3Module i_module)
 {
     if (i_module)
@@ -15,10 +17,13 @@ void  m3_FreeModule  (IM3Module i_module)
         m3log (module, "freeing module: %s (funcs: %d; segments: %d)",
                i_module->name, i_module->numFunctions, i_module->numDataSegments);
 
+        Module_FreeFunctions (i_module);
+
         m3Free (i_module->functions);
         m3Free (i_module->imports);
         m3Free (i_module->funcTypes);
         m3Free (i_module->dataSegments);
+        m3Free (i_module->table0);
 
         // TODO: free importinfo
         m3Free (i_module->globals);
@@ -27,13 +32,27 @@ void  m3_FreeModule  (IM3Module i_module)
     }
 }
 
+static void Module_FreeFunctions(IM3Module i_module)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function func = &i_module->functions[i];
+        m3Free (func->constants);
+        if (func->name != func->import.fieldUtf8)
+        {
+            m3Free (func->name);
+        }
+
+        FreeImportInfo (&func->import);
+    }
+}
 
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
     M3Result result = m3Err_none;
 
     u32 index = io_module->numGlobals++;
-    io_module->globals = (M3Global *) m3RellocArray (io_module->globals, M3Global, io_module->numGlobals, index);
+    io_module->globals = (M3Global *) m3ReallocArray (io_module->globals, M3Global, io_module->numGlobals, index);
 
     if (io_module->globals)
     {
@@ -57,7 +76,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 
     u32 index = io_module->numFunctions++;
-    io_module->functions = (M3Function*)m3RellocArray (io_module->functions, M3Function, io_module->numFunctions, index);
+    io_module->functions = (M3Function*)m3ReallocArray (io_module->functions, M3Function, io_module->numFunctions, index);
 
     if (io_module->functions)
     {
