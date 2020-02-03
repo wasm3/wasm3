@@ -1,4 +1,4 @@
-<img align="right" width="30%" src="/extra/screenshot-android.png">
+<img align="right" width="30%" src="/extra/screenshot-ios.png">
 
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
