@@ -27,7 +27,7 @@ Native (GCC 7.4.0, 64-bit)    19144.862795     11.8x
 
 ```log
                                             fib(40)
-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 # Intel i5-8250U x64 (1.6-3.4GHz)
 Native C implementation                       0.23s
 Linux                                         3.83s
@@ -54,48 +54,31 @@ OpenWRT                                      3m 20s
 ## Wasm3 on MCUs
 
 ```log
-                                          fib32(24)   fib64(24)      comments
-----------------------------------------------------------------------------------------------------
-Maix (K210)        rv64imafc @ 400MHz          77ms        77ms
-ESP8266                LX106 @ 160MHz         308ms       321ms      TCO failed,   stack used: 9024
-ESP32                    LX6 @ 240MHz         297ms       314ms      TCO failed,   stack used: 10600
-ESP32-s2 (beta)          LX6 @ 240MHz         297ms       314ms      TCO failed
-Particle Photon       Arm M3 @ 120MHz         536ms       562ms
-MXChip AZ3166         Arm M4 @ 100MHz            ms          ms
-WM W600               Arm M3 @ 80MHz          698ms       782ms      TCO enabled,  stack used: 1325
-WM W600               Arm M3 @ 80MHz          826ms       914ms      TCO disabled, stack used: 8109
-Arduino DUE (SAM3X8E) Arm M3 @ 84MHz          754ms       813ms
-BleNano2 (nRF52)      Arm M4 @ 64MHz          1.19s       1.29s
-Arduino MKR1000      Arm M0+ @ 48MHz          1.93s       2.06s      TCO failed
-TinyBLE (nRF51)       Arm M0 @ 16MHz          5.69s       5.93s      TCO failed
-BluePill              Arm M3 @ 72MHz          7.62s       8.20s
-HiFive1 (FE310)     rv32imac @ 320MHz         9.10s       9.82s   <- something wrong here?
-ATmega1284               avr @ 16MHz         12.99s        ---       TCO failed
-Fomu                   rv32i @ 12MHz         25.20s      26.10s
-```
-
-
-## Wasm3 vs other WebAssembly engines
-
-This is how different engines run the same function on Intel i5-8250U (1.6-3.4GHz):
-
-```log
-                                             fib(40)
-----------------------------------------------------------------------------------------------------
-WAVM               jit                         0.62s
-wasmer             jit                         0.70s
-V8 (Node.js)       jit                         0.74s
-SpiderMonkey       jit                         0.93s ▲ faster
-Wasm3              interp                      3.83s
-iwasm              interp                     25.70s ▼ slower
-wac                interp                     37.11s
+                                            fib(24)       comments
+-----------------------------------------------------------------------------------------
+Maix (K210)        rv64imafc @ 400MHz          77ms
+ESP8266                LX106 @ 160MHz         308ms       TCO failed,   stack used: 9024
+ESP32                    LX6 @ 240MHz         297ms       TCO failed,   stack used: 10600
+ESP32-s2 (beta)          LX6 @ 240MHz         297ms       TCO failed
+Particle Photon       Arm M3 @ 120MHz         536ms
+MXChip AZ3166         Arm M4 @ 100MHz            ms
+WM W600               Arm M3 @ 80MHz          698ms       TCO enabled,  stack used: 1325
+WM W600               Arm M3 @ 80MHz          826ms       TCO disabled, stack used: 8109
+Arduino DUE (SAM3X8E) Arm M3 @ 84MHz          754ms
+BleNano2 (nRF52)      Arm M4 @ 64MHz          1.19s
+Arduino MKR1000      Arm M0+ @ 48MHz          1.93s       TCO failed
+TinyBLE (nRF51)       Arm M0 @ 16MHz          5.69s       TCO failed
+BluePill              Arm M3 @ 72MHz          7.62s
+HiFive1 (FE310)     rv32imac @ 320MHz         9.10s    <- something wrong here?
+ATmega1284               avr @ 16MHz         12.99s       TCO failed
+Fomu                   rv32i @ 12MHz         25.20s
 ```
 
 ## Wasm3 vs other languages
 
 ```log
                                              fib(40)
-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 LuaJIT             jit                         1.15s
 Node v10.15        jit                         2.97s ▲ faster
 Wasm3              interp                      3.83s
