@@ -248,8 +248,8 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 #elif defined(__ppc__) || defined(__ppc64__)
 // PowerPC is defined for __builtin_clz(0) and __builtin_ctz(0).
 // See (https://github.com/aquynh/capstone/blob/master/MathExtras.h#L99)
-    #define OP_CLZ_32(x)   __builtin_clz(x)
-    #define OP_CTZ_32(x)   __builtin_ctz(x)
+    #define OP_CLZ_32(x) __builtin_clz(x)
+    #define OP_CTZ_32(x) __builtin_ctz(x)
     #define OP_CLZ_64(x) __builtin_clzll(x)
     #define OP_CTZ_64(x) __builtin_ctzll(x)
 #else
