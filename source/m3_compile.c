@@ -2048,7 +2048,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
     // operations as needed. Compiled expressions (global inits) don't pass through this
     // ReserveConstants function and thus always produce inline contants.
-    numConstants = min (numConstants, d_m3MaxNumFunctionConstants);
+    numConstants = M3_MIN (numConstants, d_m3MaxNumFunctionConstants);
 
     u32 freeSlots = d_m3MaxFunctionStackHeight - o->constSlotIndex;
 

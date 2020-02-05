@@ -173,7 +173,7 @@ void        m3StackCheck ()
     size_t addr = (size_t)&stack;
 
     size_t stackEnd = stack_end;
-    stack_end = min(stack_end, addr);
+    stack_end = M3_MIN(stack_end, addr);
 
 //    if (stackEnd != stack_end)
 //        printf ("maxStack: %ld\n", m3StackGetMax ());
