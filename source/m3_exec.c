@@ -331,13 +331,13 @@ d_m3OpDef  (BranchTable)
 d_m3OpDef  (SetRegister_##TYPE)         \
 {                                       \
     REG = slot (TYPE);                  \
-    nextOp ();                   \
+    nextOp ();                          \
 }                                       \
                                         \
 d_m3OpDef (SetSlot_##TYPE)              \
 {                                       \
     slot (TYPE) = (TYPE) REG;           \
-    nextOp ();                   \
+    nextOp ();                          \
 }                                       \
                                         \
 d_m3OpDef (PreserveSetSlot_##TYPE)      \
@@ -348,7 +348,7 @@ d_m3OpDef (PreserveSetSlot_##TYPE)      \
     * preserve = * stack;               \
     * stack = (TYPE) REG;               \
                                         \
-    nextOp ();                   \
+    nextOp ();                          \
 }
 
 d_m3SetRegisterSetSlot (i32, _r0)
@@ -440,7 +440,7 @@ d_m3OpDef  (DumpStack)
 
 # if d_m3EnableOpProfiling
 //--------------------------------------------------------------------------------------------------------
-M3ProfilerSlot s_opProfilerCounts [c_m3ProfilerSlotMask] = {};
+M3ProfilerSlot s_opProfilerCounts [c_m3ProfilerSlotMask + 1] = {};
 
 void  ProfileHit  (cstr_t i_operationName)
 {
@@ -460,15 +460,34 @@ void  ProfileHit  (cstr_t i_operationName)
     slot->hitCount++;
 }
 
+
 void  m3_PrintProfilerInfo  ()
 {
-    for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
-    {
-        M3ProfilerSlot * slot = & s_opProfilerCounts [i];
+    M3ProfilerSlot dummy;
+    M3ProfilerSlot * maxSlot = & dummy;
 
-        if (slot->opName)
-            printf ("%13llu  %s\n", slot->hitCount, slot->opName);
+    do
+    {
+        maxSlot->hitCount = 0;
+        
+        for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
+        {
+            M3ProfilerSlot * slot = & s_opProfilerCounts [i];
+            
+            if (slot->opName)
+            {
+                if (slot->hitCount > maxSlot->hitCount)
+                    maxSlot = slot;
+            }
+        }
+
+        if (maxSlot->opName)
+        {
+            fprintf (stderr, "%13llu  %s\n", maxSlot->hitCount, maxSlot->opName);
+            maxSlot->opName = NULL;
+        }
     }
+    while (maxSlot->hitCount);
 }
 
 # else

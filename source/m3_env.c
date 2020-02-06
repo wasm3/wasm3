@@ -184,6 +184,8 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
 {
     if (i_runtime)
     {
+        m3_PrintProfilerInfo ();
+        
         ReleaseRuntime (i_runtime);
         m3Free (i_runtime);
     }
