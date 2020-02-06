@@ -806,6 +806,60 @@ _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memo
     _catch: return result;
 }
 
+M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_t* i_argv, unsigned *o_valid, uint64_t* o_ret)
+{
+    M3Result result = m3Err_none;
+
+    if (i_function->compiled)
+    {
+        IM3Module module = i_function->module;
+
+        IM3Runtime runtime = module->runtime;
+        // FIXME: support wasi?
+
+        IM3FuncType ftype = i_function->funcType;
+
+        m3stack_t stack = (m3stack_t)(runtime->stack);
+
+        m3logif (runtime, PrintFuncTypeSignature (ftype));
+
+        if (i_argc != ftype->numArgs) {
+            _throw("arguments count mismatch");
+        }
+
+        // The format is currently not user-friendly by default,
+        // as this is used in spec tests
+        for (u32 i = 0; i < ftype->numArgs; ++i)
+        {
+            stack[i] = i_argv[i];
+
+            switch (ftype->argTypes[i]) {
+            case c_m3Type_i32:
+            case c_m3Type_f32:
+            case c_m3Type_i64:
+            case c_m3Type_f64: break;
+            default: _throw("unknown argument type");
+            }
+        }
+
+        m3StackCheckInit();
+_       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+
+        *o_valid = 1;
+        switch (ftype->returnType) {
+        case c_m3Type_none: *o_valid = 0; break;
+        case c_m3Type_i32: *o_ret = *(i32*)(stack); break;
+        case c_m3Type_i64: *o_ret = *(i64*)(stack); break;
+        case c_m3Type_f32: *o_ret = *(f32*)(stack); break;
+        case c_m3Type_f64: *o_ret = *(f64*)(stack); break;
+        default: _throw("unknown return type");
+        }
+    }
+    else _throw (m3Err_missingCompiledCode);
+
+    _catch: return result;
+}
+
 #if 0
 M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
 {
