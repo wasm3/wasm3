@@ -1,4 +1,4 @@
-<img align="right" width="30%" src="/extra/screenshot-android.png">
+<img align="right" width="30%" src="/extra/screenshot-ios.png">
 
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
@@ -65,10 +65,11 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 ## Further Resources
 
+[Demos](./docs/Demos.md)  
 [Build and Development instructions](./docs/Development.md)  
 [Testing & Fuzzing](./docs/Testing.md)  
 [Performance](./docs/Performance.md)  
-[Interpreter Architecture](./docs/Interpreter.md)
+[Interpreter Architecture](./docs/Interpreter.md)  
 
 ### License
 This project is released under The MIT License (MIT)

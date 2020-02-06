@@ -250,7 +250,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_dir_name)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_EBADF); }
-    int size = min(strlen(preopen[fd].path), path_len);
+    int size = M3_MIN(strlen(preopen[fd].path), path_len);
     memcpy(path, preopen[fd].path, size);
     m3ApiReturn(__WASI_ESUCCESS);
 }
@@ -543,7 +543,7 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
         ssize_t retlen = 0;
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
-        size_t reqlen = min(buflen, 256);
+        size_t reqlen = M3_MIN(buflen, 256);
 #   if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
         retlen = SecRandomCopyBytes(kSecRandomDefault, reqlen, buf) < 0 ? -1 : reqlen;
 #   else
