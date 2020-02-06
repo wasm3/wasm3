@@ -13,9 +13,7 @@
 #include "m3_exec.h"
 #include "m3_compile.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+d_m3BeginExternC
 
 typedef struct M3FuncType
 {
@@ -255,8 +253,6 @@ void                        ReleaseCodePage             (IM3Runtime io_runtime, 
 
 M3Result                    m3Error                     (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
 
-#if defined(__cplusplus)
-}
-#endif
+d_m3EndExternC
 
 #endif // m3_env_h

@@ -17,9 +17,15 @@
 #include "wasm3.h"
 #include "m3_config.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+# if defined(__cplusplus)
+#   define d_m3BeginExternC	    extern "C" {
+#   define d_m3EndExternC	    }
+# else
+#   define d_m3BeginExternC
+#   define d_m3EndExternC
+# endif
+
+d_m3BeginExternC
 
 #if !defined(d_m3ShortTypesDefined)
 typedef double          f64;
@@ -227,8 +233,6 @@ size_t      SPrintArg               (char * o_string, size_t i_n, m3stack_t i_sp
 
 void        ReportError             (IM3Runtime io_runtime, IM3Module i_module, IM3Function i_function, ccstr_t i_errorMessage, ccstr_t i_file, u32 i_lineNum);
 
-#if defined(__cplusplus)
-}
-#endif
+d_m3EndExternC
 
 #endif // m3_core_h

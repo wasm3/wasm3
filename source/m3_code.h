@@ -10,9 +10,7 @@
 
 #include "m3_core.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+d_m3BeginExternC
 
 typedef struct M3CodePage
 {
@@ -48,8 +46,6 @@ void                    dump_code_page            (IM3CodePage i_codePage, pc_t 
 #  define EmitWord64(page, val) EmitWord_impl(page, (void*)(val))
 #endif
 
-#if defined(__cplusplus)
-}
-#endif
+d_m3EndExternC
 
 #endif // m3_code_h

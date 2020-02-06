@@ -29,9 +29,7 @@
 #include <math.h>
 #include <limits.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+d_m3BeginExternC
 
 # define rewrite_op(OP)             * ((void **) (_pc-1)) = (void*)(OP)
 
@@ -917,8 +915,6 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 }
 # endif
 
-#if defined(__cplusplus)
-}
-#endif
+d_m3EndExternC
 
 #endif // m3_exec_h

@@ -458,14 +458,14 @@ M3Result  InitStartFunc  (IM3Module io_module)
     M3Result result = m3Err_none;
 
     if (io_module->startFunction >= 0)
-	{
-		IM3Function function = & io_module->functions [io_module->startFunction];
+    {
+	    IM3Function function = & io_module->functions [io_module->startFunction];
 
         if (not function->compiled)
         {
 _           (Compile_Function (function));
         }
-		
+	    
 _       (m3_Call(function));
     }
 

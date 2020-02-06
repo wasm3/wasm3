@@ -186,8 +186,8 @@ d_m3OpDef  (Compile)
 
 d_m3OpDef  (Entry)
 {
-	d_m3ClearRegisters
-	
+    d_m3ClearRegisters
+    
     IM3Function function = immediate (IM3Function);
 
 #if defined(d_m3SkipStackCheck)
@@ -260,9 +260,9 @@ d_m3OpDef  (SetGlobal_i64)
 
 d_m3OpDef  (Loop)
 {
-	// regs are unused coming into a loop anyway
-	// this reduces code size & stack usage
-	d_m3ClearRegisters
+    // regs are unused coming into a loop anyway
+    // this reduces code size & stack usage
+    d_m3ClearRegisters
 
     m3ret_t r;
 
