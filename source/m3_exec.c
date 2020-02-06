@@ -187,7 +187,7 @@ d_m3OpDef  (Compile)
 d_m3OpDef  (Entry)
 {
     d_m3ClearRegisters
-    
+
     IM3Function function = immediate (IM3Function);
 
 #if defined(d_m3SkipStackCheck)
@@ -376,7 +376,7 @@ d_m3OpDef (PreserveCopySlot_32)
 
     * preserve = * dest;
     * dest = * src;
-    
+
     nextOp ();
 }
 
@@ -400,7 +400,7 @@ d_m3OpDef (PreserveCopySlot_64)
 
     * preserve = * dest;
     * dest = * src;
-    
+
     nextOp ();
 }
 
@@ -469,11 +469,11 @@ void  m3_PrintProfilerInfo  ()
     do
     {
         maxSlot->hitCount = 0;
-        
+
         for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
         {
             M3ProfilerSlot * slot = & s_opProfilerCounts [i];
-            
+
             if (slot->opName)
             {
                 if (slot->hitCount > maxSlot->hitCount)
