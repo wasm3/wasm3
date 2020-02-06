@@ -11,7 +11,7 @@
 #include "m3_code.h"
 #include "m3_exec_defs.h"
 
-    d_m3BeginExternC
+d_m3BeginExternC
 
 enum
 {

@@ -762,8 +762,8 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-    union { u64 u; f32 f; } value = {};
-
+    union { u64 u; f32 f; } value = { 0 };
+    
 _   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value);
 _   (PushConst (o, value.u, c_m3Type_f32));
 
@@ -775,7 +775,7 @@ M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-    union { u64 u; f64 f; } value = {};
+    union { u64 u; f64 f; } value = { 0 };
 
 _   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value);
 _   (PushConst (o, value.u, c_m3Type_f64));
