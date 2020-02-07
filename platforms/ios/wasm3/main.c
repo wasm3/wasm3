@@ -28,6 +28,9 @@ uint32_t fib_native(uint32_t n) {
     return fib_native(n - 1) + fib_native(n - 2);
 }
 
+// same function uses on fib.wasm so we preserve is as is.
+// Note: for prevent precalculation FIB_ARG_VALUE on compile time we need disable inlining
+__attribute__((noinline))
 int parseInt(char* str) {
     int res = 0;
     for (int i = 0; str[i] != '\0'; ++i) {
