@@ -37,7 +37,7 @@ int parseInt(char* str) {
 }
 
 void run_native() {
-    printf("Running fib(%s) on Native C...\n", FIB_ARG_VALUE);
+    printf("Running fib("FIB_ARG_VALUE") on Native C...\n");
 
     clock_t start = clock();
     uint32_t result = fib_native(parseInt(FIB_ARG_VALUE));
