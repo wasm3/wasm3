@@ -93,8 +93,8 @@ static void* runMain(void* ctx)
     uname(&systemInfo);
 
     printf("Wasm3 v" M3_VERSION " on iOS ("M3_ARCH")\n");
-    printf("Device: %s\n", systemInfo.machine);
     printf("Build " __DATE__ " " __TIME__ "\n\n");
+    printf("Device: %s\n", systemInfo.machine);
 
     run_wasm();
     run_native();
