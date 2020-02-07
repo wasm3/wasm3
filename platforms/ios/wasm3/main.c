@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/utsname.h>
+#include <sys/mman.h>
 
 #include "wasm3.h"
 #include "m3_env.h"
@@ -130,6 +131,7 @@ void redirect_output(print_cbk_t f)
 
 int run_app()
 {
+    mlockall(MCL_CURRENT | MCL_FUTURE);
     static pthread_t mainThread;
     pthread_attr_t  threadAttr;
     pthread_attr_init(&threadAttr);
