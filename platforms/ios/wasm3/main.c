@@ -22,6 +22,30 @@
 #define FIB_ARG_VALUE  "40"
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
+uint32_t fib_native(uint32_t n) {
+    if(n < 2) return n;
+    return fib_native(n - 1) + fib_native(n - 2);
+}
+
+int parseInt(char* str) {
+    int res = 0;
+    for (int i = 0; str[i] != '\0'; ++i) {
+        res = res * 10 + str[i] - '0';
+    }
+    return res;
+}
+
+void run_native() {
+    printf("Running fib(%s) on Native C...\n", FIB_ARG_VALUE);
+
+    clock_t start = clock();
+    uint32_t result = fib_native(parseInt(FIB_ARG_VALUE));
+    clock_t end = clock();
+
+    printf("Result: %u\n", result);
+    printf("Elapsed: %ld ms\n", (end - start) * 1000 / CLOCKS_PER_SEC);
+}
+
 void run_wasm()
 {
     M3Result result = m3Err_none;
@@ -48,19 +72,16 @@ void run_wasm()
     result = m3_FindFunction (&f, runtime, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
-    printf("Running fib(%s)...\n", FIB_ARG_VALUE);
+    printf("Running fib("FIB_ARG_VALUE") on WebAssembly...\n");
 
     const char* i_argv[2] = { FIB_ARG_VALUE, NULL };
-    
-    // warmup
-    m3_CallWithArgs (f, 1, i_argv);
-    
+
     clock_t start = clock();
     result = m3_CallWithArgs (f, 1, i_argv);
     clock_t end = clock();
 
     if (result) FATAL("m3_CallWithArgs: %s", result);
-    printf("Elapsed: %ld ms\n", (end - start) * 1000 / CLOCKS_PER_SEC);
+    printf("Elapsed: %ld ms\n\n", (end - start) * 1000 / CLOCKS_PER_SEC);
 
     // uint64_t value = *(uint64_t*)(runtime->stack);
     // printf("Result: %llu\n", value);
@@ -71,10 +92,13 @@ static void* runMain(void* ctx)
     struct utsname systemInfo;
     uname(&systemInfo);
 
-    printf("Wasm3 v" M3_VERSION " on iOS %s (" M3_ARCH ")\n", systemInfo.machine);
-    printf("Build " __DATE__ " " __TIME__ "\n");
+    printf("Wasm3 v" M3_VERSION " on iOS ("M3_ARCH")\n");
+    printf("Device: %s\n", systemInfo.machine);
+    printf("Build " __DATE__ " " __TIME__ "\n\n");
 
     run_wasm();
+    run_native();
+
     return 0;
 }
 
