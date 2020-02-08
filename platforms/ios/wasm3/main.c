@@ -24,7 +24,7 @@
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
 uint32_t fib_native(uint32_t n) {
-    if(n < 2) return n;
+    if (n < 2) return n;
     return fib_native(n - 1) + fib_native(n - 2);
 }
 
@@ -40,7 +40,7 @@ int parseInt(char* str) {
 }
 
 void run_native() {
-    printf("Running fib("FIB_ARG_VALUE") on Native C...\n");
+    printf("Running fib(" FIB_ARG_VALUE ") on Native C...\n");
 
     clock_t start = clock();
     uint32_t result = fib_native(parseInt(FIB_ARG_VALUE));
@@ -76,7 +76,7 @@ void run_wasm()
     result = m3_FindFunction (&f, runtime, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
-    printf("Running fib("FIB_ARG_VALUE") on WebAssembly...\n");
+    printf("Running fib(" FIB_ARG_VALUE ") on WebAssembly...\n");
 
     const char* i_argv[2] = { FIB_ARG_VALUE, NULL };
 
@@ -96,7 +96,7 @@ static void* runMain(void* ctx)
     struct utsname systemInfo;
     uname(&systemInfo);
 
-    printf("Wasm3 v" M3_VERSION " on iOS ("M3_ARCH")\n");
+    printf("Wasm3 v" M3_VERSION " on iOS (" M3_ARCH ")\n");
     printf("Build " __DATE__ " " __TIME__ "\n");
     printf("Device: %s\n\n", systemInfo.machine);
 
