@@ -120,6 +120,16 @@ d_m3OpDef  (CallRawFunction)
     return possible_trap;
 }
 
+d_m3OpDef  (CallRawFunctionEx)
+{
+    M3RawCallEx call = (M3RawCallEx) (* _pc++);
+    void * cookie = immediate (void *);
+    IM3Runtime runtime = GetRuntime (_mem);
+
+    m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem), cookie);
+    return possible_trap;
+}
+
 
 d_m3OpDef  (MemCurrent)
 {

@@ -147,3 +147,72 @@ M3Result  m3_LinkRawFunction  (IM3Module            io_module,
 {
     return FindAndLinkFunction (io_module, i_moduleName, i_functionName, i_signature, (voidptr_t)i_function, LinkRawFunction);
 }
+
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+IM3Function  FindFunction    (IM3Module       io_module,
+                                    ccstr_t         i_moduleName,
+                                    ccstr_t         i_functionName,
+                                    ccstr_t         i_signature)
+{
+    M3Result result = m3Err_functionLookupFailed;
+
+    bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
+    
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+
+        if (f->import.moduleUtf8 and f->import.fieldUtf8)
+        {
+            if (strcmp (f->import.fieldUtf8, i_functionName) == 0 and
+               (wildcardModule or strcmp (f->import.moduleUtf8, i_moduleName) == 0))
+            {
+                return f;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+M3Result  LinkRawFunctionEx  (IM3Module io_module,  IM3Function io_function, ccstr_t signature,  const void * i_function, void * cookie)
+{
+    M3Result result = m3Err_none;                                                 d_m3Assert (io_module->runtime);
+
+_try {
+_   (ValidateSignature (io_function, signature));
+
+    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 3);
+
+    if (page)
+    {
+        io_function->compiled = GetPagePC (page);
+        io_function->module = io_module;
+
+        EmitWord (page, op_CallRawFunctionEx);
+        EmitWord (page, i_function);
+        EmitWord (page, cookie);
+
+        ReleaseCodePage (io_module->runtime, page);
+    }
+    else _throw(m3Err_mallocFailedCodePage);
+
+} _catch:
+    return result;
+}
+
+M3Result  m3_LinkRawFunctionEx  (IM3Module            io_module,
+                                const char * const    i_moduleName,
+                                const char * const    i_functionName,
+                                const char * const    i_signature,
+                                M3RawCallEx           i_function,
+                                void *                i_cookie)
+{
+    IM3Function f = FindFunction(io_module, i_moduleName, i_functionName, i_signature);
+    if (f == NULL)
+        return m3Err_functionLookupFailed;
+    
+    M3Result result = LinkRawFunctionEx(io_module, f, i_signature, (voidptr_t)i_function, i_cookie);
+    return result;
+}
