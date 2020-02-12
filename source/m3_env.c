@@ -848,10 +848,10 @@ _       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated
         *o_valid = 1;
         switch (ftype->returnType) {
         case c_m3Type_none: *o_valid = 0; break;
-        case c_m3Type_i32: *o_ret = *(i32*)(stack); break;
-        case c_m3Type_i64: *o_ret = *(i64*)(stack); break;
-        case c_m3Type_f32: *o_ret = *(f32*)(stack); break;
-        case c_m3Type_f64: *o_ret = *(f64*)(stack); break;
+        case c_m3Type_i32: *o_ret = (uint64_t)(stack[0] & 0xffffffff); break;
+        case c_m3Type_i64: *o_ret = (uint64_t)stack[0]; break;
+        case c_m3Type_f32: *o_ret = (uint64_t)(stack[0] & 0xffffffff); break;
+        case c_m3Type_f64: *o_ret = (uint64_t)stack[0]; break;
         default: _throw("unknown return type");
         }
     }
