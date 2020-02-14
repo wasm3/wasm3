@@ -5,6 +5,7 @@ Device                        | Chipset   | Architecture | Clock    | Flash | RA
 Espressif ESP32               |           | Xtensa LX6 <sup>⚠️</sup> | 240MHz     |  4 MB | 520KB
 Particle Argon, Boron, Xenon  | nRF52840  | Cortex-M4F | 64MHz      |  1 MB | 256KB
 Particle Photon, Electron     | STM32F205 | Cortex-M3  | 120Mhz     |  1 MB | 128KB
+Sparkfun Photon RedBoard      | STM32F205 | Cortex-M3  | 120Mhz     |  1 MB | 128KB
 Air602                        | WM W600   | Cortex-M3  | 80MHz      |  1 MB | 160KB+128KB
 Realtek RTL8711               |           | Cortex-M3  | 166MHz     |  2 MB | 2 MB+512KB
 Nordic nRF52840               |           | Cortex-M4F | 64MHz      |  1 MB | 256KB
