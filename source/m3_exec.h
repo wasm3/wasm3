@@ -616,6 +616,7 @@ d_m3OpDecl  (Compile)
 d_m3OpDecl  (Call)
 d_m3OpDecl  (CallIndirect)
 d_m3OpDecl  (CallRawFunction)
+d_m3OpDecl  (CallRawFunctionEx)
 d_m3OpDecl  (Entry)
 
 d_m3OpDecl  (MemCurrent)
