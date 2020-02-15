@@ -1,5 +1,20 @@
 # Wasm3 hardware support
 
+## Recommended devices (ideal for beginners)
+
+- ESP32-based
+  - **LilyGO TTGO T7 V1.4** │ [AliExpress](https://www.aliexpress.com/item/32977375539.html)
+  - **M5Stack Fire** │ [AliExpress](https://www.aliexpress.com/item/32847906756.html)
+- nRF52840-based
+  - **Arduino Nano 33 BLE** │ [Arduino](https://store.arduino.cc/arduino-nano-33-ble)
+  - **Particle Argon** │ [Particle](https://store.particle.io/collections/bluetooth/products/argon)
+  - **Adafruit Feather nRF52840** | [Adafruit](https://www.adafruit.com/product/4062)
+- Other
+  - **Teensy 4.0** │ [PJRC](https://www.pjrc.com/store/teensy40.html)
+  - **Wemos W600 PICO** │ [AliExpress](https://www.aliexpress.com/item/4000314757449.html)
+
+## Compatibility table
+
 Device                        | Chipset   | Architecture | Clock    | Flash | RAM
 ---                           |:---:      | ---        |      -----:| ---   | ---
 Espressif ESP32               |           | Xtensa LX6 <sup>⚠️</sup> | 240MHz     |  4 MB | 520KB
@@ -36,4 +51,5 @@ Nordic nRF51822               |           |  Cortex-M0 <sup>⚠️</sup>  | 16MH
 Wicked Device WildFire       | ATmega1284 |  8-bit AVR <sup>⚠️</sup>  | 20MHz     | 128KB | 16KB
 
 ### Legend:
- ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), which leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance). There are plans to improve this in future 🦄.
+ ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), which leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance).  
+There are plans to improve this in future 🦄.
