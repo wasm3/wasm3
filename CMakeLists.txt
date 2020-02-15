@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 
+option(BUILD_WASI_SUPPORT "Build with WASI support" ON)
+
 set(OUT_FILE "wasm3")
 set(APP_DIR  "platforms/app")
 
@@ -34,6 +36,11 @@ if(EMSCRIPTEN)
 
   set(OUT_FILE           "wasm3.html")
   set(APP_DIR            "platforms/emscripten")
+endif()
+
+# Detect WasiEnv
+if(DEFINED ENV{WASI_CC})
+  set(WASIENV            1)
 endif()
 
 if(BUILD_32BIT)
@@ -77,7 +84,10 @@ if(EMSCRIPTEN)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Xclang -target-feature -Xclang +tail-call")
   endif()
 elseif(WASIENV)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
+
+  if(BUILD_WASI_SUPPORT)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
+  endif()
 
   set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
 
@@ -87,7 +97,10 @@ elseif(WASIENV)
   #-flto -Wl,--lto-O3
   set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
 elseif(WIN32)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+
+  if(BUILD_WASI_SUPPORT)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+  endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
 
@@ -107,7 +120,10 @@ elseif(WIN32)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608") # stack size
 
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+
+  if(BUILD_WASI_SUPPORT)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI") #-Dd_m3FixedHeap=1048576
+  endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow -Werror=implicit-function-declaration") # -Werror=cast-align

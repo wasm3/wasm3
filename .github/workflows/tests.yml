@@ -114,7 +114,7 @@ jobs:
         source $HOME/.wasienv/wasienv.sh
         mkdir build-wasi
         cd build-wasi
-        wasimake cmake -DWASIENV=1 ..
+        wasimake cmake ..
     - name: Build
       run: |
         source $HOME/.wasienv/wasienv.sh

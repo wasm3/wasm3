@@ -260,8 +260,10 @@ int  main  (int i_argc, const char* i_argv[])
         result = repl_load(runtime, argFile);
         if (result) FATAL("repl_load: %s", result);
 
+#if defined(d_m3HasWASI)
         result = m3_LinkWASI (runtime->modules);
         if (result) FATAL("m3_LinkWASI: %s", result);
+#endif
 
         result = m3_LinkLibC (runtime->modules);
         if (result) FATAL("m3_LinkLibC: %s", result);
