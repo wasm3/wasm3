@@ -151,6 +151,18 @@ bool  IsStackTopMinus1InRegister  (IM3Compilation o)
 }
 
 
+bool  IsStackTopMinus2InRegister  (IM3Compilation o)
+{
+    i16 i = GetStackTopIndex (o);
+
+    if (i > 1)
+    {
+        return (o->wasmStack [i - 2] >= d_m3Reg0SlotAlias);
+    }
+    else return false;
+}
+
+
 void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 {                                                                   d_m3Assert (o->m3Slots [i_slot] == 0); // shouldn't be already allocated
     o->m3Slots [i_slot] = 1;
@@ -1416,6 +1428,13 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
 
     if (IsFpType (type))
     {
+        // not consuming a fp reg, so preserve
+        if (!IsStackTopMinus1InRegister(o) &&
+            !IsStackTopMinus2InRegister(o))
+        {
+            (PreserveRegisterIfOccupied (o, type));
+        }
+
         bool selectorInReg = IsStackTopInRegister (o);
         slots [0] = GetStackTopSlotIndex (o);
 _       (Pop (o));
@@ -1432,14 +1451,18 @@ _       (Pop (o));
 _          (Pop (o));
         }
 
-        // not consuming a fp reg, so preserve
-        if (opIndex == 0)
-_          (PreserveRegisterIfOccupied (o, type));
-
         op = fpSelectOps [type - c_m3Type_f32] [selectorInReg] [opIndex];
     }
     else if (IsIntType (type))
     {
+        // 'sss' operation doesn't consume a register, so might have to protected its contents
+        if (!IsStackTopInRegister(o) &&
+            !IsStackTopMinus1InRegister(o) &&
+            !IsStackTopMinus2InRegister(o)) 
+        {
+            (PreserveRegisterIfOccupied (o, type));
+        }
+
         u32 opIndex = 3;  // op_Select_*_sss
 
         for (u32 i = 0; i < 3; ++i)
@@ -1451,10 +1474,6 @@ _          (PreserveRegisterIfOccupied (o, type));
 
 _          (Pop (o));
         }
-
-        // 'sss' operation doesn't consume a register, so might have to protected its contents
-        if (opIndex == 3)
-_          (PreserveRegisterIfOccupied (o, type));
 
         op = intSelectOps [type - c_m3Type_i32] [opIndex];
     }
