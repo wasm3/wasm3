@@ -1447,10 +1447,10 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
     if (IsFpType (type))
     {
         // not consuming a fp reg, so preserve
-        if (!IsStackTopMinus1InRegister(o) &&
-            !IsStackTopMinus2InRegister(o))
+        if (not IsStackTopMinus1InRegister(o) and
+            not IsStackTopMinus2InRegister(o))
         {
-            (PreserveRegisterIfOccupied (o, type));
+_           (PreserveRegisterIfOccupied (o, type));
         }
 
         bool selectorInReg = IsStackTopInRegister (o);
@@ -1474,11 +1474,11 @@ _          (Pop (o));
     else if (IsIntType (type))
     {
         // 'sss' operation doesn't consume a register, so might have to protected its contents
-        if (!IsStackTopInRegister(o) &&
-            !IsStackTopMinus1InRegister(o) &&
-            !IsStackTopMinus2InRegister(o)) 
+        if (not IsStackTopInRegister(o) and
+            not IsStackTopMinus1InRegister(o) and
+            not IsStackTopMinus2InRegister(o))
         {
-            (PreserveRegisterIfOccupied (o, type));
+_           (PreserveRegisterIfOccupied (o, type));
         }
 
         u32 opIndex = 3;  // op_Select_*_sss
