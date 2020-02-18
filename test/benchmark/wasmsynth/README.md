@@ -1,6 +1,6 @@
 # Wasm Synth
 
-<p align="center"><img width="50%" src="image.png"></p>
+<p align="center"><img width="80%" src="image.png"></p>
 
 Here is some music created by [Peter Salomonsen](https://petersalomonsen.com/) in his [wasm music experiment](https://petersalomonsen.com/webassemblymusic/livecodev2/):
 
