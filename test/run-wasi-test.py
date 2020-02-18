@@ -80,8 +80,8 @@ commands = [
     "name":           "Brotli",
     "stdin":          "./benchmark/brotli/alice29.txt",
     "wasm":           "./benchmark/brotli/brotli.wasm",
-    "args":           ["-9", "-c"],
-    "expect_sha1":    "e5f2e4cb0eb0bae1775a7be0795dd2aaf8900f1a"
+    "args":           ["-c"],
+    "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
   }, {
     "name":           "CoreMark",
     "wasm":           "./benchmark/coremark/coremark-wasi.wasm",

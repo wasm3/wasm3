@@ -21,7 +21,11 @@ chromium-browser --no-sandbox --js-flags="--wasm-opt --wasm-no-bounds-checks --w
 
 ### Run with Wasmer
 
-`TODO`
+```sh
+mkdir fs
+cp wasmerboy.wasm tobudx.gb ./fs
+wasmer run --dir=fs --enable-experimental-io-devices wasm3.wasm -- fs/wasmerboy.wasm fs/tobudx.gb
+```
 
 ### Also
 
