@@ -48,7 +48,7 @@ u32 GetTypeNumSlots (u8 i_type)
 }
 
 i16  GetStackTopIndex  (IM3Compilation o)
-{                                                           d_m3Assert (o->stackIndex > 0);
+{                                                           d_m3Assert (o->stackIndex > 0 or IsStackPolymorphic (o));
     return o->stackIndex - 1;
 }
 
@@ -101,20 +101,38 @@ i16  GetNumBlockValues  (IM3Compilation o)
 
 
 bool IsStackIndexInRegister  (IM3Compilation o, u16 i_stackIndex)
-{                                                                           d_m3Assert (i_stackIndex < o->stackIndex);
-    return (o->wasmStack [i_stackIndex] >= d_m3Reg0SlotAlias);
+{                                                                           d_m3Assert (i_stackIndex < o->stackIndex or IsStackPolymorphic (o));
+    if (i_stackIndex < o->stackIndex)
+        return (o->wasmStack [i_stackIndex] >= d_m3Reg0SlotAlias);
+    else
+        return false;
+}
+
+
+bool  IsStackTopIndexInRegister  (IM3Compilation o, i16 i_stackTopOffset)
+{                                                                           d_m3Assert (i_stackTopOffset >= 0 or IsStackPolymorphic (o));
+    if (i_stackTopOffset >= 0)
+        return IsStackIndexInRegister (o, (u16) i_stackTopOffset);
+    else
+        return false;
 }
 
 
 bool  IsStackTopInRegister  (IM3Compilation o)
 {
-    i16 i = GetStackTopIndex (o);                                           d_m3Assert (i >= 0 or IsStackPolymorphic (o));
+    return IsStackTopIndexInRegister (o, GetStackTopIndex (o));
+}
 
-    if (i >= 0)
-    {
-        return IsStackIndexInRegister (o, (u16) i);
-    }
-    else return false;
+
+bool  IsStackTopMinus1InRegister  (IM3Compilation o)
+{
+    return IsStackTopIndexInRegister (o, GetStackTopIndex (o) - 1);
+}
+
+
+bool  IsStackTopMinus2InRegister  (IM3Compilation o)
+{
+    return IsStackTopIndexInRegister (o, GetStackTopIndex (o) - 2);
 }
 
 
@@ -144,29 +162,6 @@ bool  IsValidSlot  (u16 i_slot)
     return (i_slot < d_m3MaxFunctionStackHeight);
 }
 
-
-bool  IsStackTopMinus1InRegister  (IM3Compilation o)
-{
-    i16 i = GetStackTopIndex (o);
-
-    if (i >= 1)
-    {
-        return (o->wasmStack [i - 1] >= d_m3Reg0SlotAlias);
-    }
-    else return false;
-}
-
-
-bool  IsStackTopMinus2InRegister  (IM3Compilation o)
-{
-    i16 i = GetStackTopIndex (o);
-
-    if (i > 1)
-    {
-        return (o->wasmStack [i - 2] >= d_m3Reg0SlotAlias);
-    }
-    else return false;
-}
 
 
 void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
@@ -1447,8 +1442,8 @@ M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
     if (IsFpType (type))
     {
         // not consuming a fp reg, so preserve
-        if (not IsStackTopMinus1InRegister(o) and
-            not IsStackTopMinus2InRegister(o))
+        if (not IsStackTopMinus1InRegister (o) and
+            not IsStackTopMinus2InRegister (o))
         {
 _           (PreserveRegisterIfOccupied (o, type));
         }
@@ -1474,9 +1469,9 @@ _          (Pop (o));
     else if (IsIntType (type))
     {
         // 'sss' operation doesn't consume a register, so might have to protected its contents
-        if (not IsStackTopInRegister(o) and
-            not IsStackTopMinus1InRegister(o) and
-            not IsStackTopMinus2InRegister(o))
+        if (not IsStackTopInRegister (o) and
+            not IsStackTopMinus1InRegister (o) and
+            not IsStackTopMinus2InRegister (o))
         {
 _           (PreserveRegisterIfOccupied (o, type));
         }
