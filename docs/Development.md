@@ -92,3 +92,40 @@ ninja
 ## Build for microcontrollers
 
 In `./platforms/` folder you can find projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.
+
+## Build with WasiEnv
+
+```sh
+wasimake cmake -GNinja ..
+ninja
+```
+
+If you want to enable experimental WASM features during the build:
+
+```sh
+export CFLAGS="-Xclang -target-feature -Xclang +tail-call"
+wasimake cmake -GNinja ..
+ninja
+```
+
+Here's how some options can be used with different tools:
+
+```log
+Clang target-feature option          WABT option                        Chromium --js-flags option
+----------------------------------------------------------------------------------------------------------------
++multivalue                          --enable-multi-value               --experimental-wasm-mv
++tail-call                           --enable-tail-call                 --experimental-wasm-return-call
++bulk-memory                         --enable-bulk-memory               --experimental-wasm-bulk-memory
++nontrapping-fptoint                 --enable-saturating-float-to-int   --experimental-wasm-sat-f2i-conversions
++sign-ext                            --enable-sign-extension            --experimental-wasm-se
++simd128, +unimplemented-simd128     --enable-simd                      --experimental-wasm-simd
+```
+
+```sh
+# List clang options:
+llc -march=wasm32 -mattr=help
+
+# List Chromium options:
+chromium-browser --single-process --js-flags="--help" 2>&1 | grep wasm
+```
+
