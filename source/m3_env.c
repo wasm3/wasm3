@@ -565,7 +565,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         IM3Runtime runtime = module->runtime;
         runtime->argc = i_argc;
         runtime->argv = i_argv;
-        if (strcmp (i_function->name, "_start") == 0) // WASI
+        if (i_function->name and strcmp (i_function->name, "_start") == 0) // WASI
             i_argc = 0;
 
         IM3FuncType ftype = i_function->funcType;
@@ -830,9 +830,6 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
 {
     M3_INIT(i_runtime->error);
     i_runtime->error.message = "";
-#if d_m3VerboseLogs
-    i_runtime->error_message[0] = '\0';
-#endif
 }
 
 
