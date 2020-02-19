@@ -2,7 +2,7 @@
 
 https://github.com/eembc/coremark
 
-**NOTE:** You can find results of CoreMark benchmark [here](https://github.com/wasm3/wasm3/blob/master/PERFORMANCE.md)
+**NOTE:** You can find results of CoreMark benchmark [here](https://github.com/wasm3/wasm3/blob/master/docs/Performance.md)
 
 
 ### Building
