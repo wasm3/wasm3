@@ -6,10 +6,12 @@
   - **LilyGO TTGO T7 V1.4** │ [AliExpress](https://www.aliexpress.com/item/32977375539.html)
   - **M5Stack Fire** │ [AliExpress](https://www.aliexpress.com/item/32847906756.html)
 - nRF52840-based
-  - **Arduino Nano 33 BLE** │ [Arduino](https://store.arduino.cc/arduino-nano-33-ble)
+  - **Adafruit CLUE** │ [Adafruit](https://www.adafruit.com/clue)
+  - **Arduino Nano 33 BLE (or BLE Sense)** │ [Arduino](https://store.arduino.cc/arduino-nano-33-ble)
   - **Particle Argon** │ [Particle](https://store.particle.io/collections/bluetooth/products/argon)
   - **Adafruit Feather nRF52840** | [Adafruit](https://www.adafruit.com/product/4062)
 - Other
+  - **Adafruit PyGamer (or PyBadge/PyBadge LC)** │ [Adafruit](https://www.adafruit.com/product/4242)
   - **Teensy 4.0** │ [PJRC](https://www.pjrc.com/store/teensy40.html)
   - **Wemos W600 PICO** │ [AliExpress](https://www.aliexpress.com/item/4000314757449.html)
 
