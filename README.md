@@ -70,7 +70,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [Testing & Fuzzing](./docs/Testing.md)  
 [Performance](./docs/Performance.md)  
 [Interpreter Architecture](./docs/Interpreter.md)  
-[Interpreter Logs](./docs/Diagnostics.md)
+[Logging](./docs/Diagnostics.md)
 
 ### License
 This project is released under The MIT License (MIT)
