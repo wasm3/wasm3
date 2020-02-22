@@ -623,10 +623,18 @@ d_m3OpDecl  (MemCurrent)
 d_m3OpDecl  (MemGrow)
 
 
-d_m3Op  (Const)
+d_m3Op  (Const32)
+{
+    u32 constant = constant64 (u32);
+    slot (u32) = constant;
+    
+    nextOp ();
+}
+
+
+d_m3Op  (Const64)
 {
     u64 constant    = constant64 (u64);
-
     slot (u64) = constant;
 
     nextOp ();
@@ -647,7 +655,8 @@ d_m3Op  (End)
 }
 
 
-d_m3OpDecl  (GetGlobal)
+d_m3OpDecl  (GetGlobal_s32)
+d_m3OpDecl  (GetGlobal_s64)
 d_m3OpDecl  (SetGlobal_i32)
 d_m3OpDecl  (SetGlobal_i64)
 

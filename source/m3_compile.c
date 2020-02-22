@@ -500,7 +500,7 @@ _           (Push (o, i_type, location));
         }
         else
         {
-_           (EmitOp (o, op_Const));
+_           (EmitOp (o, Is64BitType (i_type) ? op_Const64 : op_Const32));
             EmitConstant64 (o, i_word);
 _           (PushAllocatedSlotAndEmit (o, i_type));
         }
@@ -922,7 +922,8 @@ M3Result  Compile_GetGlobal  (IM3Compilation o, M3Global * i_global)
 {
     M3Result result;
 
-_   (EmitOp (o, op_GetGlobal));
+    IM3Operation op = Is64BitType (i_global->type) ? op_GetGlobal_s64 : op_GetGlobal_s32;
+_   (EmitOp (o, op));
     EmitPointer (o, & i_global->intValue);
 _   (PushAllocatedSlotAndEmit (o, i_global->type));
 
@@ -978,7 +979,7 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         }
         else result = ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name);
     }
-    else result = ErrorCompile (m3Err_globaIndexOutOfBounds, o, "");
+    else result = m3Err_globaIndexOutOfBounds;
 
     _catch: return result;
 }
@@ -1667,9 +1668,11 @@ _   (Compile_Operator (o, i_opcode));
 }
 
 
-// d_singleOp macros aren't actually used by the compiler, just codepage decoding
-#define d_singleOp(OP)                      { op_##OP,                  NULL,                       NULL,                       NULL }
-#define d_emptyOpList()                     { NULL,                     NULL,                       NULL,                       NULL }
+// d_logOp, d_logOp2 macros aren't actually used by the compiler, just codepage decoding (d_m3LogCodePages = 1)
+#define d_logOp(OP)                         { op_##OP,                  NULL,                       NULL,                       NULL }
+#define d_logOp2(OP1,OP2)                   { op_##OP1,                 op_##OP2,                   NULL,                       NULL }
+
+#define d_emptyOpList                       { NULL,                     NULL,                       NULL,                       NULL }
 #define d_unaryOpList(TYPE, NAME)           { op_##TYPE##_##NAME##_r,   op_##TYPE##_##NAME##_s,     NULL,                       NULL }
 #define d_binOpList(TYPE, NAME)             { op_##TYPE##_##NAME##_rs,  op_##TYPE##_##NAME##_sr,    op_##TYPE##_##NAME##_ss,    NULL }
 #define d_storeFpOpList(TYPE, NAME)         { op_##TYPE##_##NAME##_rs,  op_##TYPE##_##NAME##_sr,    op_##TYPE##_##NAME##_ss,    op_##TYPE##_##NAME##_rr }
@@ -1679,38 +1682,38 @@ _   (Compile_Operator (o, i_opcode));
 
 const M3OpInfo c_operations [] =
 {
-    M3OP( "unreachable",         0, none,   d_singleOp (Unreachable),           Compile_Unreachable ),  // 0x00
-    M3OP( "nop",                 0, none,   d_emptyOpList(),                    Compile_Nop ),          // 0x01 .
-    M3OP( "block",               0, none,   d_emptyOpList(),                    Compile_LoopOrBlock ),  // 0x02
-    M3OP( "loop",                0, none,   d_singleOp (Loop),                  Compile_LoopOrBlock ),  // 0x03
-    M3OP( "if",                 -1, none,   d_emptyOpList(),                    Compile_If ),           // 0x04
-    M3OP( "else",                0, none,   d_emptyOpList(),                    Compile_Nop ),          // 0x05
+    M3OP( "unreachable",         0, none,   d_logOp (Unreachable),              Compile_Unreachable ),  // 0x00
+    M3OP( "nop",                 0, none,   d_emptyOpList,                      Compile_Nop ),          // 0x01 .
+    M3OP( "block",               0, none,   d_emptyOpList,                      Compile_LoopOrBlock ),  // 0x02
+    M3OP( "loop",                0, none,   d_logOp (Loop),                     Compile_LoopOrBlock ),  // 0x03
+    M3OP( "if",                 -1, none,   d_emptyOpList,                      Compile_If ),           // 0x04
+    M3OP( "else",                0, none,   d_emptyOpList,                      Compile_Nop ),          // 0x05
 
     M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                          // 0x06 - 0x0a
 
-    M3OP( "end",                 0, none,   d_emptyOpList(),                    Compile_End ),          // 0x0b
-    M3OP( "br",                  0, none,   d_singleOp (Branch),                Compile_Branch ),       // 0x0c
-    M3OP( "br_if",              -1, none,   { op_BranchIf_r, op_BranchIf_s },   Compile_Branch ),       // 0x0d
-    M3OP( "br_table",           -1, none,   d_singleOp (BranchTable),           Compile_BranchTable ),  // 0x0e
-    M3OP( "return",              0, any,    d_singleOp (Return),                Compile_Return ),       // 0x0f
-    M3OP( "call",                0, any,    d_singleOp (Call),                  Compile_Call ),         // 0x10
-    M3OP( "call_indirect",       0, any,    d_singleOp (CallIndirect),          Compile_CallIndirect ), // 0x11
-    M3OP( "return_call",         0, any,    d_emptyOpList(),                    Compile_Call ),         // 0x12 TODO: Optimize
-    M3OP( "return_call_indirect",0, any,    d_emptyOpList(),                    Compile_CallIndirect ), // 0x13
+    M3OP( "end",                 0, none,   d_emptyOpList,                      Compile_End ),          // 0x0b
+    M3OP( "br",                  0, none,   d_logOp (Branch),                   Compile_Branch ),       // 0x0c
+    M3OP( "br_if",              -1, none,   d_logOp2 (BranchIf_r, BranchIf_s),  Compile_Branch ),       // 0x0d
+    M3OP( "br_table",           -1, none,   d_logOp (BranchTable),              Compile_BranchTable ),  // 0x0e
+    M3OP( "return",              0, any,    d_logOp (Return),                   Compile_Return ),       // 0x0f
+    M3OP( "call",                0, any,    d_logOp (Call),                     Compile_Call ),         // 0x10
+    M3OP( "call_indirect",       0, any,    d_logOp (CallIndirect),             Compile_CallIndirect ), // 0x11
+    M3OP( "return_call",         0, any,    d_emptyOpList,                      Compile_Call ),         // 0x12 TODO: Optimize
+    M3OP( "return_call_indirect",0, any,    d_emptyOpList,                      Compile_CallIndirect ), // 0x13
 
     M3OP_RESERVED,  M3OP_RESERVED,                                                                      // 0x14 - 0x15
     M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // 0x16 - 0x19
 
-    M3OP( "drop",               -1, none,   d_emptyOpList(),                    Compile_Drop ),         // 0x1a
-    M3OP( "select",             -2, any,    d_emptyOpList(),                    Compile_Select  ),      // 0x1b
+    M3OP( "drop",               -1, none,   d_emptyOpList,                      Compile_Drop ),         // 0x1a
+    M3OP( "select",             -2, any,    d_emptyOpList,                      Compile_Select  ),      // 0x1b
 
     M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // 0x1c - 0x1f
 
-    M3OP( "local.get",          1,  any,    d_emptyOpList(),                    Compile_GetLocal ),     // 0x20
-    M3OP( "local.set",          1,  none,   d_emptyOpList(),                    Compile_SetLocal ),     // 0x21
-    M3OP( "local.tee",          0,  any,    d_emptyOpList(),                    Compile_SetLocal ),     // 0x22
-    M3OP( "global.get",         1,  none,   d_singleOp (GetGlobal),             Compile_GetSetGlobal ), // 0x23
-    M3OP( "global.set",         1,  none,   d_emptyOpList(),                    Compile_GetSetGlobal ), // 0x24
+    M3OP( "local.get",          1,  any,    d_emptyOpList,                      Compile_GetLocal ),     // 0x20
+    M3OP( "local.set",          1,  none,   d_emptyOpList,                      Compile_SetLocal ),     // 0x21
+    M3OP( "local.tee",          0,  any,    d_emptyOpList,                      Compile_SetLocal ),     // 0x22
+    M3OP( "global.get",         1,  none,   d_logOp2 (GetGlobal_s32, GetGlobal_s64), Compile_GetSetGlobal ), // 0x23
+    M3OP( "global.set",         1,  none,   d_emptyOpList,                      Compile_GetSetGlobal ), // 0x24
 
     M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                       // 0x25 - 0x27
 
@@ -1743,13 +1746,13 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.store16",        -2, none,   d_binOpList (i64, Store_i16),       Compile_Load_Store ),   // 0x3d
     M3OP( "i64.store32",        -2, none,   d_binOpList (i64, Store_i32),       Compile_Load_Store ),   // 0x3e
 
-    M3OP( "memory.current",     1,  i_32,   d_singleOp (MemCurrent),            Compile_Memory_Current ),   // 0x3f
-    M3OP( "memory.grow",        1,  i_32,   d_singleOp (MemGrow),               Compile_Memory_Grow ),      // 0x40
+    M3OP( "memory.current",     1,  i_32,   d_logOp (MemCurrent),               Compile_Memory_Current ),   // 0x3f
+    M3OP( "memory.grow",        1,  i_32,   d_logOp (MemGrow),                  Compile_Memory_Grow ),      // 0x40
 
-    M3OP( "i32.const",          1,  i_32,   d_emptyOpList(),                    Compile_Const_i32 ),    // 0x41
-    M3OP( "i64.const",          1,  i_64,   d_emptyOpList(),                    Compile_Const_i64 ),    // 0x42
-    M3OP( "f32.const",          1,  f_32,   d_emptyOpList(),                    Compile_Const_f32 ),    // 0x43
-    M3OP( "f64.const",          1,  f_64,   d_emptyOpList(),                    Compile_Const_f64 ),    // 0x44
+    M3OP( "i32.const",          1,  i_32,   d_logOp (Const32),                  Compile_Const_i32 ),    // 0x41
+    M3OP( "i64.const",          1,  i_64,   d_logOp (Const64),                  Compile_Const_i64 ),    // 0x42
+    M3OP( "f32.const",          1,  f_32,   d_emptyOpList,                      Compile_Const_f32 ),    // 0x43
+    M3OP( "f64.const",          1,  f_64,   d_emptyOpList,                      Compile_Const_f64 ),    // 0x44
 
     M3OP( "i32.eqz",            0,  i_32,   d_unaryOpList (i32, EqualToZero)        ),          // 0x45
     M3OP( "i32.eq",             -1, i_32,   d_commutativeBinOpList (i32, Equal)     ),          // 0x46
@@ -1904,7 +1907,7 @@ const M3OpInfo c_operations [] =
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
 
-    d_m3DebugOp (Const),            d_m3DebugOp (Entry),                d_m3DebugOp (Compile),      d_m3DebugOp (End),
+    d_m3DebugOp (Entry),            d_m3DebugOp (Compile),      d_m3DebugOp (End),
 
     d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
 

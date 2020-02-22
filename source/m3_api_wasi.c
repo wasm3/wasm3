@@ -615,10 +615,7 @@ m3ApiRawFunction(m3_wasi_unstable_clock_time_get)
 
 m3ApiRawFunction(m3_wasi_unstable_proc_exit)
 {
-//    m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uint32_t, code)
-
-//    if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
 
     runtime->exit_code = code;
 
