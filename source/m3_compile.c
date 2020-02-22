@@ -16,6 +16,8 @@
 
 static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i64, op_SetSlot_f32, op_SetSlot_f64 };
 
+static const u16 c_slotUnused = 0xffff;
+
 #define d_indent "     | "
 
 // just want less letter and numbers to stare at down the way in the compiler table
@@ -142,8 +144,6 @@ bool  IsStackTopInSlot  (IM3Compilation o)
 }
 
 
-static const u16 c_slotUnused = 0xffff;
-
 u16  GetStackTopSlotIndex  (IM3Compilation o)
 {
     i16 i = GetStackTopIndex (o);               d_m3Assert (i >= 0 or IsStackPolymorphic (o));
@@ -167,7 +167,7 @@ bool  IsValidSlot  (u16 i_slot)
 void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 {                                                                   d_m3Assert (o->m3Slots [i_slot] == 0); // shouldn't be already allocated
     o->m3Slots [i_slot] = 1;
-    o->numAllocatedExecSlots++;
+    o->numAllocatedSlots++;
 }
 
 
@@ -217,7 +217,7 @@ void DeallocateSlot (IM3Compilation o, i16 i_slotIndex, u8 i_type)
     for (u32 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slotIndex)
     {
         if (-- o->m3Slots [i_slotIndex] == 0)
-            o->numAllocatedExecSlots--;
+            o->numAllocatedSlots--;
     }
     
 }
@@ -262,7 +262,7 @@ u16  GetMaxExecSlot  (IM3Compilation o)
 {
     u16 i = o->firstSlotIndex;
 
-    u32 allocated = o->numAllocatedExecSlots;
+    u32 allocated = o->numAllocatedSlots;
 
     while (i < d_m3MaxFunctionStackHeight)
     {
@@ -349,7 +349,7 @@ _               (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 //----------------------------------------------------------------------------------------------------------------------
 
 
-M3Result  Push  (IM3Compilation o, u8 i_type, i16 i_location)
+M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_location)
 {
     M3Result result = m3Err_none;
 
@@ -357,13 +357,6 @@ M3Result  Push  (IM3Compilation o, u8 i_type, i16 i_location)
 
     if (stackIndex < d_m3MaxFunctionStackHeight)
     {
-        if (o->function)
-        {
-            // op_Entry uses this value to track and detect stack overflow
-            if (stackIndex > o->function->maxStackSlots)
-                o->function->maxStackSlots = stackIndex;
-        }
-
         o->wasmStack        [stackIndex] = i_location;
         o->typeStack        [stackIndex] = i_type;
 
@@ -371,7 +364,17 @@ M3Result  Push  (IM3Compilation o, u8 i_type, i16 i_location)
         {
             u32 regSelect = IsFpRegisterLocation (i_location);
             AllocateRegister (o, regSelect, stackIndex);
-        }                                                                   m3logif (stack, dump_type_stack (o))
+        }
+        else
+        {
+            if (o->function)
+            {
+                // op_Entry uses this value to track and detect stack overflow
+                o->function->maxStackSlots = m3_max (o->function->maxStackSlots, i_location + 1);
+            }
+        }
+        
+        m3logif (stack, dump_type_stack (o))
     }
     else result = m3Err_functionStackOverflow;
 
@@ -381,7 +384,7 @@ M3Result  Push  (IM3Compilation o, u8 i_type, i16 i_location)
 
 M3Result  PushRegister  (IM3Compilation o, u8 i_type)
 {
-    i16 location = IsFpType (i_type) ? d_m3Fp0SlotAlias : d_m3Reg0SlotAlias;            d_m3Assert (i_type or IsStackPolymorphic (o));
+    u16 location = IsFpType (i_type) ? d_m3Fp0SlotAlias : d_m3Reg0SlotAlias;            d_m3Assert (i_type or IsStackPolymorphic (o));
     return Push (o, i_type, location);
 }
 
@@ -656,13 +659,15 @@ _   (EmitOp (o, op));
 
 M3Result  MoveStackTopToRegister  (IM3Compilation o)
 {
+    static const IM3Operation setRegisterOps [] = { NULL, op_SetRegister_i32, op_SetRegister_i64, op_SetRegister_f32, op_SetRegister_f64 };
+
     M3Result result = m3Err_none;
 
     if (IsStackTopInSlot (o))
     {
         u8 type = GetStackTopType (o);
 
-        static const IM3Operation setRegisterOps [] = { NULL, op_SetRegister_i32, op_SetRegister_i64, op_SetRegister_f32, op_SetRegister_f64 };
+_       (PreserveRegisterIfOccupied (o, type));
 
         IM3Operation op = setRegisterOps [type];
 
@@ -764,9 +769,9 @@ M3Result  Compile_Const_i32  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     i32 value;
-_   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", get_indention_string (o), value);
-_   (PushConst (o, value, c_m3Type_i32));
-
+_   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));
+_   (PushConst (o, value, c_m3Type_i32));                       m3log (compile, d_indent "%s (const i32 = %" PRIi32 "; slot: %d)",
+                                                                                get_indention_string (o), value, GetStackTopSlotIndex (o));
     _catch: return result;
 }
 
@@ -776,9 +781,9 @@ M3Result  Compile_Const_i64  (IM3Compilation o, u8 i_opcode)
     M3Result result;
 
     i64 value;
-_   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", get_indention_string (o), value);
-_   (PushConst (o, value, c_m3Type_i64));
-
+_   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));
+_   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, d_indent "%s (const i64 = %" PRIi64 "; slot: %d)",
+                                                                                get_indention_string (o), value, GetStackTopSlotIndex (o));
     _catch: return result;
 }
 
@@ -787,9 +792,9 @@ M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
 {
     M3Result result;
 
-    union { u64 u; f32 f; } value = { 0 };
+    union { u32 u; f32 f; } value = { 0 };
     
-_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value);
+_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value.f);
 _   (PushConst (o, value.u, c_m3Type_f32));
 
     _catch: return result;
@@ -802,7 +807,7 @@ M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
 
     union { u64 u; f64 f; } value = { 0 };
 
-_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value);
+_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value.f);
 _   (PushConst (o, value.u, c_m3Type_f64));
 
     _catch: return result;
@@ -1507,7 +1512,8 @@ _   (PushRegister (o, type));
 
 M3Result  Compile_Drop  (IM3Compilation o, u8 i_opcode)
 {
-    return Pop (o);
+    M3Result result = Pop (o);                                              m3logif (stack, dump_type_stack (o))
+    return result;
 }
 
 
@@ -1650,7 +1656,7 @@ _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), memoryOffset);
     const M3OpInfo * op = & c_operations [i_opcode];
 
-    if (IsFpType (op->type)) // loading a float?
+    if (IsFpType (op->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
 _   (Compile_Operator (o, i_opcode));
@@ -2071,7 +2077,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
     // operations as needed. Compiled expressions (global inits) don't pass through this
     // ReserveConstants function and thus always produce inline contants.
-    numConstants = M3_MIN (numConstants, d_m3MaxNumFunctionConstants);
+    numConstants = m3_min (numConstants, d_m3MaxNumFunctionConstants);
 
     u32 freeSlots = d_m3MaxFunctionStackHeight - o->constSlotIndex;
 
@@ -2130,7 +2136,7 @@ _       (Compile_ReserveConstants (o));
         // start tracking the max stack used (Push() also updates this value) so that op_Entry can precisely detect stack overflow
         o->function->maxStackSlots = o->firstSlotIndex;
 
-        o->numAllocatedExecSlots = 0;               // this var only tracks dynamic slots so clear local+constant allocations
+        o->numAllocatedSlots = 0;                 // this var only tracks dynamic slots so clear local+constant allocations
         o->block.initStackIndex = o->stackIndex;
 
 _       (EmitOp (o, op_Entry));

@@ -21,6 +21,8 @@
 #   define d_m3MaxFunctionStackHeight           2000
 # endif
 
+#define d_m3MaxNumFunctionConstants             60
+
 # ifndef d_m3LogOutput
 #   define d_m3LogOutput                        1
 # endif
@@ -52,16 +54,16 @@
 
 // m3log (...) ----------------------------------------------------------------
 
-# define d_m3LogParse           0
-# define d_m3LogCompile         0
-# define d_m3LogWasmStack       0
-# define d_m3LogEmit            0
-# define d_m3LogCodePages       0
-# define d_m3LogModule          0
-# define d_m3LogRuntime         0
-# define d_m3LogExec            0
-# define d_m3LogStackTrace      0
-# define d_m3LogNativeStack     0
+# define d_m3LogParse           0   // .wasm binary decoding info
+# define d_m3LogModule          0   // Wasm module info
+# define d_m3LogCompile         0   // wasm -> metacode generation phase
+# define d_m3LogWasmStack       0   // dump the wasm stack when pushed or popped
+# define d_m3LogEmit            0   // metacode generation info
+# define d_m3LogCodePages       0   // dump metacode pages when released
+# define d_m3LogExec            0   // low-level interpreter specific logs
+# define d_m3LogRuntime         0   // higher-level runtime information
+# define d_m3LogStackTrace      0   // dump the call stack when traps occur
+# define d_m3LogNativeStack     0   // track the memory usage of the C-stack
 
 // other ----------------------------------------------------------------------
 

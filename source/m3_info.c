@@ -92,7 +92,7 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
     else if (i_type == c_m3Type_f64)
         len = snprintf (o_string, i_n, "%lf", * (f64 *) i_sp);
 
-    len = M3_MAX (0, len);
+    len = m3_max (0, len);
 
     return len;
 }
@@ -105,7 +105,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
     char * s = string;
     ccstr_t e = string + sizeof(string) - 1;
 
-    s += M3_MAX (0, snprintf (s, e-s, "("));
+    s += m3_max (0, snprintf (s, e-s, "("));
 
     IM3FuncType funcType = i_function->funcType;
     if (funcType)
@@ -117,17 +117,17 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
         {
             u8 type = types [i];
 
-            s += M3_MAX (0, snprintf (s, e-s, "%s: ", c_waTypes [type]));
+            s += m3_max (0, snprintf (s, e-s, "%s: ", c_waTypes [type]));
 
             s += SPrintArg (s, e-s, i_sp + i, type);
 
             if (i != numArgs - 1)
-                s += M3_MAX (0, snprintf (s, e-s, ", "));
+                s += m3_max (0, snprintf (s, e-s, ", "));
         }
     }
     else printf ("null signature");
 
-    s += M3_MAX (0, snprintf (s, e-s, ")"));
+    s += m3_max (0, snprintf (s, e-s, ")"));
 
     return string;
 }

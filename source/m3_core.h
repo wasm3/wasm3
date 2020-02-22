@@ -154,10 +154,8 @@ M3CodePageHeader;
 
 #define d_m3MemPageSize                     65536
 
-#define d_m3Reg0SlotAlias                   d_m3MaxFunctionStackHeight + 1
-#define d_m3Fp0SlotAlias                    d_m3MaxFunctionStackHeight + 2
-
-#define d_m3MaxNumFunctionConstants         60
+#define d_m3Reg0SlotAlias                   30000
+#define d_m3Fp0SlotAlias                    30001
 
 #define d_m3MaxSaneUtf8Length               2000
 

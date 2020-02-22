@@ -298,7 +298,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         // Limit the amount of memory that gets allocated
         if (io_runtime->memoryLimit) {
-            numPageBytes = M3_MIN(numPageBytes, io_runtime->memoryLimit);
+            numPageBytes = m3_min (numPageBytes, io_runtime->memoryLimit);
         }
 
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
@@ -321,7 +321,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
             memory->mallocated->maxStack = (m3reg_t *) io_runtime->stack + io_runtime->numStackSlots;
 
-            m3log (runtime, "resized old: %p; mem: %p; length: %z; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
+            m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
         }
         else result = m3Err_mallocFailed;
     }

@@ -98,7 +98,7 @@ typedef struct
     // 'm3Slots' contains allocation usage counts
     u8                  m3Slots                     [d_m3MaxFunctionStackHeight];
 
-    u16                 numAllocatedExecSlots;
+    u16                 numAllocatedSlots;
 
     u16                 regStackIndexPlusOne        [2];
 
@@ -151,11 +151,6 @@ bool        IsFpRegisterLocation        (i16 i_location);
 bool        IsIntRegisterLocation       (i16 i_location);
 
 bool        IsStackPolymorphic          (IM3Compilation o);
-
-M3Result    EmitOp                      (IM3Compilation o, IM3Operation i_operation);
-void        EmitConstant                (IM3Compilation o, const u64 immediate);
-M3Result    Push                        (IM3Compilation o, u8 i_waType, i16 i_location);
-void        EmitPointer                 (IM3Compilation o, const void * const i_immediate);
 
 M3Result    CompileBlock                (IM3Compilation io, u8 i_blockType, u8 i_blockOpcode);
 

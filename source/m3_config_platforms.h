@@ -178,11 +178,11 @@
 #  define M3_WEAK __attribute__((weak))
 # endif
 
-# ifndef M3_MIN
-#  define M3_MIN(A,B) (((A) < (B)) ? (A) : (B))
+# ifndef m3_min
+#  define m3_min(A,B) (((A) < (B)) ? (A) : (B))
 # endif
-# ifndef M3_MAX
-#  define M3_MAX(A,B) (((A) > (B)) ? (A) : (B))
+# ifndef m3_max
+#  define m3_max(A,B) (((A) > (B)) ? (A) : (B))
 # endif
 
 #define M3_INIT(field) memset(&field, 0, sizeof(field))
