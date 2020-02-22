@@ -29,6 +29,7 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
     M3Result result = m3Err_none;
 
     cstr_t sig = i_linkingSignature;
+    IM3FuncType bindType = i_function->funcType;
 
     bool hasReturn = false;
     u32 numArgs = 0;
@@ -37,14 +38,14 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
     while (* sig)
     {
         if (numArgs >= d_m3MaxNumFunctionArgs)
-            _throw ("arg count overflow");
+            _throw ("[link] arg count overflow");
 
         char typeChar = * sig++;
 
         if (typeChar == '(')
         {
             if (not hasReturn)
-                _throw ("malformed function signature; missing return type");
+                _throw ("[link] malformed function signature; missing return type");
 
             parsingArgs = true;
             continue;
@@ -61,21 +62,40 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
             if (not parsingArgs)
             {
                 if (hasReturn)
-                    _throw ("malformed function signature; too many return types");
+                    _throw ("[link] malformed function signature; too many return types");
 
                 hasReturn = true;
+                
+                // M3FuncType doesn't speak 'void'
+                if (type == c_m3Type_void)
+                    type = c_m3Type_none;
+                
+                if (type != bindType->returnType)
+                    _throw ("[link] mismatch return type in linking function");
             }
             else
             {
                 if (type != c_m3Type_runtime)
+                {
                     ++numArgs;
+                    
+                    if (numArgs <= bindType->numArgs)
+                    {
+                        if (type == c_m3Type_ptr)
+                            type = c_m3Type_i32;
+                        
+                        if (type != bindType->argTypes [numArgs - 1])
+                            _throw ("[link] mismatched argument type");
+                    }
+                    else break;
+                }
             }
         }
-        else _throw ("unknown argument type char");
+        else _throw ("[link] unknown argument type char");
     }
 
-    if (GetFunctionNumArgs (i_function) != numArgs)
-        _throw ("function arg count mismatch");
+    if (bindType->numArgs != numArgs)
+        _throw ("[link] function arg count mismatch");
 
     _catch: return result;
 }
@@ -151,12 +171,10 @@ M3Result  m3_LinkRawFunction  (IM3Module            io_module,
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 IM3Function  FindFunction    (IM3Module       io_module,
-                                    ccstr_t         i_moduleName,
-                                    ccstr_t         i_functionName,
-                                    ccstr_t         i_signature)
+                              ccstr_t         i_moduleName,
+                              ccstr_t         i_functionName,
+                              ccstr_t         i_signature)
 {
-    M3Result result = m3Err_functionLookupFailed;
-
     bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
     
     for (u32 i = 0; i < io_module->numFunctions; ++i)
