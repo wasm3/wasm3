@@ -41,7 +41,7 @@ void  m3_PrintRuntimeInfo  (IM3Runtime i_runtime)
 {
     printf ("\n-- m3 runtime -------------------------------------------------\n");
 
-    printf (" stack-size: %zu   \n\n", i_runtime->numStackSlots * sizeof (m3reg_t));
+    printf (" stack-size: %zu   \n\n", i_runtime->numStackSlots * sizeof (m3slot_t));
 
     u32 moduleIndex = 0;
     ForEachModule (i_runtime, (ModuleVisitor) v_PrintEnvModuleInfo, & moduleIndex);
@@ -135,9 +135,10 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 static
 OpInfo find_operation_info  (IM3Operation i_operation)
 {
-    OpInfo opInfo;
-    M3_INIT(opInfo);
+    OpInfo opInfo = { NULL, 0 };
 
+    if (i_operation)
+    {
     for (u32 i = 0; i <= 0xff; ++i)
     {
         IM3OpInfo oi = & c_operations [i];
@@ -155,6 +156,7 @@ OpInfo find_operation_info  (IM3Operation i_operation)
             }
         }
         else break;
+    }
     }
 
     return opInfo;
@@ -362,7 +364,6 @@ void  dump_type_stack  (IM3Compilation o)
 
     for (u32 r = 0; r < 2; ++r)
         d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
-
 }
 
 

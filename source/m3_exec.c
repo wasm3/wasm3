@@ -216,7 +216,7 @@ d_m3OpDef  (Entry)
             * (stack++) = 0;
 
         if (function->constants) {
-            memcpy (stack, function->constants, function->numConstants * sizeof (u64));
+            memcpy (stack, function->constants, function->numConstantBytes);
         }
 
         m3ret_t r = nextOpDirect ();

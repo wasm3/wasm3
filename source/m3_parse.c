@@ -67,10 +67,11 @@ _           (ReadLEB_u32 (& ft->numArgs, & i_bytes, i_end));
             {
                 for (u32 i = 0; i < ft->numArgs; ++i)
                 {
-                    i8 argType;
-_                   (ReadLEB_i7 (& argType, & i_bytes, i_end));
-
-                    ft->argTypes [i] = -argType;
+                    i8 wasmType;
+                    u8 argType;
+_                   (ReadLEB_i7 (& wasmType, & i_bytes, i_end));
+_                   (NormalizeType (& argType, wasmType));
+                    ft->argTypes [i] = argType;
                 }
             }
             else _throw (m3Err_typeListOverflow);

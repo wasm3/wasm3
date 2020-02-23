@@ -2151,13 +2151,13 @@ _       (Compile_BlockStatements (o));
 
         u32 numConstants = o->constSlotIndex - o->firstConstSlotIndex;
 
-        io_function->numConstants = numConstants;                   m3log (compile, "unique constants: %d; unused slots: %d", numConstants, o->firstSlotIndex - o->constSlotIndex);
+        io_function->numConstantBytes = numConstants * sizeof (m3slot_t);          m3log (compile, "unique constants: %d; unused slots: %d", numConstants, o->firstSlotIndex - o->constSlotIndex);
 
         if (numConstants)
         {
-_           (m3Alloc (& io_function->constants, u64, numConstants));
+_           (m3Alloc (& io_function->constants, m3slot_t, numConstants));
 
-            memcpy (io_function->constants, o->constants, sizeof (u64) * numConstants);
+            memcpy (io_function->constants, o->constants, io_function->numConstantBytes);
         }
     }
     else _throw (m3Err_mallocFailedCodePage);

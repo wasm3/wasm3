@@ -51,7 +51,7 @@ typedef struct M3Function
 
     u16                     numLocals;          // not including args
 
-    u16                     numConstants;
+    u16                     numConstantBytes;
     void *                  constants;
 
 //    bool                    callNeedsRuntime;
