@@ -89,7 +89,7 @@ typedef struct
     u16                 firstConstSlotIndex;
     u16                 constSlotIndex;             // as const's are encountered during compilation this tracks their location in the "real" stack
 
-    u64                 constants                   [d_m3MaxNumFunctionConstants];
+    u64                 constants                   [d_m3MaxConstantTableSize];
 
     // 'wasmStack' is unused for args/locals. for the dynamic portion of the stack, 'wasmStack' holds slot locations
     u16                 wasmStack                   [d_m3MaxFunctionStackHeight];

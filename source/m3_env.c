@@ -196,7 +196,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 {
     M3Result result = m3Err_none;
 
-    u64 stack [d_m3MaxFunctionStackHeight]; // stack on the stack
+    m3slot_t stack [d_m3MaxFunctionStackHeight]; // stack on the stack
 
     // create a temporary runtime context
     M3Runtime runtime;
@@ -568,11 +568,8 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         if (i_function->name and strcmp (i_function->name, "_start") == 0) // WASI
             i_argc = 0;
 
-        IM3FuncType ftype = i_function->funcType;
-
+        IM3FuncType ftype = i_function->funcType;                               m3logif (runtime, PrintFuncTypeSignature (ftype));
         m3stack_t stack = (m3stack_t) runtime->stack;
-
-        m3logif (runtime, PrintFuncTypeSignature (ftype));
 
         if (i_argc != ftype->numArgs)
             _throw (m3Err_argumentCountMismatch);

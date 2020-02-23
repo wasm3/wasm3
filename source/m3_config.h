@@ -21,7 +21,7 @@
 #   define d_m3MaxFunctionStackHeight           2000
 # endif
 
-#define d_m3MaxNumFunctionConstants             60
+#define d_m3MaxConstantTableSize                60
 
 # ifndef d_m3LogOutput
 #   define d_m3LogOutput                        1
