@@ -62,7 +62,7 @@ M3CompilationScope;
 typedef M3CompilationScope *        IM3CompilationScope;
 
 
-static const u16 c_m3RegisterUnallocated = 0;
+static const u16 c_m3MaxFunctionSlots = d_m3MaxFunctionStackHeight * 2;
 
 typedef struct
 {
@@ -83,20 +83,23 @@ typedef struct
     u32                 numEmits;
     u32                 numOpcodes;
 
-    u16                 firstSlotIndex;             // numArgs + numLocals + numReservedConstants. the first mutable slot available to the compiler.
+    u16                 firstDynamicStackIndex;
     u16                 stackIndex;                 // current stack index
 
     u16                 firstConstSlotIndex;
-    u16                 constSlotIndex;             // as const's are encountered during compilation this tracks their location in the "real" stack
+    u16                 maxConstSlotIndex;             // as const's are encountered during compilation this tracks their location in the "real" stack
+    
+    u16                 firstLocalSlotIndex;
+    u16                 firstDynamicSlotIndex;      // numArgs + numLocals + numReservedConstants. the first mutable slot available to the compiler.
 
-    u64                 constants                   [d_m3MaxConstantTableSize];
+    u32                 constants                   [d_m3MaxConstantTableSize];
 
-    // 'wasmStack' is unused for args/locals. for the dynamic portion of the stack, 'wasmStack' holds slot locations
+    // 'wasmStack' holds slot locations
     u16                 wasmStack                   [d_m3MaxFunctionStackHeight];
     u8                  typeStack                   [d_m3MaxFunctionStackHeight];
 
     // 'm3Slots' contains allocation usage counts
-    u8                  m3Slots                     [d_m3MaxFunctionStackHeight];
+    u8                  m3Slots                     [c_m3MaxFunctionSlots];
 
     u16                 numAllocatedSlots;
 
@@ -145,6 +148,9 @@ extern const M3OpInfo c_operations [];
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
+u16         GetTypeNumSlots             (u8 i_type);
+void        AlignSlotIndexToType        (u16 * io_slotIndex, u8 i_type);
+
 bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
 bool        IsRegisterLocation          (i16 i_location);
 bool        IsFpRegisterLocation        (i16 i_location);
@@ -158,7 +164,7 @@ M3Result    Compile_BlockStatements     (IM3Compilation io);
 M3Result    Compile_Function            (IM3Function io_function);
 
 bool        PeekNextOpcode              (IM3Compilation o, u8 i_opcode);
-u16         GetMaxExecSlot              (IM3Compilation o);
+u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
 d_m3EndExternC
 

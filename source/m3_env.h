@@ -49,7 +49,10 @@ typedef struct M3Function
 
     u16                     maxStackSlots;
 
+    u16                     numArgSlots;
+    
     u16                     numLocals;          // not including args
+    u16                     numLocalBytes;
 
     u16                     numConstantBytes;
     void *                  constants;

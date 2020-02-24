@@ -302,7 +302,9 @@ void  dump_type_stack  (IM3Compilation o)
      applied until this compilation stage is finished
      -- constants are not statically represented in the type stack (like args & constants) since they don't have/need
      write counts
+     
      -- the number shown for static args and locals (value in wasmStack [i]) represents the write count for the variable
+     
      -- (does Wasm ever write to an arg? I dunno/don't remember.)
      -- the number for the dynamic stack values represents the slot number.
      -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'
@@ -316,24 +318,10 @@ void  dump_type_stack  (IM3Compilation o)
     printf ("                                                        ");
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
 
-    u32 numArgs = GetFunctionNumArgs (o->function);
-
-    for (u32 i = 0; i < o->stackIndex; ++i)
+    for (u32 i = o->firstDynamicStackIndex; i < o->stackIndex; ++i)
     {
-        if (i == o->firstConstSlotIndex)
-            printf (" | ");                     // divide the static & dynamic portion of the stack
-
-        //        printf (" %d:%s.", i, c_waTypes [o->typeStack [i]]);
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
-        if (i < o->firstConstSlotIndex)
-        {
-            u16 writeCount = o->wasmStack [i];
 
-            printf ((i < numArgs) ? "A" : "L");     // arg / local
-            printf ("%d", (i32) writeCount);        // writeCount
-        }
-        else
-        {
             u16 slot = o->wasmStack [i];
 
             if (IsRegisterLocation (slot))
@@ -345,19 +333,18 @@ void  dump_type_stack  (IM3Compilation o)
             }
             else
             {
-                if (slot < o->firstSlotIndex)
+            if (slot < o->firstDynamicSlotIndex)
                 {
                     if (slot >= o->firstConstSlotIndex)
                         printf ("c");
-                    else if (slot >= numArgs)
-                        printf ("l");
+                else if (slot >= o->function->numArgSlots)
+                    printf ("L");
                     else
                         printf ("a");
                 }
 
                 printf ("%d", (i32) slot);  // slot
             }
-        }
 
         printf (" ");
     }

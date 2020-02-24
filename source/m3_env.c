@@ -234,11 +234,11 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
             {
                 if (SizeOfType (i_type) == sizeof (u32))
                 {
-                    * (u32 *) o_expressed = *stack & 0xFFFFFFFF;
+                    * (u32 *) o_expressed = * ((u32 *) stack);
                 }
                 else if (SizeOfType (i_type) == sizeof (u64))
                 {
-                    * (u64 *) o_expressed = *stack;
+                    * (u64 *) o_expressed = * ((u64 *) stack);
                 }
             }
         }

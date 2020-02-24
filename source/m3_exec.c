@@ -51,6 +51,7 @@ d_m3OpDef  (Call)
 
 d_m3OpDef  (CallIndirect)
 {
+    u32 tableIndex              = slot (u32);
     IM3Module module            = immediate (IM3Module);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
@@ -58,9 +59,7 @@ d_m3OpDef  (CallIndirect)
 
     m3stack_t sp = _sp + stackOffset;
 
-    i32 tableIndex = * (i32 *) (sp + type->numArgs);
-
-    if (tableIndex >= 0 and (u32)tableIndex < module->table0Size)
+    if (tableIndex < module->table0Size)
     {
         m3ret_t r = m3Err_none;
 
@@ -208,14 +207,13 @@ d_m3OpDef  (Entry)
     {
         function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
-        m3stack_t stack = _sp + function->funcType->numArgs;
-        u32 numLocals = function->numLocals;
+        u8 * stack = (u8 *) (_sp + function->numArgSlots);
 
-        // zero locals
-        while (numLocals--)
-            * (stack++) = 0;
+        memset (stack, 0x0, function->numLocalBytes);
+        stack += function->numLocalBytes;
 
-        if (function->constants) {
+        if (function->constants)
+        {
             memcpy (stack, function->constants, function->numConstantBytes);
         }
 
