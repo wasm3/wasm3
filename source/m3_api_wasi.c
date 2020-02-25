@@ -60,7 +60,7 @@ typedef struct wasi_iovec_t
     __wasi_size_t buf_len;
 } wasi_iovec_t;
 
-#define PREOPEN_CNT   5
+#define PREOPEN_CNT   4
 
 typedef struct Preopen {
     int         fd;
@@ -72,7 +72,6 @@ Preopen preopen[PREOPEN_CNT] = {
     {  1, "<stdout>" },
     {  2, "<stderr>" },
     { -1, "./"       },
-    { -1, "../"      },
 };
 
 static

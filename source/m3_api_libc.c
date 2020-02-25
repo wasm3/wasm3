@@ -74,7 +74,7 @@ M3Result  SuppressLookupFailure (M3Result i_result)
 
 m3ApiRawFunction(m3_spectest_dummy)
 {
-    return m3Err_none;
+    m3ApiSuccess();
 }
 
 m3ApiRawFunction(m3_wasm3_raw_sum)
@@ -87,7 +87,7 @@ m3ApiRawFunction(m3_wasm3_raw_sum)
 
     m3ApiReturn(val1 + val2 + val3 + val4);
 
-    return m3Err_none;
+    m3ApiSuccess();
 }
 
 /* TODO: implement direct native function calls (using libffi?)
