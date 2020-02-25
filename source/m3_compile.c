@@ -2174,7 +2174,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
         if (code == 0x41 or code == 0x43)       // i32, f32
             numConstantSlots += 1;
         else if (code == 0x42 or code == 0x44)  // i64, f64
-            numConstantSlots += 2;
+            numConstantSlots += GetTypeNumSlots (c_m3Type_i64);
     }                                                                                           m3log (compile, "estimated constant slots: %d", numConstantSlots)
 
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
@@ -2240,7 +2240,7 @@ _           (PushAllocatedSlot (o, type));
             }
             else
             {
-                // final arg only allocates its natural width
+                // final arg only allocates its natural width when using 32-bit slots 
                 o->firstDynamicSlotIndex += GetTypeNumSlots (type);
             }
         }

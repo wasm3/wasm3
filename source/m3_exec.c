@@ -29,6 +29,41 @@ void  ReportError2  (IM3Function i_function, m3ret_t i_result)
     i_function->module->runtime->runtimeError = (M3Result)i_result;
 }
 
+d_m3OpDef  (GetGlobal_s32)
+{
+    u32 * global = immediate (u32 *);
+    slot (u32) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
+    
+    nextOp ();
+}
+
+
+d_m3OpDef  (GetGlobal_s64)
+{
+    u64 * global = immediate (u64 *);
+    slot (u64) = * global;                    printf ("get global: %p %" PRIi64 "\n", global, *global);
+    
+    nextOp ();
+}
+
+
+d_m3OpDef  (SetGlobal_i32)
+{
+    u32 * global = immediate (u32 *);
+    * global = (u32) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
+    
+    nextOp ();
+}
+
+
+d_m3OpDef  (SetGlobal_i64)
+{
+    u64 * global = immediate (u64 *);
+    * global = (u64) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
+    
+    nextOp ();
+}
+
 
 d_m3OpDef  (Call)
 {
@@ -115,7 +150,7 @@ d_m3OpDef  (CallRawFunction)
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Runtime runtime = GetRuntime (_mem);
 
-    m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem));
+    m3ret_t possible_trap = call (runtime, (u64 *) _sp, m3MemData(_mem));
     return possible_trap;
 }
 
@@ -125,7 +160,7 @@ d_m3OpDef  (CallRawFunctionEx)
     void * cookie = immediate (void *);
     IM3Runtime runtime = GetRuntime (_mem);
 
-    m3ret_t possible_trap = call (runtime, _sp, m3MemData(_mem), cookie);
+    m3ret_t possible_trap = call (runtime, (u64 *)_sp, m3MemData(_mem), cookie);
     return possible_trap;
 }
 
@@ -236,43 +271,6 @@ d_m3OpDef  (Entry)
         return r;
     }
     else return m3Err_trapStackOverflow;
-}
-
-
-
-d_m3OpDef  (GetGlobal_s32)
-{
-    u32 * global = immediate (u32 *);
-    slot (u32) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
-    
-    nextOp ();
-}
-
-
-d_m3OpDef  (GetGlobal_s64)
-{
-    u64 * global = immediate (u64 *);
-    slot (u64) = * global;                    printf ("get global: %p %" PRIi64 "\n", global, *global);
-
-    nextOp ();
-}
-
-
-d_m3OpDef  (SetGlobal_i32)
-{
-    u32 * global = immediate (u32 *);
-    * global = (u32) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
-
-    nextOp ();
-}
-
-
-d_m3OpDef  (SetGlobal_i64)
-{
-    u64 * global = immediate (u64 *);
-    * global = (u64) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
-
-    nextOp ();
 }
 
 

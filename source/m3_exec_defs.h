@@ -10,7 +10,7 @@
 
 #include "m3_core.h"
 
-    d_m3BeginExternC
+d_m3BeginExternC
 
 #   define d_m3OpSig                pc_t _pc, m3stack_t _sp, M3MemoryHeader * _mem, m3reg_t _r0, f64 _fp0
 #   define d_m3OpArgs               _sp, _mem, _r0, _fp0

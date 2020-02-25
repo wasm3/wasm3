@@ -157,7 +157,7 @@ typedef struct M3CodePageHeader
 M3CodePageHeader;
 
 
-#define d_m3CodePageFreeLinesThreshold      4       // max is probably: select _sss
+#define d_m3CodePageFreeLinesThreshold      4+2       // max is: select _sss & CallIndirect + 2 for bridge
 
 #define d_m3MemPageSize                     65536
 

@@ -600,7 +600,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         }
 
         m3StackCheckInit();
-_       ((M3Result) Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+_       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
 #if d_m3LogOutput
         switch (ftype->returnType) {
