@@ -116,20 +116,19 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     else result = m3Err_mallocFailed;
 
     * o_ptr = ptr;
-    //printf("== alloc %d => %p\n", i_size, ptr);
+//    printf("== alloc %d => %p\n", (u32) i_size, ptr);
 
     return result;
 }
 
 void  m3Free_impl  (void * i_ptr)
 {
-    //printf("== free %p\n", o_ptr);
+//    if (i_ptr) printf("== free %p\n", i_ptr);
     free (i_ptr);
 }
 
 void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
-    //printf("== realloc %p => %d\n", i_ptr, i_newSize);
     void * ptr = i_ptr;
 
     if (i_newSize != i_oldSize)
@@ -145,6 +144,8 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
             }
             else memset (ptr, 0x0, i_newSize);
         }
+        
+//        printf("== realloc %p -> %p => %d\n", i_ptr, ptr, (u32) i_newSize);
     }
 
     return ptr;

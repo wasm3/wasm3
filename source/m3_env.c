@@ -426,7 +426,7 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             if (endElement > offset) // TODO: check this, endElement depends on offset
             {
-                io_module->table0 = (IM3Function*)m3ReallocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
+                io_module->table0 = (IM3Function*) m3ReallocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
 
                 if (io_module->table0)
                 {
@@ -569,10 +569,12 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
             i_argc = 0;
 
         IM3FuncType ftype = i_function->funcType;                               m3logif (runtime, PrintFuncTypeSignature (ftype));
-        u64 * stack = (u64 *) runtime->stack;
 
         if (i_argc != ftype->numArgs)
             _throw (m3Err_argumentCountMismatch);
+
+        // args are always 64-bit aligned
+        u64 * stack = (u64 *) runtime->stack;
 
         // The format is currently not user-friendly by default,
         // as this is used in spec tests

@@ -50,9 +50,12 @@ i16     GetNumBlockValues   (IM3Compilation o)      { return o->stackIndex - o->
 
 u16 GetTypeNumSlots (u8 i_type)
 {
-//    return 1;
-    u16 n =  Is64BitType (i_type) ? 2 : 1;
-    return n;
+#   if d_m3Use32BitSlots
+        u16 n =  Is64BitType (i_type) ? 2 : 1;
+        return n;
+#   else
+        return 1;
+#   endif
 }
 
 i16  GetStackTopIndex  (IM3Compilation o)
@@ -177,8 +180,9 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     
     u16 numSlots = GetTypeNumSlots (i_type);
     u16 searchOffset = numSlots - 1;
-    
-    AlignSlotIndexToType (& i_startSlot, i_type);
+
+    if (d_m3Use32BitSlots)
+        AlignSlotIndexToType (& i_startSlot, i_type);
     
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;
@@ -539,7 +543,7 @@ _                   (Push (o, i_type, slot));
         {
             result = m3Err_none;
             
-_           (EmitOp (o, numRequiredSlots == 1 ? op_Const32 : op_Const64));
+_           (EmitOp (o, Is64BitType (i_type) ? op_Const64 : op_Const32));
             EmitConstant64 (o, i_word);
 _           (PushAllocatedSlotAndEmit (o, i_type));
         }
@@ -547,7 +551,7 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
         {
             u16 constTableIndex = slot - o->firstConstSlotIndex;
             
-            if (numRequiredSlots == 2)
+            if (Is64BitType (i_type))
             {
                 u64 * constant64 = (u64 *) & o->constants [constTableIndex];
                 * constant64 = i_word;
@@ -618,6 +622,9 @@ bool  PatchBranches  (IM3Compilation o)
 
     while (patches)
     {                                                           m3log (compile, "patching location: %p to pc: %p", patches->location, pc);
+        if (not patches->location)
+            break;
+        
         * (patches->location) = pc;
 
         endPatch = patches;
@@ -1220,8 +1227,6 @@ void  AlignSlotIndexToType  (u16 * io_slotIndex, u8 i_type)
     // align 64-bit words to even slots
     u16 numSlots = GetTypeNumSlots (i_type);
     
-//    printf ("%d\n", (u32) numSlots);
-    
     u16 mask = numSlots - 1;
     * io_slotIndex = (* io_slotIndex + mask) & ~mask;
 }
@@ -1251,12 +1256,14 @@ _       (Pop (o));
     
     u32 numArgs = i_type->numArgs;
     
+    u32 slotsPerArg = sizeof (u64) / sizeof (m3slot_t);
+    
     // args are 64-bit aligned
-    u16 argTop = topSlot + numArgs * 2;
+    u16 argTop = topSlot + numArgs * slotsPerArg;
 
     while (numArgs--)
     {
-_       (CopyTopSlot (o, argTop -= 2));
+_       (CopyTopSlot (o, argTop -= slotsPerArg));
 _       (Pop (o));
     }
 
@@ -1803,7 +1810,7 @@ const M3OpInfo c_operations [] =
     M3OP( "local.get",          1,  any,    d_emptyOpList,                      Compile_GetLocal ),     // 0x20
     M3OP( "local.set",          1,  none,   d_emptyOpList,                      Compile_SetLocal ),     // 0x21
     M3OP( "local.tee",          0,  any,    d_emptyOpList,                      Compile_SetLocal ),     // 0x22
-    M3OP( "global.get",         1,  none,   d_logOp2 (GetGlobal_s32, GetGlobal_s64), Compile_GetSetGlobal ), // 0x23
+    M3OP( "global.get",         1,  none,   d_emptyOpList,                      Compile_GetSetGlobal ), // 0x23
     M3OP( "global.set",         1,  none,   d_emptyOpList,                      Compile_GetSetGlobal ), // 0x24
 
     M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                       // 0x25 - 0x27
@@ -1999,6 +2006,8 @@ const M3OpInfo c_operations [] =
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
 
     d_m3DebugOp (Entry),            d_m3DebugOp (Compile),      d_m3DebugOp (End),
+    
+    d_m3DebugOp (GetGlobal_s32),    d_m3DebugOp (GetGlobal_s64),
 
     d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
 
@@ -2195,7 +2204,7 @@ M3Result  Compile_Function  (IM3Function io_function)
     M3Result result = m3Err_none;                                     m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
                                                                            io_function->name, (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function), c_waTypes [GetFunctionReturnType (io_function)]);
     IM3Runtime runtime = io_function->module->runtime;
-
+    
     IM3Compilation o = & runtime->compilation;
     SetupCompilation (o);
 
@@ -2262,11 +2271,11 @@ _       (Compile_BlockStatements (o));
 
         u32 numConstantSlots = o->maxConstSlotIndex - o->firstConstSlotIndex;       m3log (compile, "unique constant slots: %d; unused slots: %d", numConstantSlots, o->firstDynamicSlotIndex - o->maxConstSlotIndex);
 
-        io_function->numConstantBytes = numConstantSlots * sizeof (u32);
+        io_function->numConstantBytes = numConstantSlots * sizeof (m3slot_t);
 
         if (numConstantSlots)
         {
-_           (m3Alloc (& io_function->constants, u32, numConstantSlots));
+_           (m3Alloc (& io_function->constants, m3slot_t, numConstantSlots));
 
             memcpy (io_function->constants, o->constants, io_function->numConstantBytes);
         }

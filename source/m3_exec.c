@@ -199,15 +199,15 @@ d_m3OpDef  (Entry)
     
     IM3Function function = immediate (IM3Function);
 
-#if defined(d_m3SkipStackCheck)
+#if defined (d_m3SkipStackCheck)
     if (true)
 #else
-    if ((void*)(_sp + function->maxStackSlots) < _mem->maxStack)
+    if ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack)
 #endif
     {
         function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
-        u8 * stack = (u8 *) (_sp + function->numArgSlots);
+        u8 * stack = (u8 *) ((m3slot_t *) _sp + function->numArgSlots);
 
         memset (stack, 0x0, function->numLocalBytes);
         stack += function->numLocalBytes;
@@ -252,7 +252,7 @@ d_m3OpDef  (GetGlobal_s32)
 d_m3OpDef  (GetGlobal_s64)
 {
     u64 * global = immediate (u64 *);
-    slot (u64) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
+    slot (u64) = * global;                    printf ("get global: %p %" PRIi64 "\n", global, *global);
 
     nextOp ();
 }

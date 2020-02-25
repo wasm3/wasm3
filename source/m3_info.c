@@ -247,13 +247,18 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3Operation i_operation, 
 
     switch (i_opcode)
     {
-        d_m3Decode (0xc0,                  Const)
-        d_m3Decode (0xc1,                  Entry)
+//        d_m3Decode (0xc0,                  Const)
+//        d_m3Decode (0xc1,                  Entry)
         d_m3Decode (c_waOp_call,           Call)
         d_m3Decode (c_waOp_branch,         Branch)
         d_m3Decode (c_waOp_branchTable,    BranchTable)
         d_m3Decode (0x39,                  f64_Store)
     }
+
+    #undef d_m3Decode
+    #define d_m3Decode(FUNC) if (i_operation == op_##FUNC) Decode_##FUNC (o_string, i_opcode, i_operation, i_opInfo, o_pc);
+
+    d_m3Decode (Entry)
 }
 
 

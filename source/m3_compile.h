@@ -61,8 +61,8 @@ M3CompilationScope;
 
 typedef M3CompilationScope *        IM3CompilationScope;
 
-
-static const u16 c_m3MaxFunctionSlots = d_m3MaxFunctionStackHeight * 2;
+// double the slot count when using 32-bit slots, since every wasm stack element could be a 64-bit type
+static const u16 c_m3MaxFunctionSlots = d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1);
 
 typedef struct
 {
@@ -92,7 +92,7 @@ typedef struct
     u16                 firstLocalSlotIndex;
     u16                 firstDynamicSlotIndex;      // numArgs + numLocals + numReservedConstants. the first mutable slot available to the compiler.
 
-    u32                 constants                   [d_m3MaxConstantTableSize];
+    m3slot_t            constants                   [d_m3MaxConstantTableSize];
 
     // 'wasmStack' holds slot locations
     u16                 wasmStack                   [d_m3MaxFunctionStackHeight];

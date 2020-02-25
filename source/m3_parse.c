@@ -126,9 +126,7 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 {
     M3Result result = m3Err_none;
 
-    M3ImportInfo import, clearImport;
-    M3_INIT(import);
-    M3_INIT(clearImport);
+    M3ImportInfo import = { NULL, NULL }, clearImport = { NULL, NULL };
 
     u32 numImports;
 _   (ReadLEB_u32 (& numImports, & i_bytes, i_end));                                 m3log (parse, "** Import [%d]", numImports);
@@ -474,7 +472,7 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
                     if (not io_module->functions [index].name)
                     {
                         io_module->functions [index].name = name;                   m3log (parse, "naming function [%d]: %s", index, name);
-                        name = NULL;
+                        name = NULL; // transfer ownership
                     }
 //                          else m3log (parse, "prenamed: %s", io_module->functions [index].name);
                 }
