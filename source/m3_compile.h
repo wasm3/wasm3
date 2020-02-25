@@ -101,7 +101,7 @@ typedef struct
     // 'm3Slots' contains allocation usage counts
     u8                  m3Slots                     [c_m3MaxFunctionSlots];
 
-    u16                 numAllocatedSlots;
+    u16                 maxAllocatedSlot;
 
     u16                 regStackIndexPlusOne        [2];
 

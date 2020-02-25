@@ -216,7 +216,7 @@ d_m3OpDef  (Entry)
         {
             memcpy (stack, function->constants, function->numConstantBytes);
         }
-
+        
         m3ret_t r = nextOpDirect ();
 
 #       if d_m3LogExec

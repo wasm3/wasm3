@@ -569,7 +569,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
             i_argc = 0;
 
         IM3FuncType ftype = i_function->funcType;                               m3logif (runtime, PrintFuncTypeSignature (ftype));
-        m3stack_t stack = (m3stack_t) runtime->stack;
+        u64 * stack = (u64 *) runtime->stack;
 
         if (i_argc != ftype->numArgs)
             _throw (m3Err_argumentCountMismatch);
@@ -578,7 +578,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         // as this is used in spec tests
         for (u32 i = 0; i < ftype->numArgs; ++i)
         {
-            m3slot_t * s = & stack[i];
+            u64 * s = & stack [i];
             ccstr_t str = i_argv[i];
 
             switch (ftype->argTypes[i]) {
@@ -598,7 +598,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         }
 
         m3StackCheckInit();
-_       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+_       ((M3Result) Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
 #if d_m3LogOutput
         switch (ftype->returnType) {

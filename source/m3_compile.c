@@ -166,9 +166,8 @@ bool  IsSlotAllocated  (IM3Compilation o, u16 i_slot)
 void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 {                                                                   d_m3Assert (o->m3Slots [i_slot] == 0); // shouldn't be already allocated
     o->m3Slots [i_slot] = 1;
-    
-    if (i_slot >= o->firstDynamicSlotIndex) // don't track constants
-        o->numAllocatedSlots++;
+
+    o->maxAllocatedSlot = m3_max (o->maxAllocatedSlot, i_slot + 1);
 }
 
 
@@ -236,10 +235,8 @@ void DeallocateSlot (IM3Compilation o, i16 i_slotIndex, u8 i_type)
                                                                                         d_m3Assert (o->m3Slots [i_slotIndex]);
     for (u16 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slotIndex)
     {
-        if (-- o->m3Slots [i_slotIndex] == 0)
-            o->numAllocatedSlots--;
+        -- o->m3Slots [i_slotIndex];
     }
-    
 }
 
 
@@ -280,22 +277,19 @@ u16  GetRegisterStackIndex  (IM3Compilation o, u32 i_register)
 
 u16  GetMaxUsedSlotPlusOne  (IM3Compilation o)
 {
-    u16 i = o->firstDynamicSlotIndex;
+    u16 slot = o->maxAllocatedSlot;
 
-    u32 allocated = o->numAllocatedSlots;
-
-    while (i < c_m3MaxFunctionSlots)
+    while (slot > o->firstDynamicSlotIndex)
     {
-        if (allocated == 0)
+        o->maxAllocatedSlot = slot;
+
+        if (IsSlotAllocated (o, slot - 1))
             break;
-
-        if (IsSlotAllocated (o, i))
-            --allocated;
-
-        ++i;
+        
+        --slot;
     }
-
-    return i;
+    
+    return slot;
 }
 
 
@@ -463,10 +457,10 @@ M3Result  _PushAllocatedSlotAndEmit  (IM3Compilation o, u8 i_type, bool i_doEmit
     u16 slot;
 
 _   (AllocateSlots (o, & slot, i_type));
-_       (Push (o, i_type, slot));
+_   (Push (o, i_type, slot));
 
-        if (i_doEmit)
-            EmitSlotOffset (o, slot);
+    if (i_doEmit)
+        EmitSlotOffset (o, slot);
     
 //    printf ("push: %d\n", (u32) slot);
 
@@ -496,17 +490,16 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
     u16 numRequiredSlots = GetTypeNumSlots (i_type);
 
     // search for duplicate matching constant slot to reuse
-    if (numRequiredSlots == 2)
+    if (numRequiredSlots == 2 and numUsedConstSlots >= 2)
     {
-        numUsedConstSlots &= ~1; // round down to even num
+        u16 firstConstSlot = o->firstConstSlotIndex;
+        AlignSlotIndexToType (& firstConstSlot, c_m3Type_i64);
         
-        for (u32 i = 0; i < numUsedConstSlots; i += 2)
+        for (u32 slot = firstConstSlot; slot < o->maxConstSlotIndex - 1; slot += 2)
         {
-            u16 slot = o->firstConstSlotIndex + i;
-            
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 * constant = (u64 *) & o->constants [i];
+                u64 * constant = (u64 *) & o->constants [slot - o->firstConstSlotIndex];
                 
                 if (* constant == i_word)
                 {
@@ -517,7 +510,7 @@ _                   (Push (o, i_type, slot));
             }
         }
     }
-    else
+    else if (numRequiredSlots == 1)
     {
         for (u32 i = 0; i < numUsedConstSlots; ++i)
         {
@@ -1255,11 +1248,13 @@ _try {
 _       (Pop (o));
     
     u32 numArgs = i_type->numArgs;
-    u16 argTop = topSlot + numArgs;
+    
+    // args are 64-bit aligned
+    u16 argTop = topSlot + numArgs * 2;
 
     while (numArgs--)
     {
-_       (CopyTopSlot (o, --argTop));
+_       (CopyTopSlot (o, argTop -= 2));
 _       (Pop (o));
     }
 
@@ -2219,20 +2214,29 @@ M3Result  Compile_Function  (IM3Function io_function)
         M3FuncType * ft = io_function->funcType;
 
         // all args are 64-bit aligned
-        u32 argSlotCount = sizeof (u64) / sizeof (m3slot_t);
-        o->function->numArgSlots = GetFunctionNumArgs (o->function) * argSlotCount;
+        const u32 argSlotCount = sizeof (u64) / sizeof (m3slot_t);
+        u32 numArgs = GetFunctionNumArgs (o->function);
 
-        for (u32 i = 0; i < GetFunctionNumArgs (io_function); ++i)
+        for (u32 i = 0; i < numArgs; ++i)
         {
             u8 type = ft->argTypes [i];
 _           (PushAllocatedSlot (o, type));
-            o->firstDynamicSlotIndex += argSlotCount;  // don't let the allocator fill-in
+            
+            if (i < numArgs - 1)
+            {
+                // prevent allocator fill-in
+                o->firstDynamicSlotIndex += argSlotCount;
+            }
+            else
+            {
+                // final arg only allocates its natural width
+                o->firstDynamicSlotIndex += GetTypeNumSlots (type);
+            }
         }
 
-        o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
+        o->function->numArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
 _       (CompileLocals (o));
         
-        o->firstDynamicSlotIndex = 0;
         u16 maxSlot = GetMaxUsedSlotPlusOne (o);
         
         o->function->numLocalBytes = (maxSlot - o->firstLocalSlotIndex) * sizeof (m3slot_t);
@@ -2243,9 +2247,8 @@ _       (CompileLocals (o));
 _       (Compile_ReserveConstants (o));
         
         // start tracking the max stack used (Push() also updates this value) so that op_Entry can precisely detect stack overflow
-        o->function->maxStackSlots = o->firstDynamicSlotIndex;
+        o->function->maxStackSlots = o->maxAllocatedSlot = o->firstDynamicSlotIndex;
 
-        o->numAllocatedSlots = 0;                 // this var only tracks dynamic slots so clear local+constant allocations
         o->block.initStackIndex = o->firstDynamicStackIndex = o->stackIndex;                           m3log (compile, "start stack index: %d", (u32) o->firstDynamicStackIndex);
 
 _       (EmitOp (o, op_Entry));

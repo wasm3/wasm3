@@ -8,7 +8,23 @@
 
 #include "m3_env.h"
 
-static void Module_FreeFunctions(IM3Module i_module);
+
+void Module_FreeFunctions (IM3Module i_module)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function func = &i_module->functions [i];
+        m3Free (func->constants);
+        
+        if (func->name != func->import.fieldUtf8)
+        {
+            m3Free (func->name);
+        }
+        
+        FreeImportInfo (& func->import);
+    }
+}
+
 
 void  m3_FreeModule  (IM3Module i_module)
 {
@@ -32,20 +48,6 @@ void  m3_FreeModule  (IM3Module i_module)
     }
 }
 
-static void Module_FreeFunctions(IM3Module i_module)
-{
-    for (u32 i = 0; i < i_module->numFunctions; ++i)
-    {
-        IM3Function func = &i_module->functions[i];
-        m3Free (func->constants);
-        if (func->name != func->import.fieldUtf8)
-        {
-            m3Free (func->name);
-        }
-
-        FreeImportInfo (&func->import);
-    }
-}
 
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
@@ -76,7 +78,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 
     u32 index = io_module->numFunctions++;
-    io_module->functions = (M3Function*)m3ReallocArray (io_module->functions, M3Function, io_module->numFunctions, index);
+    io_module->functions = (M3Function *) m3ReallocArray (io_module->functions, M3Function, io_module->numFunctions, index);
 
     if (io_module->functions)
     {
@@ -95,7 +97,7 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
 
             //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
         }
-        else result = "unknown type sig index";
+        else result = "type sig index out of bounds";
     }
     else result = m3Err_mallocFailed;
 

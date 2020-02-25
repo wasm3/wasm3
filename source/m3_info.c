@@ -77,7 +77,7 @@ void  PrintFuncTypeSignature  (IM3FuncType i_funcType)
 }
 
 
-size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
+size_t  SPrintArg  (char * o_string, size_t i_n, u64 * i_sp, u8 i_type)
 {
     int len = 0;
 
@@ -107,6 +107,8 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 
     s += m3_max (0, snprintf (s, e-s, "("));
 
+    u64 * argSp = (u64 *) i_sp;
+    
     IM3FuncType funcType = i_function->funcType;
     if (funcType)
     {
@@ -119,7 +121,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 
             s += m3_max (0, snprintf (s, e-s, "%s: ", c_waTypes [type]));
 
-            s += SPrintArg (s, e-s, i_sp + i, type);
+            s += SPrintArg (s, e-s, argSp + i, type);
 
             if (i != numArgs - 1)
                 s += m3_max (0, snprintf (s, e-s, ", "));

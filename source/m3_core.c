@@ -121,12 +121,10 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     return result;
 }
 
-void  m3Free_impl  (void * o_ptr)
+void  m3Free_impl  (void * i_ptr)
 {
-    if (!o_ptr) return;
-
     //printf("== free %p\n", o_ptr);
-    free(o_ptr);
+    free (i_ptr);
 }
 
 void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
