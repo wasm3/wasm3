@@ -170,7 +170,7 @@ void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 {                                                                   d_m3Assert (o->m3Slots [i_slot] == 0); // shouldn't be already allocated
     o->m3Slots [i_slot] = 1;
 
-    o->maxAllocatedSlot = m3_max (o->maxAllocatedSlot, i_slot + 1);
+    o->maxAllocatedSlotPlusOne = m3_max (o->maxAllocatedSlotPlusOne, i_slot + 1);
 }
 
 
@@ -283,19 +283,15 @@ u16  GetRegisterStackIndex  (IM3Compilation o, u32 i_register)
 
 u16  GetMaxUsedSlotPlusOne  (IM3Compilation o)
 {
-    u16 slot = o->maxAllocatedSlot;
-
-    while (slot > o->firstDynamicSlotIndex)
+    while (o->maxAllocatedSlotPlusOne > o->firstDynamicSlotIndex)
     {
-        o->maxAllocatedSlot = slot;
-
-        if (IsSlotAllocated (o, slot - 1))
+        if (IsSlotAllocated (o, o->maxAllocatedSlotPlusOne - 1))
             break;
         
-        --slot;
+        o->maxAllocatedSlotPlusOne--;
     }
     
-    return slot;
+    return o->maxAllocatedSlotPlusOne;
 }
 
 
@@ -2258,7 +2254,7 @@ _       (CompileLocals (o));
 _       (Compile_ReserveConstants (o));
         
         // start tracking the max stack used (Push() also updates this value) so that op_Entry can precisely detect stack overflow
-        o->function->maxStackSlots = o->maxAllocatedSlot = o->firstDynamicSlotIndex;
+        o->function->maxStackSlots = o->maxAllocatedSlotPlusOne = o->firstDynamicSlotIndex;
 
         o->block.initStackIndex = o->firstDynamicStackIndex = o->stackIndex;                           m3log (compile, "start stack index: %d", (u32) o->firstDynamicStackIndex);
 
