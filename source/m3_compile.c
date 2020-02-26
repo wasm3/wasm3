@@ -137,7 +137,7 @@ bool  IsStackTopInSlot  (IM3Compilation o)
 
 u16  GetStackTopSlotIndex  (IM3Compilation o)
 {
-    i16 i = GetStackTopIndex (o);               d_m3Assert (i >= 0 or IsStackPolymorphic (o));
+    i16 i = GetStackTopIndex (o);                                   d_m3Assert (i >= 0 or IsStackPolymorphic (o));
 
     u16 slot = c_slotUnused;
 
@@ -149,8 +149,13 @@ u16  GetStackTopSlotIndex  (IM3Compilation o)
 
 
 u16  GetSlotForStackIndex  (IM3Compilation o, u16 i_stackIndex)
-{                                                                   d_m3Assert (i_stackIndex < o->stackIndex);
-    return o->wasmStack [i_stackIndex];
+{                                                                   d_m3Assert (i_stackIndex < o->stackIndex or IsStackPolymorphic (o));
+    u16 slot = c_slotUnused;
+
+    if (not IsStackPolymorphic (o))
+        slot = o->wasmStack [i_stackIndex];
+    
+    return slot;
 }
 
 
