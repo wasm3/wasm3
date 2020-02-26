@@ -43,7 +43,7 @@
 # endif
 
 # ifndef d_m3Use32BitSlots
-#   define d_m3Use32BitSlots                    1
+#   define d_m3Use32BitSlots                    0
 # endif
 
 //# ifndef d_m3EnableOptimizations
