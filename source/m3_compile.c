@@ -152,7 +152,7 @@ u16  GetSlotForStackIndex  (IM3Compilation o, u16 i_stackIndex)
 {                                                                   d_m3Assert (i_stackIndex < o->stackIndex or IsStackPolymorphic (o));
     u16 slot = c_slotUnused;
 
-    if (not IsStackPolymorphic (o))
+    if (i_stackIndex < o->stackIndex)
         slot = o->wasmStack [i_stackIndex];
     
     return slot;
