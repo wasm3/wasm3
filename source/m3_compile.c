@@ -156,7 +156,7 @@ u16  GetSlotForStackIndex  (IM3Compilation o, u16 i_stackIndex)
 
 bool  IsValidSlot  (u16 i_slot)
 {
-    return (i_slot < c_m3MaxFunctionSlots);
+    return (i_slot < d_m3MaxFunctionSlots);
 }
 
 
@@ -210,7 +210,7 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
 
 M3Result  AllocateSlots  (IM3Compilation o, u16 * o_slot, u8 i_type)
 {
-    return AllocateSlotsWithinRange (o, o_slot, i_type, o->firstDynamicSlotIndex, c_m3MaxFunctionSlots);
+    return AllocateSlotsWithinRange (o, o_slot, i_type, o->firstDynamicSlotIndex, d_m3MaxFunctionSlots);
 }
 
 
@@ -221,7 +221,7 @@ M3Result  AllocateConstantSlots  (IM3Compilation o, u16 * o_slot, u8 i_type)
 
 
 M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot)
-{                                                                                       d_m3Assert (i_slot < c_m3MaxFunctionSlots);
+{                                                                                       d_m3Assert (i_slot < d_m3MaxFunctionSlots);
     M3Result result = m3Err_none;                                                       d_m3Assert (o->m3Slots [i_slot] > 0);
     
     // OPTZ (memory): 'm3Slots' could still be fused with 'typeStack' if 4 bits were used to indicate: [0,1,2,many]. The many-case
@@ -2180,7 +2180,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
 
 	o->firstDynamicSlotIndex = o->firstConstSlotIndex + numConstantSlots;
 
-	if (o->firstDynamicSlotIndex >= c_m3MaxFunctionSlots)
+	if (o->firstDynamicSlotIndex >= d_m3MaxFunctionSlots)
         result = m3Err_functionStackOverflow;
 
     return result;

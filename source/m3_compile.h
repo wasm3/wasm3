@@ -62,7 +62,7 @@ M3CompilationScope;
 typedef M3CompilationScope *        IM3CompilationScope;
 
 // double the slot count when using 32-bit slots, since every wasm stack element could be a 64-bit type
-static const u16 c_m3MaxFunctionSlots = d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1);
+//static const u16 c_m3MaxFunctionSlots = d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1);
 
 typedef struct
 {
@@ -99,7 +99,7 @@ typedef struct
     u8                  typeStack                   [d_m3MaxFunctionStackHeight];
 
     // 'm3Slots' contains allocation usage counts
-    u8                  m3Slots                     [c_m3MaxFunctionSlots];
+    u8                  m3Slots                     [d_m3MaxFunctionSlots];
 
     u16                 maxAllocatedSlotPlusOne;
 

@@ -196,14 +196,14 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 {
     M3Result result = m3Err_none;
 
-    m3slot_t stack [c_m3MaxFunctionSlots]; // stack on the stack
+    m3slot_t stack [d_m3MaxFunctionSlots]; // stack on the stack
 
     // create a temporary runtime context
     M3Runtime runtime;
     M3_INIT (runtime);
 
     runtime.environment = i_module->runtime->environment;
-    runtime.numStackSlots = c_m3MaxFunctionSlots;
+    runtime.numStackSlots = d_m3MaxFunctionSlots;
     runtime.stack = & stack;
 
     IM3Runtime savedRuntime = i_module->runtime;
