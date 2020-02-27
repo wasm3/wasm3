@@ -41,7 +41,7 @@ d_m3OpDef  (GetGlobal_s32)
 d_m3OpDef  (GetGlobal_s64)
 {
     u64 * global = immediate (u64 *);
-    slot (u64) = * global;                    printf ("get global: %p %" PRIi64 "\n", global, *global);
+    slot (u64) = * global;                        // printf ("get global: %p %" PRIi64 "\n", global, *global);
     
     nextOp ();
 }
