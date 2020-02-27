@@ -1,7 +1,7 @@
 
 ## Logs
 
-To enable various logs, modify the defines in m3_config.h
+To enable various logs, modify the defines in `m3_config.h`.  These are only enabled when compiled in debug mode.
 
 ```C
 # define d_m3LogParse           0   // .wasm binary decoding info
@@ -19,7 +19,7 @@ To enable various logs, modify the defines in m3_config.h
 
 ## Operation Profiling
 
-To profile the interpreter's operations enable `d_m3EnableOpProfiling` in `m3_config.h`
+To profile the interpreter's operations enable `d_m3EnableOpProfiling` in `m3_config.h`.  This profiling option works in either release or debug builds.
 
 When a runtime is released or `m3_PrintProfilerInfo ()` is called, a table of the executed operations and 
 their instance counts will be printed to stderr.
