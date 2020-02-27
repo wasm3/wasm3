@@ -314,13 +314,13 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_registerType)
         u8 type = GetStackBottomType (o, stackIndex);
 
         // and point to a exec slot
-        u16 slot;
+        u16 slot = c_slotUnused;
 _       (AllocateSlots (o, & slot, type));
-            o->wasmStack [stackIndex] = slot;
+        o->wasmStack [stackIndex] = slot;
 
-_           (EmitOp (o, c_setSetOps [type]));
-            EmitSlotOffset (o, slot);
-        }
+_       (EmitOp (o, c_setSetOps [type]));
+        EmitSlotOffset (o, slot);
+    }
 
     _catch: return result;
 }
