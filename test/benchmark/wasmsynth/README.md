@@ -9,7 +9,7 @@ Here is some music created by [Peter Salomonsen](https://petersalomonsen.com/) i
 - **Shuffle Chill**, `shuffle-chill.wasm` │ [SoundCloud](https://soundcloud.com/psalomo/shuffle-chill)
 - **"WebChip" music**, `webchip-music.wasm` │ [SoundCloud](https://soundcloud.com/psalomo/webchip-music)
 
-Check out Peter's [excellent talk on WebAssembly Summit 2020](https://www.youtube.com/watch?v=WZp0sPDvWfw&t=18670).
+Check out Peter's [excellent talk on WebAssembly Summit 2020](https://youtu.be/C8j_ieOm4vE).
 
 ### Running
 
