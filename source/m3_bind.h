@@ -11,7 +11,7 @@
 #include "m3_env.h"
 
 u8          ConvertTypeCharToTypeId     (char i_code);
-M3Result    SignatureToFuncType         (M3FuncType * o_functionType, ccstr_t i_signature);
+M3Result    SignatureToFuncType         (IM3FuncType * o_functionType, ccstr_t i_signature);
 
 
 #endif /* m3_bind_h */

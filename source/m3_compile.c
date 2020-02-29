@@ -1347,7 +1347,7 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));
     u16 tableIndexSlot = GetStackTopSlotIndex (o);
     
     u16 execTop;
-    IM3FuncType type = & o->module->funcTypes [typeIndex];
+    IM3FuncType type = o->module->funcTypes [typeIndex];
 _   (CompileCallArgsAndReturn (o, & execTop, type, true));
 
 _   (EmitOp         (o, op_CallIndirect));

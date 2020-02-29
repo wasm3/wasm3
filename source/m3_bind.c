@@ -24,10 +24,12 @@ u8  ConvertTypeCharToTypeId (char i_code)
 }
 
 
-M3Result  SignatureToFuncType  (M3FuncType * o_functionType, ccstr_t i_signature)
+M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signature)
 {
-    M3Result result = m3Err_none;                                       d_m3Assert (o_functionType->argTypes == NULL); // unfreed functype
-    
+    M3Result result = m3Err_none;
+
+    IM3FuncType funcType = NULL;
+
     if (not o_functionType)
         _throw ("null function type");
     
@@ -37,9 +39,14 @@ M3Result  SignatureToFuncType  (M3FuncType * o_functionType, ccstr_t i_signature
     cstr_t sig = i_signature;
     
     bool hasReturn = false;
-    o_functionType->numArgs = 0;
     
-_   (m3Alloc (& o_functionType->argTypes, u8, strlen (i_signature)));
+    size_t maxNumArgs = strlen (i_signature);
+    _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 3);
+    
+    maxNumArgs -= 3;  // "v()"
+    _throwif ("insane argument count", maxNumArgs > d_m3MaxSaneFunctionArgCount);
+    
+_   (AllocFuncType (& funcType, (u32) maxNumArgs));
     
     bool parsingArgs = false;
     while (* sig)
@@ -75,16 +82,18 @@ _   (m3Alloc (& o_functionType->argTypes, u8, strlen (i_signature)));
             if (type == c_m3Type_void)
                 type = c_m3Type_none;
             
-            o_functionType->returnType = type;
+            funcType->returnType = type;
         }
         else
         {
+            _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
+            
             if (type != c_m3Type_runtime)
             {
                 if (type == c_m3Type_ptr)
                     type = c_m3Type_i32;
                 
-                o_functionType->argTypes [o_functionType->numArgs++] = type;
+                funcType->argTypes [funcType->numArgs++] = type;
             }
         }
     }
@@ -92,7 +101,14 @@ _   (m3Alloc (& o_functionType->argTypes, u8, strlen (i_signature)));
     if (not hasReturn)
         _throw (m3Err_funcSignatureMissingReturnType);
     
-    _catch: return result;
+    _catch:
+    
+    if (result)
+        m3Free (funcType);  // nulls funcType
+    
+    * o_functionType = funcType;
+    
+    return result;
 }
 
 
@@ -101,15 +117,15 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
 {
     M3Result result = m3Err_none;
 
-    M3FuncType ftype = {0};
+    IM3FuncType ftype = NULL;
 _   (SignatureToFuncType (& ftype, i_linkingSignature));
 
-    if (not AreFuncTypesEqual (& ftype, i_function->funcType))
+    if (not AreFuncTypesEqual (ftype, i_function->funcType))
         _throw ("function signature mismatch");
 
     _catch:
     
-    FuncType_Free (& ftype);
+    m3Free (ftype);
     
     return result;
 }

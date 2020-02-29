@@ -9,6 +9,7 @@
 #include "m3_compile.h"
 #include "m3_exec.h"
 #include "m3_exception.h"
+#include "m3_info.h"
 
 
 M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
@@ -43,34 +44,34 @@ M3Result  ParseSection_Type  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_e
     u32 numTypes;
 _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                                   m3log (parse, "** Type [%d]", numTypes);
 
+    IM3FuncType ftype = NULL;
+
     if (numTypes)
     {
-        // FIX: these need to be instead added to a set in the runtime struct to facilitate IndirectCall
-
-_       (m3Alloc (& io_module->funcTypes, M3FuncType, numTypes));
-
+        // table of IM3FuncType (that point to the actual M3FuncType struct in the Environment)
+_       (m3Alloc (& io_module->funcTypes, IM3FuncType, numTypes));
         io_module->numFuncTypes = numTypes;
 
-        IM3FuncType ft = io_module->funcTypes;
-
-        while (numTypes--)
+        for (u32 i = 0; i < numTypes; ++i)
         {
             i8 form;
 _           (ReadLEB_i7 (& form, & i_bytes, i_end));
-
             _throwif (m3Err_wasmMalformed, form != -32); // for WA MVP
 
-_           (ReadLEB_u32 (& ft->numArgs, & i_bytes, i_end));
+            u32 numArgs;
+_           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 
-_           (m3Alloc (& ft->argTypes, u8, ft->numArgs));
-            
-            for (u32 i = 0; i < ft->numArgs; ++i)
+_           (AllocFuncType (& ftype, numArgs));
+            ftype->numArgs = numArgs;
+
+            for (u32 a = 0; a < numArgs; ++a)
             {
                 i8 wasmType;
                 u8 argType;
 _               (ReadLEB_i7 (& wasmType, & i_bytes, i_end));
 _               (NormalizeType (& argType, wasmType));
-                ft->argTypes [i] = argType;
+                
+                ftype->argTypes [a] = argType;
             }
 
             u8 returnCount;
@@ -80,10 +81,11 @@ _           (ReadLEB_u7 /* u1 in spec */ (& returnCount, & i_bytes, i_end));
             {
                 i8 returnType;
 _               (ReadLEB_i7 (& returnType, & i_bytes, i_end));
-_               (NormalizeType (& ft->returnType, returnType));
-            }                                                                       m3logif (parse, PrintFuncTypeSignature (ft))
+_               (NormalizeType (& ftype->returnType, returnType));
+            }                                                                       m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (& ftype));
 
-            ++ft;
+            Environment_AddFuncType (io_module->environment, & ftype);
+            io_module->funcTypes [i] = ftype;
         }
     }
 
@@ -91,8 +93,8 @@ _               (NormalizeType (& ft->returnType, returnType));
 
     if (result)
     {
+        m3Free (ftype);
         m3Free (io_module->funcTypes);
-        io_module->funcTypes = NULL;
         io_module->numFuncTypes = 0;
     }
 
@@ -134,7 +136,7 @@ _   (ReadLEB_u32 (& numImports, & i_bytes, i_end));                             
 
 _       (Read_utf8 (& import.moduleUtf8, & i_bytes, i_end));
 _       (Read_utf8 (& import.fieldUtf8, & i_bytes, i_end));
-_       (Read_u8 (& importKind, & i_bytes, i_end));                                 m3log (parse, "  - kind: %d; '%s.%s' ",
+_       (Read_u8 (& importKind, & i_bytes, i_end));                                 m3log (parse, "    kind: %d '%s.%s' ",
                                                                                                 (u32) importKind, import.moduleUtf8, import.fieldUtf8);
         switch (importKind)
         {
@@ -208,7 +210,7 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
 
 _       (Read_utf8 (& utf8, & i_bytes, i_end));
 _       (Read_u8 (& exportKind, & i_bytes, i_end));
-_       (ReadLEB_u32 (& index, & i_bytes, i_end));                                  m3log (parse, "  - index: %4d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
+_       (ReadLEB_u32 (& index, & i_bytes, i_end));                                  m3log (parse, "    index: %3d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
 
         if (exportKind == d_externalKind_function)
         {
@@ -303,7 +305,7 @@ _       (ReadLEB_u32 (& size, & i_bytes, i_end));
                 const u8 * start = ptr;
 
                 u32 numLocalBlocks;
-_               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "  - func size: %d; local blocks: %d", size, numLocalBlocks);
+_               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "    code size: %-4d", size);
 
                 u32 numLocals = 0;
 
@@ -317,7 +319,7 @@ _                   (ReadLEB_u32 (& varCount, & ptr, i_end));
 _                   (ReadLEB_i7 (& wasmType, & ptr, i_end));
 _                   (NormalizeType (& normalType, wasmType));
 
-                    numLocals += varCount;                                                      m3log (parse, "    - %d locals; type: '%s'", varCount, c_waTypes [normalType]);
+                    numLocals += varCount;                                                      m3log (parse, "      %2d locals; type: '%s'", varCount, c_waTypes [normalType]);
                 }
 
                 IM3Function func = Module_GetFunction (io_module, f + io_module->numImports);
@@ -407,7 +409,7 @@ _   (ReadLEB_u32 (& numGlobals, & i_bytes, i_end));                             
 
 _       (ReadLEB_i7 (& waType, & i_bytes, i_end));
 _       (NormalizeType (& type, waType));
-_       (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                                 m3log (parse, "  - add global: [%d] %s mutable: %d", i, c_waTypes [type],   (u32) isMutable);
+_       (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                                 m3log (parse, "    global: [%d] %s mutable: %d", i, c_waTypes [type],   (u32) isMutable);
 
         IM3Global global;
 _       (Module_AddGlobal (io_module, & global, type, isMutable, false /* isImport */));
@@ -459,7 +461,7 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
                 {
                     if (not io_module->functions [index].name)
                     {
-                        io_module->functions [index].name = name;                   m3log (parse, "naming function [%d]: %s", index, name);
+                        io_module->functions [index].name = name;                   m3log (parse, "    naming function%5d:  %s", index, name);
                         name = NULL; // transfer ownership
                     }
 //                          else m3log (parse, "prenamed: %s", io_module->functions [index].name);
@@ -529,6 +531,7 @@ _   (m3Alloc (& module, M3Module, 1));
     module->name = ".unnamed";                                                      m3log (parse, "load module: %d bytes", i_numBytes);
     module->startFunction = -1;
     module->hasWasmCodeCopy = false;
+    module->environment = i_environment;
 
     const u8 * pos = i_bytes;
     const u8 * end = pos + i_numBytes;

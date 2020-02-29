@@ -17,17 +17,18 @@ d_m3BeginExternC
 
 typedef struct M3FuncType
 {
-    u8 *        argTypes;
-    u32         numArgs;
-    u8          returnType;
+    struct M3FuncType *     next;
+    
+    u32                     numArgs;
+    u8                      returnType;
+    u8                      argTypes        [3];    // M3FuncType is a dynamically sized object; these are padding
 }
 M3FuncType;
 
 typedef M3FuncType *        IM3FuncType;
 
-void    FuncType_Free                   (IM3FuncType i_type);
-void    PrintFuncTypeSignature          (IM3FuncType i_funcType);
-bool    AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
+M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i_numArgs);
+bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -141,11 +142,12 @@ typedef M3Global *          IM3Global;
 typedef struct M3Module
 {
     struct M3Runtime *      runtime;
+    struct M3Environment *  environment;
 
     cstr_t                  name;
 
     u32                     numFuncTypes;
-    M3FuncType *            funcTypes;
+    IM3FuncType *           funcTypes;          // array of pointers to list of FuncTypes
 
     u32                     numImports;
     IM3Function *           imports;            // notice: "I" prefix. imports are pointers to functions in another module.
@@ -187,16 +189,19 @@ M3Result                    Module_AddFunction          (IM3Module io_module, u3
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
 
 //---------------------------------------------------------------------------------------------------------------------------------
+
+static const u32 c_m3NumTypesPerPage = 8;
+
+//---------------------------------------------------------------------------------------------------------------------------------
+
 typedef struct M3Environment
 {
-    u32     dummy;
-//    u32                     numCodePages;
-//    u32                     numActiveCodePages;
-
-    //  u32                     numFuncTypes;
-    //  M3FuncType *            funcTypes;
+    IM3FuncType             funcTypes;      // linked list
 }
 M3Environment;
+
+// takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
+void                        Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
 
 typedef M3Environment *     IM3Environment;
 

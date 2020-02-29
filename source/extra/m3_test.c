@@ -19,32 +19,31 @@ int  main  (int i_argc, const char  * i_argv [])
     {
         M3Result result;
         
-        M3FuncType ftype = { NULL, 666, 255 };
+        IM3FuncType ftype = NULL;
         
-        result = SignatureToFuncType (& ftype, "");                     expect (result == m3Err_funcSignatureMissingReturnType)
-        FuncType_Free (& ftype);
+        result = SignatureToFuncType (& ftype, "");                     expect (result == m3Err_malformedFunctionSignature)
+        m3Free (ftype);
         
-        
-        result = SignatureToFuncType (& ftype, "()");                   expect (result == m3Err_funcSignatureMissingReturnType)
-        FuncType_Free (& ftype);
+        result = SignatureToFuncType (& ftype, "()");                   expect (result == m3Err_malformedFunctionSignature)
+        m3Free (ftype);
 
-        
         result = SignatureToFuncType (& ftype, " v () ");               expect (result == m3Err_none)
-                                                                        expect (ftype.returnType == c_m3Type_none)
-                                                                        expect (ftype.numArgs == 0)
-        FuncType_Free (& ftype);
+                                                                        expect (ftype->returnType == c_m3Type_none)
+                                                                        expect (ftype->numArgs == 0)
+        m3Free (ftype);
 
+        result = SignatureToFuncType (& ftype, "f(IiF)");               expect (result == m3Err_none)
+                                                                        expect (ftype->returnType == c_m3Type_f32)
+                                                                        expect (ftype->numArgs == 3)
+                                                                        expect (ftype->argTypes [0] == c_m3Type_i64)
+                                                                        expect (ftype->argTypes [1] == c_m3Type_i32)
+                                                                        expect (ftype->argTypes [2] == c_m3Type_f64)
         
-        result = SignatureToFuncType (& ftype, "f(IiF");                expect (result == m3Err_none)
-                                                                        expect (ftype.returnType == c_m3Type_f32)
-                                                                        expect (ftype.numArgs == 3)
-
-        
-        M3FuncType ftype2;
+        IM3FuncType ftype2 = NULL;
         result = SignatureToFuncType (& ftype2, "f(I i F)");            expect (result == m3Err_none);
-                                                                        expect (AreFuncTypesEqual (& ftype, &ftype2));
-        FuncType_Free (& ftype);
-        FuncType_Free (& ftype2);
+                                                                        expect (AreFuncTypesEqual (ftype, ftype2));
+        m3Free (ftype);
+        m3Free (ftype2);
     }
     
     return 0;

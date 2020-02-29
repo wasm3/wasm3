@@ -20,6 +20,8 @@ const char *    get_indention_string    (IM3Compilation o);
 void            emit_stack_dump         (IM3Compilation o);
 void            log_emit                (IM3Compilation o, IM3Operation i_operation);
 
+cstr_t          SPrintFuncTypeSignature (IM3FuncType i_funcType);
+
 #else // d_m3LogOutput
 
 #define         dump_type_stack(...)      {}

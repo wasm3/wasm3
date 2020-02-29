@@ -13,9 +13,11 @@
 #include "m3_exception.h"
 
 
-void FuncType_Free (IM3FuncType i_type)
+M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numArgs)
 {
-    m3Free (i_type->argTypes);
+    size_t funcTypeSize = sizeof (M3FuncType) - 3 /* sizeof (argTypes [3]) */ + i_numArgs;
+    
+    return m3Alloc (o_functionType, u8, funcTypeSize);
 }
 
 
@@ -25,10 +27,7 @@ bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
     {
         if (i_typeA->numArgs == i_typeB->numArgs)
         {
-            if (i_typeA->argTypes and i_typeB->argTypes)
-            {
-                return (memcmp (i_typeA->argTypes, i_typeB->argTypes, i_typeA->numArgs) == 0);
-            }
+            return (memcmp (i_typeA->argTypes, i_typeB->argTypes, i_typeA->numArgs) == 0);
         }
     }
     
@@ -116,9 +115,44 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
 {
     if (i_environment)
     {
-//        ReleaseEnvironment (i_environment);
+        IM3FuncType ftype = i_environment->funcTypes;
+
+        while (ftype)
+        {
+            IM3FuncType next = ftype->next;
+            m3Free (ftype);
+            ftype = next;
+        }
+        
         m3Free (i_environment);
     }
+}
+
+
+void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_funcType)
+{
+    IM3FuncType addType = * io_funcType;
+    IM3FuncType newType = i_environment->funcTypes;
+    
+    while (newType)
+    {
+        if (AreFuncTypesEqual (newType, addType))
+        {
+            m3Free (addType);
+            break;
+        }
+        
+        newType = newType->next;
+    }
+    
+    if (newType == NULL)
+    {
+        newType = addType;
+        newType->next = i_environment->funcTypes;
+        i_environment->funcTypes = newType;
+    }
+
+    * io_funcType = newType;
 }
 
 
@@ -585,7 +619,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         if (i_function->name and strcmp (i_function->name, "_start") == 0) // WASI
             i_argc = 0;
 
-        IM3FuncType ftype = i_function->funcType;                               m3logif (runtime, PrintFuncTypeSignature (ftype));
+        IM3FuncType ftype = i_function->funcType;                               m3log (runtime, "calling %s", SPrintFuncTypeSignature (ftype));
 
         if (i_argc != ftype->numArgs)
             _throw (m3Err_argumentCountMismatch);

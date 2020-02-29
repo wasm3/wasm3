@@ -59,9 +59,11 @@ cstr_t  GetTypeName  (u8 i_m3Type)
 }
 
 
-void  PrintFuncTypeSignature  (IM3FuncType i_funcType)
+cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
 {
-    printf ("(");
+    static char string [256];
+
+    sprintf (string, "(");
 
     u32 numArgs = i_funcType->numArgs;
     u8 * types = i_funcType->argTypes;
@@ -69,11 +71,15 @@ void  PrintFuncTypeSignature  (IM3FuncType i_funcType)
     for (u32 i = 0; i < numArgs; ++i)
     {
         if (i != 0)
-            printf (", ");
-        printf ("%s", GetTypeName (types [i]));
+            strcat (string, ", ");
+        
+        strcat (string, GetTypeName (types [i]));
     }
 
-    printf (") -> %s", GetTypeName (i_funcType->returnType));
+    strcat (string, ") -> ");
+    strcat (string, GetTypeName (i_funcType->returnType));
+    
+    return string;
 }
 
 

@@ -29,16 +29,6 @@ void Module_FreeFunctions (IM3Module i_module)
 }
 
 
-void Module_FreeFuncTypes (IM3Module i_module)
-{
-    for (u32 i = 0; i < i_module->numFuncTypes; ++i)
-    {
-        IM3FuncType ftype = & i_module->funcTypes [i];
-        FuncType_Free (ftype);
-    }
-}
-
-
 void  m3_FreeModule  (IM3Module i_module)
 {
     if (i_module)
@@ -47,7 +37,6 @@ void  m3_FreeModule  (IM3Module i_module)
                i_module->name, i_module->numFunctions, i_module->numDataSegments);
 
         Module_FreeFunctions (i_module);
-        Module_FreeFuncTypes (i_module);
 
         m3Free (i_module->functions);
         m3Free (i_module->imports);
@@ -92,7 +81,7 @@ _   (m3ReallocArray (& io_module->functions, M3Function, io_module->numFunctions
 
     if (i_typeIndex < io_module->numFuncTypes)
     {
-        IM3FuncType ft = & io_module->funcTypes [i_typeIndex];
+        IM3FuncType ft = io_module->funcTypes [i_typeIndex];
 
         IM3Function func = Module_GetFunction (io_module, index);
         func->funcType = ft;

@@ -94,54 +94,37 @@ d_m3OpDef  (CallIndirect)
 
     m3stack_t sp = _sp + stackOffset;
 
+    m3ret_t r = m3Err_none;
+    
     if (tableIndex < module->table0Size)
     {
-        m3ret_t r = m3Err_none;
-
         IM3Function function = module->table0 [tableIndex];
 
         if (function)
         {
-            // TODO: this can eventually be simplified. by using a shared set of unique M3FuncType objects in
-            // M3Environment, the compare can be reduced to a single pointer-compare operation
-#if !defined(d_m3SkipCallCheck)
-            if (type->numArgs != function->funcType->numArgs)
+            if (type == function->funcType)
             {
-                return m3Err_trapIndirectCallTypeMismatch;
-            }
-
-            if (type->returnType != function->funcType->returnType)
-            {
-                return m3Err_trapIndirectCallTypeMismatch;
-            }
-
-            for (u32 argIndex = 0; argIndex < type->numArgs; ++argIndex)
-            {
-                if (type->argTypes[argIndex] != function->funcType->argTypes[argIndex])
-                {
-                    return m3Err_trapIndirectCallTypeMismatch;
-                }
-            }
-#endif
-            if (not function->compiled)
-                r = Compile_Function (function);
-
-            if (not r)
-            {
-                r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+                if (not function->compiled)
+                    r = Compile_Function (function);
 
                 if (not r)
                 {
-                    _mem = memory->mallocated;
-                    r = nextOpDirect ();
+                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+
+                    if (not r)
+                    {
+                        _mem = memory->mallocated;
+                        r = nextOpDirect ();
+                    }
                 }
             }
+            else r = m3Err_trapIndirectCallTypeMismatch;
         }
-        else r = "trap: table element is null";
-
-        return r;
+        else r = m3Err_trapTableElementIsNull;
     }
-    else return m3Err_trapTableIndexOutOfRange;
+    else r = m3Err_trapTableIndexOutOfRange;
+
+    return r;
 }
 
 
