@@ -40,7 +40,7 @@ static u8* fixedHeapLast = NULL;
 #   define HEAP_ALIGN_PTR(P)
 #endif
 
-M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
+M3Result  m3_Malloc  (void ** o_ptr, size_t i_size)
 {
     u8 * ptr = fixedHeapPtr;
 
@@ -63,7 +63,7 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     return m3Err_none;
 }
 
-void        m3Free_impl             (void ** io_ptr)
+void        m3_Free              (void ** io_ptr)
 {
     if (!o_ptr) return;
 
@@ -79,7 +79,7 @@ void        m3Free_impl             (void ** io_ptr)
     * io_ptr = NULL;
 }
 
-void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     //printf("== realloc %p => %d\n", i_ptr, i_newSize);
 
@@ -93,7 +93,7 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
         return ptr;
     }
 
-    m3Malloc(&ptr, i_newSize);
+    m3_Malloc(&ptr, i_newSize);
     if (!ptr) return NULL;
 
     if (i_ptr) {
@@ -106,7 +106,7 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 #else
 
-M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
+M3Result  m3_Malloc  (void ** o_ptr, size_t i_size)
 {
     M3Result result = m3Err_none;
 
@@ -121,14 +121,14 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     return result;
 }
 
-void  m3Free_impl  (void ** io_ptr)
+void  m3_Free  (void ** io_ptr)
 {
 //    if (i_ptr) printf("== free %p\n", i_ptr);
     free (* io_ptr);
     * io_ptr = NULL;
 }
 
-M3Result  m3Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
+M3Result  m3_Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
 {
     M3Result result = m3Err_none;
     
@@ -152,7 +152,7 @@ M3Result  m3Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
 }
 
 
-M3Result  m3CopyMem  (void ** o_to, cbytes_t i_from, size_t i_size)
+M3Result  m3_CopyMem  (void ** o_to, cbytes_t i_from, size_t i_size)
 {
     void * to = malloc (i_size);
     
@@ -478,7 +478,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
             if (end <= i_end)
             {
                 char * utf8;
-                result = m3Malloc ((void **) & utf8, utf8Length + 1);
+                result = m3_Malloc ((void **) & utf8, utf8Length + 1);
 
                 if (not result)
                 {

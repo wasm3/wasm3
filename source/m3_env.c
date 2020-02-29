@@ -130,7 +130,7 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
 
         runtime->environment = i_environment;
 
-        m3Malloc (& runtime->stack, i_stackSizeInBytes);
+        m3Alloc (& runtime->stack, u8, i_stackSizeInBytes);
 
         if (runtime->stack)
         {

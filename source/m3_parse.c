@@ -62,7 +62,7 @@ _           (ReadLEB_i7 (& form, & i_bytes, i_end));
 
 _           (ReadLEB_u32 (& ft->numArgs, & i_bytes, i_end));
 
-_           (m3Malloc (& ft->argTypes, ft->numArgs));
+_           (m3Alloc (& ft->argTypes, u8, ft->numArgs));
             
             for (u32 i = 0; i < ft->numArgs; ++i)
             {

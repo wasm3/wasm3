@@ -16,7 +16,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
     u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
 
     pageSize = (pageSize + (d_m3CodePageAlignSize-1)) & ~(d_m3CodePageAlignSize-1); // align
-    m3Malloc ((void **) & page, pageSize);
+    m3Alloc ((void **) & page, u8, pageSize);
 
     if (page)
     {
