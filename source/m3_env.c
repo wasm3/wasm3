@@ -12,6 +12,21 @@
 #include "m3_exec.h"
 #include "m3_exception.h"
 
+
+bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
+{
+    if (i_typeA->returnType == i_typeB->returnType)
+    {
+        if (i_typeA->numArgs == i_typeB->numArgs)
+        {
+            return (memcmp (i_typeA->argTypes, i_typeB->argTypes, i_typeA->numArgs) == 0);
+        }
+    }
+    
+    return false;
+}
+
+
 cstr_t  GetFunctionName  (IM3Function i_function)
 {
     if (i_function->import.fieldUtf8)

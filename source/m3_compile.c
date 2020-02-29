@@ -1339,8 +1339,7 @@ _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
     i8 reserved;
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
-    if (typeIndex >= o->module->numFuncTypes)
-        _throw ("function type index out of range");
+    _throwif ("function type index out of range", typeIndex >= o->module->numFuncTypes);
     
     if (IsStackTopInRegister (o))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));

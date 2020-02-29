@@ -210,7 +210,8 @@ void        m3NotImplemented        (void);
 
 M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
 void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);
-void        m3Free_impl             (void * o_ptr);
+void        m3Free_impl             (void * i_ptr);
+M3Result    m3MemCopy               (void ** o_to, void * i_from, size_t i_size);
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 

@@ -108,12 +108,10 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
 {
     M3Result result = m3Err_none;
 
-    void * ptr = malloc (i_size);
-    if (ptr)
-    {
-        memset (ptr, 0x0, i_size);
-    }
-    else result = m3Err_mallocFailed;
+    void * ptr = calloc (i_size, 1);
+    
+    if (not ptr)
+        result = m3Err_mallocFailed;
 
     * o_ptr = ptr;
 //    printf("== alloc %d => %p\n", (u32) i_size, ptr);
@@ -150,6 +148,22 @@ void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
     return ptr;
 }
+
+
+M3Result  m3MemCopy  (void ** o_to, void * i_from, size_t i_size)
+{
+    void * to = malloc (i_size);
+    
+    if (to)
+    {
+        memcpy (to, i_from, i_size);
+        * o_to = to;
+        
+        return m3Err_none;
+    }
+    else return m3Err_mallocFailed;
+}
+
 
 #endif
 

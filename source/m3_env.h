@@ -26,6 +26,7 @@ M3FuncType;
 typedef M3FuncType *        IM3FuncType;
 
 void        PrintFuncTypeSignature          (IM3FuncType i_funcType);
+bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -37,6 +38,8 @@ typedef struct M3Function
 
     bytes_t                 wasm;
     bytes_t                 wasmEnd;
+
+    bool                    ownsWasmCode;
 
     cstr_t                  name;
 
@@ -56,8 +59,6 @@ typedef struct M3Function
 
     u16                     numConstantBytes;
     void *                  constants;
-
-//    bool                    callNeedsRuntime;
 }
 M3Function;
 
@@ -137,7 +138,7 @@ typedef M3Global *          IM3Global;
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
-typedef struct M3Module                 // TODO add env owner? also discriminates stack/heap
+typedef struct M3Module
 {
     struct M3Runtime *      runtime;
 
@@ -170,8 +171,8 @@ typedef struct M3Module                 // TODO add env owner? also discriminate
 
     M3MemoryInfo            memoryInfo;
     bool                    memoryImported;
-
-//  m3reg_t *               globalMemory;
+    
+    bool                    hasWasmCodeCopy;
 
     struct M3Module *       next;
 }
