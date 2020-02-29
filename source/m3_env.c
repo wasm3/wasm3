@@ -13,6 +13,12 @@
 #include "m3_exception.h"
 
 
+void FuncType_Free (IM3FuncType i_type)
+{
+    m3Free (i_type->argTypes);
+}
+
+
 bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
 {
     if (i_typeA->returnType == i_typeB->returnType)

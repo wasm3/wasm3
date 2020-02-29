@@ -152,7 +152,7 @@ M3Result  m3Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
 }
 
 
-M3Result  m3MemCopy  (void ** o_to, void * i_from, size_t i_size)
+M3Result  m3CopyMem  (void ** o_to, cbytes_t i_from, size_t i_size)
 {
     void * to = malloc (i_size);
     

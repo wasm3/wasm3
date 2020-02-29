@@ -17,16 +17,17 @@ d_m3BeginExternC
 
 typedef struct M3FuncType
 {
-    u32                     numArgs;
-    u8                      argTypes                [d_m3MaxNumFunctionArgs];
-    u8                      returnType;
+    u8 *        argTypes;
+    u32         numArgs;
+    u8          returnType;
 }
 M3FuncType;
 
 typedef M3FuncType *        IM3FuncType;
 
-void        PrintFuncTypeSignature          (IM3FuncType i_funcType);
-bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
+void    FuncType_Free                   (IM3FuncType i_type);
+void    PrintFuncTypeSignature          (IM3FuncType i_funcType);
+bool    AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -38,7 +39,6 @@ typedef struct M3Function
 
     bytes_t                 wasm;
     bytes_t                 wasmEnd;
-
     bool                    ownsWasmCode;
 
     cstr_t                  name;

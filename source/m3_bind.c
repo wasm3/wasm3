@@ -26,7 +26,7 @@ u8  ConvertTypeCharToTypeId (char i_code)
 
 M3Result  SignatureToFuncType  (M3FuncType * o_functionType, ccstr_t i_signature)
 {
-    M3Result result = m3Err_none;
+    M3Result result = m3Err_none;                                       d_m3Assert (o_functionType->argTypes == NULL); // unfreed functype
     
     if (not o_functionType)
         _throw ("null function type");
@@ -39,12 +39,11 @@ M3Result  SignatureToFuncType  (M3FuncType * o_functionType, ccstr_t i_signature
     bool hasReturn = false;
     o_functionType->numArgs = 0;
     
+_   (m3Alloc (& o_functionType->argTypes, u8, strlen (i_signature)));
+    
     bool parsingArgs = false;
     while (* sig)
     {
-        if (o_functionType->numArgs >= d_m3MaxNumFunctionArgs)
-            _throw ("signature argument count overflow");
-        
         char typeChar = * sig++;
         
         if (typeChar == '(')
@@ -102,13 +101,17 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
 {
     M3Result result = m3Err_none;
 
-    M3FuncType ftype;
+    M3FuncType ftype = {};
 _   (SignatureToFuncType (& ftype, i_linkingSignature));
 
     if (not AreFuncTypesEqual (& ftype, i_function->funcType))
         _throw ("function signature mismatch");
 
-    _catch: return result;
+    _catch:
+    
+    FuncType_Free (& ftype);
+    
+    return result;
 }
 
 

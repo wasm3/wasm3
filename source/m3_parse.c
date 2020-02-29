@@ -62,18 +62,16 @@ _           (ReadLEB_i7 (& form, & i_bytes, i_end));
 
 _           (ReadLEB_u32 (& ft->numArgs, & i_bytes, i_end));
 
-            if (ft->numArgs <= d_m3MaxNumFunctionArgs)
+_           (m3Malloc (& ft->argTypes, ft->numArgs));
+            
+            for (u32 i = 0; i < ft->numArgs; ++i)
             {
-                for (u32 i = 0; i < ft->numArgs; ++i)
-                {
-                    i8 wasmType;
-                    u8 argType;
-_                   (ReadLEB_i7 (& wasmType, & i_bytes, i_end));
-_                   (NormalizeType (& argType, wasmType));
-                    ft->argTypes [i] = argType;
-                }
+                i8 wasmType;
+                u8 argType;
+_               (ReadLEB_i7 (& wasmType, & i_bytes, i_end));
+_               (NormalizeType (& argType, wasmType));
+                ft->argTypes [i] = argType;
             }
-            else _throw (m3Err_typeListOverflow);
 
             u8 returnCount;
 _           (ReadLEB_u7 /* u1 in spec */ (& returnCount, & i_bytes, i_end));

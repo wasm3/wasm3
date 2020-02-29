@@ -14,14 +14,13 @@
 #define Test(NAME) printf ("test: %s\n", #NAME);
 #define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); }
 
-
 int  main  (int i_argc, const char  * i_argv [])
 {
     Test (signatures)
     {
         M3Result result;
         
-        M3FuncType ftype = { 666, {}, 255 };
+        M3FuncType ftype = { NULL, 666, 255 };
         
         result = SignatureToFuncType (& ftype, "");                     expect (result == m3Err_funcSignatureMissingReturnType)
         
