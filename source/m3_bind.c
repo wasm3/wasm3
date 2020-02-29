@@ -101,7 +101,7 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
 {
     M3Result result = m3Err_none;
 
-    M3FuncType ftype = {};
+    M3FuncType ftype = {0};
 _   (SignatureToFuncType (& ftype, i_linkingSignature));
 
     if (not AreFuncTypesEqual (& ftype, i_function->funcType))
