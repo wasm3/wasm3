@@ -25,7 +25,10 @@ bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
     {
         if (i_typeA->numArgs == i_typeB->numArgs)
         {
-            return (memcmp (i_typeA->argTypes, i_typeB->argTypes, i_typeA->numArgs) == 0);
+            if (i_typeA->argTypes and i_typeB->argTypes)
+            {
+                return (memcmp (i_typeA->argTypes, i_typeB->argTypes, i_typeA->numArgs) == 0);
+            }
         }
     }
     
