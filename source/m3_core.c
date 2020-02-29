@@ -63,7 +63,7 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     return m3Err_none;
 }
 
-void        m3Free_impl             (void * o_ptr)
+void        m3Free_impl             (void ** io_ptr)
 {
     if (!o_ptr) return;
 
@@ -75,6 +75,8 @@ void        m3Free_impl             (void * o_ptr)
     } else {
         //printf("== free %p [failed]\n", o_ptr);
     }
+    
+    * io_ptr = NULL;
 }
 
 void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
@@ -119,34 +121,34 @@ M3Result  m3Malloc  (void ** o_ptr, size_t i_size)
     return result;
 }
 
-void  m3Free_impl  (void * i_ptr)
+void  m3Free_impl  (void ** io_ptr)
 {
 //    if (i_ptr) printf("== free %p\n", i_ptr);
-    free (i_ptr);
+    free (* io_ptr);
+    * io_ptr = NULL;
 }
 
-void *  m3Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+M3Result  m3Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
 {
-    void * ptr = i_ptr;
-
+    M3Result result = m3Err_none;
+    
     if (i_newSize != i_oldSize)
     {
-        ptr = realloc (i_ptr, i_newSize);
+        void * newPtr = realloc (* io_ptr, i_newSize);
 
-        if (ptr)
+        if (newPtr)
         {
-            if (i_ptr)
-            {
-                if (i_newSize > i_oldSize)
-                    memset ((u8*) ptr + i_oldSize, 0x0, i_newSize - i_oldSize);
-            }
-            else memset (ptr, 0x0, i_newSize);
+            if (i_newSize > i_oldSize)
+                memset ((u8 *) newPtr + i_oldSize, 0x0, i_newSize - i_oldSize);
+            
+            * io_ptr = newPtr;
         }
+        else result = m3Err_mallocFailed;
         
 //        printf("== realloc %p -> %p => %d\n", i_ptr, ptr, (u32) i_newSize);
     }
 
-    return ptr;
+    return result;
 }
 
 

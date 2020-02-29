@@ -322,27 +322,24 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
-        memory->mallocated = (M3MemoryHeader *) m3Realloc (memory->mallocated, numBytes, numPreviousBytes);
+_       (m3Reallocate (& memory->mallocated, numBytes, numPreviousBytes));
 
-        if (memory->mallocated)
-        {
-#if d_m3LogRuntime
-            u8 * oldMallocated = memory->mallocated;
-#endif
-            memory->numPages = numPagesToAlloc;
+#       if d_m3LogRuntime
+        u8 * oldMallocated = memory->mallocated;
+#       endif
+        
+        memory->numPages = numPagesToAlloc;
 
-            memory->mallocated->length =  numPageBytes;
-            memory->mallocated->runtime = io_runtime;
+        memory->mallocated->length =  numPageBytes;
+        memory->mallocated->runtime = io_runtime;
 
-            memory->mallocated->maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
+        memory->mallocated->maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
 
-            m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
-        }
-        else result = m3Err_mallocFailed;
+        m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
     }
     else result = m3Err_wasmMemoryOverflow;
 
-    return result;
+    _catch: return result;
 }
 
 
@@ -441,26 +438,22 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             if (endElement > offset) // TODO: check this, endElement depends on offset
             {
-                io_module->table0 = (IM3Function*) m3ReallocArray (io_module->table0, IM3Function, endElement, io_module->table0Size);
+_               (m3ReallocArray (& io_module->table0, IM3Function, endElement, io_module->table0Size));
 
-                if (io_module->table0)
+                io_module->table0Size = endElement;
+
+                for (u32 e = 0; e < numElements; ++e)
                 {
-                    io_module->table0Size = endElement;
-
-                    for (u32 e = 0; e < numElements; ++e)
-                    {
-                        u32 functionIndex;
+                    u32 functionIndex;
 _                       (ReadLEB_u32 (& functionIndex, & bytes, end));
 
-                        if (functionIndex < io_module->numFunctions)
-                        {
-                            IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
-                            io_module->table0 [e + offset] = function;
-                        }
-                        else _throw ("function index out of range");
+                    if (functionIndex < io_module->numFunctions)
+                    {
+                        IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
+                        io_module->table0 [e + offset] = function;
                     }
+                    else _throw ("function index out of range");
                 }
-                else _throw (m3Err_mallocFailed);
             }
             else _throw ("table overflow");
         }
