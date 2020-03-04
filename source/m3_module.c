@@ -25,6 +25,10 @@ void Module_FreeFunctions (IM3Module i_module)
         
         if (func->ownsWasmCode)
             m3Free (func->wasm);
+        
+#       if (d_m3EnableCodePageRefCounting)
+            Function_FreeCompiledCode (func);
+#       endif
     }
 }
 

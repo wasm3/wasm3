@@ -208,13 +208,13 @@ void        m3NotImplemented        (void);
 M3Result    m3_Malloc                (void ** o_ptr, size_t i_size);
 M3Result    m3_Realloc               (void ** io_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_Free                  (void ** io_ptr);
-M3Result    m3_CopyMem               (void ** o_to, cbytes_t i_from, size_t i_size);
+M3Result    m3_CopyMem               (void ** o_to, const void * i_from, size_t i_size);
 
 #define m3Alloc(OPTR, STRUCT, NUM)                  m3_Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
 #define m3ReallocArray(PTR, STRUCT, NEW, OLD)       m3_Realloc ((void **) (PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define m3Reallocate(_ptr, _newSize, _oldSize)      m3_Realloc ((void **) _ptr, _newSize, _oldSize)
 #define m3Free(P)                                   m3_Free ((void **)(& P));
-#define m3CopyMem(_to, _from, _size)                m3_CopyMem ((void **) _to, _from, _size)
+#define m3CopyMem(_to, _from, _size)                m3_CopyMem ((void **) _to, (void *) _from, _size)
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 

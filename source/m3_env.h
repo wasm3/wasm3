@@ -40,14 +40,17 @@ typedef struct M3Function
 
     bytes_t                 wasm;
     bytes_t                 wasmEnd;
-    bool                    ownsWasmCode;
 
     cstr_t                  name;
 
     IM3FuncType             funcType;
 
-    IM3Operation            callOp;
     pc_t                    compiled;
+    
+#   if (d_m3EnableCodePageRefCounting)
+    IM3CodePage *           pages;              // array of all pages used
+    u32                     numCodePages;
+#   endif
 
     u32                     hits;
 
@@ -58,13 +61,16 @@ typedef struct M3Function
     u16                     numLocals;          // not including args
     u16                     numLocalBytes;
 
-    u16                     numConstantBytes;
     void *                  constants;
+    u16                     numConstantBytes;
+    
+    bool                    ownsWasmCode;
 }
 M3Function;
 
 typedef M3Function *        IM3Function;
 
+void        Function_FreeCompiledCode   (IM3Function i_function);
 
 cstr_t      GetFunctionImportModuleName (IM3Function i_function);
 cstr_t      GetFunctionName             (IM3Function i_function);
@@ -247,7 +253,7 @@ typedef M3Runtime *         IM3Runtime;
 
 
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
-void                        ReleaseRuntime              (IM3Runtime io_runtime);
+void                        Runtime_Release             (IM3Runtime io_runtime);
 
 M3Result                    ResizeMemory                (IM3Runtime io_runtime, u32 i_numPages);
 
