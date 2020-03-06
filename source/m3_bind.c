@@ -8,6 +8,7 @@
 #include "m3_exec.h"
 #include "m3_env.h"
 #include "m3_exception.h"
+#include "m3_info.h"
 
 
 u8  ConvertTypeCharToTypeId (char i_code)
@@ -81,7 +82,9 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
             // M3FuncType doesn't speak 'void'
             if (type == c_m3Type_void)
                 type = c_m3Type_none;
-            
+            if (type == c_m3Type_ptr)
+                type = c_m3Type_i32;
+
             funcType->returnType = type;
         }
         else
@@ -121,7 +124,12 @@ M3Result  ValidateSignature  (IM3Function i_function, ccstr_t i_linkingSignature
 _   (SignatureToFuncType (& ftype, i_linkingSignature));
 
     if (not AreFuncTypesEqual (ftype, i_function->funcType))
+    {
+        m3log (module, "expected: %s", SPrintFuncTypeSignature (ftype));
+        m3log (module, "   found: %s", SPrintFuncTypeSignature (i_function->funcType));
+
         _throw ("function signature mismatch");
+    }
 
     _catch:
     
