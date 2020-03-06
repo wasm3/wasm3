@@ -7,9 +7,9 @@ int sum(int a, int b)
     return a + b;
 }
 
-void ext_memcpy(void* dst, const void* arg, int64_t size)
+void * ext_memcpy (void* dst, const void* arg, int32_t size)
 {
-    memcpy(dst, arg, (size_t) size);
+    return memcpy(dst, arg, (size_t) size);
 }
 
 int main(void)

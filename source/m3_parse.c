@@ -82,7 +82,7 @@ _           (ReadLEB_u7 /* u1 in spec */ (& returnCount, & i_bytes, i_end));
                 i8 returnType;
 _               (ReadLEB_i7 (& returnType, & i_bytes, i_end));
 _               (NormalizeType (& ftype->returnType, returnType));
-            }                                                                       m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (& ftype));
+            }                                                                       m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (ftype));
 
             Environment_AddFuncType (io_module->environment, & ftype);
             io_module->funcTypes [i] = ftype;
