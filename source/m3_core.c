@@ -353,7 +353,7 @@ M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes,
             break;
         }
 
-        if (shift > i_maxNumBits)
+        if (shift >= i_maxNumBits)
         {
             result = m3Err_lebOverflow;
             break;
@@ -389,15 +389,14 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
 
             if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
-                u64 extend = 1;
-                extend <<= shift;
-                value |= -extend;
+                u64 extend = 0;
+                value |= (~extend << shift);
             }
 
             break;
         }
 
-        if (shift > i_maxNumBits)
+        if (shift >= i_maxNumBits)
         {
             result = m3Err_lebOverflow;
             break;

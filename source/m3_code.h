@@ -34,6 +34,8 @@ void                    EmitWord_impl           (IM3CodePage i_page, void* i_wor
 void                    PushCodePage            (IM3CodePage * i_list, IM3CodePage i_codePage);
 IM3CodePage             PopCodePage             (IM3CodePage * i_list);
 
+u32                     CountCodePages          (IM3CodePage i_list);
+
 # ifdef DEBUG
 void                    dump_code_page            (IM3CodePage i_codePage, pc_t i_startPC);
 # endif
