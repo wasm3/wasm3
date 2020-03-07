@@ -13,21 +13,8 @@ void Module_FreeFunctions (IM3Module i_module)
 {
     for (u32 i = 0; i < i_module->numFunctions; ++i)
     {
-        IM3Function func = &i_module->functions [i];
-        m3Free (func->constants);
-        
-        // name can be an alias of fieldUtf8
-        if (func->name != func->import.fieldUtf8)
-        {
-            m3Free (func->name);
-        }
-        
-        FreeImportInfo (& func->import);
-        
-        if (func->ownsWasmCode)
-            m3Free (func->wasm);
-        
-        Function_FreeCompiledCode (func);
+        IM3Function func = & i_module->functions [i];
+        Function_Release (func);
     }
 }
 

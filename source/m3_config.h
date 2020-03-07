@@ -15,7 +15,7 @@
 # endif
 
 # ifndef d_m3EnableCodePageRefCounting
-#   define d_m3EnableCodePageRefCounting        1
+#   define d_m3EnableCodePageRefCounting        0
 # endif
 
 # ifndef d_m3MaxFunctionStackHeight

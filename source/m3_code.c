@@ -34,7 +34,7 @@ void  FreeCodePages  (IM3CodePage i_page)
 {
     while (i_page)
     {
-        m3log (code, "free page: %d  util: %3.1f%%", i_page->info.sequence, 100. * i_page->info.lineIndex / i_page->info.numLines);
+        m3log (code, "free page: %d; %p; util: %3.1f%%", i_page->info.sequence, i_page, 100. * i_page->info.lineIndex / i_page->info.numLines);
 
         IM3CodePage next = i_page->info.next;
         m3Free (i_page);

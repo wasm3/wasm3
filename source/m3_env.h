@@ -48,8 +48,8 @@ typedef struct M3Function
     pc_t                    compiled;
     
 #   if (d_m3EnableCodePageRefCounting)
-    IM3CodePage *           pages;              // array of all pages used
-    u32                     numCodePages;
+    IM3CodePage *           codePageRefs;           // array of all pages used
+    u32                     numCodePageRefs;
 #   endif
 
     u32                     hits;
@@ -70,6 +70,7 @@ M3Function;
 
 typedef M3Function *        IM3Function;
 
+void        Function_Release            (IM3Function i_function);
 void        Function_FreeCompiledCode   (IM3Function i_function);
 
 cstr_t      GetFunctionImportModuleName (IM3Function i_function);

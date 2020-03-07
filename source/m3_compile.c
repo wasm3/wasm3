@@ -45,9 +45,9 @@ M3Result  AcquireCompilationCodePage  (IM3Compilation o, IM3CodePage * o_codePag
                 IM3Function func = o->function;
                 page->info.usageCount++;
 
-                u32 index = func->numCodePages++;
-_               (m3ReallocArray (& func->pages, IM3CodePage, func->numCodePages, index));
-                func->pages [index] = page;
+                u32 index = func->numCodePageRefs++;
+_               (m3ReallocArray (& func->codePageRefs, IM3CodePage, func->numCodePageRefs, index));
+                func->codePageRefs [index] = page;
             }
         }
 #   endif

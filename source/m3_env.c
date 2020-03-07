@@ -42,26 +42,52 @@ void Runtime_ReleaseCodePages (IM3Runtime i_runtime)
 }
 
 
+void  Function_Release  (IM3Function i_function)
+{
+    m3Free (i_function->constants);
+    
+    // name can be an alias of fieldUtf8
+    if (i_function->name != i_function->import.fieldUtf8)
+    {
+        m3Free (i_function->name);
+    }
+    
+    FreeImportInfo (& i_function->import);
+    
+    if (i_function->ownsWasmCode)
+        m3Free (i_function->wasm);
+    
+    // Function_FreeCompiledCode (func);
+    
+#   if (d_m3EnableCodePageRefCounting)
+    {
+        m3Free (i_function->codePageRefs);
+        i_function->numCodePageRefs = 0;
+    }
+#   endif
+}
+
+
 void  Function_FreeCompiledCode (IM3Function i_function)
 {
 #   if (d_m3EnableCodePageRefCounting)
-
-    i_function->compiled = NULL;
-    
-    while (i_function->numCodePages--)
     {
-        IM3CodePage page = i_function->pages [i_function->numCodePages];
+        i_function->compiled = NULL;
         
-        if (--(page->info.usageCount) == 0)
+        while (i_function->numCodePageRefs--)
         {
-            printf ("free %p\n", page);
+            IM3CodePage page = i_function->codePageRefs [i_function->numCodePageRefs];
+            
+            if (--(page->info.usageCount) == 0)
+            {
+//                printf ("free %p\n", page);
+            }
         }
+        
+        m3Free (i_function->codePageRefs);
+        
+        Runtime_ReleaseCodePages (i_function->module->runtime);
     }
-    
-    m3Free (i_function->pages);
-    
-    Runtime_ReleaseCodePages (i_function->module->runtime);
-
 #   endif
 }
 
@@ -848,7 +874,7 @@ void  ReleaseCodePageNoTrack (IM3Runtime i_runtime, IM3CodePage i_codePage)
         else
             list = & i_runtime->pagesOpen;
         
-        PushCodePage (list, i_codePage);                                                m3log (emit, "release page: %d to queue: '%s'", i_codePage->info.sequence, pageFull ? "full" : "open")
+        PushCodePage (list, i_codePage);                        m3log (emit, "release page: %d to queue: '%s'", i_codePage->info.sequence, pageFull ? "full" : "open")
     }
 }
 
