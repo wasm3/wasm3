@@ -16,6 +16,7 @@ void Module_FreeFunctions (IM3Module i_module)
         IM3Function func = &i_module->functions [i];
         m3Free (func->constants);
         
+        // name can be an alias of fieldUtf8
         if (func->name != func->import.fieldUtf8)
         {
             m3Free (func->name);
@@ -26,9 +27,7 @@ void Module_FreeFunctions (IM3Module i_module)
         if (func->ownsWasmCode)
             m3Free (func->wasm);
         
-#       if (d_m3EnableCodePageRefCounting)
-            Function_FreeCompiledCode (func);
-#       endif
+        Function_FreeCompiledCode (func);
     }
 }
 

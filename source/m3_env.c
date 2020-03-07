@@ -34,7 +34,6 @@ bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
     return false;
 }
 
-# if (d_m3EnableCodePageRefCounting)
 
 void Runtime_ReleaseCodePages (IM3Runtime i_runtime)
 {
@@ -44,13 +43,15 @@ void Runtime_ReleaseCodePages (IM3Runtime i_runtime)
 
 void  Function_FreeCompiledCode (IM3Function i_function)
 {
+#   if (d_m3EnableCodePageRefCounting)
+
     i_function->compiled = NULL;
     
     while (i_function->numCodePages--)
     {
         IM3CodePage page = i_function->pages [i_function->numCodePages];
         
-        if (-- (page->info.usageCount) == 0)
+        if (--(page->info.usageCount) == 0)
         {
             printf ("free %p\n", page);
         }
@@ -59,9 +60,10 @@ void  Function_FreeCompiledCode (IM3Function i_function)
     m3Free (i_function->pages);
     
     Runtime_ReleaseCodePages (i_function->module->runtime);
+
+#   endif
 }
 
-# endif
 
 
 cstr_t  GetFunctionName  (IM3Function i_function)
