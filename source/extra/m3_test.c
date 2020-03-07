@@ -46,5 +46,63 @@ int  main  (int i_argc, const char  * i_argv [])
         m3Free (ftype2);
     }
     
+    
+    Test (codepages.simple)
+    {
+        M3Environment env = { 0 };
+        M3Runtime runtime = { 0 };
+        runtime.environment = & env;
+        
+        IM3CodePage page = AcquireCodePage (& runtime);                 expect (page);
+                                                                        expect (runtime.numCodePages == 1);
+                                                                        expect (runtime.numActiveCodePages == 1);
+        
+        IM3CodePage page2 = AcquireCodePage (& runtime);                expect (page2);
+                                                                        expect (runtime.numCodePages == 2);
+                                                                        expect (runtime.numActiveCodePages == 2);
+
+        ReleaseCodePage (& runtime, page);                              expect (runtime.numCodePages == 2);
+                                                                        expect (runtime.numActiveCodePages == 1);
+
+        ReleaseCodePage (& runtime, page2);                             expect (runtime.numCodePages == 2);
+                                                                        expect (runtime.numActiveCodePages == 0);
+        
+        Runtime_Release (& runtime);                                    expect (CountCodePages (env.pagesReleased) == 2);
+        Environment_Release (& env);                                    expect (CountCodePages (env.pagesReleased) == 0);
+    }
+    
+    Test (codepages.b)
+    {
+        const u32 c_numPages = 2000;
+        IM3CodePage pages [2000] = { NULL };
+        
+        M3Environment env = { 0 };
+        M3Runtime runtime = { 0 };
+        runtime.environment = & env;
+
+        u32 numActive = 0;
+        
+        for (u32 i = 0; i < 5000000; ++i)
+        {
+            u32 index = rand () % c_numPages;   // printf ("%5u ", index);
+            
+            if (pages [index] == NULL)
+            {
+                pages [index] = AcquireCodePage (& runtime);
+                ++numActive;
+            }
+            else
+            {
+                ReleaseCodePage (& runtime, pages [index]);
+                pages [index] = NULL;
+                --numActive;
+            }
+                
+            expect (runtime.numActiveCodePages == numActive);
+        }
+        
+        printf ("num pages: %d\n", runtime.numCodePages);
+    }
+    
     return 0;
 }

@@ -209,6 +209,8 @@ typedef struct M3Environment
 }
 M3Environment;
 
+void                        Environment_Release         (IM3Environment i_environment);
+
 // takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
 void                        Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
 

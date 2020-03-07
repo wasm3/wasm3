@@ -24,17 +24,19 @@ typedef M3CodePage *    IM3CodePage;
 
 IM3CodePage             NewCodePage             (u32 i_minNumLines);
 
-void                    FreeCodePages           (IM3CodePage i_page);
+void                    FreeCodePages           (IM3CodePage * io_list);
+
 u32                     NumFreeLines            (IM3CodePage i_page);
 pc_t                    GetPageStartPC          (IM3CodePage i_page);
 pc_t                    GetPagePC               (IM3CodePage i_page);
 void                    EmitWord64_impl         (IM3CodePage i_page, u64 i_word);
 void                    EmitWord_impl           (IM3CodePage i_page, void* i_word);
 
-void                    PushCodePage            (IM3CodePage * i_list, IM3CodePage i_codePage);
-IM3CodePage             PopCodePage             (IM3CodePage * i_list);
+void                    PushCodePage            (IM3CodePage * io_list, IM3CodePage i_codePage);
+IM3CodePage             PopCodePage             (IM3CodePage * io_list);
 
-u32                     CountCodePages          (IM3CodePage i_list);
+IM3CodePage             GetCodePageEnd          (IM3CodePage i_list); // i_list = NULL is valid
+u32                     CountCodePages          (IM3CodePage i_list); // i_list = NULL is valid
 
 # ifdef DEBUG
 void                    dump_code_page            (IM3CodePage i_codePage, pc_t i_startPC);

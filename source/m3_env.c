@@ -169,21 +169,26 @@ IM3Environment  m3_NewEnvironment  ()
 }
 
 
+void  Environment_Release  (IM3Environment i_environment)
+{
+    IM3FuncType ftype = i_environment->funcTypes;
+
+    while (ftype)
+    {
+        IM3FuncType next = ftype->next;
+        m3Free (ftype);
+        ftype = next;
+    }                                                   m3log (runtime, "freeing %d pages from environment",
+                                                               CountCodePages (i_environment->pagesReleased));
+    FreeCodePages (& i_environment->pagesReleased);
+}
+
+
 void  m3_FreeEnvironment  (IM3Environment i_environment)
 {
     if (i_environment)
     {
-        IM3FuncType ftype = i_environment->funcTypes;
-
-        while (ftype)
-        {
-            IM3FuncType next = ftype->next;
-            m3Free (ftype);
-            ftype = next;
-        }
-                                                                                    m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
-        FreeCodePages (i_environment->pagesReleased);
-        
+        Environment_Release (i_environment);
         m3Free (i_environment);
     }
 }
@@ -252,16 +257,7 @@ IM3CodePage  Environment_AcquireCodePage (IM3Environment i_environment, u32 i_mi
 
 void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i_codePageList)
 {
-    // find end of list
-    IM3CodePage end = i_codePageList;
-    while (end)
-    {
-        IM3CodePage next = end->info.next;
-        if (not next)
-            break;
-        
-        end = next;
-    }
+    IM3CodePage end = GetCodePageEnd (i_codePageList);
     
     if (end)
     {
@@ -341,7 +337,7 @@ void  FreeCompilationPatches  (IM3Compilation o)
 
 void  Runtime_Release  (IM3Runtime i_runtime)
 {
-    ForEachModule (i_runtime, _FreeModule, NULL);
+    ForEachModule (i_runtime, _FreeModule, NULL);                   d_m3Assert (i_runtime->numActiveCodePages == 0);
 
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
