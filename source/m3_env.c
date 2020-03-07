@@ -11,6 +11,7 @@
 #include "m3_compile.h"
 #include "m3_exec.h"
 #include "m3_exception.h"
+#include "m3_info.h"
 
 
 M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numArgs)
@@ -123,6 +124,8 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
             m3Free (ftype);
             ftype = next;
         }
+                                                                                    m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
+        FreeCodePages (i_environment->pagesReleased);
         
         m3Free (i_environment);
     }
@@ -153,6 +156,62 @@ void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_f
     }
 
     * io_funcType = newType;
+}
+
+
+IM3CodePage RemoveCodePageOfCapacity (M3CodePage ** io_list, u32 i_minimumLineCount)
+{
+    IM3CodePage prev = NULL;
+    IM3CodePage page = * io_list;
+    
+    while (page)
+    {
+        if (page->info.numLines >= i_minimumLineCount)
+        {                                                           d_m3Assert (page->info.usageCount == 0);
+            page->info.lineIndex = 0;   // reset the page
+            
+            IM3CodePage next = page->info.next;
+            if (prev)
+                prev->info.next = next; // mid-list
+            else
+                * io_list = next;       // front of list
+            
+            break;
+        }
+        
+        prev = page;
+        page = page->info.next;
+    }
+    
+    return page;
+}
+
+
+IM3CodePage  Environment_AcquireCodePage (IM3Environment i_environment, u32 i_minimumLineCount)
+{
+    return RemoveCodePageOfCapacity (& i_environment->pagesReleased, i_minimumLineCount);
+}
+
+
+void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i_codePageList)
+{
+    // find end of list
+    IM3CodePage end = i_codePageList;
+    while (end)
+    {
+        IM3CodePage next = end->info.next;
+        if (not next)
+            break;
+        
+        end = next;
+    }
+    
+    if (end)
+    {
+        // push list to front
+        end->info.next = i_environment->pagesReleased;
+        i_environment->pagesReleased = i_codePageList;
+    }
 }
 
 
@@ -223,12 +282,12 @@ void  FreeCompilationPatches  (IM3Compilation o)
 }
 
 
-void  ReleaseRuntime  (IM3Runtime i_runtime)
+void  Runtime_Release  (IM3Runtime i_runtime)
 {
     ForEachModule (i_runtime, _FreeModule, NULL);
 
-    FreeCodePages (i_runtime->pagesOpen);
-    FreeCodePages (i_runtime->pagesFull);
+    Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
+    Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
     FreeCompilationPatches (& i_runtime->compilation);
 
@@ -244,7 +303,7 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
     {
         m3_PrintProfilerInfo ();
         
-        ReleaseRuntime (i_runtime);
+        Runtime_Release (i_runtime);
         m3Free (i_runtime);
     }
 }
@@ -307,7 +366,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     else result = m3Err_mallocFailedCodePage;
 
     runtime.stack = NULL;        // prevent free(stack) in ReleaseRuntime
-    ReleaseRuntime (& runtime);
+    Runtime_Release (& runtime);
     i_module->runtime = savedRuntime;
 
     * io_bytes = o->wasm;
@@ -782,7 +841,11 @@ IM3CodePage  AcquireCodePageWithCapacityR  (IM3Runtime i_runtime, u32 i_lineCoun
     }
     else
     {
-        page = NewCodePage (i_lineCount);
+         page = Environment_AcquireCodePage (i_runtime->environment, i_lineCount);
+        
+         if (not page)
+            page = NewCodePage (i_lineCount);
+        
         if (page)
             i_runtime->numCodePages++;
     }
@@ -810,19 +873,6 @@ IM3CodePage  AcquireCodePage  (IM3Runtime i_runtime)
 }
 
 
-u32  CountPages  (IM3CodePage i_page)
-{
-    u32 numPages = 0;
-
-    while (i_page)
-    {
-        ++numPages;
-        i_page = i_page->info.next;
-    }
-
-    return numPages;
-}
-
 
 void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
@@ -832,8 +882,8 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
         i_runtime->numActiveCodePages--;
 
 #       if defined (DEBUG)
-            u32 numOpen = CountPages (i_runtime->pagesOpen);
-            u32 numFull = CountPages (i_runtime->pagesFull);
+            u32 numOpen = CountCodePages (i_runtime->pagesOpen);
+            u32 numFull = CountCodePages (i_runtime->pagesFull);
 
             m3log (emit, "runtime: %p; open-pages: %d; full-pages: %d; active: %d; total: %d", i_runtime, numOpen, numFull, i_runtime->numActiveCodePages, i_runtime->numCodePages);
 

@@ -196,7 +196,9 @@ static const u32 c_m3NumTypesPerPage = 8;
 
 typedef struct M3Environment
 {
-    IM3FuncType             funcTypes;      // linked list
+    IM3FuncType             funcTypes;          // linked list
+    
+    M3CodePage *            pagesReleased;
 }
 M3Environment;
 
@@ -247,7 +249,7 @@ typedef M3Runtime *         IM3Runtime;
 
 
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
-void                        ReleaseRuntime              (IM3Runtime io_runtime);
+void                        Runtime_Release             (IM3Runtime io_runtime);
 
 M3Result                    ResizeMemory                (IM3Runtime io_runtime, u32 i_numPages);
 
