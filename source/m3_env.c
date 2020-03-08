@@ -178,8 +178,7 @@ void  Environment_Release  (IM3Environment i_environment)
         IM3FuncType next = ftype->next;
         m3Free (ftype);
         ftype = next;
-    }                                                   m3log (runtime, "freeing %d pages from environment",
-                                                               CountCodePages (i_environment->pagesReleased));
+    }                                                       m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
 }
 
@@ -228,10 +227,8 @@ IM3CodePage RemoveCodePageOfCapacity (M3CodePage ** io_list, u32 i_minimumLineCo
     
     while (page)
     {
-        if (page->info.numLines >= i_minimumLineCount)
+        if (NumFreeLines (page) >= i_minimumLineCount)
         {                                                           d_m3Assert (page->info.usageCount == 0);
-            page->info.lineIndex = 0;   // reset the page
-            
             IM3CodePage next = page->info.next;
             if (prev)
                 prev->info.next = next; // mid-list
@@ -257,7 +254,18 @@ IM3CodePage  Environment_AcquireCodePage (IM3Environment i_environment, u32 i_mi
 
 void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i_codePageList)
 {
-    IM3CodePage end = GetCodePageEnd (i_codePageList);
+    IM3CodePage end = i_codePageList;
+    
+    while (end)
+    {
+        end->info.lineIndex = 0; // reset page
+
+        IM3CodePage next = end->info.next;
+        if (not next)
+            break;
+        
+        end = next;
+    }
     
     if (end)
     {
@@ -860,8 +868,6 @@ void  ReleaseCodePageNoTrack (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {
     if (i_codePage)
     {
-        //        IM3Environment env = i_runtime->environment;
-        IM3Runtime env = i_runtime;
         IM3CodePage * list;
         
         bool pageFull = (NumFreeLines (i_codePage) < d_m3CodePageFreeLinesThreshold);
@@ -875,40 +881,21 @@ void  ReleaseCodePageNoTrack (IM3Runtime i_runtime, IM3CodePage i_codePage)
 }
 
 
-IM3CodePage  AcquireCodePageWithCapacityR  (IM3Runtime i_runtime, u32 i_lineCount)
+IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_minLineCount)
 {
-    IM3CodePage page;
-
-    if (i_runtime->pagesOpen)
+    IM3CodePage page = RemoveCodePageOfCapacity (& i_runtime->pagesOpen, i_minLineCount);
+    
+    if (not page)
     {
-        page = PopCodePage (& i_runtime->pagesOpen);
-
-        if (NumFreeLines (page) < i_lineCount)
-        {
-            IM3CodePage tryAnotherPage = AcquireCodePageWithCapacityR (i_runtime, i_lineCount);
-
-            ReleaseCodePageNoTrack (i_runtime, page);
-            page = tryAnotherPage;
-        }
-    }
-    else
-    {
-         page = Environment_AcquireCodePage (i_runtime->environment, i_lineCount);
+         page = Environment_AcquireCodePage (i_runtime->environment, i_minLineCount);
         
          if (not page)
-            page = NewCodePage (i_lineCount);
-        
-        if (page)
-            i_runtime->numCodePages++;
+         {
+             page = NewCodePage (i_minLineCount);
+             if (page)
+                 i_runtime->numCodePages++;
+        }
     }
-
-    return page;
-}
-
-
-IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_lineCount)
-{
-    IM3CodePage page = AcquireCodePageWithCapacityR (i_runtime, i_lineCount);
     
     if (page)
     {                                                            m3log (emit, "acquire page: %d", page->info.sequence);

@@ -203,6 +203,8 @@ static const u32 c_m3NumTypesPerPage = 8;
 
 typedef struct M3Environment
 {
+//    struct M3Runtime *      runtimes;
+    
     IM3FuncType             funcTypes;          // linked list
     
     M3CodePage *            pagesReleased;

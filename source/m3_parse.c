@@ -513,7 +513,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
     }
     else
     {
-        m3log (parse, "<skipped (id: %d)>", (u32) i_sectionType);
+        m3log (parse, " skipped section type: %d", (u32) i_sectionType);
     }
 
     return result;

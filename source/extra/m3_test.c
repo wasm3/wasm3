@@ -82,17 +82,19 @@ int  main  (int i_argc, const char  * i_argv [])
 
         u32 numActive = 0;
         
-        for (u32 i = 0; i < 5000000; ++i)
+        for (u32 i = 0; i < 2000000; ++i)
         {
             u32 index = rand () % c_numPages;   // printf ("%5u ", index);
             
             if (pages [index] == NULL)
             {
+//                printf ("acq\n");
                 pages [index] = AcquireCodePage (& runtime);
                 ++numActive;
             }
             else
             {
+//                printf ("rel\n");
                 ReleaseCodePage (& runtime, pages [index]);
                 pages [index] = NULL;
                 --numActive;
@@ -102,6 +104,19 @@ int  main  (int i_argc, const char  * i_argv [])
         }
         
         printf ("num pages: %d\n", runtime.numCodePages);
+        
+        for (u32 i = 0; i < c_numPages; ++i)
+        {
+            if (pages [i])
+            {
+                ReleaseCodePage (& runtime, pages [i]);
+                pages [i] = NULL;
+                --numActive;                                            expect (runtime.numActiveCodePages == numActive);
+            }
+        }
+        
+        Runtime_Release (& runtime);
+        Environment_Release (& env);
     }
     
     return 0;
