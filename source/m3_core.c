@@ -65,15 +65,15 @@ M3Result  m3_Malloc  (void ** o_ptr, size_t i_size)
 
 void        m3_Free              (void ** io_ptr)
 {
-    if (!o_ptr) return;
+    if (!io_ptr) return;
 
     // Handle the last chunk
-    if (o_ptr == fixedHeapLast) {
+    if (io_ptr == fixedHeapLast) {
         fixedHeapPtr = fixedHeapLast;
         fixedHeapLast = NULL;
-        //printf("== free %p\n", o_ptr);
+        //printf("== free %p\n", io_ptr);
     } else {
-        //printf("== free %p [failed]\n", o_ptr);
+        //printf("== free %p [failed]\n", io_ptr);
     }
     
     * io_ptr = NULL;
