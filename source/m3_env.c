@@ -887,16 +887,15 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_minLineCo
 
     if (not page)
     {
-         page = Environment_AcquireCodePage (i_runtime->environment, i_minLineCount);
+        page = Environment_AcquireCodePage (i_runtime->environment, i_minLineCount);
 
-         if (not page)
-         {
-             page = NewCodePage (i_minLineCount);
-             if (page)
-                 i_runtime->numCodePages++;
-        }
+        if (not page)
+            page = NewCodePage (i_minLineCount);
+
+        if (page)
+            i_runtime->numCodePages++;
     }
-
+    
     if (page)
     {                                                            m3log (emit, "acquire page: %d", page->info.sequence);
         i_runtime->numActiveCodePages++;
@@ -923,7 +922,7 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
             u32 numOpen = CountCodePages (i_runtime->pagesOpen);
             u32 numFull = CountCodePages (i_runtime->pagesFull);
 
-            m3log (emit, "runtime: %p; open-pages: %d; full-pages: %d; active: %d; total: %d", i_runtime, numOpen, numFull, i_runtime->numActiveCodePages, i_runtime->numCodePages);
+            m3log (runtime, "runtime: %p; open-pages: %d; full-pages: %d; active: %d; total: %d", i_runtime, numOpen, numFull, i_runtime->numActiveCodePages, i_runtime->numCodePages);
 
             d_m3Assert (numOpen + numFull + i_runtime->numActiveCodePages == i_runtime->numCodePages);
 
