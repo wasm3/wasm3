@@ -45,8 +45,8 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 ## Post-MVP [features](https://github.com/WebAssembly/proposals) support
 
-🗹 Sign-extension operators  
-🗹 Non-trapping float-to-int conversions  
+☑ Sign-extension operators  
+☑ Non-trapping float-to-int conversions  
 ☐ Bulk memory operations  
 ☐ Multi-value  
 ☐ Import/Export of Mutable Globals  
