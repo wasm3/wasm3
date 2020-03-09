@@ -79,28 +79,29 @@ void        m3_Free              (void ** io_ptr)
     * io_ptr = NULL;
 }
 
-void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+M3Result  m3_Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
 {
-    //printf("== realloc %p => %d\n", i_ptr, i_newSize);
+    //printf("== realloc %p => %d\n", io_ptr, i_newSize);
 
-    void * ptr = i_ptr;
-    if (i_newSize == i_oldSize) return ptr;
+    void * ptr = *io_ptr;
+    if (i_newSize == i_oldSize) return m3Err_none;
 
     // Handle the last chunk
-    if (i_ptr && i_ptr == fixedHeapLast) {
+    if (ptr && ptr == fixedHeapLast) {
         fixedHeapPtr = fixedHeapLast + i_newSize;
         HEAP_ALIGN_PTR(fixedHeapPtr);
-        return ptr;
+        return m3Err_none;
     }
 
-    m3_Malloc(&ptr, i_newSize);
-    if (!ptr) return NULL;
+    M3Result result = m3_Malloc(&ptr, i_newSize);
+    if (result) return result;
 
-    if (i_ptr) {
-        memcpy(ptr, i_ptr, i_oldSize);
+    if (*io_ptr) {
+        memcpy(ptr, *io_ptr, i_oldSize);
     }
 
-    return ptr;
+    *io_ptr = ptr;
+    return m3Err_none;
 }
 
 
