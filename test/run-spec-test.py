@@ -437,7 +437,7 @@ jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
 
 for fn in jsonFiles:
-    with open(fn) as f:
+    with open(fn, encoding='utf-8') as f:
         data = json.load(f)
 
     wast_source = filename(data["source_filename"])
