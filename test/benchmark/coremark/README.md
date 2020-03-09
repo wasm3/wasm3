@@ -54,7 +54,7 @@ wasmer-js run coremark-wasi.wasm
 wavm run coremark-wasi.wasm
 
 # V8 interpreter
-node --wasm_interpret_all $(which wasmer-js) run coremark-wasi.wasm
+node --wasm-interpret-all $(which wasmer-js) run coremark-wasi.wasm
 ```
 
 ### Running EMCC version
