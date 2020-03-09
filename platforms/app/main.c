@@ -156,8 +156,8 @@ void unescape(char* buff)
             case 't':  *outp++ = '\t'; break;
             case 'x': {
                 char hex[3] = { *(buff+2), *(buff+3), '\0' };
-                *outp++ = strtol(hex, NULL, 16);
-                buff += 2;
+                *outp = strtol(hex, NULL, 16);
+                buff += 2; outp += 1;
                 break;
             }
             // Otherwise just pass the letter
@@ -284,7 +284,7 @@ int  main  (int i_argc, const char* i_argv[])
 
     while (argRepl)
     {
-        char cmd_buff[1024] = { 0, };
+        char cmd_buff[2048] = { 0, };
         char* argv[32] = { 0, };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);

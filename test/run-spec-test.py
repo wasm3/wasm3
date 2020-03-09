@@ -89,23 +89,14 @@ def binaryToFloat(num, t):
     else:
         fatal(f"Unknown type '{t}'")
 
-def escape(s):
-    c = ord(s)
-
-    if c < 128 and s.isprintable() and not s in " \n\r\t\\":
-        return s
-
-    if c <= 0xff:
-        return r'\x{0:02x}'.format(c)
-    elif c <= 0xffff:
-        return r'\u{0:04x}'.format(c)
-    else:
-        return r'\U{0:08x}'.format(c)
-
 def escape_str(s):
     if s == "":
         return r'\x00'
-    return ''.join(escape(c) for c in s)
+
+    if all((ord(c) < 128 and c.isprintable() and not c in " \n\r\t\\") for c in s):
+        return s
+
+    return '\\x' + '\\x'.join('{0:02x}'.format(x) for x in s.encode('utf-8'))
 
 #
 # Value format options
