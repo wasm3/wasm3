@@ -124,7 +124,7 @@ u32  CountCodePages  (IM3CodePage i_list)
 }
 
 
-IM3CodePage GetCodePageEnd  (IM3CodePage i_list)
+IM3CodePage GetEndCodePage  (IM3CodePage i_list)
 {
     IM3CodePage end;
     FindCodePageEnd (i_list, & end);

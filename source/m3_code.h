@@ -35,7 +35,7 @@ void                    EmitWord_impl           (IM3CodePage i_page, void* i_wor
 void                    PushCodePage            (IM3CodePage * io_list, IM3CodePage i_codePage);
 IM3CodePage             PopCodePage             (IM3CodePage * io_list);
 
-IM3CodePage             GetCodePageEnd          (IM3CodePage i_list); // i_list = NULL is valid
+IM3CodePage             GetEndCodePage          (IM3CodePage i_list); // i_list = NULL is valid
 u32                     CountCodePages          (IM3CodePage i_list); // i_list = NULL is valid
 
 # ifdef DEBUG
