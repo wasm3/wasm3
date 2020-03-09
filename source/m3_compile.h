@@ -54,7 +54,7 @@ typedef struct M3CompilationScope
 //    i32                             loopDepth;
     i16                             initStackIndex;
     u8                              type;
-    u8                              opcode;
+    m3opcode_t                      opcode;
     bool                            isPolymorphic;
 }
 M3CompilationScope;
@@ -105,13 +105,13 @@ typedef struct
 
     u16                 regStackIndexPlusOne        [2];
 
-    u8                  previousOpcode;
+    m3opcode_t          previousOpcode;
 }
 M3Compilation;
 
 typedef M3Compilation *                 IM3Compilation;
 
-typedef M3Result (* M3Compiler)         (IM3Compilation, u8);
+typedef M3Result (* M3Compiler)         (IM3Compilation, m3opcode_t);
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------
@@ -137,6 +137,16 @@ M3OpInfo;
 typedef const M3OpInfo *    IM3OpInfo;
 
 extern const M3OpInfo c_operations [];
+extern const M3OpInfo c_operationsFC [];
+
+static inline
+const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
+    switch (opcode >> 8) {
+    case 0x00: return &c_operations[opcode];
+    case 0xFC: return &c_operationsFC[opcode & 0xFF];
+    default:   return NULL;
+    }
+}
 
 #ifdef DEBUG
     #define M3OP(...)       { __VA_ARGS__ }

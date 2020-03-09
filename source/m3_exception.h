@@ -16,6 +16,7 @@
 #define _try
 #define _(TRY)                            { result = TRY; if (result) { EXCEPTION_PRINT; goto _catch; } }
 #define _throw(ERROR)                     { result = ERROR; EXCEPTION_PRINT; goto _catch; }
-#define _throwif(ERROR, COND)   if (COND) { result = ERROR; EXCEPTION_PRINT; goto _catch; }
+#define _throwif(ERROR, COND)             if (UNLIKELY(COND)) \
+                                          { result = ERROR; EXCEPTION_PRINT; goto _catch; }
 
 #endif // m3_exception_h

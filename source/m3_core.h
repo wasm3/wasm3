@@ -47,6 +47,8 @@ typedef const char * const      ccstr_t;
 typedef const u8 *              bytes_t;
 typedef const u8 * const        cbytes_t;
 
+typedef u16                     m3opcode_t;
+
 typedef i64                     m3reg_t;
 
 # if d_m3Use32BitSlots

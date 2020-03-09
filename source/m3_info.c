@@ -15,7 +15,7 @@
 typedef struct OpInfo
 {
     IM3OpInfo   info;
-    u8          opcode;
+    m3opcode_t  opcode;
 }
 OpInfo;
 
@@ -145,11 +145,12 @@ OpInfo find_operation_info  (IM3Operation i_operation)
 {
     OpInfo opInfo = { NULL, 0 };
 
-    if (i_operation)
-    {
+    if (!i_operation) return opInfo;
+
+    // TODO: find also extended opcodes
     for (u32 i = 0; i <= 0xff; ++i)
     {
-        IM3OpInfo oi = & c_operations [i];
+        IM3OpInfo oi = GetOpInfo(i);
 
         if (oi->type != c_m3Type_void)
         {
@@ -164,7 +165,6 @@ OpInfo find_operation_info  (IM3Operation i_operation)
             }
         }
         else break;
-    }
     }
 
     return opInfo;

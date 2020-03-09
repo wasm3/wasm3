@@ -859,7 +859,7 @@ M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i
 //-------------------------------------------------------------------------------------------------------------------------
 
 
-M3Result  Compile_Const_i32  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Const_i32  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -871,7 +871,7 @@ _   (PushConst (o, value, c_m3Type_i32));                       m3log (compile, 
 }
 
 
-M3Result  Compile_Const_i64  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Const_i64  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -883,7 +883,7 @@ _   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, 
 }
 
 
-M3Result  Compile_Const_f32  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Const_f32  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -896,7 +896,7 @@ _   (PushConst (o, value.u, c_m3Type_f32));
 }
 
 
-M3Result  Compile_Const_f64  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Const_f64  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -908,8 +908,36 @@ _   (PushConst (o, value.u, c_m3Type_f64));
     _catch: return result;
 }
 
+#ifdef d_m3CompileExtendedOpcode
 
-M3Result  Compile_Return  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    i32 value;
+
+    u8 opcode;
+_   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (FC: %" PRIi32 ")", get_indention_string (o), opcode);
+
+    i_opcode = (i_opcode << 8) | opcode;
+
+    //printf("Extended opcode: 0x%x\n", i_opcode);
+
+    M3Compiler compiler = GetOpInfo(i_opcode)->compiler;
+
+    if (compiler)
+        result = (* compiler) (o, i_opcode);
+    else
+        result = m3Err_noCompiler;
+
+    o->previousOpcode = i_opcode;
+
+    _catch: return result;
+}
+
+#endif
+
+M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -929,7 +957,7 @@ _   (EmitOp (o, op_Return));
 }
 
 
-M3Result  Compile_End  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
@@ -972,7 +1000,7 @@ _               (EmitOp (o, op_Return));
 
 
 
-M3Result  Compile_SetLocal  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_SetLocal  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1000,7 +1028,7 @@ _           (Pop (o));
 }
 
 
-M3Result  Compile_GetLocal  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_GetLocal  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1065,7 +1093,7 @@ _      (Pop (o));
 }
 
 
-M3Result  Compile_GetSetGlobal  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_GetSetGlobal  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
@@ -1088,7 +1116,7 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
 }
 
 
-M3Result  Compile_Branch  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Branch  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1181,7 +1209,7 @@ _       (AcquirePatch (o, & patch));
 
 
 
-M3Result  Compile_BranchTable  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_BranchTable  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1312,7 +1340,7 @@ _       (Push (o, i_type->returnType, topSlot));
 }
 
 
-M3Result  Compile_Call  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Call  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1361,7 +1389,7 @@ _           (EmitOp     (o, op));
 }
 
 
-M3Result  Compile_CallIndirect  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_CallIndirect  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1392,7 +1420,7 @@ _   (EmitOp         (o, op_CallIndirect));
 }
 
 
-M3Result  Compile_Memory_Current  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Memory_Current  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1407,7 +1435,7 @@ _   (PushRegister (o, c_m3Type_i32));
 }
 
 
-M3Result  Compile_Memory_Grow  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1472,7 +1500,7 @@ _           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, i))
 }
 
 
-M3Result  Compile_LoopOrBlock  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_LoopOrBlock  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1518,7 +1546,7 @@ _   (EmitOp (o, op_Branch));
 }
 
 
-M3Result  Compile_If  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_If  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1555,7 +1583,7 @@ _       (CompileElseBlock (o, pc, blockType));
 }
 
 
-M3Result  Compile_Select  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Select  (IM3Compilation o, m3opcode_t i_opcode)
 {
     static const IM3Operation intSelectOps [2] [4] =      { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
                                                             { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
@@ -1638,20 +1666,20 @@ _   (PushRegister (o, type));
 }
 
 
-M3Result  Compile_Drop  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Drop  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = Pop (o);                                              m3logif (stack, dump_type_stack (o))
     return result;
 }
 
 
-M3Result  Compile_Nop  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Nop  (IM3Compilation o, m3opcode_t i_opcode)
 {
     return m3Err_none;
 }
 
 
-M3Result  Compile_Unreachable  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Unreachable  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1667,11 +1695,11 @@ _   (EmitOp (o, op_Unreachable));
 
 // TODO OPTZ: currently all stack slot indicies take up a full word, but
 // dual stack source operands could be packed together
-M3Result  Compile_Operator  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    const M3OpInfo * op = & c_operations [i_opcode];
+    const M3OpInfo * op = GetOpInfo(i_opcode);
 
     IM3Operation operation;
 
@@ -1748,11 +1776,11 @@ _           (PushRegister (o, op->type));
 }
 
 
-M3Result  Compile_Convert  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Convert  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
-    const M3OpInfo * opInfo = & c_operations [i_opcode];
+    const M3OpInfo * opInfo = GetOpInfo(i_opcode);
 
     bool destInSlot = IsRegisterTypeAllocated (o, opInfo->type);
     bool sourceInSlot = IsStackTopInSlot (o);
@@ -1771,7 +1799,7 @@ _       (PushRegister (o, opInfo->type))
 }
 
 
-M3Result  Compile_Load_Store  (IM3Compilation o, u8 i_opcode)
+M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
@@ -1781,7 +1809,7 @@ _try {
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), memoryOffset);
-    const M3OpInfo * op = & c_operations [i_opcode];
+    const M3OpInfo * op = GetOpInfo(i_opcode);
 
     if (IsFpType (op->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
@@ -2056,12 +2084,32 @@ const M3OpInfo c_operations [] =
     d_m3DebugTypedOp (SetGlobal),   d_m3DebugOp (SetGlobal_s32),    d_m3DebugOp (SetGlobal_s64),
 
     d_m3DebugTypedOp (SetRegister), d_m3DebugTypedOp (SetSlot),     d_m3DebugTypedOp (PreserveSetSlot),
+# endif
 
-    M3OP( "termination for find_operation_info ()", 0, c_m3Type_void )
+# ifdef d_m3CompileExtendedOpcode
+    [0xFC] = M3OP( "0xFC", 0, c_m3Type_void,   d_emptyOpList,  Compile_ExtendedOpcode ),
+# endif
 
+# ifdef DEBUG
+    M3OP( "termination", 0, c_m3Type_void ) // for find_operation_info
 # endif
 };
 
+const M3OpInfo c_operationsFC [] =
+{
+    M3OP( "i32.trunc_s:sat/f32",0,  i_32,   d_convertOpList (i32_TruncSat_f32),        Compile_Convert ),  // 0x00
+    M3OP( "i32.trunc_u:sat/f32",0,  i_32,   d_convertOpList (u32_TruncSat_f32),        Compile_Convert ),  // 0x01
+    M3OP( "i32.trunc_s:sat/f64",0,  i_32,   d_convertOpList (i32_TruncSat_f64),        Compile_Convert ),  // 0x02
+    M3OP( "i32.trunc_u:sat/f64",0,  i_32,   d_convertOpList (u32_TruncSat_f64),        Compile_Convert ),  // 0x03
+    M3OP( "i64.trunc_s:sat/f32",0,  i_64,   d_convertOpList (i64_TruncSat_f32),        Compile_Convert ),  // 0x04
+    M3OP( "i64.trunc_u:sat/f32",0,  i_64,   d_convertOpList (u64_TruncSat_f32),        Compile_Convert ),  // 0x05
+    M3OP( "i64.trunc_s:sat/f64",0,  i_64,   d_convertOpList (i64_TruncSat_f64),        Compile_Convert ),  // 0x06
+    M3OP( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
+
+# ifdef DEBUG
+    M3OP( "termination", 0, c_m3Type_void ) // for find_operation_info
+# endif
+};
 
 M3Result  Compile_BlockStatements  (IM3Compilation o)
 {
@@ -2069,10 +2117,15 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
 
     while (o->wasm < o->wasmEnd)
     {                                                                   emit_stack_dump (o);
-        u8 opcode = * (o->wasm++);                                      log_opcode (o, opcode);
-        const M3OpInfo * op = & c_operations [opcode];
+        m3opcode_t opcode = * (o->wasm++);                              log_opcode (o, opcode);
 
-        M3Compiler compiler = op->compiler;
+#ifndef d_m3CompileExtendedOpcode
+        if (UNLIKELY(opcode == 0xFC)) {
+            opcode = (opcode << 8) | (* (o->wasm++));
+        }
+#endif
+
+        M3Compiler compiler = GetOpInfo(opcode)->compiler;
 
         if (not compiler)
             compiler = Compile_Operator;
