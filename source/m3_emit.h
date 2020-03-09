@@ -10,7 +10,7 @@
 
 #include "m3_compile.h"
 
-    d_m3BeginExternC
+d_m3BeginExternC
 
 M3Result    BridgeToNewPageIfNecessary  (IM3Compilation o);
 M3Result    EnsureCodePageNumLines      (IM3Compilation o, u32 i_numLines);

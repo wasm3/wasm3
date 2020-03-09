@@ -335,29 +335,29 @@ void  dump_type_stack  (IM3Compilation o)
     {
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
 
-            u16 slot = o->wasmStack [i];
+        u16 slot = o->wasmStack [i];
 
-            if (IsRegisterLocation (slot))
-            {
-                bool isFp = IsFpRegisterLocation (slot);
-                printf ("%s", isFp ? "f0" : "r0");
+        if (IsRegisterLocation (slot))
+        {
+            bool isFp = IsFpRegisterLocation (slot);
+            printf ("%s", isFp ? "f0" : "r0");
 
-                regAllocated [isFp]--;
-            }
-            else
-            {
+            regAllocated [isFp]--;
+        }
+        else
+        {
             if (slot < o->firstDynamicSlotIndex)
-                {
-                    if (slot >= o->firstConstSlotIndex)
-                        printf ("c");
+            {
+                if (slot >= o->firstConstSlotIndex)
+                    printf ("c");
                 else if (slot >= o->function->numArgSlots)
                     printf ("L");
-                    else
-                        printf ("a");
-                }
-
-                printf ("%d", (i32) slot);  // slot
+                else
+                    printf ("a");
             }
+
+            printf ("%d", (i32) slot);  // slot
+        }
 
         printf (" ");
     }
