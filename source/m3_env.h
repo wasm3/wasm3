@@ -18,7 +18,7 @@ d_m3BeginExternC
 typedef struct M3FuncType
 {
     struct M3FuncType *     next;
-    
+
     u32                     numArgs;
     u8                      returnType;
     u8                      argTypes        [3];    // M3FuncType is a dynamically sized object; these are padding
@@ -46,7 +46,7 @@ typedef struct M3Function
     IM3FuncType             funcType;
 
     pc_t                    compiled;
-    
+
 #   if (d_m3EnableCodePageRefCounting)
     IM3CodePage *           codePageRefs;           // array of all pages used
     u32                     numCodePageRefs;
@@ -57,13 +57,13 @@ typedef struct M3Function
     u16                     maxStackSlots;
 
     u16                     numArgSlots;
-    
+
     u16                     numLocals;          // not including args
     u16                     numLocalBytes;
 
     void *                  constants;
     u16                     numConstantBytes;
-    
+
     bool                    ownsWasmCode;
 }
 M3Function;
@@ -180,7 +180,7 @@ typedef struct M3Module
 
     M3MemoryInfo            memoryInfo;
     bool                    memoryImported;
-    
+
     bool                    hasWasmCodeCopy;
 
     struct M3Module *       next;
@@ -204,9 +204,9 @@ static const u32 c_m3NumTypesPerPage = 8;
 typedef struct M3Environment
 {
 //    struct M3Runtime *      runtimes;
-    
+
     IM3FuncType             funcTypes;          // linked list
-    
+
     M3CodePage *            pagesReleased;
 }
 M3Environment;

@@ -18,8 +18,8 @@
 #include "m3_config.h"
 
 # if defined(__cplusplus)
-#   define d_m3BeginExternC	    extern "C" {
-#   define d_m3EndExternC	    }
+#   define d_m3BeginExternC     extern "C" {
+#   define d_m3EndExternC       }
 # else
 #   define d_m3BeginExternC
 #   define d_m3EndExternC

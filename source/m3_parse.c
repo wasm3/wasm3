@@ -70,7 +70,7 @@ _           (AllocFuncType (& ftype, numArgs));
                 u8 argType;
 _               (ReadLEB_i7 (& wasmType, & i_bytes, i_end));
 _               (NormalizeType (& argType, wasmType));
-                
+
                 ftype->argTypes [a] = argType;
             }
 
@@ -269,7 +269,7 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
     result = ReadLEB_u32 (& numSegments, & i_bytes, i_end);                         m3log (parse, "** Element [%d]", numSegments);
 
     _throwif ("error parsing Element section", result);
-    
+
     io_module->elementSection = i_bytes;
     io_module->elementSectionEnd = i_end;
     io_module->numElementSegments = numSegments;
@@ -539,7 +539,7 @@ _   (m3Alloc (& module, M3Module, 1));
     u32 magic, version;
 _   (Read_u32 (& magic, & pos, end));
 _   (Read_u32 (& version, & pos, end));
-    
+
     _throwif (m3Err_wasmMalformed, magic != 0x6d736100);
     _throwif (m3Err_incompatibleWasmVersion, version != 1);
                                                                                     m3log (parse,  "found magic + version");

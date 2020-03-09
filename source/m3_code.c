@@ -33,7 +33,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
 void  FreeCodePages  (IM3CodePage * io_list)
 {
     IM3CodePage page = * io_list;
-    
+
     while (page)
     {
         m3log (code, "free page: %d; %p; util: %3.1f%%", page->info.sequence, page, 100. * page->info.lineIndex / page->info.numLines);
@@ -42,7 +42,7 @@ void  FreeCodePages  (IM3CodePage * io_list)
         m3Free (page);
         page = next;
     }
-    
+
     * io_list = NULL;
 }
 
@@ -105,14 +105,14 @@ u32  FindCodePageEnd  (IM3CodePage i_list, IM3CodePage * o_end)
 {
     u32 numPages = 0;
     * o_end = NULL;
-    
+
     while (i_list)
     {
         * o_end = i_list;
         ++numPages;
         i_list = i_list->info.next;
     }
-    
+
     return numPages;
 }
 
@@ -128,6 +128,6 @@ IM3CodePage GetEndCodePage  (IM3CodePage i_list)
 {
     IM3CodePage end;
     FindCodePageEnd (i_list, & end);
-    
+
     return end;
 }

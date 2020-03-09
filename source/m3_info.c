@@ -72,13 +72,13 @@ cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
     {
         if (i != 0)
             strcat (string, ", ");
-        
+
         strcat (string, GetTypeName (types [i]));
     }
 
     strcat (string, ") -> ");
     strcat (string, GetTypeName (i_funcType->returnType));
-    
+
     return string;
 }
 
@@ -114,7 +114,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
     s += m3_max (0, snprintf (s, e-s, "("));
 
     u64 * argSp = (u64 *) i_sp;
-    
+
     IM3FuncType funcType = i_function->funcType;
     if (funcType)
     {
@@ -315,9 +315,9 @@ void  dump_type_stack  (IM3Compilation o)
      applied until this compilation stage is finished
      -- constants are not statically represented in the type stack (like args & constants) since they don't have/need
      write counts
-     
+
      -- the number shown for static args and locals (value in wasmStack [i]) represents the write count for the variable
-     
+
      -- (does Wasm ever write to an arg? I dunno/don't remember.)
      -- the number for the dynamic stack values represents the slot number.
      -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'

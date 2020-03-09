@@ -627,7 +627,7 @@ d_m3Op  (Const32)
 {
     u32 constant = constant64 (u32);
     slot (u32) = constant;
-    
+
     nextOp ();
 }
 

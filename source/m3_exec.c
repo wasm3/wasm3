@@ -33,7 +33,7 @@ d_m3OpDef  (GetGlobal_s32)
 {
     u32 * global = immediate (u32 *);
     slot (u32) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
-    
+
     nextOp ();
 }
 
@@ -42,7 +42,7 @@ d_m3OpDef  (GetGlobal_s64)
 {
     u64 * global = immediate (u64 *);
     slot (u64) = * global;                        // printf ("get global: %p %" PRIi64 "\n", global, *global);
-    
+
     nextOp ();
 }
 
@@ -51,7 +51,7 @@ d_m3OpDef  (SetGlobal_i32)
 {
     u32 * global = immediate (u32 *);
     * global = (u32) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
-    
+
     nextOp ();
 }
 
@@ -60,7 +60,7 @@ d_m3OpDef  (SetGlobal_i64)
 {
     u64 * global = immediate (u64 *);
     * global = (u64) _r0;                         //  printf ("set global: %p %" PRIi64 "\n", global, _r0);
-    
+
     nextOp ();
 }
 
@@ -95,7 +95,7 @@ d_m3OpDef  (CallIndirect)
     m3stack_t sp = _sp + stackOffset;
 
     m3ret_t r = m3Err_none;
-    
+
     if (tableIndex < module->table0Size)
     {
         IM3Function function = module->table0 [tableIndex];
@@ -214,7 +214,7 @@ d_m3OpDef  (Compile)
 d_m3OpDef  (Entry)
 {
     d_m3ClearRegisters
-    
+
     IM3Function function = immediate (IM3Function);
 
 #if defined (d_m3SkipStackCheck)
@@ -234,7 +234,7 @@ d_m3OpDef  (Entry)
         {
             memcpy (stack, function->constants, function->numConstantBytes);
         }
-        
+
         m3ret_t r = nextOpDirect ();
 
 #       if d_m3LogExec
@@ -372,10 +372,10 @@ d_m3OpDef (PreserveCopySlot_32)
     u32 * dest      = slot_ptr (u32);
     u32 * src       = slot_ptr (u32);
     u32 * preserve  = slot_ptr (u32);
-    
+
     * preserve = * dest;
     * dest = * src;
-    
+
     nextOp ();
 }
 
@@ -396,10 +396,10 @@ d_m3OpDef (PreserveCopySlot_64)
     u64 * dest      = slot_ptr (u64);
     u64 * src       = slot_ptr (u64);
     u64 * preserve  = slot_ptr (u64);
-    
+
     * preserve = * dest;
     * dest = * src;
-    
+
     nextOp ();
 }
 
@@ -468,11 +468,11 @@ void  m3_PrintProfilerInfo  ()
     do
     {
         maxSlot->hitCount = 0;
-        
+
         for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
         {
             M3ProfilerSlot * slot = & s_opProfilerCounts [i];
-            
+
             if (slot->opName)
             {
                 if (slot->hitCount > maxSlot->hitCount)

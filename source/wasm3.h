@@ -118,7 +118,7 @@ d_m3ErrorConst  (tooManyMemorySections,         "Wasm MVP can only define one me
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
 d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
 d_m3ErrorConst  (functionImportMissing,         "missing imported function")
-    
+
 d_m3ErrorConst  (malformedFunctionSignature,    "malformed function signature")
 d_m3ErrorConst  (funcSignatureMissingReturnType,"function signature missing return type")
 
@@ -182,7 +182,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      M3StackInfo *          i_nativeStackInfo);     // i_nativeStackInfo can be NULL
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
-    
+
     const uint8_t *     m3_GetMemory                (IM3Runtime             i_runtime,
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);

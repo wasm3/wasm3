@@ -33,32 +33,32 @@ M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signatur
 
     if (not o_functionType)
         _throw ("null function type");
-    
+
     if (not i_signature)
         _throw ("null function signature");
-    
+
     cstr_t sig = i_signature;
-    
+
     bool hasReturn = false;
-    
+
     size_t maxNumArgs = strlen (i_signature);
     _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 3);
-    
+
     maxNumArgs -= 3;  // "v()"
     _throwif ("insane argument count", maxNumArgs > d_m3MaxSaneFunctionArgCount);
-    
+
 _   (AllocFuncType (& funcType, (u32) maxNumArgs));
-    
+
     bool parsingArgs = false;
     while (* sig)
     {
         char typeChar = * sig++;
-        
+
         if (typeChar == '(')
         {
             if (not hasReturn)
                 break;
-            
+
             parsingArgs = true;
             continue;
         }
@@ -66,19 +66,19 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
             continue;
         else if (typeChar == ')')
             break;
-        
+
         u8 type = ConvertTypeCharToTypeId (typeChar);
-        
+
         if (not type)
             _throw ("unknown argument type char");
-        
+
         if (not parsingArgs)
         {
             if (hasReturn)
                 _throw ("malformed function signature; too many return types");
-            
+
             hasReturn = true;
-            
+
             // M3FuncType doesn't speak 'void'
             if (type == c_m3Type_void)
                 type = c_m3Type_none;
@@ -90,27 +90,27 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
         else
         {
             _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
-            
+
             if (type != c_m3Type_runtime)
             {
                 if (type == c_m3Type_ptr)
                     type = c_m3Type_i32;
-                
+
                 funcType->argTypes [funcType->numArgs++] = type;
             }
         }
     }
-    
+
     if (not hasReturn)
         _throw (m3Err_funcSignatureMissingReturnType);
-    
+
     _catch:
-    
+
     if (result)
         m3Free (funcType);  // nulls funcType
-    
+
     * o_functionType = funcType;
-    
+
     return result;
 }
 
@@ -132,9 +132,9 @@ _   (SignatureToFuncType (& ftype, i_linkingSignature));
     }
 
     _catch:
-    
+
     m3Free (ftype);
-    
+
     return result;
 }
 
@@ -151,7 +151,7 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
     M3Result result = m3Err_functionLookupFailed;
 
     bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
-    
+
     for (u32 i = 0; i < io_module->numFunctions; ++i)
     {
         IM3Function f = & io_module->functions [i];
@@ -215,7 +215,7 @@ IM3Function  FindFunction    (IM3Module       io_module,
                               ccstr_t         i_signature)
 {
     bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
-    
+
     for (u32 i = 0; i < io_module->numFunctions; ++i)
     {
         IM3Function f = & io_module->functions [i];
@@ -269,7 +269,7 @@ M3Result  m3_LinkRawFunctionEx  (IM3Module            io_module,
     IM3Function f = FindFunction(io_module, i_moduleName, i_functionName, i_signature);
     if (f == NULL)
         return m3Err_functionLookupFailed;
-    
+
     M3Result result = LinkRawFunctionEx(io_module, f, i_signature, (voidptr_t)i_function, i_cookie);
     return result;
 }
