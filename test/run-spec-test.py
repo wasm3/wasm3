@@ -146,13 +146,13 @@ if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
     from zipfile import ZipFile
     from urllib.request import urlopen
 
-    officialSpec = "https://github.com/wasm3/wasm-core-testsuite/archive/master.zip"
+    officialSpec = "https://github.com/wasm3/wasm-core-testsuite/archive/v1.1.zip"
 
     print(f"Downloading {officialSpec}")
     resp = urlopen(officialSpec)
     with ZipFile(BytesIO(resp.read())) as zipFile:
         for zipInfo in zipFile.infolist():
-            if re.match(r".*-master/.*/.*(\.wasm|\.json)", zipInfo.filename):
+            if re.match(r".*-.*/.*/.*(\.wasm|\.json)", zipInfo.filename):
                 parts = pathlib.Path(zipInfo.filename).parts
                 newpath = str(pathlib.Path(*parts[1:-1]))
                 newfn   = str(pathlib.Path(*parts[-1:]))
