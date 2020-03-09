@@ -12,7 +12,6 @@ set(srcs
     "m3_exec.c"
     "m3_info.c"
     "m3_module.c"
-    "m3_optimize.c"
     "m3_parse.c"
 )
 
