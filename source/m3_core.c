@@ -63,7 +63,7 @@ M3Result  m3_Malloc  (void ** o_ptr, size_t i_size)
     return m3Err_none;
 }
 
-void        m3_Free              (void ** io_ptr)
+void  m3_Free  (void ** io_ptr)
 {
     if (!io_ptr) return;
 
@@ -103,7 +103,6 @@ M3Result  m3_Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
     *io_ptr = ptr;
     return m3Err_none;
 }
-
 
 #else
 
@@ -152,23 +151,16 @@ M3Result  m3_Realloc  (void ** io_ptr, size_t i_newSize, size_t i_oldSize)
     return result;
 }
 
+#endif
 
 M3Result  m3_CopyMem  (void ** o_to, const void * i_from, size_t i_size)
 {
-    void * to = malloc (i_size);
-    
-    if (to)
-    {
-        memcpy (to, i_from, i_size);
-        * o_to = to;
-        
-        return m3Err_none;
+    M3Result result = m3_Malloc(o_to, i_size);
+    if (!result) {
+        memcpy (*o_to, i_from, i_size);
     }
-    else return m3Err_mallocFailed;
+    return result;
 }
-
-
-#endif
 
 //--------------------------------------------------------------------------------------------
 
