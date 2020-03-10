@@ -104,7 +104,7 @@ d_m3OpDef  (CallIndirect)
         {
             if (type == function->funcType)
             {
-                if (not function->compiled)
+                if (UNLIKELY(not function->compiled))
                     r = Compile_Function (function);
 
                 if (not r)
@@ -194,7 +194,7 @@ d_m3OpDef  (Compile)
 
     m3ret_t result = m3Err_none;
 
-    if (not function->compiled) // check to see if function was compiled since this operation was emitted.
+    if (UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
         result = Compile_Function (function);
 
     if (not result)

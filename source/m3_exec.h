@@ -238,8 +238,8 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
 // clz(0), ctz(0) results are undefined for rest platforms, fix it
 #if (defined(__i386__) || defined(__x86_64__)) && !(defined(__AVX2__) || (defined(__ABM__) && defined(__BMI__)))
-    #define OP_CLZ_32(x) (OP_EQZ(x) ? 32 : __builtin_clz(x))
-    #define OP_CTZ_32(x) (OP_EQZ(x) ? 32 : __builtin_ctz(x))
+    #define OP_CLZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
+    #define OP_CTZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
     // for 64-bit instructions branchless approach more preferable
     #define OP_CLZ_64(x) (__builtin_clzll((x) | (1LL <<  0)) + OP_EQZ(x))
     #define OP_CTZ_64(x) (__builtin_ctzll((x) | (1LL << 63)) + OP_EQZ(x))
@@ -251,10 +251,10 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
     #define OP_CLZ_64(x) __builtin_clzll(x)
     #define OP_CTZ_64(x) __builtin_ctzll(x)
 #else
-    #define OP_CLZ_32(x) (OP_EQZ(x) ? 32 : __builtin_clz(x))
-    #define OP_CTZ_32(x) (OP_EQZ(x) ? 32 : __builtin_ctz(x))
-    #define OP_CLZ_64(x) (OP_EQZ(x) ? 64 : __builtin_clzll(x))
-    #define OP_CTZ_64(x) (OP_EQZ(x) ? 64 : __builtin_ctzll(x))
+    #define OP_CLZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
+    #define OP_CTZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
+    #define OP_CLZ_64(x) (UNLIKELY((x) == 0) ? 64 : __builtin_clzll(x))
+    #define OP_CTZ_64(x) (UNLIKELY((x) == 0) ? 64 : __builtin_ctzll(x))
 #endif
 
 d_m3UnaryOp_i (u32, Clz, OP_CLZ_32)
