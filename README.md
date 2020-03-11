@@ -51,6 +51,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 ☐ Multi-value  
 ☐ Import/Export of Mutable Globals  
 ☐ Tail call  
+☐ Fixed-width SIMD  
 
 ## Libraries
 
