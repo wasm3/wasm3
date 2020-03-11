@@ -108,7 +108,7 @@ jobs:
     - name: Install Wasienv
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | bash -s -- --version 0.15.0
+      run: curl https://get.wasmer.io -sSfL | bash -s --version 0.15.0
     - name: Run CMake
       run: |
         source $HOME/.wasienv/wasienv.sh
