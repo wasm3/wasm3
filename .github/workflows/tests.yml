@@ -25,7 +25,9 @@ jobs:
     - uses: actions/checkout@v1
     - name: Install multilib
       if: contains(matrix.flags, '-m32')
-      run: sudo apt-get install gcc-multilib
+      run: |
+        sudo apt update
+        sudo apt install gcc-multilib
     - name: Run CMake
       env:
         CC: ${{ matrix.compiler }}
