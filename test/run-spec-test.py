@@ -432,7 +432,7 @@ if args.file:
 else:
     jsonFiles  = glob.glob(os.path.join(".", "core", "*.json"))
     jsonFiles += glob.glob(os.path.join(".", "proposals", "sign-extension-ops", "*.json"))
-    #jsonFiles += glob.glob(os.path.join(".", "proposals", "nontrapping-float-to-int-conversions", "*.json"))
+    jsonFiles += glob.glob(os.path.join(".", "proposals", "nontrapping-float-to-int-conversions", "*.json"))
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
