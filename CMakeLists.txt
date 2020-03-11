@@ -107,6 +107,11 @@ elseif(WIN32)
   string(REGEX REPLACE "/W[0-4]" "/W0" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
   if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
+
+    if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /d2noftol3")
+    endif()
+
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /GS- /Zi /Zo /arch:AVX2")
 
     # Uncomment this if you want to disassemble the release build,

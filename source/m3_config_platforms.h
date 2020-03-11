@@ -119,7 +119,7 @@
 #  endif
 # endif
 
-#if defined(M3_COMPILER_MSVC)
+# if defined(M3_COMPILER_MSVC)
 #  if defined(_M_X64)
 #   define M3_ARCH "x64"
 #  elif defined(_M_IX86)
@@ -137,7 +137,11 @@
 # endif
 
 # if defined(M3_COMPILER_CLANG)
-#  define M3_COMPILER_VER __VERSION__
+#  if defined(WIN32)
+#   define M3_COMPILER_VER __VERSION__ " for Windows"
+#  else
+#   define M3_COMPILER_VER __VERSION__
+#  endif
 # elif defined(M3_COMPILER_GCC)
 #  define M3_COMPILER_VER "GCC " __VERSION__
 # elif defined(M3_COMPILER_MSVC)

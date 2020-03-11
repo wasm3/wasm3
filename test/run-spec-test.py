@@ -295,13 +295,23 @@ class Wasm3():
 
 wasm3 = Wasm3(args.exec)
 
-print(wasm3.version())
+wasm3_ver = wasm3.version()
+print(wasm3_ver)
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
   "imports.wast:*",
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
+
+if wasm3_ver in Blacklist(["* MSVC *, x86)", "* Clang * for Windows, x86)"]):
+    warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests")
+    # See: https://docs.microsoft.com/en-us/cpp/c-runtime-library/floating-point-support
+    blacklist.add([
+      "conversions.wast:* f32.convert_i64_u(9007199791611905)",
+      "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
+      "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
+    ])
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
 

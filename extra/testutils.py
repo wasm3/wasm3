@@ -32,9 +32,15 @@ class dotdict(dict):
 
 class Blacklist():
     def __init__(self, patterns):
-        patterns = map(fnmatch.translate, patterns)
-        final = '|'.join(patterns)
-        self._regex = re.compile(final)
+        self._patterns = list(map(fnmatch.translate, patterns))
+        self.update()
+
+    def add(self, patterns):
+        self._patterns += list(map(fnmatch.translate, patterns))
+        self.update()
+
+    def update(self):
+        self._regex = re.compile('|'.join(self._patterns))
 
     def __contains__(self, item):
         return self._regex.match(item) != None
