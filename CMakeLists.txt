@@ -86,7 +86,7 @@ if(EMSCRIPTEN)
 elseif(WASIENV)
 
   if(BUILD_WASI_SUPPORT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI -Dd_m3HasTracer")
   endif()
 
   set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
@@ -127,7 +127,7 @@ elseif(WIN32)
 else()
 
   if(BUILD_WASI_SUPPORT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI") #-Dd_m3FixedHeap=1048576
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI -Dd_m3HasTracer") #-Dd_m3FixedHeap=1048576
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")

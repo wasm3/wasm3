@@ -14,7 +14,7 @@
 #if defined(d_m3HasTracer)
 
 
-static FILE* trace;
+static FILE* trace = NULL;
 
 m3ApiRawFunction(m3_env_log_execution)
 {
@@ -114,10 +114,15 @@ d_m3TraceLocal(set_f64, "set f64", double,  "%lf")
 static
 M3Result SuppressLookupFailure(M3Result i_result)
 {
-    if (i_result == m3Err_functionLookupFailed)
-        return m3Err_none;
-    else
-        return i_result;
+    if (i_result == m3Err_none) {
+        // If any trace function is found in the module, open the trace file
+        if (!trace) {
+            trace = fopen ("wasm3_trace.csv","w");
+        }
+    } else if (i_result == m3Err_functionLookupFailed) {
+        i_result = m3Err_none;
+    }
+    return i_result;
 }
 
 
@@ -126,8 +131,6 @@ M3Result  m3_LinkTracer  (IM3Module module)
     M3Result result = m3Err_none;
 
     const char* env  = "env";
-
-    trace = fopen ("wasm3_trace.csv","w");
 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "log_execution",       "v(i)",     &m3_env_log_execution)));
 

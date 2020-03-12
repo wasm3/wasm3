@@ -13,6 +13,7 @@
 #include "wasm3.h"
 #include "m3_api_wasi.h"
 #include "m3_api_libc.h"
+#include "m3_api_tracer.h"
 #include "m3_env.h"
 
 #define FATAL(msg, ...) { printf("Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
@@ -263,6 +264,11 @@ int  main  (int i_argc, const char* i_argv[])
 #if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI)
         result = m3_LinkWASI (runtime->modules);
         if (result) FATAL("m3_LinkWASI: %s", result);
+#endif
+
+#if defined(d_m3HasTracer)
+        result = m3_LinkTracer (runtime->modules);
+        if (result) FATAL("m3_LinkTracer: %s", result);
 #endif
 
         result = m3_LinkLibC (runtime->modules);
