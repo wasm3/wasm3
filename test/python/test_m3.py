@@ -20,3 +20,7 @@ def test_environment():
     assert isinstance(func, m3.Function)
     assert func.call_argv('5') == 5
     assert func.call_argv('10') == 55
+    assert func.name == 'fib'
+    assert func.num_args == 1
+    assert func.return_type == 1
+    assert func.arg_types == (1,)

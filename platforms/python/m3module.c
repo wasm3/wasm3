@@ -150,6 +150,47 @@ M3_Function_call_argv(m3_function *func, PyObject *args)
     return PyLong_FromLong(*(i32*)func->r->stack);
 }
 
+static PyObject*
+Function_name(m3_function *self, void * closure)
+{
+    return PyUnicode_FromString(self->f->name);
+}
+
+static PyObject*
+Function_num_args(m3_function *self, void * closure)
+{
+    return PyLong_FromLong(self->f->funcType->numArgs);
+}
+
+static PyObject*
+Function_return_type(m3_function *self, void * closure)
+{
+    return PyLong_FromLong(self->f->funcType->returnType);
+}
+
+static PyObject*
+Function_arg_types(m3_function *self, void * closure)
+{
+    M3FuncType *type = self->f->funcType;
+    Py_ssize_t n = type->numArgs;
+    PyObject *ret = PyTuple_New(n);
+    if (ret) {
+        Py_ssize_t i;
+        for (i = 0; i < n; ++i) {
+            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(type->argTypes[i]));
+        }
+    }
+    return ret;
+}
+
+static PyGetSetDef M3_Function_properties[] = {
+    {"name", (getter) Function_name, NULL, "function name", NULL },
+    {"num_args", (getter) Function_num_args, NULL, "number of args", NULL },
+    {"return_type", (getter) Function_return_type, NULL, "return type", NULL },
+    {"arg_types", (getter) Function_arg_types, NULL, "types of args", NULL },
+    {NULL}  /* Sentinel */
+};
+
 static PyMethodDef M3_Function_methods[] = {
     {"call_argv",            (PyCFunction)M3_Function_call_argv,  METH_VARARGS,
         PyDoc_STR("call_argv(args...) -> result")},
@@ -161,6 +202,7 @@ static PyType_Slot M3_Function_Type_slots[] = {
     // {Py_tp_finalize, delFunction},
     // {Py_tp_new, newFunction},
     {Py_tp_methods, M3_Function_methods},
+    {Py_tp_getset, M3_Function_properties},
     {0, 0}
 };
 
