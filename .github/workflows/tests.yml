@@ -493,4 +493,4 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
-        pytest test/python
+        pytest platforms/python/test
