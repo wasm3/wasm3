@@ -128,11 +128,23 @@ static PyType_Slot M3_Runtime_Type_slots[] = {
     {0, 0}
 };
 
+static PyObject*
+Module_name(m3_module *self, void * closure)
+{
+    return PyUnicode_FromString(self->m->name);
+}
+
+static PyGetSetDef M3_Module_properties[] = {
+    {"name", (getter) Module_name, NULL, "module name", NULL},
+    {0},
+};
+
 static PyType_Slot M3_Module_Type_slots[] = {
     {Py_tp_doc, "The m3.Module type"},
     // {Py_tp_finalize, delModule},
     // {Py_tp_new, newModule},
     // {Py_tp_methods, M3_Module_methods},
+    {Py_tp_getset, M3_Module_properties},
     {0, 0}
 };
 
