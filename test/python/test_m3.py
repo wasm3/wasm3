@@ -15,3 +15,7 @@ def test_environment():
     assert isinstance(rt, m3.Runtime)
     mod = env.parse_module(FIB32_WASM)
     assert isinstance(mod, m3.Module)
+    rt.load(mod)
+    func = rt.find_function('fib')
+    assert isinstance(func, m3.Function)
+

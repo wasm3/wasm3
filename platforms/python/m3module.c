@@ -94,11 +94,35 @@ static PyType_Slot M3_Environment_Type_slots[] = {
     {0, 0}
 };
 
+static PyObject *
+M3_Runtime_load(m3_runtime *runtime, PyObject *arg)
+{
+    m3_module *module = (m3_module *)arg;
+    M3Result err = m3_LoadModule(runtime->r, module->m);
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+M3_Runtime_find_function(m3_runtime *runtime, PyObject *name)
+{
+    m3_function *self = PyObject_GC_New(m3_function, (PyTypeObject*)M3_Function_Type);
+    M3Result err = m3_FindFunction(&self->f, runtime->r, PyUnicode_AsUTF8(name));
+    return self;
+}
+
+static PyMethodDef M3_Runtime_methods[] = {
+    {"load",            (PyCFunction)M3_Runtime_load,  METH_O,
+        PyDoc_STR("load(module) -> None")},
+    {"find_function",            (PyCFunction)M3_Runtime_find_function,  METH_O,
+        PyDoc_STR("find_function(name) -> Function")},
+    {NULL,              NULL}           /* sentinel */
+};
+
 static PyType_Slot M3_Runtime_Type_slots[] = {
     {Py_tp_doc, "The m3.Runtime type"},
     // {Py_tp_finalize, delRuntime},
     // {Py_tp_new, newRuntime},
-    // {Py_tp_methods, M3_Runtime_methods},
+    {Py_tp_methods, M3_Runtime_methods},
     {0, 0}
 };
 
