@@ -148,6 +148,20 @@ static PyType_Slot M3_Module_Type_slots[] = {
     {0, 0}
 };
 
+static PyObject *
+get_result_from_stack(u8 type, m3stack_t stack)
+{
+    switch (type) {
+        case c_m3Type_none: Py_RETURN_NONE;
+        case c_m3Type_i32: return PyLong_FromLong(*(i32*)(stack));
+        case c_m3Type_i64: return PyLong_FromLong(*(i64*)(stack));
+        case c_m3Type_f32: return PyFloat_FromDouble(*(f32*)(stack));
+        case c_m3Type_f64: return PyFloat_FromDouble(*(f64*)(stack));
+        default:
+            PyErr_Format(PyExc_TypeError, "unknown return type %d", (int)type);
+            return NULL;
+    }   
+}
 
 #define MAX_ARGS 8
 static PyObject *
@@ -159,7 +173,7 @@ M3_Function_call_argv(m3_function *func, PyObject *args)
         argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
     }
     M3Result res = m3_CallWithArgs(func->f, size, argv);
-    return PyLong_FromLong(*(i32*)func->r->stack);
+    return get_result_from_stack(func->f->funcType->returnType, func->r->stack);
 }
 
 static PyObject*
