@@ -18,4 +18,5 @@ def test_environment():
     rt.load(mod)
     func = rt.find_function('fib')
     assert isinstance(func, m3.Function)
-
+    assert func.call_argv('5') == 5
+    assert func.call_argv('10') == 55

@@ -25,6 +25,7 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     IM3Function f;
+    IM3Runtime r;
 } m3_function;
 
 static PyObject *M3_Environment_Type;
@@ -107,6 +108,7 @@ M3_Runtime_find_function(m3_runtime *runtime, PyObject *name)
 {
     m3_function *self = PyObject_GC_New(m3_function, (PyTypeObject*)M3_Function_Type);
     M3Result err = m3_FindFunction(&self->f, runtime->r, PyUnicode_AsUTF8(name));
+    self->r = runtime->r;
     return self;
 }
 
@@ -134,11 +136,31 @@ static PyType_Slot M3_Module_Type_slots[] = {
     {0, 0}
 };
 
+
+#define MAX_ARGS 8
+static PyObject *
+M3_Function_call_argv(m3_function *func, PyObject *args)
+{
+    Py_ssize_t size = PyList_GET_SIZE(args), i;
+    const char* argv[8];
+    for(i = 0; i< size;++i) {
+        argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
+    }
+    M3Result res = m3_CallWithArgs(func->f, size, argv);
+    return PyLong_FromLong(*(i32*)func->r->stack);
+}
+
+static PyMethodDef M3_Function_methods[] = {
+    {"call_argv",            (PyCFunction)M3_Function_call_argv,  METH_VARARGS,
+        PyDoc_STR("call_argv(args...) -> result")},
+    {NULL,              NULL}           /* sentinel */
+};
+
 static PyType_Slot M3_Function_Type_slots[] = {
     {Py_tp_doc, "The m3.Function type"},
     // {Py_tp_finalize, delFunction},
     // {Py_tp_new, newFunction},
-    // {Py_tp_methods, M3_Function_methods},
+    {Py_tp_methods, M3_Function_methods},
     {0, 0}
 };
 

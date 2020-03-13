@@ -8,5 +8,6 @@ setup(
     name='wasm3',
     version='0.0.1',
     ext_modules=[
-        Extension('m3', sources=SOURCES, include_dirs=['source'])]
+        Extension('m3', sources=SOURCES, include_dirs=['source'],
+        extra_compile_args=['-g', '-O0'])]
 )
