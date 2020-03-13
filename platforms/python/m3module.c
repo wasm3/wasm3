@@ -18,7 +18,8 @@ typedef struct {
 
 typedef struct {
     PyObject_HEAD
-    M3Module m;
+    m3_environment *env;
+    IM3Module m;
 } m3_module;
 
 typedef struct {
@@ -61,9 +62,20 @@ M3_Environment_new_runtime(m3_environment *env, PyObject *stack_size_bytes)
 }
 
 static PyObject *
-M3_Environment_parse_module(m3_environment env, PyObject *bytes)
+M3_Environment_parse_module(m3_environment *env, PyObject *bytes)
 {
-    Py_RETURN_NONE;
+    Py_ssize_t size;
+    char *data;
+    PyBytes_AsStringAndSize(bytes, &data, &size);
+    m3_module *self = PyObject_GC_New(m3_module, (PyTypeObject*)M3_Module_Type);
+    if (self == NULL)
+        return NULL;
+    Py_INCREF(env);
+    self->env = env;
+    IM3Module m;
+    M3Result err = m3_ParseModule(env->e, &m, data, size);
+    self->m = m;
+    return self;
 }
 
 static PyMethodDef M3_Environment_methods[] = {
