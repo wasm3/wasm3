@@ -12,6 +12,7 @@ typedef struct {
 
 typedef struct {
     PyObject_HEAD
+    m3_environment *env;
     IM3Runtime r;
 } m3_runtime;
 
@@ -47,9 +48,16 @@ delEnvironment(m3_environment *self)
 }
 
 static PyObject *
-M3_Environment_new_runtime(m3_environment env, PyObject *stack_size_bytes)
+M3_Environment_new_runtime(m3_environment *env, PyObject *stack_size_bytes)
 {
-    Py_RETURN_NONE;
+    size_t n = PyLong_AsSize_t(stack_size_bytes);
+    m3_runtime *self = PyObject_GC_New(m3_runtime, (PyTypeObject*)M3_Runtime_Type);
+    if (self == NULL)
+        return NULL;
+    Py_INCREF(env);
+    self->env = env;
+    self->r = m3_NewRuntime(env->e, n, NULL);
+    return self;
 }
 
 static PyObject *
