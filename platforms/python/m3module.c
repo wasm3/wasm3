@@ -112,11 +112,31 @@ M3_Runtime_find_function(m3_runtime *runtime, PyObject *name)
     return self;
 }
 
+static PyObject *
+M3_Runtime_get_memory(m3_runtime *runtime, PyObject *index)
+{
+    Py_buffer view = {};
+    uint32_t size;
+    const uint8_t *mem = m3_GetMemory(runtime->r, &size, PyLong_AsLong(index));
+    if (!mem)
+        Py_RETURN_NONE;
+    view.buf = (void *)mem;
+    view.obj = runtime; Py_INCREF(view.obj);
+    view.len = size;
+    view.shape = &view.len;
+    view.ndim = view.itemsize = 1;
+    view.readonly = 1;
+
+    return PyMemoryView_FromBuffer(&view);
+}
+
 static PyMethodDef M3_Runtime_methods[] = {
     {"load",            (PyCFunction)M3_Runtime_load,  METH_O,
         PyDoc_STR("load(module) -> None")},
-    {"find_function",            (PyCFunction)M3_Runtime_find_function,  METH_O,
+    {"find_function", (PyCFunction)M3_Runtime_find_function,  METH_O,
         PyDoc_STR("find_function(name) -> Function")},
+    {"get_memory",     (PyCFunction)M3_Runtime_get_memory,  METH_O,
+        PyDoc_STR("get_memory(index) -> memoryview")},
     {NULL,              NULL}           /* sentinel */
 };
 

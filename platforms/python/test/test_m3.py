@@ -28,6 +28,7 @@ def test_environment():
     assert isinstance(mod, m3.Module)
     assert mod.name == '.unnamed'
     rt.load(mod)
+    assert rt.get_memory(0) is None  # XXX
     func = rt.find_function('fib')
     assert isinstance(func, m3.Function)
     assert func.call_argv('5') == 5
