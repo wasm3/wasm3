@@ -20,7 +20,7 @@ def test_classes():
     assert isinstance(m3.Module, type)
     assert isinstance(m3.Function, type)
 
-def test_environment():
+def test_m3(capfd):
     env = m3.Environment()
     rt = env.new_runtime(1024)
     assert isinstance(rt, m3.Runtime)
@@ -29,6 +29,14 @@ def test_environment():
     assert mod.name == '.unnamed'
     rt.load(mod)
     assert rt.get_memory(0) is None  # XXX
+#     rt.print_info()
+#     assert capfd.readouterr().out == """
+# -- m3 runtime -------------------------------------------------
+#  stack-size: 1024
+#
+#  module [0]  name: '.unnamed'; funcs: 1
+# ----------------------------------------------------------------
+# """
     func = rt.find_function('fib')
     assert isinstance(func, m3.Function)
     assert func.call_argv('5') == 5
