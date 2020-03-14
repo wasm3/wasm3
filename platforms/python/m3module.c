@@ -177,6 +177,17 @@ static PyType_Slot M3_Module_Type_slots[] = {
     {0, 0}
 };
 
+static void
+put_arg_on_stack(u64 *s, u8 type, PyObject *arg)
+{
+    switch (type) {
+        case c_m3Type_i32:  *(i32*)(s) = PyLong_AsLong(arg);  break;
+        case c_m3Type_i64:  *(i64*)(s) = PyLong_AsLong(arg); break;
+        case c_m3Type_f32:  *(f32*)(s) = PyFloat_AsDouble(arg);  break;
+        case c_m3Type_f64:  *(f64*)(s) = PyFloat_AsDouble(arg);  break;
+    }
+}
+
 static PyObject *
 get_result_from_stack(u8 type, m3stack_t stack)
 {
@@ -247,15 +258,31 @@ static PyGetSetDef M3_Function_properties[] = {
 };
 
 static PyMethodDef M3_Function_methods[] = {
-    {"call_argv",            (PyCFunction)M3_Function_call_argv,  METH_VARARGS,
+    {"call_argv", (PyCFunction)M3_Function_call_argv,  METH_VARARGS,
         PyDoc_STR("call_argv(args...) -> result")},
-    {NULL,              NULL}           /* sentinel */
+    {NULL, NULL}           /* sentinel */
 };
+
+static PyObject*
+M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
+{
+    u32 i;
+    IM3Function f = self->f;
+    M3FuncType *type = f->funcType;
+    // args are always 64-bit aligned
+    u64 * stack = (u64 *) self->r->stack;
+    for (i = 0; i < type->numArgs; ++i) {
+        put_arg_on_stack(&stack[i], type->argTypes[i], PyTuple_GET_ITEM(args, i));
+    }
+    Call(f->compiled, (m3stack_t) stack, self->r->memory.mallocated, d_m3OpDefaultArgs);
+    return get_result_from_stack(f->funcType->returnType, self->r->stack);
+}
 
 static PyType_Slot M3_Function_Type_slots[] = {
     {Py_tp_doc, "The m3.Function type"},
     // {Py_tp_finalize, delFunction},
     // {Py_tp_new, newFunction},
+    {Py_tp_call, M3_Function_call},
     {Py_tp_methods, M3_Function_methods},
     {Py_tp_getset, M3_Function_properties},
     {0, 0}

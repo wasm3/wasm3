@@ -45,6 +45,8 @@ def test_m3(capfd):
     assert func.num_args == 1
     assert func.return_type == 1
     assert func.arg_types == (1,)
+    assert func(0) == 0
+    assert func(1) == 1 
 
 def call_function(wasm, func, *args):
     env = m3.Environment()
