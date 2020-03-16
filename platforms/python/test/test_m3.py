@@ -12,6 +12,18 @@ FIB64_WASM = bytes.fromhex(
     "1d 00 20 00 42 02 54 04 40 20 00 0f 0b 20 00 42"
     "02 7d 10 00 20 00 42 01 7d 10 00 7c 0f 0b")
 
+# (module
+#     (func (param i64 i64) (result i64)
+#         local.get 0
+#         local.get 1
+#         i64.add
+#         return
+#     )
+#     (export "add" (func 0)))
+ADD_WASM = bytes.fromhex(
+    "00 61 73 6d 01 00 00 00 01 07 01 60 02 7e 7e 01"
+    "7e 03 02 01 00 07 07 01 03 61 64 64 00 00 0a 0a"
+    "01 08 00 20 00 20 01 7c 0f 0b")
 
 def test_classes():
     assert isinstance(m3.Environment, type)
@@ -45,7 +57,11 @@ def test_m3(capfd):
     assert func.return_type == 1
     assert func.arg_types == (1,)
     assert func(0) == 0
-    assert func(1) == 1 
+    assert func(1) == 1
+    rt.load(env.parse_module(ADD_WASM))
+    add = rt.find_function('add')
+    assert add(2, 3) == 5
+
 
 def call_function(wasm, func, *args):
     env = m3.Environment()
