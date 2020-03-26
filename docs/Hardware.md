@@ -11,7 +11,8 @@
   - **Particle Argon** │ [Particle](https://store.particle.io/collections/bluetooth/products/argon)
   - **Adafruit Feather nRF52840** | [Adafruit](https://www.adafruit.com/product/4062)
 - Other
-  - **Adafruit PyGamer (or PyBadge/PyBadge LC)** │ [Adafruit](https://www.adafruit.com/product/4242)
+  - **Adafruit PyGamer/PyBadge/PyBadge LC** │ [Adafruit](https://www.adafruit.com/product/4242)
+  - **SparkFun Artemis** | [SparkFun](https://www.sparkfun.com/search/results?term=Artemis)
   - **Teensy 4.0** │ [PJRC](https://www.pjrc.com/store/teensy40.html)
   - **Wemos W600 PICO** │ [AliExpress](https://www.aliexpress.com/item/4000314757449.html)
 
