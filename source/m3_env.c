@@ -989,7 +989,7 @@ M3StackInfo  m3_GetNativeStackInfo  (i32 i_stackSize)
     return info;
 }
 
-const uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
+uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
 {
     uint8_t * memory = NULL;
     d_m3Assert (i_memoryIndex == 0);
