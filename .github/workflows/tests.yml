@@ -207,6 +207,7 @@ jobs:
 
   build-cross-qemu:
     runs-on: ubuntu-latest
+    if: "!matrix.skip"
     name: build-cross-qemu-${{ matrix.target }}
     timeout-minutes: 10
 
@@ -242,30 +243,28 @@ jobs:
           QEMU: qemu-s390x-static
 
         - target: riscv64
+          skip: true
           TOOLCHAIN: gcc-riscv64-linux-gnu
           COMPILER: riscv64-linux-gnu-gcc
           QEMU: qemu-riscv64-static
 
+        - target: mips
+          skip: true
+          TOOLCHAIN: gcc-mips-linux-gnu
+          COMPILER: mips-linux-gnu-gcc
+          QEMU: qemu-mips-static
+
         - target: mipsel
+          skip: true
           TOOLCHAIN: gcc-mipsel-linux-gnu
           COMPILER: mipsel-linux-gnu-gcc
           QEMU: qemu-mipsel-static
 
         - target: mips64el
+          skip: true
           TOOLCHAIN: gcc-mips64-linux-gnuabi64
           COMPILER: mips64-linux-gnuabi64-gcc
           QEMU: qemu-mips64el-static
-
-        - target: mips
-          TOOLCHAIN: gcc-mips-linux-gnu
-          COMPILER: mips-linux-gnu-gcc
-          QEMU: qemu-mips-static
-
-        exclude:
-        - target: riscv64
-        - target: mipsel
-        - target: mips64el
-        - target: mips
 
     steps:
     - uses: actions/checkout@v1
