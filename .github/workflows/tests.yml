@@ -207,7 +207,7 @@ jobs:
 
   build-cross-qemu:
     runs-on: ubuntu-latest
-    name: build-cross-qemu-${{ matrix.target }}
+    name: build-cross-qemu-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
