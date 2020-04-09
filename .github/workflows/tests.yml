@@ -221,8 +221,8 @@ jobs:
         #- {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static }
         #- {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
         #- {target: mips,    toolchain: gcc-mips-linux-gnu,        cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static }
-        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,      cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static }
-        #- {target: mips64el,toolchain: gcc-mips64-linux-gnuabi64, cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64el-static }
+        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,         qemu: qemu-mipsel-static }
+        - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,  qemu: qemu-mips64el-static }
 
     steps:
     - uses: actions/checkout@v1
