@@ -211,8 +211,9 @@ jobs:
     timeout-minutes: 10
 
     strategy:
+      fail-fast: false
       matrix:
-        target: [arm, armhf, aarch64, mipsel]
+        target: [arm, armhf, aarch64, riscv64, mips64el, mips ]
         include:
         - target: arm
           TOOLCHAIN: gcc-arm-linux-gnueabi
@@ -233,6 +234,21 @@ jobs:
           TOOLCHAIN: gcc-mipsel-linux-gnu
           COMPILER: mipsel-linux-gnu-gcc
           QEMU: qemu-mipsel-static
+
+        - target: mips
+          TOOLCHAIN: gcc-mips-linux-gnu
+          COMPILER: mips-linux-gnu-gcc
+          QEMU: qemu-mips-static
+
+        - target: mips64el
+          TOOLCHAIN: gcc-mips64-linux-gnuabi64
+          COMPILER: mips64-linux-gnuabi64-gcc
+          QEMU: qemu-mips64el-static
+
+        - target: riscv64
+          TOOLCHAIN: gcc-riscv64-linux-gnu
+          COMPILER: riscv64-linux-gnu-gcc
+          QEMU: qemu-riscv64-static
 
     steps:
     - uses: actions/checkout@v1
