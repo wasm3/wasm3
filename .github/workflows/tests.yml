@@ -213,7 +213,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [arm, armhf, aarch64, riscv64, mips64el, mips ]
+        target: [arm, armhf, aarch64, ppc64le]
         include:
         - target: arm
           TOOLCHAIN: gcc-arm-linux-gnueabi
@@ -249,6 +249,11 @@ jobs:
           TOOLCHAIN: gcc-riscv64-linux-gnu
           COMPILER: riscv64-linux-gnu-gcc
           QEMU: qemu-riscv64-static
+          
+        - target: ppc64le
+          TOOLCHAIN: gcc-powerpc64le-linux-gnu
+          COMPILER: powerpc64le-linux-gnu-gcc
+          QEMU: qemu-ppc64le-static
 
     steps:
     - uses: actions/checkout@v1
