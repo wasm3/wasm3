@@ -213,80 +213,39 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [arm, armhf, aarch64, ppc64le, s390x]
-
-        include:
-        - target: arm
-          TOOLCHAIN: gcc-arm-linux-gnueabi
-          COMPILER: arm-linux-gnueabi-gcc
-          QEMU: qemu-arm-static
-
-        - target: armhf
-          TOOLCHAIN: gcc-arm-linux-gnueabihf
-          COMPILER: arm-linux-gnueabihf-gcc
-          QEMU: qemu-arm-static
-
-        - target: aarch64
-          TOOLCHAIN: gcc-aarch64-linux-gnu
-          COMPILER: aarch64-linux-gnu-gcc
-          QEMU: qemu-aarch64-static
-
-        - target: ppc64le
-          TOOLCHAIN: gcc-powerpc64le-linux-gnu
-          COMPILER: powerpc64le-linux-gnu-gcc
-          QEMU: qemu-ppc64le-static
-
-        - target: s390x
-          TOOLCHAIN: gcc-s390x-linux-gnu
-          COMPILER: s390x-linux-gnu-gcc
-          QEMU: qemu-s390x-static
-
-        #- target: riscv64
-        #  skip: true
-        #  TOOLCHAIN: gcc-riscv64-linux-gnu
-        #  COMPILER: riscv64-linux-gnu-gcc
-        #  QEMU: qemu-riscv64-static
-
-        #- target: mips
-        #  skip: true
-        #  TOOLCHAIN: gcc-mips-linux-gnu
-        #  COMPILER: mips-linux-gnu-gcc
-        #  QEMU: qemu-mips-static
-
-        #- target: mipsel
-        #  skip: true
-        #  TOOLCHAIN: gcc-mipsel-linux-gnu
-        #  COMPILER: mipsel-linux-gnu-gcc
-        #  QEMU: qemu-mipsel-static
-
-        #- target: mips64el
-        #  skip: true
-        #  TOOLCHAIN: gcc-mips64-linux-gnuabi64
-        #  COMPILER: mips64-linux-gnuabi64-gcc
-        #  QEMU: qemu-mips64el-static
+        config: 
+        - {target: arm,     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static }
+        - {target: armhf,   toolchain: gcc-arm-linux-gnueabihf,   cc: arm-linux-gnueabihf-gcc,    qemu: qemu-arm-static }
+        - {target: aarch64, toolchain: gcc-aarch64-linux-gnu,     cc: aarch64-linux-gnu-gcc,      qemu: qemu-aarch64-static }
+        - {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
+        #- {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static }
+        #- {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
+        #- {target: mips,    toolchain: gcc-mips-linux-gnu,        cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static }
+        #- {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,      cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static }
+        #- {target: mips64el,toolchain: gcc-mips64-linux-gnuabi64, cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64el-static }
 
     steps:
     - uses: actions/checkout@v1
     - name: Install prerequisites
       run: |
         sudo apt update
-        sudo apt install ${{ matrix.TOOLCHAIN }} qemu-user-static
+        sudo apt install ${{ matrix.config.toolchain }} qemu-user-static
     - name: Cross-compile
       run: |
         mkdir build
         cd build
-        ${{ matrix.COMPILER }} -Dd_m3HasWASI \
+        ${{ matrix.config.cc }} -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm -static \
             -o wasm3
     - name: Run spec tests
       run: |
         cd test
-        python3 run-spec-test.py --exec "${{ matrix.QEMU }} ../build/wasm3 --repl"
+        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
     - name: Run WASI tests
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "${{ matrix.QEMU }} ../build/wasm3"
+        python3 run-wasi-test.py --fast --exec "${{ matrix.config.qemu }} ../build/wasm3"
 
   build-platformio:
     runs-on: ubuntu-latest
