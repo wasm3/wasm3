@@ -213,7 +213,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: []
+        target: [arm, armhf, aarch64, ppc64le, s390x]
 
         include:
         - target: arm
