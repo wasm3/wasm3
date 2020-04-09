@@ -213,11 +213,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-        - target: riscv64
-        - target: mipsel
-        - target: mips64el
-        - target: mips
+        target: []
 
         include:
         - target: arm
@@ -264,6 +260,12 @@ jobs:
           TOOLCHAIN: gcc-mips-linux-gnu
           COMPILER: mips-linux-gnu-gcc
           QEMU: qemu-mips-static
+
+        exclude:
+        - target: riscv64
+        - target: mipsel
+        - target: mips64el
+        - target: mips
 
     steps:
     - uses: actions/checkout@v1
