@@ -205,31 +205,49 @@ jobs:
         cd test
         ./run-wasi-test.py
 
-  build-arm-qemu:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  build-cross-qemu:
+    name: build-cross-qemu-${{ matrix.TARGET }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-latest]
+        include:
+        - os: ubuntu-latest
+          TARGET: arm
+          TOOLCHAIN: gcc-arm-linux-gnueabi
+          COMPILER: arm-linux-gnueabi-gcc
+          QEMU: qemu-arm-static
+
+        - os: ubuntu-latest
+          TARGET: armhf
+          TOOLCHAIN: gcc-arm-linux-gnueabihf
+          COMPILER: arm-linux-gnueabihf-gcc
+          QEMU: qemu-arm-static
+
     steps:
     - uses: actions/checkout@v1
     - name: Install prerequisites
       run: |
         sudo apt update
-        sudo apt install gcc-arm-linux-gnueabihf qemu-user-static
+        sudo apt install ${{ matrix.TOOLCHAIN }} qemu-user-static
     - name: Cross-compile
       run: |
         mkdir build
         cd build
-        arm-linux-gnueabihf-gcc -Dd_m3HasWASI \
+        ${{ matrix.COMPILER }} -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm -static \
             -o wasm3
     - name: Run spec tests
       run: |
         cd test
-        python3 run-spec-test.py --exec "qemu-arm-static ../build/wasm3 --repl"
+        python3 run-spec-test.py --exec "${{ matrix.QEMU }} ../build/wasm3 --repl"
     - name: Run WASI tests
       run: |
         cd test
-        python3 run-wasi-test.py --timeout=300 --exec "qemu-arm-static ../build/wasm3"
+        python3 run-wasi-test.py --fast --exec "${{ matrix.QEMU }} ../build/wasm3"
 
   build-platformio:
     runs-on: ubuntu-latest
