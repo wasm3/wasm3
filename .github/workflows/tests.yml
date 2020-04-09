@@ -207,7 +207,7 @@ jobs:
 
   build-arm-qemu:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
     - name: Install prerequisites
@@ -229,7 +229,7 @@ jobs:
     - name: Run WASI tests
       run: |
         cd test
-        ./run-wasi-test.py --exec "qemu-arm ../build/wasm3" 
+        python3 run-wasi-test.py --timeout=300 --exec "qemu-arm-static ../build/wasm3"
 
   build-platformio:
     runs-on: ubuntu-latest
