@@ -206,25 +206,33 @@ jobs:
         ./run-wasi-test.py
 
   build-cross-qemu:
-    name: build-cross-qemu-${{ matrix.TARGET }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    name: build-cross-qemu-${{ matrix.target }}
     timeout-minutes: 10
-    
+
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-latest]
+        target: [arm, armhf, aarch64, mipsel]
         include:
-        - os: ubuntu-latest
-          TARGET: arm
+        - target: arm
           TOOLCHAIN: gcc-arm-linux-gnueabi
           COMPILER: arm-linux-gnueabi-gcc
           QEMU: qemu-arm-static
 
-        - os: ubuntu-latest
-          TARGET: armhf
+        - target: armhf
           TOOLCHAIN: gcc-arm-linux-gnueabihf
           COMPILER: arm-linux-gnueabihf-gcc
           QEMU: qemu-arm-static
+
+        - target: aarch64
+          TOOLCHAIN: gcc-aarch64-linux-gnu
+          COMPILER: aarch64-linux-gnu-gcc
+          QEMU: qemu-aarch64-static
+
+        - target: mipsel
+          TOOLCHAIN: gcc-mipsel-linux-gnu
+          COMPILER: mipsel-linux-gnu-gcc
+          QEMU: qemu-mipsel-static
 
     steps:
     - uses: actions/checkout@v1
