@@ -205,6 +205,32 @@ jobs:
         cd test
         ./run-wasi-test.py
 
+  build-arm-qemu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install prerequisites
+      run: |
+        sudo apt update
+        sudo apt install gcc-arm-linux-gnueabihf qemu-user-static
+    - name: Cross-compile
+      run: |
+        mkdir build
+        cd build
+        arm-linux-gnueabihf-gcc -Dd_m3HasWASI \
+            -I../source ../source/*.c ../platforms/app/main.c \
+            -O3 -g0 -lm -static \
+            -o wasm3
+    - name: Run spec tests
+      run: |
+        cd test
+        python3 run-spec-test.py --exec "qemu-arm-static ../build/wasm3 --repl"
+    - name: Run WASI tests
+      run: |
+        cd test
+        ./run-wasi-test.py --exec "qemu-arm ../build/wasm3" 
+
   build-platformio:
     runs-on: ubuntu-latest
     timeout-minutes: 10
