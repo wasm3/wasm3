@@ -46,38 +46,71 @@
 # if defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_GCC)
 #  if defined(__wasm__)
 #   define M3_ARCH "wasm"
+
 #  elif defined(__x86_64__)
 #   define M3_ARCH "x86_64"
+
 #  elif defined(__i386__)
 #   define M3_ARCH "x86"
+
 #  elif defined(__aarch64__)
 #   define M3_ARCH "arm64-v8a"
+
 #  elif defined(__arm__)
 #   if defined(__ARM_ARCH_7A__)
 #    if defined(__ARM_NEON__)
 #     if defined(__ARM_PCS_VFP)
-#      define M3_ARCH "armeabi-v7a/NEON (hard-float)"
+#      define M3_ARCH "arm-v7a/NEON hard-float"
 #     else
-#      define M3_ARCH "armeabi-v7a/NEON"
+#      define M3_ARCH "arm-v7a/NEON"
 #     endif
 #    else
 #     if defined(__ARM_PCS_VFP)
-#      define M3_ARCH "armeabi-v7a (hard-float)"
+#      define M3_ARCH "arm-v7a hard-float"
 #     else
-#      define M3_ARCH "armeabi-v7a"
+#      define M3_ARCH "arm-v7a"
 #     endif
 #    endif
 #   else
-#    define M3_ARCH "armeabi"
+#    define M3_ARCH "arm"
 #   endif
-#  elif defined(__mips64)
-#   define M3_ARCH "mips64"
+
 #  elif defined(__mips__)
-#   define M3_ARCH "mips"
+#   if defined(__MIPSEB__) && defined(__mips64)
+#    define M3_ARCH "mips64 " _MIPS_ARCH
+#   elif defined(__MIPSEL__) && defined(__mips64)
+#    define M3_ARCH "mips64el " _MIPS_ARCH
+#   elif defined(__MIPSEB__)
+#    define M3_ARCH "mips " _MIPS_ARCH
+#   elif defined(__MIPSEL__)
+#    define M3_ARCH "mipsel " _MIPS_ARCH
+#   endif
+
+#  elif defined(__PPC__)
+#   if defined(__PPC64__) && defined(__LITTLE_ENDIAN__)
+#    define M3_ARCH "ppc64le"
+#   elif defined(__PPC64__)
+#    define M3_ARCH "ppc64"
+#   else
+#    define M3_ARCH "ppc"
+#   endif
+
+#  elif defined(__sparc__)
+#   if defined(__arch64__)
+#    define M3_ARCH "sparc64"
+#   else
+#    define M3_ARCH "sparc"
+#   endif
+
+#  elif defined(__s390x__)
+#   define M3_ARCH "s390x"
+
 #  elif defined(__xtensa__)
 #   define M3_ARCH "xtensa"
+
 #  elif defined(__arc__)
 #   define M3_ARCH "arc32"
+
 #  elif defined(__riscv)
 #   if defined(__riscv_32e)
 #    define _M3_ARCH_RV "rv32e"
@@ -114,6 +147,7 @@
 #    define _M3_ARCH_RV_C _M3_ARCH_RV_D
 #   endif
 #   define M3_ARCH _M3_ARCH_RV_C
+
 #  elif defined(__AVR__)
 #   define M3_ARCH "avr"
 #  endif
