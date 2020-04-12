@@ -217,20 +217,18 @@ jobs:
         - {target: arm,     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static }
         - {target: armhf,   toolchain: gcc-arm-linux-gnueabihf,   cc: arm-linux-gnueabihf-gcc,    qemu: qemu-arm-static }
         - {target: aarch64, toolchain: gcc-aarch64-linux-gnu,     cc: aarch64-linux-gnu-gcc,      qemu: qemu-aarch64-static }
+        - {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
+        - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static }
         #- {target: ppc,     toolchain: gcc-powerpc-linux-gnu,     cc: powerpc-linux-gnu-gcc,      qemu: qemu-ppc-static }
         #- {target: ppc64,   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static }
         - {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
         #- {target: mips,    toolchain: gcc-mips-linux-gnu,          cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static }
         #- {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64,   cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static }
-        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,         qemu: qemu-mipsel-static }
-        - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,  qemu: qemu-mips64el-static }
+        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,         qemu: qemu-mipsel-static,   skip-fail: true }
+        - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,  qemu: qemu-mips64el-static, skip-fail: true }
         #- {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static }
         #- {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static }
         #- {target: m68k,    toolchain: gcc-m68k-linux-gnu,        cc: m68k-linux-gnu-gcc,         qemu: qemu-m68k-static }
-
-        # TODO: riscv64 and alpha need an updated QEMU
-        - {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
-        - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static }
 
     steps:
     - uses: actions/checkout@v1
@@ -249,7 +247,7 @@ jobs:
             -O3 -g0 -lm -static \
             -o wasm3
     - name: Run spec tests
-      continue-on-error: true
+      continue-on-error: ${{ matrix.config.skip-fail }}
       run: |
         cd test
         python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
