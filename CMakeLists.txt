@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.11)
 
 option(BUILD_WASI_SUPPORT "Build with WASI support" ON)
+option(BUILD_UVWASI_SUPPORT "Build with UVWASI support" OFF)
 
 set(OUT_FILE "wasm3")
 set(APP_DIR  "platforms/app")
@@ -144,7 +145,7 @@ else()
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow -Werror=implicit-function-declaration") # -Werror=cast-align
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=implicit-function-declaration") # -Werror=cast-align
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
   if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     # TODO: Place clang-specific options here
@@ -159,6 +160,31 @@ else()
 
   target_link_libraries(${OUT_FILE} m)
 
+endif()
+
+if(BUILD_UVWASI_SUPPORT)
+  if(BUILD_WASI_SUPPORT)
+    message(FATAL_ERROR "BUILD_UVWASI_SUPPORT is incompatible with BUILD_WASI_SUPPORT")
+  endif()
+
+  include(FetchContent)
+  FetchContent_Declare(
+    uvwasi
+    GIT_REPOSITORY https://github.com/cjihrig/uvwasi.git
+    GIT_TAG ${v0.0.7}
+  )
+
+  FetchContent_GetProperties(uvwasi)
+  if(NOT uvwasi_POPULATED)
+    FetchContent_Populate(uvwasi)
+    include_directories("${uvwasi_SOURCE_DIR}/include")
+    add_subdirectory(${uvwasi_SOURCE_DIR} ${uvwasi_BINARY_DIR} EXCLUDE_FROM_ALL)
+  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasUVWASI -Dd_m3HasTracer")
+  target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
+else()
+  # -Werror=shadow fails when building libuv. Enable it only if libuv is not present.
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow")
 endif()
 
 check_ipo_supported(RESULT result)

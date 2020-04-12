@@ -233,7 +233,7 @@ void print_usage() {
 int  main  (int i_argc, const char* i_argv[])
 {
     M3Result result = m3Err_none;
-    
+
     IM3Environment env = m3_NewEnvironment ();
     IM3Runtime runtime = NULL;
     bool argRepl = false;
@@ -286,7 +286,7 @@ int  main  (int i_argc, const char* i_argv[])
         result = repl_load(runtime, argFile);
         if (result) FATAL("repl_load: %s", result);
 
-#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI)
+#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
         result = m3_LinkWASI (runtime->modules);
         if (result) FATAL("m3_LinkWASI: %s", result);
 #endif
@@ -378,6 +378,6 @@ _onfatal:
 
     m3_FreeRuntime (runtime);
     m3_FreeEnvironment (env);
-    
+
     return 0;
 }
