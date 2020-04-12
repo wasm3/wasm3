@@ -22,7 +22,7 @@ jobs:
             flags: "-m32"
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install multilib
       if: contains(matrix.flags, '-m32')
       run: |
@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Run CMake
       run: |
         mkdir build
@@ -82,7 +82,7 @@ jobs:
         toolset: ["-T ClangCL", ""]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Run CMake
       run: |
         mkdir build
@@ -106,7 +106,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install Wasienv
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Install Wasmer
@@ -149,7 +149,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: List Xcode versions
       run: ls /Applications | grep Xcode
     - name: Select Xcode 11
@@ -163,7 +163,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - uses: seanmiddleditch/gha-setup-ninja@master
     - name: Set up JDK 1.8
       uses: actions/setup-java@v1
@@ -185,7 +185,7 @@ jobs:
         compiler: [gcc, clang]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Run CMake
       env:
         CC: ${{ matrix.compiler }}
@@ -231,7 +231,7 @@ jobs:
         #- {target: m68k,    toolchain: gcc-m68k-linux-gnu,        cc: m68k-linux-gnu-gcc,         qemu: qemu-m68k-static }
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install prerequisites
       run: |
         sudo apt update
@@ -261,7 +261,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -290,7 +290,7 @@ jobs:
     timeout-minutes: 10
     
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -321,7 +321,7 @@ jobs:
     timeout-minutes: 10
     
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -345,7 +345,7 @@ jobs:
     if: "github.event_name == 'push'"
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Set up Particle CLI
       run: sudo npm install -g particle-cli
     - name: Log in
@@ -363,7 +363,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Build for ESP32 (IDF v4.0)
       run: |
         . $IDF_PATH/export.sh
@@ -390,7 +390,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Run CMake
         run: |
           cd platforms/cpp
@@ -412,7 +412,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Build
       run: |
         mkdir build
@@ -429,7 +429,7 @@ jobs:
 
     #TODO: d_m3RuntimeStackDumps, d_m3EnableOpProfiling
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Build
       run: |
         mkdir build
@@ -456,6 +456,7 @@ jobs:
     timeout-minutes: 10
     
     steps:
+    - uses: actions/checkout@v2
     - name: Build
       run: |
         make -f extra/utils.mk preprocess
