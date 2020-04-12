@@ -279,10 +279,11 @@ jobs:
       run: |
         cd platforms/esp8266
         pio run
-    - name: Build ESP32
-      run: |
-        cd platforms/esp32-pio
-        pio run
+    # TODO:
+    #- name: Build ESP32
+    #  run: |
+    #    cd platforms/esp32-pio
+    #    pio run
 
   build-platformio-arm:
     runs-on: ubuntu-latest
@@ -405,13 +406,14 @@ jobs:
           cd platforms/cpp/build
           ./wasm3_cpp_example
 
-  build-maintenance:
+  build-as-cpp:
+    name: maintenance (build as C++)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v1
-    - name: Build as C++
+    - name: Build
       run: |
         mkdir build
         cd build
@@ -419,17 +421,20 @@ jobs:
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
-    - name: Run spec tests
-      run: cd test && python3 run-spec-test.py
-    - name: Run WASI tests
-      run: cd test && python3 run-wasi-test.py --fast
 
-    - name: Build with debug logs
+  build-with-logs:
+    name: maintenance (debug logs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    #TODO: d_m3RuntimeStackDumps, d_m3EnableOpProfiling
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
       run: |
-        mkdir build-with-logs
-        cd build-with-logs
+        mkdir build
+        cd build
         g++ -xc++ -Dd_m3HasWASI -Dd_m3LogsDefined \
-            -Dd_m3RuntimeStackDumps=1 \
             -Dd_m3TraceExec=1 \
             -Dd_m3LogParse=1 \
             -Dd_m3LogModule=1 \
@@ -445,11 +450,17 @@ jobs:
             -O3 -g0 -lm \
             -o wasm3
 
-    - name: Build with pre-processed operators
+  build-preprocessed-ops:
+    name: maintenance (preprocess ops)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Build
       run: |
         make -f extra/utils.mk preprocess
-        mkdir build-with-preprocess
-        cd build-with-preprocess
+        mkdir build
+        cd build
         g++ -xc++ -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
