@@ -386,6 +386,7 @@ jobs:
 
   build-cpp:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v1
@@ -403,3 +404,30 @@ jobs:
         run: |
           cd platforms/cpp/build
           ./wasm3_cpp_example
+
+  # Build as C++ (i.e. to run some C++-related checks)
+  build-as-cpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run CMake
+      env:
+        CC: g++
+        CFLAGS: -xc++
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build
+      run: |
+        cmake --build build
+    - name: Run spec tests
+      run: |
+        cd test
+        ./run-spec-test.py
+    - name: Run WASI tests
+      run: |
+        cd test
+        ./run-wasi-test.py
