@@ -457,12 +457,16 @@ jobs:
     
     steps:
     - uses: actions/checkout@v2
+    - name: Install sponge
+      run: |
+        sudo apt update
+        sudo apt install moreutils
     - name: Build
       run: |
         make -f extra/utils.mk preprocess
         mkdir build
         cd build
-        g++ -xc++ -Dd_m3HasWASI \
+        gcc -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
