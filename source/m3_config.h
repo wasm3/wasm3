@@ -51,14 +51,12 @@
 //# endif
 
 // logging --------------------------------------------------------------------
+#ifndef d_m3LogsDefined
 
 # define d_m3EnableOpProfiling      0
 # define d_m3RuntimeStackDumps      0
 
 # define d_m3TraceExec              (1 && d_m3RuntimeStackDumps && DEBUG)
-
-
-// m3log (...) ----------------------------------------------------------------
 
 # define d_m3LogParse           0   // .wasm binary decoding info
 # define d_m3LogModule          0   // Wasm module info
@@ -70,6 +68,8 @@
 # define d_m3LogRuntime         0   // higher-level runtime information
 # define d_m3LogStackTrace      0   // dump the call stack when traps occur
 # define d_m3LogNativeStack     0   // track the memory usage of the C-stack
+
+#endif
 
 // other ----------------------------------------------------------------------
 
