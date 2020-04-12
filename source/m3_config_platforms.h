@@ -105,6 +105,12 @@
 #  elif defined(__s390x__)
 #   define M3_ARCH "s390x"
 
+#  elif defined(__alpha__)
+#   define M3_ARCH "alpha"
+
+#  elif defined(__m68k__)
+#   define M3_ARCH "m68k"
+
 #  elif defined(__xtensa__)
 #   define M3_ARCH "xtensa"
 
