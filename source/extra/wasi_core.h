@@ -18,12 +18,9 @@
 # if defined (M3_COMPILER_MSVC)
 #  define _Static_assert(...)
 #  define __attribute__(...)
-#  define _Noreturn
 # endif
 
-#if !defined(__x86_64__)
 #  define _Static_assert(...)
-#endif
 
 #include <stddef.h>
 #include <stdint.h>
@@ -707,7 +704,7 @@ __wasi_errno_t __wasi_poll_oneoff(
     size_t *nevents
 ) __WASI_SYSCALL_NAME(poll_oneoff) __attribute__((__warn_unused_result__));
 
-_Noreturn void __wasi_proc_exit(
+__attribute__((noreturn)) void __wasi_proc_exit(
     __wasi_exitcode_t rval
 ) __WASI_SYSCALL_NAME(proc_exit);
 

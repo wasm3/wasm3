@@ -245,7 +245,7 @@ d_m3OpDef  (Entry)
             if (not r)
                 SPrintArg (str, 99, _sp, function->funcType->returnType);
 
-            m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? r : "");
+            m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? (cstr_t)r : "");
 #       elif d_m3LogStackTrace
             if (r)
                 printf (" ** %s  %p\n", function->name, _sp);

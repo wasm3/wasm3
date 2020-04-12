@@ -667,9 +667,6 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_seek",        
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_datasync",          "i(i)",    &m3_wasi_unstable_fd_datasync)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_close",             "i(i)",    &m3_wasi_unstable_fd_close)));
 
-//_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_send",            "i()",  &...)));
-//_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_recv",            "i()",  &...)));
-
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "random_get",           "i(*i)",   &m3_wasi_unstable_random_get)));
 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "clock_res_get",        "i(i*)",   &m3_wasi_unstable_clock_res_get)));

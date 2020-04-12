@@ -486,9 +486,9 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
 _       (m3Reallocate (& memory->mallocated, numBytes, numPreviousBytes));
 
-#       if d_m3LogRuntime
-        u8 * oldMallocated = memory->mallocated;
-#       endif
+# if d_m3LogRuntime
+        M3MemoryHeader * oldMallocated = memory->mallocated;
+# endif
 
         memory->numPages = numPagesToAlloc;
 

@@ -40,11 +40,11 @@ _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
 M3Result  ParseSection_Type  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
+    IM3FuncType ftype = NULL;
 
+_try {
     u32 numTypes;
 _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                                   m3log (parse, "** Type [%d]", numTypes);
-
-    IM3FuncType ftype = NULL;
 
     if (numTypes)
     {
@@ -89,7 +89,7 @@ _               (NormalizeType (& ftype->returnType, returnType));
         }
     }
 
-    _catch:
+} _catch:
 
     if (result)
     {
@@ -153,7 +153,6 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
             break;
 
             case d_externalKind_table:
-//                  m3NotImplemented ();
 //                  result = ParseType_Table (& i_bytes, i_end);
                 break;
 
@@ -490,7 +489,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Type,      // 1
         ParseSection_Import,    // 2
         ParseSection_Function,  // 3
-        NULL,                   // 4: Table
+        NULL,                   // 4: TODO Table
         ParseSection_Memory,    // 5
         ParseSection_Global,    // 6
         ParseSection_Export,    // 7
@@ -498,7 +497,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Element,   // 9
         ParseSection_Code,      // 10
         ParseSection_Data,      // 11
-        NULL,                   // 12: DataCount from bulk memory operations proposal
+        NULL,                   // 12: TODO DataCount
     };
 
     M3Parser parser = NULL;

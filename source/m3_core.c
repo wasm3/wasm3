@@ -17,10 +17,6 @@ void m3Abort(const char* message) {
     abort();
 }
 
-void m3NotImplemented() {
-    m3Abort("Not implemented");
-}
-
 M3_WEAK
 M3Result m3_Yield ()
 {

@@ -1393,6 +1393,7 @@ M3Result  Compile_CallIndirect  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
+_try {
     u32 typeIndex;
 _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
 
@@ -1416,7 +1417,8 @@ _   (EmitOp         (o, op_CallIndirect));
     EmitPointer     (o, type);              // TODO: unify all types in M3Environment
     EmitSlotOffset  (o, execTop);
 
-    _catch: return result;
+} _catch:
+    return result;
 }
 
 
@@ -1523,6 +1525,7 @@ M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, u8 i_blockType)
 {
     M3Result result;
 
+_try {
     IM3CodePage elsePage;
 _   (AcquireCompilationCodePage (o, & elsePage));
 
@@ -1540,8 +1543,7 @@ _   (EmitOp (o, op_Branch));
 
     o->page = savedPage;
 
-    _catch:
-
+} _catch:
     return result;
 }
 
@@ -2295,6 +2297,7 @@ M3Result  Compile_Function  (IM3Function io_function)
     o->wasm     = io_function->wasm;
     o->wasmEnd  = io_function->wasmEnd;
 
+_try {
 _   (AcquireCompilationCodePage (o, & o->page));
 
     pc_t pc = GetPagePC (o->page);
@@ -2358,7 +2361,7 @@ _   (Compile_BlockStatements (o));
 _       (m3CopyMem (& io_function->constants, o->constants, io_function->numConstantBytes));
     }
 
-    _catch:
+} _catch:
 
     ReleaseCompilationCodePage (o);
 

@@ -83,7 +83,7 @@ cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
 }
 
 
-size_t  SPrintArg  (char * o_string, size_t i_n, u64 * i_sp, u8 i_type)
+size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
 {
     int len = 0;
 
@@ -92,7 +92,7 @@ size_t  SPrintArg  (char * o_string, size_t i_n, u64 * i_sp, u8 i_type)
     if      (i_type == c_m3Type_i32)
         len = snprintf (o_string, i_n, "%" PRIi32, * (i32 *) i_sp);
     else if (i_type == c_m3Type_i64)
-        len = snprintf (o_string, i_n, "%" PRIi64, * i_sp);
+        len = snprintf (o_string, i_n, "%" PRIi64, * (i64 *) i_sp);
     else if (i_type == c_m3Type_f32)
         len = snprintf (o_string, i_n, "%f",  * (f32 *) i_sp);
     else if (i_type == c_m3Type_f64)
@@ -113,7 +113,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 
     s += m3_max (0, snprintf (s, e-s, "("));
 
-    u64 * argSp = (u64 *) i_sp;
+    m3stack_t argSp = i_sp;
 
     IM3FuncType funcType = i_function->funcType;
     if (funcType)
@@ -412,7 +412,7 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 
 void emit_stack_dump (IM3Compilation o)
 {
-#   if d_m3RuntimeStackDumps
+# if d_m3RuntimeStackDumps
     if (o->numEmits)
     {
         EmitOp          (o, op_DumpStack);
@@ -422,7 +422,7 @@ void emit_stack_dump (IM3Compilation o)
 
         o->numEmits = 0;
     }
-#   endif
+# endif
 }
 
 

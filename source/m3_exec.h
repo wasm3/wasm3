@@ -60,6 +60,9 @@ d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName);
 
 #   define nextOp()                 return profileOp (d_m3OpAllArgs, __FUNCTION__)
 # elif d_m3TraceExec
+
+d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_operationName);
+
 #   define nextOp()                 return debugOp (d_m3OpAllArgs, __FUNCTION__)
 # else
 #   define nextOp()                 return nextOpDirect()
@@ -714,10 +717,9 @@ d_m3OpDecl (CopySlot_64)
 d_m3OpDecl (PreserveCopySlot_64)
 
 #define d_m3SetRegisterSetSlotDecl(TYPE)    \
-                                            \
-d_m3OpDecl (SetRegister_##TYPE)             \
-d_m3OpDecl (SetSlot_##TYPE)                 \
-d_m3OpDecl (PreserveSetSlot_##TYPE)         \
+  d_m3OpDecl (SetRegister_##TYPE)           \
+  d_m3OpDecl (SetSlot_##TYPE)               \
+  d_m3OpDecl (PreserveSetSlot_##TYPE)
 
 d_m3SetRegisterSetSlotDecl (i32)
 d_m3SetRegisterSetSlotDecl (i64)

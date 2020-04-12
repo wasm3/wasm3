@@ -45,7 +45,7 @@ void  m3_FreeModule  (IM3Module i_module)
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
     M3Result result = m3Err_none;
-
+_try {
     u32 index = io_module->numGlobals++;
 _   (m3ReallocArray (& io_module->globals, M3Global, io_module->numGlobals, index));
 
@@ -58,7 +58,8 @@ _   (m3ReallocArray (& io_module->globals, M3Global, io_module->numGlobals, inde
     if (o_global)
         * o_global = global;
 
-    _catch: return result;
+} _catch:
+    return result;
 }
 
 
