@@ -404,7 +404,7 @@ d_m3OpDef (PreserveCopySlot_64)
 }
 
 
-#if d_m3RuntimeStackDumps
+#if d_m3EnableOpTracing
 //--------------------------------------------------------------------------------------------------------
 d_m3OpDef  (DumpStack)
 {
@@ -439,19 +439,19 @@ d_m3OpDef  (DumpStack)
 
 # if d_m3EnableOpProfiling
 //--------------------------------------------------------------------------------------------------------
-M3ProfilerSlot s_opProfilerCounts [c_m3ProfilerSlotMask + 1] = {};
+static M3ProfilerSlot s_opProfilerCounts [d_m3ProfilerSlotMask + 1] = {};
 
 void  ProfileHit  (cstr_t i_operationName)
 {
     u64 ptr = (u64) i_operationName;
 
-    M3ProfilerSlot * slot = & s_opProfilerCounts [ptr & c_m3ProfilerSlotMask];
+    M3ProfilerSlot * slot = & s_opProfilerCounts [ptr & d_m3ProfilerSlotMask];
 
     if (slot->opName)
     {
         if (slot->opName != i_operationName)
         {
-            m3Abort ("profiler slot collision; increase c_m3ProfilerSlotMask");
+            m3Abort ("profiler slot collision; increase d_m3ProfilerSlotMask");
         }
     }
 
@@ -469,7 +469,7 @@ void  m3_PrintProfilerInfo  ()
     {
         maxSlot->hitCount = 0;
 
-        for (u32 i = 0; i <= c_m3ProfilerSlotMask; ++i)
+        for (u32 i = 0; i <= d_m3ProfilerSlotMask; ++i)
         {
             M3ProfilerSlot * slot = & s_opProfilerCounts [i];
 

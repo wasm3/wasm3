@@ -412,7 +412,7 @@ void  log_opcode  (IM3Compilation o, u8 i_opcode)
 
 void emit_stack_dump (IM3Compilation o)
 {
-# if d_m3RuntimeStackDumps
+# if d_m3EnableOpTracing
     if (o->numEmits)
     {
         EmitOp          (o, op_DumpStack);

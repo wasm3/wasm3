@@ -46,28 +46,26 @@
 #   define d_m3Use32BitSlots                    1
 # endif
 
-//# ifndef d_m3EnableOptimizations
-//#   define d_m3EnableOptimizations              0
-//# endif
+# ifndef d_m3ProfilerSlotMask
+#   define d_m3ProfilerSlotMask                 0xFFFF
+# endif
 
 // logging --------------------------------------------------------------------
 #ifndef d_m3LogsDefined
 
-# define d_m3EnableOpProfiling      0
-# define d_m3RuntimeStackDumps      0
+# define d_m3EnableOpProfiling      0   // profiling or tracing can be used
+# define d_m3EnableOpTracing        0   // only works with DEBUG
 
-# define d_m3TraceExec              (1 && d_m3RuntimeStackDumps && DEBUG)
-
-# define d_m3LogParse           0   // .wasm binary decoding info
-# define d_m3LogModule          0   // Wasm module info
-# define d_m3LogCompile         0   // wasm -> metacode generation phase
-# define d_m3LogWasmStack       0   // dump the wasm stack when pushed or popped
-# define d_m3LogEmit            0   // metacode generation info
-# define d_m3LogCodePages       0   // dump metacode pages when released
-# define d_m3LogExec            0   // low-level interpreter specific logs
-# define d_m3LogRuntime         0   // higher-level runtime information
-# define d_m3LogStackTrace      0   // dump the call stack when traps occur
-# define d_m3LogNativeStack     0   // track the memory usage of the C-stack
+# define d_m3LogParse               0   // .wasm binary decoding info
+# define d_m3LogModule              0   // wasm module info
+# define d_m3LogCompile             0   // wasm -> metacode generation phase
+# define d_m3LogWasmStack           0   // dump the wasm stack when pushed or popped
+# define d_m3LogEmit                0   // metacode generation info
+# define d_m3LogCodePages           0   // dump metacode pages when released
+# define d_m3LogExec                0   // low-level interpreter specific logs
+# define d_m3LogRuntime             0   // higher-level runtime information
+# define d_m3LogStackTrace          0   // dump the call stack when traps occur
+# define d_m3LogNativeStack         0   // track the memory usage of the C-stack
 
 #endif
 

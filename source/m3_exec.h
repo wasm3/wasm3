@@ -55,14 +55,10 @@ d_m3BeginExternC
 #define jumpOpDirect(PC)            ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
 
 # if d_m3EnableOpProfiling
-
-d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName);
-
+                                    d_m3RetSig  profileOp   (d_m3OpSig, cstr_t i_operationName);
 #   define nextOp()                 return profileOp (d_m3OpAllArgs, __FUNCTION__)
-# elif d_m3TraceExec
-
-d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_operationName);
-
+# elif d_m3EnableOpTracing
+                                    d_m3RetSig  debugOp     (d_m3OpSig, cstr_t i_operationName);
 #   define nextOp()                 return debugOp (d_m3OpAllArgs, __FUNCTION__)
 # else
 #   define nextOp()                 return nextOpDirect()
@@ -913,7 +909,7 @@ d_m3Store_i (i64, i64)
 //---------------------------------------------------------------------------------------------------------------------
 // debug/profiling
 //---------------------------------------------------------------------------------------------------------------------
-#if d_m3TraceExec
+#if d_m3EnableOpTracing
 d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 {
     char name [100];
@@ -928,12 +924,11 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 }
 # endif
 
-# if d_m3RuntimeStackDumps
+# if d_m3EnableOpTracing
 d_m3OpDecl  (DumpStack)
 # endif
 
 # if d_m3EnableOpProfiling
-static const u32 c_m3ProfilerSlotMask = 0xFFFF;
 
 typedef struct M3ProfilerSlot
 {
