@@ -419,7 +419,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake -DCMAKE_C_COMPILER_WORKS=1 ..
     - name: Build
       run: |
         cmake --build build
