@@ -229,15 +229,17 @@ jobs:
         #- {target: m68k,    toolchain: gcc-m68k-linux-gnu,        cc: m68k-linux-gnu-gcc,         qemu: qemu-m68k-static }
 
         # TODO: riscv64 and alpha need an updated QEMU
-        #- {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
-        #- {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static }
+        - {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
+        - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static }
 
     steps:
     - uses: actions/checkout@v1
     - name: Install prerequisites
       run: |
         sudo apt update
-        sudo apt install ${{ matrix.config.toolchain }} qemu-user-static
+        wget http://archive.ubuntu.com/ubuntu/pool/universe/q/qemu/qemu-user-static_4.2-3ubuntu4_amd64.deb
+        sudo dpkg -i qemu-user-static_4.2-3ubuntu4_amd64.deb
+        sudo apt install ${{ matrix.config.toolchain }}
     - name: Cross-compile
       run: |
         mkdir build
