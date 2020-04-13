@@ -48,6 +48,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Prepare
+      run: apk add build-base cmake python3 --update-cache
     - name: Run CMake
       run: |
         mkdir build
