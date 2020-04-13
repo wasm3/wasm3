@@ -409,7 +409,7 @@ d_m3OpDef (PreserveCopySlot_64)
 d_m3OpDef  (DumpStack)
 {
     u32 opcodeIndex         = immediate (u32);
-    u64 stackHeight         = immediate (u64);
+    u32 stackHeight         = immediate (u32);
     IM3Function function    = immediate (IM3Function);
 
     cstr_t funcName = (function) ? function->name : "";

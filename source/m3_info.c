@@ -423,7 +423,7 @@ void emit_stack_dump (IM3Compilation o)
     {
         EmitOp          (o, op_DumpStack);
         EmitConstant32  (o, o->numOpcodes);
-        EmitConstant32  (o, 0); // TODO: GetMaxExecSlot
+        EmitConstant32  (o, GetMaxUsedSlotPlusOne(o));
         EmitPointer     (o, o->function);
 
         o->numEmits = 0;
