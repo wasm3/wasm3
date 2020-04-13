@@ -258,6 +258,10 @@ int  main  (int i_argc, const char* i_argv[])
             return 0;
         } else if (!strcmp("--repl", arg)) {
             argRepl = true;
+        } else if (!strcmp("--dir", arg)) {
+            const char* argDir;
+            ARGV_SET(argDir);
+            (void)argDir;
         } else if (!strcmp("--func", arg) or !strcmp("-f", arg)) {
             ARGV_SET(argFunc);
         }
