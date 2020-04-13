@@ -90,7 +90,8 @@ M3Result repl_load_hex  (IM3Runtime runtime, u32 fsize)
                 hex_idx = 0;
             }
         }
-        fgets(hex, 3, stdin); // Consume a newline
+        if (!fgets(hex, 3, stdin)) // Consume a newline
+            return "cannot read EOL";
     }
 
     IM3Module module;
@@ -124,6 +125,23 @@ M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char*
     if (result) return result;
 
     return result;
+}
+
+M3Result repl_dump(IM3Runtime runtime)
+{
+    uint32_t len;
+    uint8_t* mem = m3_GetMemory(runtime, &len, 0);
+    if (mem) {
+        FILE* f = fopen ("dump.bin", "wb");
+        if (!f) {
+            return "cannot open file";
+        }
+        if (fwrite (mem, 1, len, f) != len) {
+            return "cannot write file";
+        }
+        fclose (f);
+    }
+    return m3Err_none;
 }
 
 void repl_free(IM3Runtime* runtime)
@@ -313,6 +331,8 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_load(runtime, argv[1]);
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(runtime, atol(argv[1]));
+        } else if (!strcmp(":dump", argv[0])) {             // :load <filename>
+            result = repl_dump(runtime);
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
