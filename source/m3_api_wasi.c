@@ -542,7 +542,7 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
         ssize_t retlen = 0;
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__)
-        size_t reqlen = m3_min (buflen, 256);
+        size_t reqlen = M3_MIN (buflen, 256);
 #   if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
         retlen = SecRandomCopyBytes(kSecRandomDefault, reqlen, buf) < 0 ? -1 : reqlen;
 #   else
