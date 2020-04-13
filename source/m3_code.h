@@ -29,8 +29,9 @@ void                    FreeCodePages           (IM3CodePage * io_list);
 u32                     NumFreeLines            (IM3CodePage i_page);
 pc_t                    GetPageStartPC          (IM3CodePage i_page);
 pc_t                    GetPagePC               (IM3CodePage i_page);
-void                    EmitWord64_impl         (IM3CodePage i_page, u64 i_word);
 void                    EmitWord_impl           (IM3CodePage i_page, void* i_word);
+void                    EmitWord32              (IM3CodePage i_page, u32 i_word);
+void                    EmitWord64              (IM3CodePage i_page, u64 i_word);
 
 void                    PushCodePage            (IM3CodePage * io_list, IM3CodePage i_codePage);
 IM3CodePage             PopCodePage             (IM3CodePage * io_list);
@@ -43,12 +44,6 @@ void                    dump_code_page            (IM3CodePage i_codePage, pc_t 
 # endif
 
 #define EmitWord(page, val) EmitWord_impl(page, (void*)(val))
-
-#if M3_SIZEOF_PTR == 4
-#  define EmitWord64(page, val) EmitWord64_impl(page, (u64)(val))
-#else
-#  define EmitWord64(page, val) EmitWord_impl(page, (void*)(val))
-#endif
 
 d_m3EndExternC
 

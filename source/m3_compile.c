@@ -206,7 +206,7 @@ void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 {                                                                   d_m3Assert (o->m3Slots [i_slot] == 0); // shouldn't be already allocated
     o->m3Slots [i_slot] = 1;
 
-    o->maxAllocatedSlotPlusOne = m3_max (o->maxAllocatedSlotPlusOne, i_slot + 1);
+    o->maxAllocatedSlotPlusOne = M3_MAX (o->maxAllocatedSlotPlusOne, i_slot + 1);
 }
 
 
@@ -419,7 +419,7 @@ M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_location)
             if (o->function)
             {
                 // op_Entry uses this value to track and detect stack overflow
-                o->function->maxStackSlots = m3_max (o->function->maxStackSlots, i_location + 1);
+                o->function->maxStackSlots = M3_MAX (o->function->maxStackSlots, i_location + 1);
             }
         }
 
@@ -522,6 +522,9 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
 {
     M3Result result = m3Err_none;
 
+    // Early-exit if we're not emitting
+    if (!o->page) return result;
+
     bool matchFound = false;
 
     u32 numUsedConstSlots = o->maxConstSlotIndex - o->firstConstSlotIndex;
@@ -533,7 +536,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         u16 firstConstSlot = o->firstConstSlotIndex;
         AlignSlotIndexToType (& firstConstSlot, c_m3Type_i64);
 
-        for (u32 slot = firstConstSlot; slot < o->maxConstSlotIndex - 1; slot += 2)
+        for (int slot = firstConstSlot; slot < o->maxConstSlotIndex - 1; slot += 2)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
@@ -575,8 +578,14 @@ _                   (Push (o, i_type, slot));
         {
             result = m3Err_none;
 
-_           (EmitOp (o, Is64BitType (i_type) ? op_Const64 : op_Const32));
-            EmitConstant64 (o, i_word);
+            if (Is64BitType (i_type)) {
+_               (EmitOp (o, op_Const64));
+                EmitWord64 (o->page, i_word);
+            } else {
+_               (EmitOp (o, op_Const32));
+                EmitWord32 (o->page, i_word);
+            }
+
 _           (PushAllocatedSlotAndEmit (o, i_type));
         }
         else
@@ -592,7 +601,7 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
 
 _           (Push (o, i_type, slot));
 
-            o->maxConstSlotIndex = m3_max (slot + numRequiredSlots, o->maxConstSlotIndex);
+            o->maxConstSlotIndex = M3_MAX (slot + numRequiredSlots, o->maxConstSlotIndex);
         }
     }
 
@@ -1232,7 +1241,7 @@ _   (EnsureCodePageNumLines (o, numCodeLines));
 
 _   (EmitOp (o, op_BranchTable));
     EmitSlotOffset (o, slot);
-    EmitConstant (o, targetCount);
+    EmitConstant32 (o, targetCount);
 
     IM3CodePage continueOpPage = NULL;
 
@@ -1304,7 +1313,7 @@ _try {
     // force use of at least one stack slot; this is to help ensure
     // the m3 stack overflows (and traps) before the native stack can overflow.
     // e.g. see Wasm spec test 'runaway' in call.wast
-    topSlot = m3_max (1, topSlot);
+    topSlot = M3_MAX (1, topSlot);
 
     // stack frame is 64-bit aligned
     AlignSlotIndexToType (& topSlot, c_m3Type_i64);
@@ -1818,7 +1827,7 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
 _   (Compile_Operator (o, i_opcode));
 
-    EmitConstant (o, memoryOffset);
+    EmitConstant32 (o, memoryOffset);
 }
     _catch: return result;
 }
@@ -2263,7 +2272,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
     // operations as needed. Compiled expressions (global inits) don't pass through this
     // ReserveConstants function and thus always produce inline contants.
-    numConstantSlots = m3_min (numConstantSlots, d_m3MaxConstantTableSize);
+    numConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);
 
     o->firstDynamicSlotIndex = o->firstConstSlotIndex + numConstantSlots;
 

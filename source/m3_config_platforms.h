@@ -18,9 +18,6 @@
 #define M3_CONCAT__(a,b) a##b
 #define M3_CONCAT(a,b)   M3_CONCAT__(a,b)
 
-// Post-increment by a specific number
-#define M3_INC(x,n) (((x)+=(n))-(n))
-
 # if !defined(__cplusplus)
 #   define not      !
 #   define and      &&
@@ -75,6 +72,43 @@
 #    define M3_ARCH "arm"
 #   endif
 
+#  elif defined(__riscv)
+#   if defined(__riscv_32e)
+#    define _M3_ARCH_RV "rv32e"
+#   elif __riscv_xlen == 128
+#    define _M3_ARCH_RV "rv128i"
+#   elif __riscv_xlen == 64
+#    define _M3_ARCH_RV "rv64i"
+#   elif __riscv_xlen == 32
+#    define _M3_ARCH_RV "rv32i"
+#   endif
+#   if defined(__riscv_muldiv)
+#    define _M3_ARCH_RV_M _M3_ARCH_RV "m"
+#   else
+#    define _M3_ARCH_RV_M _M3_ARCH_RV
+#   endif
+#   if defined(__riscv_atomic)
+#    define _M3_ARCH_RV_A _M3_ARCH_RV_M "a"
+#   else
+#    define _M3_ARCH_RV_A _M3_ARCH_RV_M
+#   endif
+#   if defined(__riscv_flen)
+#    define _M3_ARCH_RV_F _M3_ARCH_RV_A "f"
+#   else
+#    define _M3_ARCH_RV_F _M3_ARCH_RV_A
+#   endif
+#   if defined(__riscv_flen) && __riscv_flen >= 64
+#    define _M3_ARCH_RV_D _M3_ARCH_RV_F "d"
+#   else
+#    define _M3_ARCH_RV_D _M3_ARCH_RV_F
+#   endif
+#   if defined(__riscv_compressed)
+#    define _M3_ARCH_RV_C _M3_ARCH_RV_D "c"
+#   else
+#    define _M3_ARCH_RV_C _M3_ARCH_RV_D
+#   endif
+#   define M3_ARCH _M3_ARCH_RV_C
+
 #  elif defined(__mips__)
 #   if defined(__MIPSEB__) && defined(__mips64)
 #    define M3_ARCH "mips64 " _MIPS_ARCH
@@ -116,43 +150,6 @@
 
 #  elif defined(__arc__)
 #   define M3_ARCH "arc32"
-
-#  elif defined(__riscv)
-#   if defined(__riscv_32e)
-#    define _M3_ARCH_RV "rv32e"
-#   elif __riscv_xlen == 128
-#    define _M3_ARCH_RV "rv128i"
-#   elif __riscv_xlen == 64
-#    define _M3_ARCH_RV "rv64i"
-#   elif __riscv_xlen == 32
-#    define _M3_ARCH_RV "rv32i"
-#   endif
-#   if defined(__riscv_muldiv)
-#    define _M3_ARCH_RV_M _M3_ARCH_RV "m"
-#   else
-#    define _M3_ARCH_RV_M _M3_ARCH_RV
-#   endif
-#   if defined(__riscv_atomic)
-#    define _M3_ARCH_RV_A _M3_ARCH_RV_M "a"
-#   else
-#    define _M3_ARCH_RV_A _M3_ARCH_RV_M
-#   endif
-#   if defined(__riscv_flen)
-#    define _M3_ARCH_RV_F _M3_ARCH_RV_A "f"
-#   else
-#    define _M3_ARCH_RV_F _M3_ARCH_RV_A
-#   endif
-#   if defined(__riscv_flen) && __riscv_flen >= 64
-#    define _M3_ARCH_RV_D _M3_ARCH_RV_F "d"
-#   else
-#    define _M3_ARCH_RV_D _M3_ARCH_RV_F
-#   endif
-#   if defined(__riscv_compressed)
-#    define _M3_ARCH_RV_C _M3_ARCH_RV_D "c"
-#   else
-#    define _M3_ARCH_RV_C _M3_ARCH_RV_D
-#   endif
-#   define M3_ARCH _M3_ARCH_RV_C
 
 #  elif defined(__AVR__)
 #   define M3_ARCH "avr"
@@ -201,10 +198,48 @@
 #  elif UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
 #   define M3_SIZEOF_PTR 8
 #  else
-#   error Pointer size not supported
+#   error "Pointer size not supported"
 #  endif
-# else
+# elif defined(__SIZEOF_POINTER__)
 #  define M3_SIZEOF_PTR __SIZEOF_POINTER__
+#else
+#  error "Pointer size not detected"
+# endif
+
+# if defined(M3_COMPILER_MSVC)
+#  define M3_LITTLE_ENDIAN      //_byteswap_ushort, _byteswap_ulong, _byteswap_uint64
+# elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#  define M3_LITTLE_ENDIAN
+# elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#  define M3_BIG_ENDIAN
+# else
+#  error "Byte order not detected"
+# endif
+
+// Byte swapping (for Big-Endian systems only)
+
+# if defined(M3_BIG_ENDIAN)
+#  define M3_BSWAP_u8(X)  {}
+#  define M3_BSWAP_u16(X) { (X)=__builtin_bswap16((X)); }
+#  define M3_BSWAP_u32(X) { (X)=__builtin_bswap32((X)); }
+#  define M3_BSWAP_u64(X) { (X)=__builtin_bswap64((X)); }
+#  define M3_BSWAP_i8(X)  {}
+#  define M3_BSWAP_i16(X) M3_BSWAP_u16(X)
+#  define M3_BSWAP_i32(X) M3_BSWAP_u32(X)
+#  define M3_BSWAP_i64(X) M3_BSWAP_u64(X)
+#  define M3_BSWAP_f32(X) { union { f32 f; u32 i; } u; u.f = (X); M3_BSWAP_u32(u.i); (X) = u.f; }
+#  define M3_BSWAP_f64(X) { union { f64 f; u64 i; } u; u.f = (X); M3_BSWAP_u64(u.i); (X) = u.f; }
+# else
+#  define M3_BSWAP_u8(X)  {}
+#  define M3_BSWAP_u16(x) {}
+#  define M3_BSWAP_u32(x) {}
+#  define M3_BSWAP_u64(x) {}
+#  define M3_BSWAP_i8(X)  {}
+#  define M3_BSWAP_i16(X) {}
+#  define M3_BSWAP_i32(X) {}
+#  define M3_BSWAP_i64(X) {}
+#  define M3_BSWAP_f32(X) {}
+#  define M3_BSWAP_f64(X) {}
 # endif
 
 # if defined(M3_COMPILER_MSVC)
@@ -222,11 +257,11 @@
 #  define M3_WEAK __attribute__((weak))
 # endif
 
-# ifndef m3_min
-#  define m3_min(A,B) (((A) < (B)) ? (A) : (B))
+# ifndef M3_MIN
+#  define M3_MIN(A,B) (((A) < (B)) ? (A) : (B))
 # endif
-# ifndef m3_max
-#  define m3_max(A,B) (((A) > (B)) ? (A) : (B))
+# ifndef M3_MAX
+#  define M3_MAX(A,B) (((A) > (B)) ? (A) : (B))
 # endif
 
 #define M3_INIT(field) memset(&field, 0, sizeof(field))

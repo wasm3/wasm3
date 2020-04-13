@@ -475,7 +475,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         // Limit the amount of memory that gets allocated
         if (io_runtime->memoryLimit) {
-            numPageBytes = m3_min (numPageBytes, io_runtime->memoryLimit);
+            numPageBytes = M3_MIN (numPageBytes, io_runtime->memoryLimit);
         }
 
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
@@ -895,7 +895,7 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_minLineCo
         if (page)
             i_runtime->numCodePages++;
     }
-    
+
     if (page)
     {                                                            m3log (emit, "acquire page: %d", page->info.sequence);
         i_runtime->numActiveCodePages++;

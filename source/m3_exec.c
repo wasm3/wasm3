@@ -200,7 +200,7 @@ d_m3OpDef  (Compile)
     if (not result)
     {
         // patch up compiled pc and call rewriten op_Call
-        *((size_t *) --_pc) = (size_t) (function->compiled);
+        * ((size_t *) --_pc) = (size_t) (function->compiled);
         --_pc;
         result = nextOpDirect ();
     }
@@ -418,7 +418,7 @@ d_m3OpDef  (DumpStack)
     printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
     printf ("                                     fp0: %lf  \n", _fp0);
 
-    u64 * sp = _sp;
+    m3stack_t sp = _sp;
 
     for (u32 i = 0; i < stackHeight; ++i)
     {

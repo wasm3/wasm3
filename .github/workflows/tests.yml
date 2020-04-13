@@ -174,37 +174,6 @@ jobs:
         cd platforms/android
         ./gradlew build
 
-  build-raspberry:
-    runs-on: [self-hosted, linux, ARM]
-    if: "false"    # TODO: implement QEMU-based RPi build/test environment
-    timeout-minutes: 10
-
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler: [gcc, clang]
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Run CMake
-      env:
-        CC: ${{ matrix.compiler }}
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-    - name: Build
-      run: |
-        cmake --build build
-    - name: Run spec tests
-      run: |
-        cd test
-        python3 run-spec-test.py
-    - name: Run WASI tests
-      run: |
-        cd test
-        ./run-wasi-test.py
-
   build-cross-qemu:
     runs-on: ubuntu-latest
     name: build-cross-qemu-${{ matrix.config.target }}
@@ -214,21 +183,20 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: arm,     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static }
-        - {target: armhf,   toolchain: gcc-arm-linux-gnueabihf,   cc: arm-linux-gnueabihf-gcc,    qemu: qemu-arm-static }
+        - {target: arm,     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static     }
+        - {target: armhf,   toolchain: gcc-arm-linux-gnueabihf,   cc: arm-linux-gnueabihf-gcc,    qemu: qemu-arm-static     }
         - {target: aarch64, toolchain: gcc-aarch64-linux-gnu,     cc: aarch64-linux-gnu-gcc,      qemu: qemu-aarch64-static }
         - {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
-        - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static }
-        #- {target: ppc,     toolchain: gcc-powerpc-linux-gnu,     cc: powerpc-linux-gnu-gcc,      qemu: qemu-ppc-static }
-        #- {target: ppc64,   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static }
+        - {target: ppc,     toolchain: gcc-powerpc-linux-gnu,     cc: powerpc-linux-gnu-gcc,      qemu: qemu-ppc-static     }
+        - {target: ppc64,   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static   }
         - {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
-        #- {target: mips,    toolchain: gcc-mips-linux-gnu,          cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static }
-        #- {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64,   cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static }
-        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,         qemu: qemu-mipsel-static,   skip-fail: true }
-        - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,  qemu: qemu-mips64el-static, skip-fail: true }
-        #- {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static }
-        #- {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static }
-        #- {target: m68k,    toolchain: gcc-m68k-linux-gnu,        cc: m68k-linux-gnu-gcc,         qemu: qemu-m68k-static }
+        - {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static   }
+        - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static   }
+        - {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static,    spec-fails: true }
+        - {target: mips,    toolchain: gcc-mips-linux-gnu,          cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static,     spec-fails: true }
+        - {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64,   cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static,   spec-fails: true }
+        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static,   spec-fails: true }
+        - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,qemu: qemu-mips64el-static, spec-fails: true }
 
     steps:
     - uses: actions/checkout@v2
@@ -242,16 +210,17 @@ jobs:
       run: |
         mkdir build
         cd build
-        ${{ matrix.config.cc }} -Dd_m3HasWASI \
+        ${{ matrix.config.cc }} -DASSERTS -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
-            -O3 -g0 -lm -static \
+            -O3 -g0 -flto -lm -static \
             -o wasm3
     - name: Run spec tests
-      continue-on-error: ${{ matrix.config.skip-fail }}
+      continue-on-error: ${{ matrix.config.spec-fails }}
       run: |
         cd test
         python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
     - name: Run WASI tests
+      continue-on-error: true
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "${{ matrix.config.qemu }} ../build/wasm3"
@@ -427,7 +396,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    #TODO: d_m3EnableOpTracing, d_m3EnableOpProfiling
     steps:
     - uses: actions/checkout@v2
     - name: Build
@@ -435,6 +403,7 @@ jobs:
         mkdir build
         cd build
         g++ -xc++ -Dd_m3HasWASI -Dd_m3LogsDefined \
+            -Dd_m3EnableOpTracing \
             -Dd_m3LogParse=1 \
             -Dd_m3LogModule=1 \
             -Dd_m3LogCompile=1 \

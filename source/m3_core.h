@@ -128,7 +128,7 @@ const void * const  cvptr_t;
 # endif
 
 
-# ifdef DEBUG
+# if (defined(DEBUG) || defined(ASSERTS)) && !defined(NASSERTS)
 #   define d_m3Assert(ASS)      assert (ASS)
 # else
 #   define d_m3Assert(ASS)

@@ -249,8 +249,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_dir_name)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_EBADF); }
-    int size = m3_min (strlen(preopen[fd].path), path_len);
-    memcpy(path, preopen[fd].path, size);
+    size_t slen = strlen(preopen[fd].path);
+    memcpy(path, preopen[fd].path, M3_MIN(slen, path_len));
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
@@ -262,8 +262,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_get)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_EBADF); }
-    *(buf)   = __WASI_PREOPENTYPE_DIR;
-    *(buf+1) = strlen(preopen[fd].path);
+    * (buf)   = __WASI_PREOPENTYPE_DIR;
+    * (buf+1) = strlen(preopen[fd].path);
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
