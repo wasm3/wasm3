@@ -27,7 +27,7 @@ jobs:
       run: |
         sudo apt update
         sudo apt install ${{ matrix.config.install }}
-    - name: Run CMake
+    - name: Configure
       env:
         CC: ${{ matrix.config.cc }}
       run: |
@@ -37,9 +37,9 @@ jobs:
     - name: Build
       run: |
         cmake --build build
-    - name: Run spec tests
+    - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
-    - name: Run WASI tests
+    - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
   build-linux-alpine:
@@ -50,16 +50,16 @@ jobs:
     - uses: actions/checkout@v2
     - name: Prepare
       run: apk add build-base cmake python3 --update-cache
-    - name: Run CMake
+    - name: Configure
       run: |
         mkdir build
         cd build
         cmake ..
     - name: Build
       run: cmake --build build
-    - name: Run spec tests
+    - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
-    - name: Run WASI tests
+    - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
   build-mac:
@@ -68,7 +68,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Run CMake
+    - name: Configure
       run: |
         mkdir build
         cd build
@@ -76,9 +76,9 @@ jobs:
     - name: Build
       run: |
         cmake --build build
-    - name: Run spec tests
+    - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
-    - name: Run WASI tests
+    - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
   build-win:
@@ -93,7 +93,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Run CMake
+    - name: Configure
       run: |
         mkdir build
         cd build
@@ -102,11 +102,11 @@ jobs:
       run: |
         cmake --build build --config Release
         cp ./build/Release/wasm3.exe ./build/
-    - name: Run spec tests
+    - name: Test WebAssembly spec
       run: |
         cd test
         python run-spec-test.py
-    - name: Run WASI tests
+    - name: Test WASI apps
       run: |
         cd test
         python run-wasi-test.py
@@ -123,7 +123,7 @@ jobs:
       env:
         WASMER_RELEASE_TAG: "0.15.0" 
       run: curl https://get.wasmer.io -sSfL | sh
-    - name: Run CMake
+    - name: Configure
       run: |
         source $HOME/.wasienv/wasienv.sh
         mkdir build-wasi
@@ -133,13 +133,13 @@ jobs:
       run: |
         source $HOME/.wasienv/wasienv.sh
         cmake --build build-wasi
-    - name: Run spec tests (in Wasmer)
+    - name: Test WebAssembly spec (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
         ./run-spec-test.py --exec "wasmer run --dir=. ../build-wasi/wasm3.wasm -- --repl"
 
-    - name: Run CMake (native)
+    - name: Configure (native)
       run: |
         mkdir build
         cd build
@@ -147,7 +147,7 @@ jobs:
     - name: Build (native)
       run: |
         cmake --build build
-    - name: Run spec tests (in Wasm3, self-hosting)
+    - name: Test WebAssembly spec (in Wasm3, self-hosting)
       continue-on-error: true    # TODO
       run: |
         cd test
@@ -210,13 +210,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install prerequisites
+    - name: Install QEMU
       run: |
-        sudo apt update
         wget http://archive.ubuntu.com/ubuntu/pool/universe/q/qemu/qemu-user-static_4.2-3ubuntu4_amd64.deb
         sudo dpkg -i qemu-user-static_4.2-3ubuntu4_amd64.deb
+    - name: Install ${{ matrix.config.toolchain }}
+      run: |
+        sudo apt update
         sudo apt install ${{ matrix.config.toolchain }}
-    - name: Cross-compile
+    - name: Build
       run: |
         mkdir build
         cd build
@@ -224,12 +226,12 @@ jobs:
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -flto -lm -static \
             -o wasm3
-    - name: Run spec tests
+    - name: Test WebAssembly spec
       continue-on-error: ${{ matrix.config.spec-fails }}
       run: |
         cd test
         python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
-    - name: Run WASI tests
+    - name: Test WASI apps
       continue-on-error: true
       run: |
         cd test
@@ -370,7 +372,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Run CMake
+      - name: Configure
         run: |
           cd platforms/cpp
           mkdir build
