@@ -5,48 +5,46 @@ on: [push, pull_request]
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    name: build-linux-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
       fail-fast: false
+
       matrix:
         compiler: [gcc, clang]
         flags: ["", "-m32"]
         build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]
 
-        exclude:
-          - compiler: clang
-            build_type: "-DCMAKE_BUILD_TYPE=Debug"
-
-          - compiler: gcc    # TODO: fails on numeric operations
-            flags: "-m32"
-
+        config:
+        - {target: clang,       cc: clang,      }
+        - {target: clang-x86,   cc: clang,      flags: -DCMAKE_C_FLAGS="-m32",    install: "gcc-multilib"   }
+        - {target: gcc,         cc: gcc,        }
+        - {target: gcc-debug,   cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug   }
+        # TODO: fails on numeric operations
+        #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
+ 
     steps:
     - uses: actions/checkout@v2
-    - name: Install multilib
-      if: contains(matrix.flags, '-m32')
+    - name: Install ${{ matrix.config.install }}
+      if: ${{ matrix.config.install }}
       run: |
         sudo apt update
-        sudo apt install gcc-multilib
+        sudo apt install ${{ matrix.config.install }}
     - name: Run CMake
       env:
-        CC: ${{ matrix.compiler }}
-        CFLAGS: ${{ matrix.flags }}
+        CC: ${{ matrix.config.cc }}
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.build_type }} ..
+        cmake ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build
     - name: Run spec tests
-      run: |
-        cd test
-        ./run-spec-test.py
+      run: cd test && python3 run-spec-test.py
     - name: Run WASI tests
-      run: |
-        cd test
-        ./run-wasi-test.py
+      run: cd test && python3 run-wasi-test.py
 
   build-mac:
     runs-on: macos-latest
