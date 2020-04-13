@@ -42,6 +42,24 @@ jobs:
     - name: Run WASI tests
       run: cd test && python3 run-wasi-test.py
 
+  build-linux-alpine:
+    runs-on: ubuntu-latest
+    container: alpine:3.10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run CMake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build
+      run: cmake --build build
+    - name: Run spec tests
+      run: cd test && python3 run-spec-test.py
+    - name: Run WASI tests
+      run: cd test && python3 run-wasi-test.py
+
   build-mac:
     runs-on: macos-latest
     timeout-minutes: 10
