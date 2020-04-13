@@ -12,10 +12,6 @@ jobs:
       fail-fast: false
 
       matrix:
-        compiler: [gcc, clang]
-        flags: ["", "-m32"]
-        build_type: ["-DCMAKE_BUILD_TYPE=Debug", ""]
-
         config:
         - {target: clang,       cc: clang,      }
         - {target: clang-x86,   cc: clang,      flags: -DCMAKE_C_FLAGS="-m32",    install: "gcc-multilib"   }
@@ -61,13 +57,9 @@ jobs:
       run: |
         cmake --build build
     - name: Run spec tests
-      run: |
-        cd test
-        ./run-spec-test.py
+      run: cd test && python3 run-spec-test.py
     - name: Run WASI tests
-      run: |
-        cd test
-        ./run-wasi-test.py
+      run: cd test && python3 run-wasi-test.py
 
   build-win:
     runs-on: windows-latest
