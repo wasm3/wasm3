@@ -540,7 +540,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                m3slot_t * constant = & o->constants [slot - o->firstConstSlotIndex];
+                u64 * constant = (u64 *) & o->constants [slot - o->firstConstSlotIndex];
 
                 if (* constant == i_word)
                 {
