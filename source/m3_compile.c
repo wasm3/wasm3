@@ -168,7 +168,7 @@ bool  IsStackTopInSlot  (IM3Compilation o)
 
 u16  GetStackTopSlotIndex  (IM3Compilation o)
 {
-    i16 i = GetStackTopIndex (o);                                   d_m3Assert (i >= 0 or IsStackPolymorphic (o));
+    i16 i = GetStackTopIndex (o);
 
     u16 slot = c_slotUnused;
 
@@ -540,7 +540,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 * constant = (u64 *) & o->constants [slot - o->firstConstSlotIndex];
+                m3slot_t * constant = & o->constants [slot - o->firstConstSlotIndex];
 
                 if (* constant == i_word)
                 {
@@ -874,8 +874,7 @@ M3Result  Compile_Const_i32  (IM3Compilation o, m3opcode_t i_opcode)
 
     i32 value;
 _   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));
-_   (PushConst (o, value, c_m3Type_i32));                       m3log (compile, d_indent "%s (const i32 = %" PRIi32 "; slot: %d)",
-                                                                                get_indention_string (o), value, GetStackTopSlotIndex (o));
+_   (PushConst (o, value, c_m3Type_i32));                       m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", get_indention_string (o), value);
     _catch: return result;
 }
 
@@ -886,8 +885,7 @@ M3Result  Compile_Const_i64  (IM3Compilation o, m3opcode_t i_opcode)
 
     i64 value;
 _   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));
-_   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, d_indent "%s (const i64 = %" PRIi64 "; slot: %d)",
-                                                                                get_indention_string (o), value, GetStackTopSlotIndex (o));
+_   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", get_indention_string (o), value);
     _catch: return result;
 }
 
@@ -898,7 +896,7 @@ M3Result  Compile_Const_f32  (IM3Compilation o, m3opcode_t i_opcode)
 
     union { u32 u; f32 f; } value = { 0 };
 
-_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value.f);
+_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));              m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value.f);
 _   (PushConst (o, value.u, c_m3Type_f32));
 
     _catch: return result;
@@ -911,7 +909,7 @@ M3Result  Compile_Const_f64  (IM3Compilation o, m3opcode_t i_opcode)
 
     union { u64 u; f64 f; } value = { 0 };
 
-_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));                m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value.f);
+_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));              m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value.f);
 _   (PushConst (o, value.u, c_m3Type_f64));
 
     _catch: return result;

@@ -373,9 +373,9 @@ void  dump_type_stack  (IM3Compilation o)
 }
 
 
-const char *  GetOpcodeIndentionString  (IM3Compilation o)
+static const char *  GetOpcodeIndentionString  (i32 blockDepth)
 {
-    i32 blockDepth = o->block.depth + 1;
+    blockDepth += 1;
 
     if (blockDepth < 0)
         blockDepth = 0;
@@ -392,27 +392,21 @@ const char *  GetOpcodeIndentionString  (IM3Compilation o)
 
 const char *  get_indention_string  (IM3Compilation o)
 {
-    o->block.depth += 4;
-    const char *indent = GetOpcodeIndentionString (o);
-    o->block.depth -= 4;
-
-    return indent;
+    return GetOpcodeIndentionString (o->block.depth+4);
 }
 
 
 void  log_opcode  (IM3Compilation o, u8 i_opcode)
 {
+    i32 depth = o->block.depth;
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
-        o->block.depth--;
+        depth--;
 
 #   ifdef DEBUG
-        m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o), c_operations [i_opcode].name);
+        m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (depth), c_operations [i_opcode].name);
 #   else
-        m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (o));
+        m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (depth));
 #   endif
-
-    if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
-        o->block.depth++;
 }
 
 

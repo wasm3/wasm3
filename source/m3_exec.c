@@ -416,17 +416,15 @@ d_m3OpDef  (DumpStack)
 
     printf (" %4d ", opcodeIndex);
     printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
-    printf ("                                     fp0: %lf  \n", _fp0);
+    printf ("                                    fp0: %lf\n", _fp0);
 
     m3stack_t sp = _sp;
 
     for (u32 i = 0; i < stackHeight; ++i)
     {
-        printf ("%016llx  ", (u64) sp);
-
         cstr_t kind = "";
 
-        printf ("%5s  %2d: 0x%" PRIx64 " %" PRIi64 "\n", kind, i, (u64) *(sp), (i64) *sp);
+        printf ("%p  %5s  %2d: 0x%" PRIx64 "  i:%" PRIi64 "\n", sp, kind, i, (u64) *(sp), (i64) *(sp));
 
         ++sp;
     }

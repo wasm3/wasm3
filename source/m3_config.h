@@ -10,6 +10,8 @@
 
 #include "m3_config_platforms.h"
 
+// general --------------------------------------------------------------------
+
 # ifndef d_m3CodePageAlignSize
 #   define d_m3CodePageAlignSize                4096
 # endif
@@ -51,6 +53,9 @@
 # endif
 
 // logging --------------------------------------------------------------------
+//   d_m3LogsDefined allows setting logging options through the compiler flags,
+//   i.e. -DDEBUG -Dd_m3LogsDefined -Dd_m3EnableOpTracing=1
+
 #ifndef d_m3LogsDefined
 
 # define d_m3EnableOpProfiling      0   // profiling or tracing can be used

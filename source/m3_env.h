@@ -249,7 +249,7 @@ typedef struct M3Runtime
     u32                     memoryLimit;
 
     M3ErrorInfo             error;
-#if defined(d_m3VerboseLogs)
+#if d_m3VerboseLogs
     char                    error_message[256];
 #endif
     i32                     exit_code;
