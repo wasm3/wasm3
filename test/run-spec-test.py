@@ -312,6 +312,17 @@ if wasm3_ver in Blacklist(["* MSVC *, x86)", "* Clang * for Windows, x86)"]):
       "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
       "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
     ])
+elif wasm3_ver in Blacklist(["* GCC *, mips*"]):
+    warning("MIPS has NaN representation issues, skipping some tests")
+    blacklist.add([
+      "float_exprs.wast:* *_nan_bitpattern(*",
+      "float_exprs.wast:* *no_fold_*",
+    ])
+elif wasm3_ver in Blacklist(["* GCC *, sparc*"]):
+    warning("SPARC has NaN representation issues, skipping some tests")
+    blacklist.add([
+      "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
+    ])
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
 
