@@ -100,7 +100,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.platform }} ${{ matrix.toolset }} ..
+        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
     - name: Build
       run: |
         cmake --build build --config Release
