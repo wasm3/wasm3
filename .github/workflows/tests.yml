@@ -436,7 +436,7 @@ jobs:
             -O3 -g0 -lm \
             -o wasm3
     - name: Test
-      run: ./build/wasm3 ./test/wasi/test.wasm
+      run: ./build/wasm3 ./test/wasi/test.wasm > /dev/null
 
   build-preprocessed-ops:
     name: maintenance (preprocess ops)
