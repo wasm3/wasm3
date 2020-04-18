@@ -10,7 +10,6 @@ jobs:
 
     strategy:
       fail-fast: false
-
       matrix:
         config:
         - {target: clang,       cc: clang,      }
@@ -81,15 +80,19 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
-  build-win:
+  build-windows:
     runs-on: windows-latest
+    name: build-windows-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
       fail-fast: false
       matrix:
-        platform: ["-A Win32", "-A x64"]
-        toolset: ["-T ClangCL", ""]
+        config:
+        - {target: clang-x64,   platform: "-A x64",     toolset: "-T ClangCL"   }
+        - {target: msvc-x64,    platform: "-A x64",     toolset: ""             }
+        - {target: clang-x86,   platform: "-A Win32",   toolset: "-T ClangCL"   }
+        - {target: msvc-x86,    platform: "-A Win32",   toolset: ""             }
 
     steps:
     - uses: actions/checkout@v2
