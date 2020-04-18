@@ -212,7 +212,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install QEMU
       run: |
-        wget http://archive.ubuntu.com/ubuntu/pool/universe/q/qemu/qemu-user-static_4.2-3ubuntu4_amd64.deb
+        wget http://archive.ubuntu.com/ubuntu/pool/universe/q/qemu/qemu-user-static_4.2-3ubuntu5_amd64.deb
         sudo dpkg -i qemu-user-static_4.2-3ubuntu4_amd64.deb
     - name: Install ${{ matrix.config.toolchain }}
       run: |
