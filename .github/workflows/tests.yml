@@ -406,6 +406,8 @@ jobs:
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
+    - name: Test
+      run: ./build/wasm3 ./test/wasi/test.wasm
 
   build-with-logs:
     name: maintenance (debug logs)
@@ -433,6 +435,8 @@ jobs:
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
+    - name: Test
+      run: ./build/wasm3 ./test/wasi/test.wasm
 
   build-preprocessed-ops:
     name: maintenance (preprocess ops)
@@ -454,3 +458,5 @@ jobs:
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
+    - name: Test
+      run: ./build/wasm3 ./test/wasi/test.wasm
