@@ -79,10 +79,10 @@ m3ApiRawFunction(m3_env_##FUNC)                               \
     m3ApiReturn(val);                                         \
 }
 
-d_m3TraceMemory( load_val_i32,  "load i32", int32_t, "%d")
-d_m3TraceMemory(store_val_i32, "store i32", int32_t, "%d")
-d_m3TraceMemory( load_val_i64,  "load i64", int64_t, "%ld")
-d_m3TraceMemory(store_val_i64, "store i64", int64_t, "%ld")
+d_m3TraceMemory( load_val_i32,  "load i32", int32_t, "%" PRIi32)
+d_m3TraceMemory(store_val_i32, "store i32", int32_t, "%" PRIi32)
+d_m3TraceMemory( load_val_i64,  "load i64", int64_t, "%" PRIi64)
+d_m3TraceMemory(store_val_i64, "store i64", int64_t, "%" PRIi64)
 d_m3TraceMemory( load_val_f32,  "load f32", float,   "%f")
 d_m3TraceMemory(store_val_f32, "store f32", float,   "%f")
 d_m3TraceMemory( load_val_f64,  "load f64", double,  "%lf")
@@ -101,10 +101,10 @@ m3ApiRawFunction(m3_env_##FUNC)                               \
 }
 
 
-d_m3TraceLocal(get_i32, "get i32", int32_t, "%d")
-d_m3TraceLocal(set_i32, "set i32", int32_t, "%d")
-d_m3TraceLocal(get_i64, "get i64", int64_t, "%ld")
-d_m3TraceLocal(set_i64, "set i64", int64_t, "%ld")
+d_m3TraceLocal(get_i32, "get i32", int32_t, "%" PRIi32)
+d_m3TraceLocal(set_i32, "set i32", int32_t, "%" PRIi32)
+d_m3TraceLocal(get_i64, "get i64", int64_t, "%" PRIi64)
+d_m3TraceLocal(set_i64, "set i64", int64_t, "%" PRIi64)
 d_m3TraceLocal(get_f32, "get f32", float,   "%f")
 d_m3TraceLocal(set_f32, "set f32", float,   "%f")
 d_m3TraceLocal(get_f64, "get f64", double,  "%lf")
