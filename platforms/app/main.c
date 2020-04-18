@@ -132,7 +132,7 @@ M3Result repl_dump(IM3Runtime runtime)
     uint32_t len;
     uint8_t* mem = m3_GetMemory(runtime, &len, 0);
     if (mem) {
-        FILE* f = fopen ("dump.bin", "wb");
+        FILE* f = fopen ("wasm3_dump.bin", "wb");
         if (!f) {
             return "cannot open file";
         }
@@ -237,6 +237,7 @@ int  main  (int i_argc, const char* i_argv[])
     IM3Environment env = m3_NewEnvironment ();
     IM3Runtime runtime = NULL;
     bool argRepl = false;
+    bool argDumpOnTrap = false;
     const char* argFile = NULL;
     const char* argFunc = "_start";
 
@@ -258,6 +259,8 @@ int  main  (int i_argc, const char* i_argv[])
             return 0;
         } else if (!strcmp("--repl", arg)) {
             argRepl = true;
+        } else if (!strcmp("--dump-on-trap", arg)) {
+            argDumpOnTrap = true;
         } else if (!strcmp("--dir", arg)) {
             const char* argDir;
             ARGV_SET(argDir);
@@ -306,7 +309,12 @@ int  main  (int i_argc, const char* i_argv[])
             if (result == m3Err_trapExit) {
                 return runtime->exit_code;
             }
-            if (result) FATAL("repl_call: %s", result);
+            if (result) {
+                if (argDumpOnTrap) {
+                    repl_dump(runtime);
+                }
+                FATAL("repl_call: %s", result);
+            }
         }
     }
 
