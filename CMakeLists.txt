@@ -30,12 +30,18 @@ if(CLANG_CL)
   set(CMAKE_LINKER       "lld-link")
 endif()
 
-if(EMSCRIPTEN)
+if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(CMAKE_C_COMPILER   "emcc")
   set(CMAKE_CXX_COMPILER "em++")
 
-  set(OUT_FILE           "wasm3.html")
-  set(APP_DIR            "platforms/emscripten")
+  if (EMSCRIPTEN_LIB)
+    set(APP_DIR          "platforms/emscripten_lib")
+    set(OUT_FILE         "wasm3.wasm")
+    set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -s STANDALONE_WASM")
+  else()
+    set(APP_DIR          "platforms/emscripten")
+    set(OUT_FILE         "wasm3.html")
+  endif()
 endif()
 
 # Detect WasiEnv
@@ -77,29 +83,36 @@ add_executable(${OUT_FILE} ${app_srcs})
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1")
 
-if(EMSCRIPTEN)
-  set(CMAKE_C_FLAGS_RELEASE "-O2 -flto -Wfatal-errors")
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 --lto-O3 --closure 1 --strip-all --gc-sections") # --emrun
-  if(WASM_TCO)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Xclang -target-feature -Xclang +tail-call")
+if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s GLOBAL_BASE=1024 -s TOTAL_STACK=2MB -s INITIAL_MEMORY=4MB -s ALLOW_MEMORY_GROWTH")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS='[\"_malloc\",\"_free\"]'")
+
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -Wfatal-errors -s ASSERTIONS=0")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} --strip-all --gc-sections")
+
+  if(WASM_EXT)
+    set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
   endif()
+
 elseif(WASIENV)
 
   if(BUILD_WASI_SUPPORT)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI -Dd_m3HasTracer")
   endif()
 
-  set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
 
   # TODO: LTO breaks wasm imports currently:
   # https://www.mail-archive.com/llvm-bugs@lists.llvm.org/msg36273.html
 
   #-flto -Wl,--lto-O3
   set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
+
 elseif(WIN32)
 
   if(BUILD_WASI_SUPPORT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI -Dd_m3HasTracer")
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
@@ -145,6 +158,7 @@ else()
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
   target_link_libraries(${OUT_FILE} m)
+
 endif()
 
 check_ipo_supported(RESULT result)
