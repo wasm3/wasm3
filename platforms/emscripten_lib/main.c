@@ -43,14 +43,14 @@ void load(IM3Runtime runtime, uint8_t* wasm, size_t fsize) {
 }
 
 EMSCRIPTEN_KEEPALIVE
-uint32_t call(IM3Runtime runtime, const char* name, int argc, const char** argv) {
+uint32_t call(IM3Runtime runtime, int argc, const char* argv[]) {
     M3Result result = m3Err_none;
 
     IM3Function f;
-    result = m3_FindFunction (&f, runtime, name);
+    result = m3_FindFunction (&f, runtime, argv[0]);
     if (result) return -1;
 
-    result = m3_CallWithArgs (f, argc, argv);
+    result = m3_CallWithArgs (f, argc-1, argv+1);
     if (result) return -2;
 
     return *(uint64_t*)(runtime->stack);
