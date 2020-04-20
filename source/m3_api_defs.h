@@ -23,4 +23,20 @@
 #define m3ApiTrap(VALUE)           { return VALUE; }
 #define m3ApiSuccess()             { return m3Err_none; }
 
+# if defined(M3_BIG_ENDIAN)
+#  define m3ApiReadMem16(ptr)        __builtin_bswap16((* (u16 *)(ptr)))
+#  define m3ApiReadMem32(ptr)        __builtin_bswap32((* (u32 *)(ptr)))
+#  define m3ApiReadMem64(ptr)        __builtin_bswap64((* (u64 *)(ptr)))
+#  define m3ApiWriteMem16(ptr, val)  { * (u16 *)(ptr) = __builtin_bswap16((val)); }
+#  define m3ApiWriteMem32(ptr, val)  { * (u32 *)(ptr) = __builtin_bswap32((val)); }
+#  define m3ApiWriteMem64(ptr, val)  { * (u64 *)(ptr) = __builtin_bswap64((val)); }
+# else
+#  define m3ApiReadMem16(ptr)        (* (u16 *)(ptr))
+#  define m3ApiReadMem32(ptr)        (* (u32 *)(ptr))
+#  define m3ApiReadMem64(ptr)        (* (u64 *)(ptr))
+#  define m3ApiWriteMem16(ptr, val)  { * (u16 *)(ptr) = (val); }
+#  define m3ApiWriteMem32(ptr, val)  { * (u32 *)(ptr) = (val); }
+#  define m3ApiWriteMem64(ptr, val)  { * (u64 *)(ptr) = (val); }
+# endif
+
 #endif // m3_api_defs_h

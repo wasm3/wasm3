@@ -526,6 +526,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
     if (!o->page) return result;
 
     bool matchFound = false;
+    bool is64BitType = Is64BitType(i_type);
 
     u32 numUsedConstSlots = o->maxConstSlotIndex - o->firstConstSlotIndex;
     u16 numRequiredSlots = GetTypeNumSlots (i_type);
@@ -540,9 +541,14 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 * constant = (u64 *) & o->constants [slot - o->firstConstSlotIndex];
+                u64 constant;
+                if (is64BitType) {
+                    constant = * (u64 *) & o->constants [slot - o->firstConstSlotIndex];
+                } else {
+                    constant = * (u32 *) & o->constants [slot - o->firstConstSlotIndex];
+                }
 
-                if (* constant == i_word)
+                if (constant == i_word)
                 {
                     matchFound = true;
 _                   (Push (o, i_type, slot));
@@ -559,7 +565,13 @@ _                   (Push (o, i_type, slot));
 
             if (IsSlotAllocated (o, slot))
             {
-                if (o->constants [i] == i_word)
+                u64 constant;
+                if (is64BitType) {
+                    constant = * (u64 *) & o->constants [i];
+                } else {
+                    constant = * (u32 *) & o->constants [i];
+                }
+                if (constant == i_word)
                 {
                     matchFound = true;
 _                   (Push (o, i_type, slot));
@@ -592,12 +604,16 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
         {
             u16 constTableIndex = slot - o->firstConstSlotIndex;
 
-            if (Is64BitType (i_type))
+            if (is64BitType)
             {
-                u64 * constant64 = (u64 *) & o->constants [constTableIndex];
-                * constant64 = i_word;
+                u64 * constant = (u64 *) & o->constants [constTableIndex];
+                * constant = i_word;
             }
-            else o->constants [constTableIndex] = (u32) i_word;
+            else
+            {
+                u32 * constant = (u32 *) & o->constants [constTableIndex];
+                * constant = i_word;
+            }
 
 _           (Push (o, i_type, slot));
 

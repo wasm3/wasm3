@@ -167,8 +167,8 @@ void copy_iov_to_host(void* _mem, struct iovec* host_iov, wasi_iovec_t* wasi_iov
 {
     // Convert wasi memory offsets to host addresses
     for (int i = 0; i < iovs_len; i++) {
-        host_iov[i].iov_base = m3ApiOffsetToPtr(wasi_iov[i].buf);
-        host_iov[i].iov_len  = wasi_iov[i].buf_len;
+        host_iov[i].iov_base = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iov[i].buf));
+        host_iov[i].iov_len  = m3ApiReadMem32(&wasi_iov[i].buf_len);
     }
 }
 
@@ -188,7 +188,7 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
 
     for (u32 i = 0; i < runtime->argc; ++i)
     {
-        argv[i] = m3ApiPtrToOffset (argv_buf);
+        m3ApiWriteMem32(&argv[i], m3ApiPtrToOffset(argv_buf));
 
         size_t len = strlen (runtime->argv [i]);
         memcpy (argv_buf, runtime->argv [i], len);
@@ -207,12 +207,15 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
 
-    *argc = runtime->argc;
-    *argv_buf_size = 0;
+    __wasi_size_t buflen = 0;
     for (u32 i = 0; i < runtime->argc; ++i)
     {
-        * argv_buf_size += strlen (runtime->argv [i]) + 1;
+        buflen += strlen (runtime->argv [i]) + 1;
     }
+
+    m3ApiWriteMem32(argc, runtime->argc);
+    m3ApiWriteMem32(argv_buf_size, buflen);
+
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
@@ -262,8 +265,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_get)
 
     if (runtime == NULL) { m3ApiReturn(__WASI_EINVAL); }
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_EBADF); }
-    * (buf)   = __WASI_PREOPENTYPE_DIR;
-    * (buf+1) = strlen(preopen[fd].path);
+    m3ApiWriteMem32(buf,    __WASI_PREOPENTYPE_DIR);
+    m3ApiWriteMem32(buf+1,  strlen(preopen[fd].path));
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
@@ -300,11 +303,12 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
                           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
                           //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
                           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
-    fdstat->fs_flags = ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
+    m3ApiWriteMem16(&fdstat->fs_flags,
+                       ((fl & O_APPEND)    ? __WASI_FDFLAG_APPEND    : 0) |
                        ((fl & O_DSYNC)     ? __WASI_FDFLAG_DSYNC     : 0) |
                        ((fl & O_NONBLOCK)  ? __WASI_FDFLAG_NONBLOCK  : 0) |
                        //((fl & O_RSYNC)     ? __WASI_FDFLAG_RSYNC     : 0) |
-                       ((fl & O_SYNC)      ? __WASI_FDFLAG_SYNC      : 0);
+                       ((fl & O_SYNC)      ? __WASI_FDFLAG_SYNC      : 0));
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
     m3ApiReturn(__WASI_ESUCCESS);
@@ -341,7 +345,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     ret = lseek(fd, offset, wasi_whence);
 #endif
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
-    *result = ret;
+    m3ApiWriteMem64(result, ret);
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
@@ -370,8 +374,6 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
 #endif
     memcpy (host_path, path, path_len);
     host_path [path_len] = '\0'; // NULL terminator
-
-    //printf ("== path_open: %s\n", host_path);
 
 #if defined(_WIN32)
     // TODO: This all needs a proper implementation
@@ -430,7 +432,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     }
     else
     {
-        * fd = host_fd;
+        m3ApiWriteMem32(fd, host_fd);
         m3ApiReturn(__WASI_ESUCCESS);
     }
 #endif
@@ -452,13 +454,13 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
 
     ssize_t ret = readv(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
-    *nread = ret;
+    m3ApiWriteMem32(nread, ret);
     m3ApiReturn(__WASI_ESUCCESS);
 #else
     ssize_t res = 0;
     for (__wasi_size_t i = 0; i < iovs_len; i++) {
-        void* addr = m3ApiOffsetToPtr(wasi_iovs[i].buf);
-        size_t len = wasi_iovs[i].buf_len;
+        void* addr = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
+        size_t len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
         if (len == 0) continue;
 
         int ret = read (fd, addr, len);
@@ -466,7 +468,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
         res += ret;
         if ((size_t)ret < len) break;
     }
-    *nread = res;
+    m3ApiWriteMem32(nread, res);
     m3ApiReturn(__WASI_ESUCCESS);
 #endif
 }
@@ -487,13 +489,13 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
 
     ssize_t ret = writev(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
-    *nwritten = ret;
+    m3ApiWriteMem32(nwritten, ret);
     m3ApiReturn(__WASI_ESUCCESS);
 #else
     ssize_t res = 0;
     for (__wasi_size_t i = 0; i < iovs_len; i++) {
-        void* addr = m3ApiOffsetToPtr(wasi_iovs[i].buf);
-        size_t len = wasi_iovs[i].buf_len;
+        void* addr = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
+        size_t len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
         if (len == 0) continue;
 
         int ret = write (fd, addr, len);
@@ -501,7 +503,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
         res += ret;
         if ((size_t)ret < len) break;
     }
-    *nwritten = res;
+    m3ApiWriteMem32(nwritten, res);
     m3ApiReturn(__WASI_ESUCCESS);
 #endif
 }
@@ -583,10 +585,11 @@ m3ApiRawFunction(m3_wasi_unstable_clock_res_get)
     if (clk < 0) m3ApiReturn(__WASI_EINVAL);
 
     struct timespec tp;
-    if (clock_getres(clk, &tp) != 0)
-        *resolution = 1000000;
-    else
-        *resolution = convert_timespec(&tp);
+    if (clock_getres(clk, &tp) != 0) {
+        m3ApiWriteMem64(resolution, 1000000);
+    } else {
+        m3ApiWriteMem64(resolution, convert_timespec(&tp));
+    }
 
     m3ApiReturn(__WASI_ESUCCESS);
 }
@@ -608,7 +611,7 @@ m3ApiRawFunction(m3_wasi_unstable_clock_time_get)
         m3ApiReturn(errno_to_wasi(errno));
     }
 
-    *time = convert_timespec(&tp);
+    m3ApiWriteMem64(time, convert_timespec(&tp));
     m3ApiReturn(__WASI_ESUCCESS);
 }
 
