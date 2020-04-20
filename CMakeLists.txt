@@ -154,6 +154,11 @@ else()
   endif()
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0")
 
+  if(NOT BUILD_UVWASI_SUPPORT)
+    # -Werror=shadow fails when building libuv. Enable it only if libuv is not present.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow")
+  endif()
+
   set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
@@ -182,9 +187,6 @@ if(BUILD_UVWASI_SUPPORT)
   endif()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasUVWASI -Dd_m3HasTracer")
   target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
-else()
-  # -Werror=shadow fails when building libuv. Enable it only if libuv is not present.
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow")
 endif()
 
 check_ipo_supported(RESULT result)
