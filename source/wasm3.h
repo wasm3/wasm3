@@ -45,14 +45,6 @@ typedef struct M3ErrorInfo
 M3ErrorInfo;
 
 
-typedef struct M3StackInfo
-{
-    void *          startAddr;
-    int32_t         stackSize;
-}
-M3StackInfo;
-
-
 enum // EWaTypes
 {
     c_m3Type_none   = 0,
@@ -156,16 +148,6 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //  configuration, can be found in m3_config.h, m3_config_platforms.h, m3_core.h)
 //-------------------------------------------------------------------------------------------------------------------------------
 
-
-//-------------------------------------------------------------------------------------------------------------------------------
-//  initialization
-//-------------------------------------------------------------------------------------------------------------------------------
-
-    // not yet implemented
-//  M3StackInfo         m3_GetNativeStackInfo       (int32_t                i_stackSize);
-    // GetNativeStackInfo should be called at the start of main() or, if runtimes are used in a thread,
-    // at the start of the thread start function.
-
 //-------------------------------------------------------------------------------------------------------------------------------
 //  global environment than can host multiple runtimes
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -179,7 +161,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
                                                      uint32_t               i_stackSizeInBytes,
-                                                     M3StackInfo *          i_nativeStackInfo);     // i_nativeStackInfo can be NULL
+                                                     void *                 unused);
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 

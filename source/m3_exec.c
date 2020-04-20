@@ -200,7 +200,7 @@ d_m3OpDef  (Compile)
     if (not result)
     {
         // patch up compiled pc and call rewriten op_Call
-        * ((size_t *) --_pc) = (size_t) (function->compiled);
+        * ((void**) --_pc) = (void*) (function->compiled);
         --_pc;
         result = nextOpDirect ();
     }
@@ -223,8 +223,11 @@ d_m3OpDef  (Entry)
     if ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack)
 #endif
     {
-        function->hits++;                                       m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
+                                                                m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
 
+#if defined(DEBUG)
+        function->hits++;
+#endif
         u8 * stack = (u8 *) ((m3slot_t *) _sp + function->numArgSlots);
 
         memset (stack, 0x0, function->numLocalBytes);

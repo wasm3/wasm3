@@ -276,7 +276,7 @@ void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i
 }
 
 
-IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, M3StackInfo * i_nativeStackInfo)
+IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, void * unused)
 {
     IM3Runtime runtime = NULL;
     m3Alloc (& runtime, M3Runtime, 1);
@@ -413,7 +413,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
                 {
                     * (u32 *) o_expressed = * ((u32 *) stack);
                 }
-                else if (SizeOfType (i_type) == sizeof (u64))
+                else
                 {
                     * (u64 *) o_expressed = * ((u64 *) stack);
                 }
@@ -966,27 +966,6 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
 {
     M3_INIT(i_runtime->error);
     i_runtime->error.message = "";
-}
-
-
-void  GetStackInfo  (M3StackInfo * io_info)
-{
-    io_info->startAddr = (void *) io_info;
-
-    bool stackGrowsDown = false;
-    stackGrowsDown = io_info->startAddr > (void *) & stackGrowsDown;
-
-    if (stackGrowsDown)
-        io_info->stackSize *= -1;
-}
-
-
-M3StackInfo  m3_GetNativeStackInfo  (i32 i_stackSize)
-{
-    M3StackInfo info = { NULL, i_stackSize };
-    GetStackInfo (& info);
-
-    return info;
 }
 
 uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)

@@ -52,7 +52,9 @@ typedef struct M3Function
     u32                     numCodePageRefs;
 #   endif
 
+#   if defined(DEBUG)
     u32                     hits;
+#   endif
 
     u16                     maxStackSlots;
 

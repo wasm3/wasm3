@@ -233,12 +233,10 @@ bool  Is64BitType  (u8 i_m3Type)
 
 u32  SizeOfType  (u8 i_m3Type)
 {
-    u32 size = sizeof (i64);
-
     if (i_m3Type == c_m3Type_i32 or i_m3Type == c_m3Type_f32)
-        size = sizeof (i32);
+        return sizeof (i32);
 
-    return size;
+    return sizeof (i64);
 }
 
 
