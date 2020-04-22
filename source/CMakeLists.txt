@@ -3,6 +3,7 @@ set(srcs
     "m3_api_meta_wasi.c"
     "m3_api_wasi.c"
     "m3_api_tracer.c"
+    "m3_api_uvwasi.c"
     "m3_bind.c"
     "m3_code.c"
     "m3_compile.c"
