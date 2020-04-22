@@ -124,7 +124,7 @@ jobs:
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Install Wasmer
       env:
-        WASMER_RELEASE_TAG: "0.15.0" 
+        WASMER_RELEASE_TAG: "0.16.2"
       run: curl https://get.wasmer.io -sSfL | sh
     - name: Configure
       run: |
