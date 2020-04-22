@@ -1,9 +1,9 @@
-set(srcs
+set(sources
     "m3_api_libc.c"
-    "m3_api_meta_wasi.c"
     "m3_api_wasi.c"
-    "m3_api_tracer.c"
     "m3_api_uvwasi.c"
+    "m3_api_meta_wasi.c"
+    "m3_api_tracer.c"
     "m3_bind.c"
     "m3_code.c"
     "m3_compile.c"
@@ -16,9 +16,11 @@ set(srcs
     "m3_parse.c"
 )
 
-add_library(m3 STATIC ${srcs})
+add_library(m3 STATIC ${sources})
 
 target_include_directories(m3 PUBLIC .)
+
+target_compile_features(m3 PRIVATE c_std_99)
 
 if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
     # add MSVC specific flags here
@@ -45,13 +47,11 @@ else()
     endif()
 endif()
 
-option(BUILD_WASI_SUPPORT "Build with WASI support" OFF)
-
-if (BUILD_WASI_SUPPORT)
-    if (WASIENV)
-        target_compile_definitions(m3 PUBLIC d_m3HasMetaWASI)
-    elseif (EMSCRIPTEN OR EMSCRIPTEN_LIB)
-    else()
-        target_compile_definitions(m3 PUBLIC d_m3HasWASI)
-    endif()
+if(BUILD_WASI MATCHES "simple")
+    target_compile_definitions(m3 PUBLIC d_m3HasWASI)
+elseif(BUILD_WASI MATCHES "metawasi")
+    target_compile_definitions(m3 PUBLIC d_m3HasMetaWASI)
+elseif(BUILD_WASI MATCHES "uvwasi")
+    target_compile_definitions(m3 PUBLIC d_m3HasUVWASI)
+    include_directories("${libuv_SOURCE_DIR}/include")
 endif()

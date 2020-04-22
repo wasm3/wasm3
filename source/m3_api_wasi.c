@@ -664,8 +664,8 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",      
 
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_unstable_fd_fdstat_get)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_flags",  "i(ii)",   &m3_wasi_unstable_fd_fdstat_set_flags)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(iii*)", &m3_wasi_unstable_fd_write)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_read",              "i(iii*)", &m3_wasi_unstable_fd_read)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(i*i*)", &m3_wasi_unstable_fd_write)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_read",              "i(i*i*)", &m3_wasi_unstable_fd_read)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_seek",              "i(iIi*)", &m3_wasi_unstable_fd_seek)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_datasync",          "i(i)",    &m3_wasi_unstable_fd_datasync)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_close",             "i(i)",    &m3_wasi_unstable_fd_close)));
