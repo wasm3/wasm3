@@ -216,7 +216,7 @@ jobs:
     - name: Install QEMU
       env:
         QEMU_SRC: "http://archive.ubuntu.com/ubuntu/pool/universe/q/qemu"
-        QEMU_VER: "qemu-user-static_4\.2-.*_amd64.deb$"
+        QEMU_VER: "qemu-user-static_4\\.2-.*_amd64.deb$"
       run: |
         DEB=`curl -s $QEMU_SRC | grep -o -E 'href="([^"#]+)"' | cut -d'"' -f2 | grep $QEMU_VER`
         wget $QEMU_SRC/$DEB
