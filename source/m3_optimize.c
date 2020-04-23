@@ -10,20 +10,3 @@
 
 
 // not currently used
-bool  PeekNextOpcode  (IM3Compilation o, u8 i_opcode)
-{
-    bool found = false;
-
-    if (o->wasm < o->wasmEnd)
-    {
-        u8 opcode = * o->wasm;
-
-        if (opcode == i_opcode)
-        {
-            found = true;
-            o->wasm++;
-        }
-    }
-
-    return found;
-}
