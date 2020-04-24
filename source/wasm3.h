@@ -215,7 +215,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_Call                     (IM3Function i_function);
     M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
 
-    M3Result            m3_CallProper               (IM3Function i_function, uint32_t i_argc, const uint64_t* i_argv, unsigned *o_valid, uint64_t* o_ret);
+    M3Result            m3_CallProper               (IM3Function i_function, uint32_t i_argc, const uint64_t* i_argv, unsigned *o_hasRet, uint64_t* o_ret);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 

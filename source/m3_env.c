@@ -806,7 +806,7 @@ _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memo
     _catch: return result;
 }
 
-M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_t* i_argv, unsigned *o_valid, uint64_t* o_ret)
+M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_t* i_argv, unsigned *o_hasRet, uint64_t* o_ret)
 {
     M3Result result = m3Err_none;
 
@@ -842,9 +842,9 @@ M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_
         m3StackCheckInit();
 _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
-        *o_valid = 1;
+        *o_hasRet = 1;
         switch (ftype->returnType) {
-        case c_m3Type_none: *o_valid = 0; break;
+        case c_m3Type_none: *o_hasRet = 0; break;
         case c_m3Type_i32: *o_ret = (uint64_t)(stack[0] & 0xffffffff); break;
         case c_m3Type_i64: *o_ret = (uint64_t)stack[0]; break;
         case c_m3Type_f32: *o_ret = (uint64_t)(stack[0] & 0xffffffff); break;
