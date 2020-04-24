@@ -847,7 +847,8 @@ _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memo
         case c_m3Type_none: *o_hasRet = 0; break;
         case c_m3Type_i32: *o_ret = (uint64_t)(stack[0] & 0xffffffff); break;
         case c_m3Type_i64: *o_ret = (uint64_t)stack[0]; break;
-        case c_m3Type_f32: *o_ret = (uint64_t)(stack[0] & 0xffffffff); break;
+        // FIXME: not sure what happens with f32
+        case c_m3Type_f32: *o_ret = (uint64_t)stack[0]; break;
         case c_m3Type_f64: *o_ret = (uint64_t)stack[0]; break;
         default: _throw("unknown return type");
         }
