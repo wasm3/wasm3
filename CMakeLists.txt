@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 
+set(BUILD_PORTABLE "Build without machine specific optimisations" OFF)
+
 set(BUILD_WASI "uvwasi" CACHE STRING "WASI implementation")
 set_property(CACHE BUILD_WASI PROPERTY STRINGS none simple uvwasi metawasi)
 
@@ -154,7 +156,12 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow")
   endif()
 
-  set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
+  set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
+
+  if(NOT BUILD_PORTABLE)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
+  endif()
+
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
