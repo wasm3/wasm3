@@ -826,8 +826,6 @@ M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_
         // args are always 64-bit aligned
         u64 * stack = (u64 *) runtime->stack;
 
-        // The format is currently not user-friendly by default,
-        // as this is used in spec tests
         for (u32 i = 0; i < ftype->numArgs; ++i)
         {
             stack[i] = i_argv[i];
