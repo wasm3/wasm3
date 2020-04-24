@@ -819,13 +819,12 @@ M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_
 
         IM3FuncType ftype = i_function->funcType;
 
-        m3stack_t stack = (m3stack_t)(runtime->stack);
-
-        m3logif (runtime, PrintFuncTypeSignature (ftype));
-
         if (i_argc != ftype->numArgs) {
             _throw("arguments count mismatch");
         }
+
+        // args are always 64-bit aligned
+        u64 * stack = (u64 *) runtime->stack;
 
         // The format is currently not user-friendly by default,
         // as this is used in spec tests
@@ -843,7 +842,7 @@ M3Result  m3_CallProper  (IM3Function i_function, uint32_t i_argc, const uint64_
         }
 
         m3StackCheckInit();
-_       ((M3Result)Call (i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+_       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
         *o_valid = 1;
         switch (ftype->returnType) {
