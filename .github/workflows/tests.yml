@@ -18,7 +18,7 @@ jobs:
         - {target: gcc-debug,   cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug   }
         # TODO: fails on numeric operations
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
- 
+
     steps:
     - uses: actions/checkout@v2
     - name: Install ${{ matrix.config.install }}
@@ -48,12 +48,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Prepare
-      run: apk add build-base cmake python3 --update-cache
+      run: apk add build-base cmake python3 git --update-cache
     - name: Configure
       run: |
         mkdir build
         cd build
-        cmake -DBUILD_WASI=simple ..    # TODO switch to uvwasi
+        cmake ..
     - name: Build
       run: cmake --build build
     - name: Test WebAssembly spec
@@ -275,7 +275,7 @@ jobs:
   build-platformio-arm:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
@@ -306,7 +306,7 @@ jobs:
   build-platformio-riscv:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
@@ -444,7 +444,7 @@ jobs:
     name: maintenance (preprocess ops)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
     - uses: actions/checkout@v2
     - name: Install sponge
