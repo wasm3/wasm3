@@ -159,7 +159,6 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_get)
         m3ApiReturn(ret);
     }
 
-    // TODO(cjihrig): This memory writing logic is wrong.
     m3ApiWriteMem32(buf, prestat.pr_type);
     m3ApiWriteMem32(buf+1, prestat.u.dir.pr_name_len);
     m3ApiReturn(UVWASI_ESUCCESS);
@@ -169,13 +168,20 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
-    m3ApiGetArgMem   (uvwasi_fdstat_t*     , fdstat)
+    m3ApiGetArgMem   (uint8_t *            , fdstat)
 
-    uvwasi_errno_t ret = uvwasi_fd_fdstat_get(&uvwasi, fd, fdstat);
+    uvwasi_fdstat_t stat;
+    uvwasi_errno_t ret = uvwasi_fd_fdstat_get(&uvwasi, fd, &stat);
 
-    //TODO: m3ApiWriteMem
+    if (ret != UVWASI_ESUCCESS) {
+        m3ApiReturn(ret);
+    }
 
-    m3ApiReturn(ret);
+    m3ApiWriteMem16(fdstat, stat.fs_filetype);
+    m3ApiWriteMem16(fdstat+2, stat.fs_flags);
+    m3ApiWriteMem64(fdstat+8, stat.fs_rights_base);
+    m3ApiWriteMem64(fdstat+16, stat.fs_rights_inheriting);
+    m3ApiReturn(UVWASI_ESUCCESS);
 }
 
 m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_set_flags)
