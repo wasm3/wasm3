@@ -1,0 +1,92 @@
+name: publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    name: ${{ matrix.config.target }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {target: wasm3-win-x64,   platform: "-A x64",     toolset: "-T ClangCL"   }
+        - {target: wasm3-win-x86,   platform: "-A Win32",   toolset: "-T ClangCL"   }
+
+    env:
+      LDFLAGS: -s
+      CFLAGS: -DM3_APP_MAX_STACK=1048576 -DUSE_HUMAN_FRIENDLY_ARGS
+    steps:
+    - uses: actions/checkout@v2
+    - name: Configure
+      run: |
+        mkdir build
+        cd build
+        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
+    - name: Build
+      run: |
+        cmake --build build --config Release
+        cp ./build/Release/wasm3.exe ./build/${{ matrix.config.target }}.exe
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./build/*.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-wasi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      LDFLAGS: -s
+      CFLAGS: -DM3_APP_MAX_STACK=1048576 -DUSE_HUMAN_FRIENDLY_ARGS
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Wasienv
+      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+    - name: Configure
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        wasienv install-sdk 8
+        wasienv default-sdk 8
+        mkdir build
+        cd build
+        wasimake cmake -DBUILD_WASI=metawasi ..
+    - name: Build
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        cmake --build build
+        cmake ..
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./build/wasm3.wasi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - uses: seanmiddleditch/gha-setup-ninja@master
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Build
+      run: |
+        cd platforms/android
+        ./gradlew build
+        cp ./app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-test.apk
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./wasm3-android-test.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
