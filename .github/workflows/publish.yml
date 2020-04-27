@@ -1,13 +1,12 @@
 name: publish
 
-#on:
-#  release:
-#    types: [published]
-
 on:
-  create:
+  push:
     tags:
-      - "v*"
+      - 'v*.*.*'
+
+env:
+  draft: true
 
 jobs:
   build-windows:
@@ -39,6 +38,7 @@ jobs:
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
+        draft: ${{ env.draft }}
         files: ./build/*.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,6 +69,7 @@ jobs:
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
+        draft: ${{ env.draft }}
         files: ./build/wasm3.wasi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,6 +92,7 @@ jobs:
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
+        draft: ${{ env.draft }}
         files: ./wasm3-android-test.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
