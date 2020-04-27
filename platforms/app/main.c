@@ -18,6 +18,10 @@
 
 #define FATAL(msg, ...) { printf("Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
+#ifndef M3_APP_MAX_STACK
+#define M3_APP_MAX_STACK (64*1024)
+#endif
+
 M3Result repl_load  (IM3Runtime runtime, const char* fn)
 {
     M3Result result = m3Err_none;
@@ -154,7 +158,7 @@ void repl_free(IM3Runtime* runtime)
 M3Result repl_init(IM3Environment env, IM3Runtime* runtime)
 {
     repl_free(runtime);
-    *runtime = m3_NewRuntime (env, 64*1024, NULL);
+    *runtime = m3_NewRuntime (env, M3_APP_MAX_STACK, NULL);
     if (*runtime == NULL) {
         return "m3_NewRuntime failed";
     }
