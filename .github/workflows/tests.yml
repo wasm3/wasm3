@@ -121,11 +121,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Wasienv
-      run: |
-        pip install git+https://github.com/wasienv/wasienv
-        wasienv install-sdk 10
-        wasienv default-sdk 10
-
+      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Install Wasmer
       env:
         WASMER_RELEASE_TAG: "0.16.2"
