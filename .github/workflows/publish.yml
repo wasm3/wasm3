@@ -1,8 +1,13 @@
 name: publish
 
+#on:
+#  release:
+#    types: [published]
+
 on:
-  release:
-    types: [published]
+  create:
+    tags:
+      - "v*"
 
 jobs:
   build-windows:
