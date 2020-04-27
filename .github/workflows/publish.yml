@@ -3,7 +3,7 @@ name: publish
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 env:
   draft: true
@@ -34,17 +34,18 @@ jobs:
     - name: Build
       run: |
         cmake --build build --config Release
-        cp ./build/Release/wasm3.exe ./build/${{ matrix.config.target }}.exe
+        cp ./build/Release/wasm3.exe ./${{ matrix.config.target }}.exe
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
         draft: ${{ env.draft }}
-        files: ./build/*.exe
+        files: "*.exe"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-wasi:
     runs-on: ubuntu-latest
+    name: wasm3-wasi
     timeout-minutes: 10
 
     env:
@@ -66,17 +67,20 @@ jobs:
       run: |
         source $HOME/.wasienv/wasienv.sh
         cmake --build build
+        cp ./build/wasm3.wasm ./wasm3-wasi.wasm
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
         draft: ${{ env.draft }}
-        files: ./build/wasm3.wasi
+        files: "*.wasm"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-android:
     runs-on: ubuntu-latest
+    name: wasm3-android-tests
     timeout-minutes: 10
+
     steps:
     - uses: actions/checkout@v2
     - uses: seanmiddleditch/gha-setup-ninja@master
@@ -93,6 +97,6 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         draft: ${{ env.draft }}
-        files: ./wasm3-android-test.apk
+        files: "*.apk"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
