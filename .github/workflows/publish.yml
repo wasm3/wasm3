@@ -92,7 +92,9 @@ jobs:
       run: |
         cd platforms/android
         ./gradlew build
-        cp ./app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-test.apk
+    - name: Copy
+      run: |
+        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-test.apk
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
