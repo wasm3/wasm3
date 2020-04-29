@@ -48,7 +48,7 @@
 #   define M3_ARCH "x86_64"
 
 #  elif defined(__i386__)
-#   define M3_ARCH "x86"
+#   define M3_ARCH "i386"
 
 #  elif defined(__aarch64__)
 #   define M3_ARCH "arm64-v8a"
@@ -158,9 +158,9 @@
 
 # if defined(M3_COMPILER_MSVC)
 #  if defined(_M_X64)
-#   define M3_ARCH "x64"
+#   define M3_ARCH "x86_64"
 #  elif defined(_M_IX86)
-#   define M3_ARCH "x86"
+#   define M3_ARCH "i386"
 #  elif defined(_M_ARM64)
 #   define M3_ARCH "arm64"
 #  elif defined(_M_ARM)

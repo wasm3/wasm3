@@ -304,7 +304,7 @@ blacklist = Blacklist([
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
-if wasm3_ver in Blacklist(["* on x86\n* MSVC *", "* on x86\n* Clang * for Windows"]):
+if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"]):
     warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True)
     # See: https://docs.microsoft.com/en-us/cpp/c-runtime-library/floating-point-support
     blacklist.add([
