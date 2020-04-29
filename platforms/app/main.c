@@ -18,10 +18,6 @@
 
 #define FATAL(msg, ...) { printf("Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
-#ifndef M3_APP_MAX_STACK
-#define M3_APP_MAX_STACK (64*1024)
-#endif
-
 M3Result repl_load  (IM3Runtime runtime, const char* fn)
 {
     M3Result result = m3Err_none;
@@ -155,10 +151,10 @@ void repl_free(IM3Runtime* runtime)
     }
 }
 
-M3Result repl_init(IM3Environment env, IM3Runtime* runtime)
+M3Result repl_init(IM3Environment env, IM3Runtime* runtime, unsigned stack)
 {
     repl_free(runtime);
-    *runtime = m3_NewRuntime (env, M3_APP_MAX_STACK, NULL);
+    *runtime = m3_NewRuntime (env, stack, NULL);
     if (*runtime == NULL) {
         return "m3_NewRuntime failed";
     }
@@ -221,14 +217,24 @@ int split_argv(char *str, char** argv)
 }
 
 void print_version() {
-    puts("Wasm3 v" M3_VERSION " (" __DATE__ " " __TIME__ ", " M3_COMPILER_VER ", " M3_ARCH ")");
+    const char* wasm3_env = getenv("WASM3");
+    const char* wasm3_arch = getenv("WASM3_ARCH");
+
+    printf("Wasm3 v" M3_VERSION "%s on %s\n",
+            (wasm3_arch || wasm3_env) ? " self-hosting" : "",
+            wasm3_arch ? wasm3_arch : M3_ARCH);
+
+    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "\n");
 }
 
 void print_usage() {
     puts("Usage:");
-    puts("  wasm3 <file> [args...]");
-    puts("  wasm3 --func <function> <file> [args...]");
+    puts("  wasm3 [options] <file> [args...]");
     puts("  wasm3 --repl [file]");
+    puts("Options:");
+    puts("  --func <function>     function to run       default: _start)");
+    puts("  --stack-size <size>   stack size in bytes   default: 64KB)");
+    puts("  --dump-on-trap        dump wasm memory");
 }
 
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
@@ -244,6 +250,7 @@ int  main  (int i_argc, const char* i_argv[])
     bool argDumpOnTrap = false;
     const char* argFile = NULL;
     const char* argFunc = "_start";
+    unsigned argStackSize = 64*1024;
 
 //    m3_PrintM3Info ();
 
@@ -265,6 +272,10 @@ int  main  (int i_argc, const char* i_argv[])
             argRepl = true;
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
+        } else if (!strcmp("--stack-size", arg)) {
+            const char* tmp;
+            ARGV_SET(tmp);
+            argStackSize = atol(tmp);
         } else if (!strcmp("--dir", arg)) {
             const char* argDir;
             ARGV_SET(argDir);
@@ -283,7 +294,7 @@ int  main  (int i_argc, const char* i_argv[])
 
     ARGV_SET(argFile);
 
-    result = repl_init(env, &runtime);
+    result = repl_init(env, &runtime, argStackSize);
     if (result) FATAL("repl_init: %s", result);
 
     if (argFile) {
@@ -337,7 +348,7 @@ int  main  (int i_argc, const char* i_argv[])
         }
         result = m3Err_none;
         if (!strcmp(":init", argv[0])) {
-            result = repl_init(env, &runtime);
+            result = repl_init(env, &runtime, argStackSize);
         } else if (!strcmp(":version", argv[0])) {
             print_version();
         } else if (!strcmp(":exit", argv[0])) {
