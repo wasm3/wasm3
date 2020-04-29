@@ -148,7 +148,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        export CFLAGS="-DM3_APP_MAX_STACK=2097152 -Dd_m3LogOutput=0"
+        export CFLAGS="-Dd_m3LogOutput=0"
         cmake ..
     - name: Build (native)
       run: |
@@ -157,11 +157,11 @@ jobs:
       run: |
         cd test
         cp ../build-wasi/wasm3.wasm ./
-        python3 run-spec-test.py --exec "../build/wasm3 ../build-wasi/wasm3.wasm --repl"
+        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm --repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "../build/wasm3 ../build-wasi/wasm3.wasm"
+        python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm"
 
   build-ios:
     runs-on: macos-latest

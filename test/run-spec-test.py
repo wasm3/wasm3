@@ -304,7 +304,7 @@ blacklist = Blacklist([
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
-if wasm3_ver in Blacklist(["* MSVC *, x86\n", "* Clang * for Windows, x86\n"]):
+if wasm3_ver in Blacklist(["* on x86\n* MSVC *", "* on x86\n* Clang * for Windows"]):
     warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True)
     # See: https://docs.microsoft.com/en-us/cpp/c-runtime-library/floating-point-support
     blacklist.add([
@@ -312,13 +312,13 @@ if wasm3_ver in Blacklist(["* MSVC *, x86\n", "* Clang * for Windows, x86\n"]):
       "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
       "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
     ])
-elif wasm3_ver in Blacklist(["* GCC *, mips*"]):
+elif wasm3_ver in Blacklist(["* on mips* GCC *"]):
     warning("MIPS has NaN representation issues, skipping some tests", True)
     blacklist.add([
       "float_exprs.wast:* *_nan_bitpattern(*",
       "float_exprs.wast:* *no_fold_*",
     ])
-elif wasm3_ver in Blacklist(["* GCC *, sparc*"]):
+elif wasm3_ver in Blacklist(["* on sparc* GCC *"]):
     warning("SPARC has NaN representation issues, skipping some tests", True)
     blacklist.add([
       "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
