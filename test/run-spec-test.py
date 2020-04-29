@@ -69,10 +69,10 @@ if args.line:
 log = open("spec-test.log","w+")
 log.write("======================\n")
 
-def warning(msg):
+def warning(msg, force=False):
     log.write("Warning: " + msg + "\n")
     log.flush()
-    if args.verbose:
+    if args.verbose or force:
         print(f"{ansi.WARNING}Warning:{ansi.ENDC} {msg}")
 
 def fatal(msg):
@@ -304,8 +304,8 @@ blacklist = Blacklist([
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
-if wasm3_ver in Blacklist(["* MSVC *, x86)", "* Clang * for Windows, x86)"]):
-    warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests")
+if wasm3_ver in Blacklist(["* MSVC *, x86\n", "* Clang * for Windows, x86\n"]):
+    warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True)
     # See: https://docs.microsoft.com/en-us/cpp/c-runtime-library/floating-point-support
     blacklist.add([
       "conversions.wast:* f32.convert_i64_u(9007199791611905)",
@@ -313,13 +313,13 @@ if wasm3_ver in Blacklist(["* MSVC *, x86)", "* Clang * for Windows, x86)"]):
       "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
     ])
 elif wasm3_ver in Blacklist(["* GCC *, mips*"]):
-    warning("MIPS has NaN representation issues, skipping some tests")
+    warning("MIPS has NaN representation issues, skipping some tests", True)
     blacklist.add([
       "float_exprs.wast:* *_nan_bitpattern(*",
       "float_exprs.wast:* *no_fold_*",
     ])
 elif wasm3_ver in Blacklist(["* GCC *, sparc*"]):
-    warning("SPARC has NaN representation issues, skipping some tests")
+    warning("SPARC has NaN representation issues, skipping some tests", True)
     blacklist.add([
       "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
     ])
@@ -546,7 +546,7 @@ for fn in jsonFiles:
             warning(f"Skipped {test.source} ('{test.type}' not implemented)")
 
 if (stats.failed + stats.success) != stats.total_run:
-    warning("Statistics summary invalid")
+    warning("Statistics summary invalid", True)
 
 pprint(stats)
 
