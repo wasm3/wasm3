@@ -288,11 +288,11 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (__wasi_size_t *      , nread)
 
-    // TODO: check iovs_len
-
 #if defined(M3_COMPILER_MSVC)
+    if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[32];
 #else
+    if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[iovs_len];
 #endif
     size_t num_read;
@@ -316,11 +316,11 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (__wasi_size_t *      , nwritten)
 
-    // TODO: check iovs_len
-
 #if defined(M3_COMPILER_MSVC)
+    if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[32];
 #else
+    if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[iovs_len];
 #endif
     size_t num_written;
@@ -450,7 +450,7 @@ M3Result  m3_LinkWASI  (IM3Module module)
 {
     M3Result result = m3Err_none;
 
-    #define ENV_COUNT       8
+    #define ENV_COUNT       9
 
     char* env[ENV_COUNT];
     env[0] = "TERM=xterm-256color";
@@ -460,7 +460,8 @@ M3Result  m3_LinkWASI  (IM3Module module)
     env[4] = "HOME=/";
     env[5] = "PATH=/";
     env[6] = "WASM3=1";
-    env[7] = NULL;
+    env[7] = "WASM3_ARCH=" M3_ARCH;
+    env[8] = NULL;
 
     #define PREOPENS_COUNT  2
 

@@ -217,8 +217,9 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 numSlots = GetTypeNumSlots (i_type);
     u16 searchOffset = numSlots - 1;
 
-    if (d_m3Use32BitSlots)
+    if (d_m3Use32BitSlots) {
         AlignSlotIndexToType (& i_startSlot, i_type);
+    }
 
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;

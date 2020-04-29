@@ -10,20 +10,6 @@
 #include "m3_compile.h"
 
 
-static inline
-IM3Memory GetMemoryInfo (M3MemoryHeader * header)
-{
-    IM3Memory memory = & header->runtime->memory;
-
-    return memory;
-}
-
-static inline
-IM3Runtime GetRuntime (M3MemoryHeader * header)
-{
-    return header->runtime;
-}
-
 void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 {
     i_function->module->runtime->runtimeError = (M3Result)i_result;
@@ -32,7 +18,7 @@ void  ReportError2  (IM3Function i_function, m3ret_t i_result)
 d_m3OpDef  (GetGlobal_s32)
 {
     u32 * global = immediate (u32 *);
-    slot (u32) = * global;                  //  printf ("get global: %p %" PRIi64 "\n", global, *global);
+    slot (u32) = * global;                        //  printf ("get global: %p %" PRIi64 "\n", global, *global);
 
     nextOp ();
 }
@@ -69,7 +55,7 @@ d_m3OpDef  (Call)
 {
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
-    IM3Memory memory            = GetMemoryInfo (_mem);
+    IM3Memory memory            = m3MemInfo (_mem);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -90,7 +76,7 @@ d_m3OpDef  (CallIndirect)
     IM3Module module            = immediate (IM3Module);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
-    IM3Memory memory            = GetMemoryInfo (_mem);
+    IM3Memory memory            = m3MemInfo (_mem);
 
     m3stack_t sp = _sp + stackOffset;
 
@@ -131,9 +117,8 @@ d_m3OpDef  (CallIndirect)
 d_m3OpDef  (CallRawFunction)
 {
     M3RawCall call = (M3RawCall) (* _pc++);
-    IM3Runtime runtime = GetRuntime (_mem);
 
-    m3ret_t possible_trap = call (runtime, (u64 *) _sp, m3MemData(_mem));
+    m3ret_t possible_trap = call (m3MemRuntime(_mem), (u64 *) _sp, m3MemData(_mem));
     return possible_trap;
 }
 
@@ -141,16 +126,15 @@ d_m3OpDef  (CallRawFunctionEx)
 {
     M3RawCallEx call = (M3RawCallEx) (* _pc++);
     void * cookie = immediate (void *);
-    IM3Runtime runtime = GetRuntime (_mem);
 
-    m3ret_t possible_trap = call (runtime, (u64 *)_sp, m3MemData(_mem), cookie);
+    m3ret_t possible_trap = call (m3MemRuntime(_mem), (u64 *)_sp, m3MemData(_mem), cookie);
     return possible_trap;
 }
 
 
 d_m3OpDef  (MemCurrent)
 {
-    IM3Memory memory            = GetMemoryInfo (_mem);
+    IM3Memory memory            = m3MemInfo (_mem);
 
     _r0 = memory->numPages;
 
@@ -160,7 +144,7 @@ d_m3OpDef  (MemCurrent)
 
 d_m3OpDef  (MemGrow)
 {
-    IM3Runtime runtime          = GetRuntime (_mem);
+    IM3Runtime runtime          = m3MemRuntime(_mem);
     IM3Memory memory            = & runtime->memory;
 
     u32 numPagesToGrow = (u32) _r0;
@@ -268,7 +252,7 @@ d_m3OpDef  (Loop)
 
     m3ret_t r;
 
-    IM3Memory memory = GetMemoryInfo (_mem);
+    IM3Memory memory = m3MemInfo (_mem);
 
     do
     {

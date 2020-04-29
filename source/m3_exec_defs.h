@@ -18,7 +18,9 @@ d_m3BeginExternC
 #   define d_m3OpDefaultArgs        0, 0.
 #   define d_m3ClearRegisters       _r0 = 0; _fp0 = 0.;
 
-#   define m3MemData(mem)           (u8*)((M3MemoryHeader*)(mem)+1)
+#   define m3MemData(mem)           (u8*)(((M3MemoryHeader*)(mem))+1)
+#   define m3MemRuntime(mem)        (((M3MemoryHeader*)(mem))->runtime)
+#   define m3MemInfo(mem)           (&(((M3MemoryHeader*)(mem))->runtime->memory))
 
 typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 

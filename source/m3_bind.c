@@ -91,13 +91,10 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
         {
             _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
 
-            if (type != c_m3Type_runtime)
-            {
-                if (type == c_m3Type_ptr)
-                    type = c_m3Type_i32;
+            if (type == c_m3Type_ptr)
+                type = c_m3Type_i32;
 
-                funcType->argTypes [funcType->numArgs++] = type;
-            }
+            funcType->argTypes [funcType->numArgs++] = type;
         }
     }
 
