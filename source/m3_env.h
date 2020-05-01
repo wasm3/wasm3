@@ -132,8 +132,7 @@ typedef struct M3Global
 
     union
     {
-        i32 i32Value;
-        i64 i64Value;
+        i64 intValue;
 #if d_m3HasFloat
         f64 f64Value;
         f32 f32Value;
