@@ -435,18 +435,18 @@ jobs:
       run: |
         mkdir build
         cd build
-        g++ -xc++ -Dd_m3HasWASI -Dd_m3LogsDefined \
-            -Dd_m3EnableOpTracing \
-            -Dd_m3LogParse=1 \
-            -Dd_m3LogModule=1 \
-            -Dd_m3LogCompile=1 \
-            -Dd_m3LogWasmStack=1 \
-            -Dd_m3LogEmit=1 \
-            -Dd_m3LogCodePages=1 \
-            -Dd_m3LogExec=1 \
-            -Dd_m3LogRuntime=1 \
-            -Dd_m3LogStackTrace=1 \
-            -Dd_m3LogNativeStack=1 \
+        g++ -xc++ -Dd_m3HasWASI -DDEBUG \
+            -Dd_m3EnableOpTracing=1     \
+            -Dd_m3LogParse=1            \
+            -Dd_m3LogModule=1           \
+            -Dd_m3LogCompile=1          \
+            -Dd_m3LogWasmStack=1        \
+            -Dd_m3LogEmit=1             \
+            -Dd_m3LogCodePages=1        \
+            -Dd_m3LogExec=1             \
+            -Dd_m3LogRuntime=1          \
+            -Dd_m3LogStackTrace=1       \
+            -Dd_m3LogNativeStack=1      \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3

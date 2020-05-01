@@ -132,9 +132,12 @@ typedef struct M3Global
 
     union
     {
-        i64 intValue;
+        i32 i32Value;
+        i64 i64Value;
+#if d_m3HasFloat
         f64 f64Value;
         f32 f32Value;
+#endif
     };
 
     bytes_t                 initExpr;       // wasm code

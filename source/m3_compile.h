@@ -152,8 +152,15 @@ const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
     #define M3OP(...)       { __VA_ARGS__ }
     #define M3OP_RESERVED   { "reserved" }
 #else
+    // Strip-off name
     #define M3OP(name, ...) { __VA_ARGS__ }
     #define M3OP_RESERVED   { 0 }
+#endif
+
+#if d_m3HasFloat
+    #define M3OP_F          M3OP
+#else
+    #define M3OP_F(...)     { 0 }
 #endif
 
 //-----------------------------------------------------------------------------------------------------------------------------------

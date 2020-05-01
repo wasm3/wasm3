@@ -201,7 +201,7 @@ d_m3OpDef  (Entry)
 
     IM3Function function = immediate (IM3Function);
 
-#if defined (d_m3SkipStackCheck)
+#if d_m3SkipStackCheck
     if (true)
 #else
     if ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack)
@@ -339,9 +339,10 @@ d_m3OpDef (PreserveSetSlot_##TYPE)      \
 
 d_m3SetRegisterSetSlot (i32, _r0)
 d_m3SetRegisterSetSlot (i64, _r0)
+#if d_m3HasFloat
 d_m3SetRegisterSetSlot (f32, _fp0)
 d_m3SetRegisterSetSlot (f64, _fp0)
-
+#endif
 
 d_m3OpDef (CopySlot_32)
 {

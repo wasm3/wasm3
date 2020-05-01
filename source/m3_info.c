@@ -93,10 +93,12 @@ size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
         len = snprintf (o_string, i_n, "%" PRIi32, * (i32 *) i_sp);
     else if (i_type == c_m3Type_i64)
         len = snprintf (o_string, i_n, "%" PRIi64, * (i64 *) i_sp);
+#if d_m3HasFloat
     else if (i_type == c_m3Type_f32)
         len = snprintf (o_string, i_n, "%f",  * (f32 *) i_sp);
     else if (i_type == c_m3Type_f64)
         len = snprintf (o_string, i_n, "%lf", * (f64 *) i_sp);
+#endif
 
     len = M3_MAX (0, len);
 

@@ -21,11 +21,16 @@
 # endif
 
 # ifndef d_m3MaxFunctionStackHeight
-#   define d_m3MaxFunctionStackHeight           2000
+#   define d_m3MaxFunctionStackHeight           2000    // TODO: comment on upper limit
 # endif
 
-#define d_m3MaxFunctionSlots                    4000                // twice d_m3MaxFunctionStackHeight
-#define d_m3MaxConstantTableSize                120
+# ifndef d_m3MaxFunctionSlots
+#   define d_m3MaxFunctionSlots                 4000    // twice d_m3MaxFunctionStackHeight
+# endif
+
+# ifndef d_m3MaxConstantTableSize
+#   define d_m3MaxConstantTableSize             120
+# endif
 
 # ifndef d_m3LogOutput
 #   define d_m3LogOutput                        1
@@ -52,31 +57,73 @@
 #   define d_m3ProfilerSlotMask                 0xFFFF
 # endif
 
+
+// profiling and tracing ------------------------------------------------------
+
+# ifndef d_m3EnableOpProfiling
+#   define d_m3EnableOpProfiling                0       // opcode usage counters
+# endif
+
+# ifndef d_m3EnableOpTracing
+#   define d_m3EnableOpTracing                  0       // only works with DEBUG
+# endif
+
+
 // logging --------------------------------------------------------------------
-//   d_m3LogsDefined allows setting logging options through the compiler flags,
-//   i.e. -DDEBUG -Dd_m3LogsDefined -Dd_m3EnableOpTracing=1
 
-#ifndef d_m3LogsDefined
+# ifndef d_m3LogParse
+#   define d_m3LogParse                         0       // .wasm binary decoding info
+# endif
 
-# define d_m3EnableOpProfiling      0   // profiling or tracing can be used
-# define d_m3EnableOpTracing        0   // only works with DEBUG
+# ifndef d_m3LogModule
+#   define d_m3LogModule                        0       // wasm module info
+# endif
 
-# define d_m3LogParse               0   // .wasm binary decoding info
-# define d_m3LogModule              0   // wasm module info
-# define d_m3LogCompile             0   // wasm -> metacode generation phase
-# define d_m3LogWasmStack           0   // dump the wasm stack when pushed or popped
-# define d_m3LogEmit                0   // metacode generation info
-# define d_m3LogCodePages           0   // dump metacode pages when released
-# define d_m3LogExec                0   // low-level interpreter specific logs
-# define d_m3LogRuntime             0   // higher-level runtime information
-# define d_m3LogStackTrace          0   // dump the call stack when traps occur
-# define d_m3LogNativeStack         0   // track the memory usage of the C-stack
+# ifndef d_m3LogCompile
+#   define d_m3LogCompile                       0       // wasm -> metacode generation phase
+# endif
 
-#endif
+# ifndef d_m3LogWasmStack
+#   define d_m3LogWasmStack                     0       // dump the wasm stack when pushed or popped
+# endif
+
+# ifndef d_m3LogEmit
+#   define d_m3LogEmit                          0       // metacode generation info
+# endif
+
+# ifndef d_m3LogCodePages
+#   define d_m3LogCodePages                     0       // dump metacode pages when released
+# endif
+
+# ifndef d_m3LogExec
+#   define d_m3LogExec                          0       // low-level interpreter specific logs
+# endif
+
+# ifndef d_m3LogRuntime
+#   define d_m3LogRuntime                       0       // higher-level runtime information
+# endif
+
+# ifndef d_m3LogStackTrace
+#   define d_m3LogStackTrace                    0       // dump the call stack when traps occur
+# endif
+
+# ifndef d_m3LogNativeStack
+#   define d_m3LogNativeStack                   0       // track the memory usage of the C-stack
+# endif
+
 
 // other ----------------------------------------------------------------------
 
-//#define d_m3SkipStackCheck
-//#define d_m3SkipMemoryBoundsCheck
+# ifndef d_m3HasFloat
+#   define d_m3HasFloat                         1       // implement floating point ops
+# endif
+
+# ifndef d_m3SkipStackCheck
+#   define d_m3SkipStackCheck                   0       // skip stack overrun checks
+# endif
+
+# ifndef d_m3SkipMemoryBoundsCheck
+#   define d_m3SkipMemoryBoundsCheck            0       // skip memory bounds checks
+# endif
 
 #endif // m3_config_h

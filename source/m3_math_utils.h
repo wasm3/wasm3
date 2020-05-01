@@ -232,6 +232,8 @@ u64 rotr64(u64 n, unsigned c) {
 /*
  * Min, Max
  */
+
+#if d_m3HasFloat
 static inline
 f32 min_f32(f32 a, f32 b) {
     if (UNLIKELY(isnan(a) or isnan(b))) return NAN;
@@ -259,5 +261,6 @@ f64 max_f64(f64 a, f64 b) {
     if (UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
     return a > b ? a : b;
 }
+#endif
 
 #endif // m3_math_utils_h

@@ -28,8 +28,11 @@
 d_m3BeginExternC
 
 #if !defined(d_m3ShortTypesDefined)
+#if d_m3HasFloat
 typedef double          f64;
 typedef float           f32;
+#endif
+
 typedef uint64_t        u64;
 typedef int64_t         i64;
 typedef uint32_t        u32;
@@ -226,8 +229,10 @@ u32         SizeOfType              (u8 i_m3Type);
 
 M3Result    Read_u64                (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_u32                (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+#if d_m3HasFloat
 M3Result    Read_f64                (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_f32                (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+#endif
 M3Result    Read_u8                 (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 
 M3Result    ReadLebUnsigned         (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
