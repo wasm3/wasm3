@@ -70,8 +70,6 @@ typedef struct M3Function
 }
 M3Function;
 
-typedef M3Function *        IM3Function;
-
 void        Function_Release            (IM3Function i_function);
 void        Function_FreeCompiledCode   (IM3Function i_function);
 
@@ -191,9 +189,6 @@ typedef struct M3Module
 }
 M3Module;
 
-typedef M3Module *          IM3Module;
-
-
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
 
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
@@ -219,8 +214,6 @@ void                        Environment_Release         (IM3Environment i_enviro
 
 // takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
 void                        Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
-
-typedef M3Environment *     IM3Environment;
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
@@ -259,9 +252,6 @@ typedef struct M3Runtime
     i32                     exit_code;
 }
 M3Runtime;
-
-typedef M3Runtime *         IM3Runtime;
-
 
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void                        Runtime_Release             (IM3Runtime io_runtime);

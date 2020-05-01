@@ -10,7 +10,6 @@
 
 #include "m3_core.h"
 
-#include <math.h>
 #include <limits.h>
 
 #if defined(M3_COMPILER_MSVC)
@@ -234,6 +233,9 @@ u64 rotr64(u64 n, unsigned c) {
  */
 
 #if d_m3HasFloat
+
+#include <math.h>
+
 static inline
 f32 min_f32(f32 a, f32 b) {
     if (UNLIKELY(isnan(a) or isnan(b))) return NAN;

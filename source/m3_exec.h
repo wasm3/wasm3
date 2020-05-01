@@ -26,7 +26,6 @@
 #include "m3_exec_defs.h"
 #include "m3_math_utils.h"
 
-#include <math.h>
 #include <limits.h>
 
 d_m3BeginExternC

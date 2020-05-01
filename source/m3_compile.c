@@ -25,16 +25,22 @@
 #define any     (u8)-1
 
 #if d_m3HasFloat
-static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32, op_PreserveSetSlot_i64, op_PreserveSetSlot_f32, op_PreserveSetSlot_f64 };
-static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i64, op_SetSlot_f32, op_SetSlot_f64 };
-static const IM3Operation c_setGlobalOps [] = { NULL, op_SetGlobal_i32, op_SetGlobal_i64, op_SetGlobal_f32, op_SetGlobal_f64 };
-static const IM3Operation c_setRegisterOps [] = { NULL, op_SetRegister_i32, op_SetRegister_i64, op_SetRegister_f32, op_SetRegister_f64 };
+#define FPOP(x) x
 #else
-static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32, op_PreserveSetSlot_i64, NULL, NULL };
-static const IM3Operation c_setSetOps [] = { NULL, op_SetSlot_i32, op_SetSlot_i64, NULL, NULL };
-static const IM3Operation c_setGlobalOps [] = { NULL, op_SetGlobal_i32, op_SetGlobal_i64, NULL, NULL };
-static const IM3Operation c_setRegisterOps [] = { NULL, op_SetRegister_i32, op_SetRegister_i64, NULL, NULL };
+#define FPOP(x) NULL
 #endif
+
+static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32,       op_PreserveSetSlot_i64,
+                                                    FPOP(op_PreserveSetSlot_f32), FPOP(op_PreserveSetSlot_f64) };
+static const IM3Operation c_setSetOps [] =       { NULL, op_SetSlot_i32,               op_SetSlot_i64,
+                                                    FPOP(op_SetSlot_f32),         FPOP(op_SetSlot_f64) };
+static const IM3Operation c_setGlobalOps [] =    { NULL, op_SetGlobal_i32,             op_SetGlobal_i64,
+                                                    FPOP(op_SetGlobal_f32),       FPOP(op_SetGlobal_f64) };
+static const IM3Operation c_setRegisterOps [] =  { NULL, op_SetRegister_i32,           op_SetRegister_i64,
+                                                    FPOP(op_SetRegister_f32),     FPOP(op_SetRegister_f64) };
+
+static const IM3Operation c_ifOps [2] [2] =             { { op_i32_BranchIf_ss, op_i32_BranchIf_rs },
+                                                          { op_i64_BranchIf_ss, op_i64_BranchIf_rs } };
 
 static const IM3Operation c_intSelectOps [2] [4] =      { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
                                                           { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
@@ -1219,9 +1225,7 @@ _               (MoveStackTopToRegister (o));
                 {
                     valueSlot = GetStackTopSlotIndex (o);
 
-                    const IM3Operation ifOps [2][2] = { { op_i32_BranchIf_ss, op_i32_BranchIf_rs }, { op_i64_BranchIf_ss, op_i64_BranchIf_rs } };
-
-                    op = ifOps [valueType - c_m3Type_i32] [conditionInRegister];
+                    op = c_ifOps [valueType - c_m3Type_i32] [conditionInRegister];
                 }
             }
         }
