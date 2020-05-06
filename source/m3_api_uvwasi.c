@@ -15,7 +15,9 @@
 
 #if defined(d_m3HasUVWASI)
 
+#ifndef __EMSCRIPTEN__
 typedef uint32_t __wasi_size_t;
+#endif
 
 #include <stdio.h>
 #include <string.h>
