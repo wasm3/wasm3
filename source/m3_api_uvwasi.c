@@ -15,8 +15,6 @@
 
 #if defined(d_m3HasUVWASI)
 
-typedef uint32_t __wasi_size_t;
-
 #include <stdio.h>
 #include <string.h>
 
@@ -33,8 +31,8 @@ uvwasi_t uvwasi;
 
 typedef struct wasi_iovec_t
 {
-    __wasi_size_t buf;
-    __wasi_size_t buf_len;
+    uvwasi_size_t buf;
+    uvwasi_size_t buf_len;
 } wasi_iovec_t;
 
 /*
@@ -65,12 +63,12 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
 m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (__wasi_size_t *      , argc)
-    m3ApiGetArgMem   (__wasi_size_t *      , argv_buf_size)
+    m3ApiGetArgMem   (uvwasi_size_t *      , argc)
+    m3ApiGetArgMem   (uvwasi_size_t *      , argv_buf_size)
 
     if (runtime == NULL) { m3ApiReturn(UVWASI_EINVAL); }
 
-    __wasi_size_t buflen = 0;
+    uvwasi_size_t buflen = 0;
     for (u32 i = 0; i < runtime->argc; ++i)
     {
         buflen += strlen (runtime->argv[i]) + 1;
@@ -118,11 +116,11 @@ m3ApiRawFunction(m3_wasi_unstable_environ_get)
 m3ApiRawFunction(m3_wasi_unstable_environ_sizes_get)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArgMem   (__wasi_size_t *      , env_count)
-    m3ApiGetArgMem   (__wasi_size_t *      , env_buf_size)
+    m3ApiGetArgMem   (uvwasi_size_t *      , env_count)
+    m3ApiGetArgMem   (uvwasi_size_t *      , env_buf_size)
 
-    size_t count;
-    size_t buf_size;
+    uvwasi_size_t count;
+    uvwasi_size_t buf_size;
 
     uvwasi_errno_t ret = uvwasi_environ_sizes_get(&uvwasi, &count, &buf_size);
 
@@ -137,7 +135,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_dir_name)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (char *               , path)
-    m3ApiGetArg      (__wasi_size_t        , path_len)
+    m3ApiGetArg      (uvwasi_size_t        , path_len)
 
     uvwasi_errno_t ret = uvwasi_fd_prestat_dir_name(&uvwasi, fd, path, path_len);
 
@@ -241,7 +239,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     m3ApiGetArg      (uvwasi_fd_t          , dirfd)
     m3ApiGetArg      (uvwasi_lookupflags_t , dirflags)
     m3ApiGetArgMem   (const char *         , path)
-    m3ApiGetArg      (__wasi_size_t        , path_len)
+    m3ApiGetArg      (uvwasi_size_t        , path_len)
     m3ApiGetArg      (uvwasi_oflags_t      , oflags)
     m3ApiGetArg      (uvwasi_rights_t      , fs_rights_base)
     m3ApiGetArg      (uvwasi_rights_t      , fs_rights_inheriting)
@@ -285,8 +283,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (wasi_iovec_t *       , wasi_iovs)
-    m3ApiGetArg      (__wasi_size_t        , iovs_len)
-    m3ApiGetArgMem   (__wasi_size_t *      , nread)
+    m3ApiGetArg      (uvwasi_size_t        , iovs_len)
+    m3ApiGetArgMem   (uvwasi_size_t *      , nread)
 
 #if defined(M3_COMPILER_MSVC)
     if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
@@ -295,15 +293,15 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[iovs_len];
 #endif
-    size_t num_read;
+    uvwasi_size_t num_read;
     uvwasi_errno_t ret;
 
-    for (__wasi_size_t i = 0; i < iovs_len; ++i) {
+    for (uvwasi_size_t i = 0; i < iovs_len; ++i) {
         iovs[i].buf = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
         iovs[i].buf_len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
     }
 
-    ret = uvwasi_fd_read(&uvwasi, fd, iovs, iovs_len, &num_read);
+    ret = uvwasi_fd_read(&uvwasi, fd, (const uvwasi_iovec_t *) iovs, iovs_len, &num_read);
     m3ApiWriteMem32(nread, num_read);
     m3ApiReturn(ret);
 }
@@ -313,8 +311,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (wasi_iovec_t *       , wasi_iovs)
-    m3ApiGetArg      (__wasi_size_t        , iovs_len)
-    m3ApiGetArgMem   (__wasi_size_t *      , nwritten)
+    m3ApiGetArg      (uvwasi_size_t        , iovs_len)
+    m3ApiGetArgMem   (uvwasi_size_t *      , nwritten)
 
 #if defined(M3_COMPILER_MSVC)
     if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
@@ -323,10 +321,10 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[iovs_len];
 #endif
-    size_t num_written;
+    uvwasi_size_t num_written;
     uvwasi_errno_t ret;
 
-    for (__wasi_size_t i = 0; i < iovs_len; ++i) {
+    for (uvwasi_size_t i = 0; i < iovs_len; ++i) {
         iovs[i].buf = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
         iovs[i].buf_len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
     }
@@ -341,11 +339,11 @@ m3ApiRawFunction(m3_wasi_unstable_fd_readdir)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (void *               , buf)
-    m3ApiGetArg      (__wasi_size_t        , buf_len)
+    m3ApiGetArg      (uvwasi_size_t        , buf_len)
     m3ApiGetArg      (uvwasi_dircookie_t   , cookie)
-    m3ApiGetArgMem   (__wasi_size_t *      , bufused)
+    m3ApiGetArgMem   (uvwasi_size_t *      , bufused)
 
-    size_t uvbufused;
+    uvwasi_size_t uvbufused;
     uvwasi_errno_t ret = uvwasi_fd_readdir(&uvwasi, fd, buf, buf_len, cookie, &uvbufused);
 
     m3ApiWriteMem32(bufused, uvbufused);
@@ -377,7 +375,7 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint8_t *            , buf)
-    m3ApiGetArg      (__wasi_size_t        , buflen)
+    m3ApiGetArg      (uvwasi_size_t        , buflen)
 
     uvwasi_errno_t ret = uvwasi_random_get(&uvwasi, buf, buflen);
 
@@ -416,8 +414,8 @@ m3ApiRawFunction(m3_wasi_unstable_poll_oneoff)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (const uvwasi_subscription_t * , in)
     m3ApiGetArgMem   (uvwasi_event_t *              , out)
-    m3ApiGetArg      (__wasi_size_t                 , nsubscriptions)
-    m3ApiGetArgMem   (__wasi_size_t *               , nevents)
+    m3ApiGetArg      (uvwasi_size_t                 , nsubscriptions)
+    m3ApiGetArgMem   (uvwasi_size_t *               , nevents)
 
     uvwasi_errno_t ret = uvwasi_poll_oneoff(&uvwasi, in, out, nsubscriptions, nevents);
 
@@ -479,7 +477,7 @@ M3Result  m3_LinkWASI  (IM3Module module)
     init_options.fd_table_size = 3;
     init_options.argc = 0;      // runtime->argc is not initialized at this point, so we implement args_get directly
     init_options.argv = NULL;
-    init_options.envp = env;
+    init_options.envp = (const char **) env;
     init_options.preopenc = PREOPENS_COUNT;
     init_options.preopens = preopens;
     init_options.allocator = NULL;
