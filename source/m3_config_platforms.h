@@ -230,16 +230,16 @@
 
 // Byte swapping (for Big-Endian systems only)
 
-# if defined(_MSC_VER)
+# if defined(M3_COMPILER_MSVC)
 #  define m3_bswap16(x)     _byteswap_ushort((x))
 #  define m3_bswap32(x)     _byteswap_ulong((x))
 #  define m3_bswap64(x)     _byteswap_uint64((x))
-# elif defined(__GNUC__) && __GNUC_PREREQ(4, 8)
+# elif defined(M3_COMPILER_GCC) && ((__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
 // __builtin_bswap32/64 added in gcc 4.3, __builtin_bswap16 added in gcc 4.8
 #  define m3_bswap16(x)     __builtin_bswap16((x))
 #  define m3_bswap32(x)     __builtin_bswap32((x))
 #  define m3_bswap64(x)     __builtin_bswap64((x))
-# elif M3_COMPILER_HAS_BUILTIN(__builtin_bswap16)
+# elif defined(M3_COMPILER_CLANG) && M3_COMPILER_HAS_BUILTIN(__builtin_bswap16)
 #  define m3_bswap16(x)     __builtin_bswap16((x))
 #  define m3_bswap32(x)     __builtin_bswap32((x))
 #  define m3_bswap64(x)     __builtin_bswap64((x))
