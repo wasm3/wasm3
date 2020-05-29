@@ -228,12 +228,10 @@ class Wasm3():
         return self._run_cmd(f":version\n")
 
     def load(self, fn):
-        # WAVM mounts root, so it expects an absolute path
-        if "wavm run" in self.exe:
-            fn = "/" + fn
-
         self.loaded = None
-        res = self._run_cmd(f":load {fn}\n")
+        with open(fn,"rb") as f:
+            wasm = f.read()
+        res = self._run_cmd(f":load-hex {len(wasm)}\n{wasm.hex()}\n")
         self.loaded = fn
         return res
 
