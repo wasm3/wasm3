@@ -6,7 +6,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     name: build-linux-${{ matrix.config.target }}
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -63,7 +63,7 @@ jobs:
 
   build-mac:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -83,7 +83,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     name: build-windows-${{ matrix.config.target }}
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -116,7 +116,7 @@ jobs:
 
   build-wasi:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -165,7 +165,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -180,7 +180,7 @@ jobs:
 
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v2
     - uses: seanmiddleditch/gha-setup-ninja@master
@@ -196,7 +196,7 @@ jobs:
   build-cross-qemu:
     runs-on: ubuntu-latest
     name: build-cross-qemu-${{ matrix.config.target }}
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -258,7 +258,7 @@ jobs:
 
   build-platformio:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -287,7 +287,7 @@ jobs:
 
   build-platformio-arm:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -318,7 +318,7 @@ jobs:
 
   build-platformio-riscv:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -341,7 +341,7 @@ jobs:
 
   build-particle:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     if: "github.event_name == 'push'"
 
     steps:
@@ -360,7 +360,7 @@ jobs:
   build-esp32-idf:
     runs-on: ubuntu-latest
     container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -387,7 +387,7 @@ jobs:
 
   build-cpp:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v2
@@ -409,7 +409,7 @@ jobs:
   build-as-cpp:
     name: maintenance (build as C++)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -427,7 +427,7 @@ jobs:
   build-with-logs:
     name: maintenance (debug logs)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
@@ -456,7 +456,7 @@ jobs:
   build-preprocessed-ops:
     name: maintenance (preprocess ops)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v2
