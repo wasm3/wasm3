@@ -269,7 +269,7 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio==4.3.1
+        pip install -U platformio
     - name: Build AVR ATmega1284
       run: |
         cd platforms/arduino
@@ -298,7 +298,7 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio==4.3.1
+        pip install -U platformio
     - name: Build Arduino MKR1000
       run: |
         cd platforms/arduino
@@ -329,7 +329,7 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio==4.3.1
+        pip install -U platformio
     - name: Build HiFive1
       run: |
         cd platforms/hifive1
