@@ -50,6 +50,11 @@ if(DEFINED ENV{WASI_CC})
   set(WASIENV            1)
 endif()
 
+# Detect MinGW
+if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
+  set(MINGW              1)
+endif()
+
 if(BUILD_32BIT)
   set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -m32")
 endif()
@@ -107,7 +112,7 @@ elseif(WASIENV)
   #-flto -Wl,--lto-O3
   set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
 
-elseif(WIN32)
+elseif(WIN32 AND NOT MINGW)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
 

@@ -310,7 +310,9 @@
 
 
 # if defined(M3_COMPILER_MSVC)
-#  define M3_WEAK
+#  define M3_WEAK //__declspec(selectany)
+# elif defined(__MINGW32__)
+#  define M3_WEAK //__attribute__((selectany))
 # else
 #  define M3_WEAK __attribute__((weak))
 # endif
