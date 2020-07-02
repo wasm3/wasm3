@@ -475,3 +475,22 @@ jobs:
             -o wasm3
     - name: Test
       run: ./build/wasm3 ./test/wasi/test.wasm
+  build-python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Build python module
+      run: |
+        pip install .
+    - name: Test with pytest
+      run: |
+        pip install pytest
+        pytest platforms/python/test
