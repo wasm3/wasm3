@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <iterator>
+#include <string>
 
 #include <m3_api_defs.h>
 #include "wasm3.h"
