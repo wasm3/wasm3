@@ -123,7 +123,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.x'
+        python-version: '2.x'
     - name: Install dependencies
       run: |
         python --version
@@ -132,7 +132,7 @@ jobs:
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Install Wasmer
       env:
-        WASMER_RELEASE_TAG: "0.16.2"
+        WASMER_RELEASE_TAG: "0.17.1"
       run: curl https://get.wasmer.io -sSfL | sh
     - name: Configure
       run: |
