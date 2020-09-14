@@ -124,6 +124,7 @@ jobs:
       run: |
         pip --version
         pip install pip==20.0.2
+        pip install --upgrade setuptools wheel
         python --version
         pip --version
     - name: Install Wasienv
