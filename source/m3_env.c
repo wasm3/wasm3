@@ -638,7 +638,14 @@ M3Result  InitStartFunc  (IM3Module io_module)
 _           (Compile_Function (function));
         }
 
-_       (m3_Call(function));
+        IM3FuncType ftype = function->funcType;
+        if (ftype->numArgs != 0 || ftype->returnType != c_m3Type_none)
+            _throw (m3Err_argumentCountMismatch);
+
+        IM3Module module = function->module;
+        IM3Runtime runtime = module->runtime;
+
+_       ((M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
     }
 
     _catch: return result;
