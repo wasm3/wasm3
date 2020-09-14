@@ -73,7 +73,7 @@ message("Build Type: ${CMAKE_BUILD_TYPE}")
 
 include(CheckIPOSupported)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
