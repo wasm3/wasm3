@@ -122,11 +122,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install Python dependencies
       run: |
-        pip --version
-        pip install pip==20.0.2
-        pip install --upgrade setuptools wheel
-        python --version
-        pip --version
+        python3 -m pip install --upgrade pip setuptools wheel
+        pip3 --version
     - name: Install Wasienv
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Install Wasmer
