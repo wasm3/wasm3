@@ -470,17 +470,11 @@ M3Result  m3_LinkWASI  (IM3Module module)
     preopens[1].real_path = ".";
 
     uvwasi_options_t init_options;
-    memset(&init_options, 0, sizeof(uvwasi_options_t));
-    init_options.in  = 0;
-    init_options.out = 1;
-    init_options.err = 2;
-    init_options.fd_table_size = 3;
+    uvwasi_options_init(&init_options);
     init_options.argc = 0;      // runtime->argc is not initialized at this point, so we implement args_get directly
-    init_options.argv = NULL;
     init_options.envp = (const char **) env;
     init_options.preopenc = PREOPENS_COUNT;
     init_options.preopens = preopens;
-    init_options.allocator = NULL;
 
     uvwasi_errno_t ret = uvwasi_init(&uvwasi, &init_options);
 
