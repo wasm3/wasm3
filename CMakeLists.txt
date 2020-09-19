@@ -171,7 +171,7 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   FetchContent_Declare(
     uvwasi
     GIT_REPOSITORY https://github.com/cjihrig/uvwasi.git
-    GIT_TAG v0.0.9
+    GIT_TAG v0.0.11
   )
 
   FetchContent_GetProperties(uvwasi)
