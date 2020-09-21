@@ -125,11 +125,9 @@ jobs:
         python3 -m pip install pip==20.1.1
         python3 -m pip install --upgrade setuptools wheel
         pip3 --version
-    - name: Install Wasmer
+    - name: Install Wasienv
       env:
         WASMER_RELEASE_TAG: "0.17.1"
-      run: curl https://get.wasmer.io -sSfL | sh
-    - name: Install Wasienv
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Configure
       run: |
