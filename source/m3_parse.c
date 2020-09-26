@@ -549,10 +549,10 @@ _   (Read_u32 (& version, & pos, end));
         u8 section;
 _       (ReadLEB_u7 (& section, & pos, end));
 
-        if (section > previousSection or            // from the spec: sections must appear in order
-            section == 0 or                         // custom section
-            (section == 12 and section == 9) or     // if present, DataCount goes after Element
-            (section == 10 and section == 12))      // and before Code
+        if (section > previousSection or                    // from the spec: sections must appear in order
+            section == 0 or                                 // custom section
+            (section == 12 and previousSection == 9) or     // if present, DataCount goes after Element
+            (section == 10 and previousSection == 12))      // and before Code
         {
             u32 sectionLength;
 _           (ReadLEB_u32 (& sectionLength, & pos, end));
