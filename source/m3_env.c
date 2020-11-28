@@ -46,10 +46,13 @@ void  Function_Release  (IM3Function i_function)
 {
     m3Free (i_function->constants);
 
-    // name can be an alias of fieldUtf8
-    if (i_function->name != i_function->import.fieldUtf8)
+    for (int i = 0; i < i_function->numNames; i++)
     {
-        m3Free (i_function->name);
+        // name can be an alias of fieldUtf8
+        if (i_function->names[i] != i_function->import.fieldUtf8)
+        {
+            m3Free (i_function->names[i]);
+        }
     }
 
     FreeImportInfo (& i_function->import);
@@ -92,13 +95,32 @@ void  Function_FreeCompiledCode (IM3Function i_function)
 }
 
 
-
 cstr_t  GetFunctionName  (IM3Function i_function)
 {
-    if (i_function->import.fieldUtf8)
-        return i_function->import.fieldUtf8;
+    u16 numNames = 0;
+    cstr_t *names = GetFunctionNames(i_function, &numNames);
+    if (numNames > 0)
+        return names[0];
     else
-        return (i_function->name) ? i_function->name : "<unnamed>";
+        return "<unnamed>";
+}
+
+
+cstr_t *  GetFunctionNames  (IM3Function i_function, u16 * o_numNames)
+{
+    if (o_numNames == NULL)
+        return NULL;
+
+    if (i_function->import.fieldUtf8)
+    {
+        *o_numNames = 1;
+        return &i_function->import.fieldUtf8;
+    }
+    else
+    {
+        *o_numNames = i_function->numNames;
+        return i_function->names;
+    }
 }
 
 
@@ -687,9 +709,9 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
     {
         IM3Function f = & i_module->functions [i];
 
-        if (f->name)
+        for (int i = 0; i < f->numNames; i++)
         {
-            if (strcmp (f->name, i_name) == 0)
+            if (f->names [i] and strcmp (f->names [i], i_name) == 0)
                 return f;
         }
     }
@@ -742,7 +764,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         IM3Runtime runtime = module->runtime;
         runtime->argc = i_argc;
         runtime->argv = i_argv;
-        if (i_function->name and strcmp (i_function->name, "_start") == 0) // WASI
+        if (i_function->numNames == 1 and i_function->names[0] and strcmp (i_function->names[0], "_start") == 0) // WASI
             i_argc = 0;
 
         IM3FuncType ftype = i_function->funcType;                               m3log (runtime, "calling %s", SPrintFuncTypeSignature (ftype));
