@@ -116,6 +116,8 @@ __wasi_errno_t errno_to_wasi(int errnum) {
 
 #if defined(_WIN32)
 
+#if !defined(__MINGW32__)
+
 static inline
 int clock_gettime(int clk_id, struct timespec *spec)
 {
@@ -130,6 +132,8 @@ static inline
 int clock_getres(int clk_id, struct timespec *spec) {
     return -1; // Defaults to 1000000
 }
+
+#endif
 
 static inline
 int convert_clockid(__wasi_clockid_t in) {
@@ -347,7 +351,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     }
 
     int64_t ret;
-#if defined(M3_COMPILER_MSVC)
+#if defined(M3_COMPILER_MSVC) || defined(__MINGW32__)
     ret = _lseeki64(fd, offset, whence);
 #else
     ret = lseek(fd, offset, whence);
@@ -409,7 +413,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     }
     else
     {
-        * fd = host_fd;
+        m3ApiWriteMem32(fd, host_fd);
         m3ApiReturn(__WASI_ESUCCESS);
     }
 #else
