@@ -250,6 +250,8 @@ typedef struct M3Runtime
     char                    error_message[256];
 #endif
     i32                     exit_code;
+
+    void*                   userPointer;
 }
 M3Runtime;
 

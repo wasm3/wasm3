@@ -276,7 +276,7 @@ void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i
 }
 
 
-IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, void * unused)
+IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, void * i_userPointer)
 {
     IM3Runtime runtime = NULL;
     m3Alloc (& runtime, M3Runtime, 1);
@@ -286,6 +286,7 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
         m3_ResetErrorInfo(runtime);
 
         runtime->environment = i_environment;
+        runtime->userPointer = i_userPointer;
 
         m3Alloc (& runtime->stack, u8, i_stackSizeInBytes);
 
