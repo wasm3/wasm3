@@ -29,6 +29,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+// Hacks alert
+#define _Static_assert(...)
+#define _Noreturn
+#endif
+
 _Static_assert(_Alignof(int8_t) == 1, "non-wasi data layout");
 _Static_assert(_Alignof(uint8_t) == 1, "non-wasi data layout");
 _Static_assert(_Alignof(int16_t) == 2, "non-wasi data layout");
