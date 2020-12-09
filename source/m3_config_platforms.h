@@ -18,7 +18,7 @@
 #define M3_CONCAT__(a,b) a##b
 #define M3_CONCAT(a,b)   M3_CONCAT__(a,b)
 
-# if !defined(__cplusplus)
+# if !defined(__cplusplus) || defined(_MSC_VER)
 #   define not      !
 #   define and      &&
 #   define or       ||

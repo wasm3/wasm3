@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <string>
 #include <iterator>
 
 #include <m3_api_defs.h>
