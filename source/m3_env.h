@@ -15,19 +15,7 @@
 
 d_m3BeginExternC
 
-typedef struct M3FuncType
-{
-    struct M3FuncType *     next;
-
-    u32                     numArgs;
-    u8                      returnType;
-    u8                      argTypes        [3];    // M3FuncType is a dynamically sized object; these are padding
-}
-M3FuncType;
-
-typedef M3FuncType *        IM3FuncType;
-
-M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i_numArgs);
+M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i_numTypes);
 bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 
 
@@ -77,7 +65,6 @@ cstr_t      GetFunctionImportModuleName (IM3Function i_function);
 cstr_t      GetFunctionName             (IM3Function i_function);
 u32         GetFunctionNumArgs          (IM3Function i_function);
 u32         GetFunctionNumReturns       (IM3Function i_function);
-u8          GetFunctionReturnType       (IM3Function i_function);
 
 u32         GetFunctionNumArgsAndLocals (IM3Function i_function);
 
@@ -210,6 +197,7 @@ void                        Environment_Release         (IM3Environment i_enviro
 
 // takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
 void                        Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
+M3Result                    Environment_AddRetType      (IM3Environment i_environment, u8 i_valType, IM3FuncType* o_functype);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 

@@ -1012,7 +1012,7 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     // function end:
     if (o->block.depth == 0)
     {
-        u8 valueType = o->block.type;
+        u8 valueType = GetSingleRetType(o->block.type);
 
         if (valueType)
         {
@@ -1023,7 +1023,7 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
             if (IsStackTopInRegister (o))
                 PatchBranches (o);
 
-_             (ReturnStackTop (o));
+_           (ReturnStackTop (o));
         }
         else PatchBranches (o);  // for no return type, branch to op_End
 
@@ -1196,7 +1196,7 @@ _       (EmitOp (o, op));
     {
         u16 conditionSlot = c_slotUnused;
         u16 valueSlot = c_slotUnused;
-        u8 valueType = scope->type;
+        u8 valueType = GetSingleRetType(scope->type);
 
         if (i_opcode == c_waOp_branchIf)
         {
@@ -1372,12 +1372,10 @@ _       (CopyTopSlot (o, argTop -= slotsPerArg));
 _       (Pop (o));
     }
 
-    i32 numReturns = i_type->returnType ? 1 : 0;
-
-    if (numReturns)
+    if (i_type->numRets)
     {
         MarkSlotAllocated (o, topSlot);
-_       (Push (o, i_type->returnType, topSlot));
+_       (Push (o, GetSingleRetType(i_type), topSlot));
     }
 
     } _catch: return result;
@@ -1499,15 +1497,26 @@ _   (PushRegister (o, c_m3Type_i32));
 }
 
 static
-M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
+M3Result  ReadBlockType  (IM3Compilation o, IM3FuncType * o_blockType)
 {
-    M3Result result;                                                        d_m3Assert (o_blockType);
+    M3Result result;
+    i64 type;
+_   (ReadLebSigned (& type, 33, & o->wasm, o->wasmEnd));
 
-    i8 type;
-
-_   (ReadLEB_i7 (& type, & o->wasm, o->wasmEnd));
-_   (NormalizeType (o_blockType, type));                                if (* o_blockType)  m3log (compile, d_indent " (type: %s)",
-                                                                                                   get_indention_string (o), c_waTypes [(u32) * o_blockType]);
+    if (type < 0)
+    {
+        u8 valueType;
+_       (NormalizeType (&valueType, type));                                m3log (compile, d_indent " (type: %s)", get_indention_string (o), c_waTypes [valueType]);
+_       (Environment_AddRetType(o->module->environment, valueType, o_blockType));
+    }
+    else if (type < o->module->numFuncTypes)
+    {
+        *o_blockType = o->module->funcTypes[type];                         m3log (compile, d_indent " (type: %s)", get_indention_string (o), SPrintFuncTypeSignature (*o_blockType));
+    }
+    else
+    {
+        return "func type out of bounds";
+    }
     _catch: return result;
 }
 
@@ -1554,7 +1563,7 @@ M3Result  Compile_LoopOrBlock  (IM3Compilation o, m3opcode_t i_opcode)
 _   (PreserveRegisters (o));
 _   (PreserveArgsAndLocals (o));
 
-    u8 blockType;
+    IM3FuncType blockType;
 _   (ReadBlockType (o, & blockType));
 
     if (i_opcode == c_waOp_loop)
@@ -1566,7 +1575,7 @@ _   (CompileBlock (o, blockType, i_opcode));
 }
 
 
-M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, u8 i_blockType)
+M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, IM3FuncType i_blockType)
 {
     M3Result result;
 
@@ -1610,7 +1619,7 @@ _   (EmitTopSlotAndPop (o));
 
     pc_t * pc = (pc_t *) ReservePointer (o);
 
-    u8 blockType;
+    IM3FuncType blockType;
 _   (ReadBlockType (o, & blockType));
 
 _   (CompileBlock (o, blockType, i_opcode));
@@ -2199,12 +2208,14 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
 
     * o_copyStackTopToRegister = false;
 
-    if (o->block.type != c_m3Type_none)
+    u8 valueType = GetSingleRetType(o->block.type);
+
+    if (valueType != c_m3Type_none)
     {
         if (IsStackPolymorphic (o))
         {
 _           (UnwindBlockStack (o));
-_           (PushRegister (o, o->block.type));
+_           (PushRegister (o, valueType));
         }
         else
         {
@@ -2227,7 +2238,7 @@ _       (UnwindBlockStack (o));
 }
 
 
-M3Result  CompileBlock  (IM3Compilation o, /*pc_t * o_startPC,*/ u8 i_blockType, u8 i_blockOpcode)
+M3Result  CompileBlock  (IM3Compilation o, /*pc_t * o_startPC,*/ IM3FuncType i_blockType, u8 i_blockOpcode)
 {
     M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 0));
                                                                                         d_m3Assert (not IsRegisterAllocated (o, 1));
@@ -2327,8 +2338,10 @@ void  SetupCompilation (IM3Compilation o)
 
 M3Result  Compile_Function  (IM3Function io_function)
 {
+    IM3FuncType ft = io_function->funcType;
+
     M3Result result = m3Err_none;                                     m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
-                                                                           io_function->name, (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function), c_waTypes [GetFunctionReturnType (io_function)]);
+                                                                           io_function->name, (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function), c_waTypes [GetSingleRetType(ft)]);
     IM3Runtime runtime = io_function->module->runtime;
 
     IM3Compilation o = & runtime->compilation;
@@ -2345,18 +2358,17 @@ _   (AcquireCompilationCodePage (o, & o->page));
 
     pc_t pc = GetPagePC (o->page);
 
-    o->block.type = GetFunctionReturnType (io_function);
-
     // push the arg types to the type stack
-    M3FuncType * ft = io_function->funcType;
+    o->block.type = ft;
 
     // all args are 64-bit aligned
     const u32 argSlotCount = sizeof (u64) / sizeof (m3slot_t);
     u32 numArgs = GetFunctionNumArgs (o->function);
+    u32 numRets = GetFunctionNumReturns(o->function);
 
     for (u32 i = 0; i < numArgs; ++i)
     {
-        u8 type = ft->argTypes [i];
+        u8 type = ft->types [numRets + i];
 _       (PushAllocatedSlot (o, type));
 
         if (i < numArgs - 1)

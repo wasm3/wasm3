@@ -14,22 +14,17 @@
 #include "m3_info.h"
 
 
-M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numArgs)
+M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
 {
-    size_t funcTypeSize = sizeof (M3FuncType) - 3 /* sizeof (argTypes [3]) */ + i_numArgs;
-
-    return m3Alloc (o_functionType, u8, funcTypeSize);
+    return m3Alloc (o_functionType, u8, sizeof (M3FuncType) + i_numTypes);
 }
 
 
 bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
 {
-    if (i_typeA->returnType == i_typeB->returnType)
+    if (i_typeA->numRets == i_typeB->numRets && i_typeA->numArgs == i_typeB->numArgs)
     {
-        if (i_typeA->numArgs == i_typeB->numArgs)
-        {
-            return (memcmp (i_typeA->argTypes, i_typeB->argTypes, i_typeA->numArgs) == 0);
-        }
+        return (memcmp (i_typeA->types, i_typeB->types, i_typeA->numRets + i_typeA->numArgs) == 0);
     }
 
     return false;
@@ -126,23 +121,14 @@ u32  GetFunctionNumReturns  (IM3Function i_function)
 {
     u32 numReturns = 0;
 
-    if (i_function->funcType)
-        numReturns = i_function->funcType->returnType ? 1 : 0;
+    if (i_function)
+    {
+        if (i_function->funcType)
+            numReturns = i_function->funcType->numRets;
+    }
 
     return numReturns;
 }
-
-
-u8  GetFunctionReturnType  (IM3Function i_function)
-{
-    u8 returnType = c_m3Type_none;
-
-    if (i_function->funcType)
-        returnType = i_function->funcType->returnType;
-
-    return returnType;
-}
-
 
 u32  GetFunctionNumArgsAndLocals (IM3Function i_function)
 {
@@ -217,6 +203,21 @@ void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_f
     }
 
     * io_funcType = newType;
+}
+
+M3Result  Environment_AddRetType  (IM3Environment i_environment, u8 i_valType, IM3FuncType* o_functype)
+{
+    M3Result result;
+    IM3FuncType ftype;
+_   (AllocFuncType (& ftype, 1));
+    ftype->numArgs = 0;
+    ftype->numRets = (i_valType == c_m3Type_none) ? 0 : 1;
+    ftype->types[0] = i_valType;
+    Environment_AddFuncType (i_environment, & ftype);
+
+    *o_functype = ftype;
+
+    _catch: return result;
 }
 
 
@@ -404,8 +405,11 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
     if (o->page)
     {
+        IM3FuncType ftype;
+_       (Environment_AddRetType(runtime.environment, i_type, &ftype));
+
         pc_t m3code = GetPagePC (o->page);
-        result = CompileBlock (o, i_type, c_waOp_block);
+        result = CompileBlock (o, ftype, c_waOp_block);
 
         if (not result)
         {
@@ -436,7 +440,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
     * io_bytes = o->wasm;
 
-    return result;
+    _catch: return result;
 }
 
 
@@ -644,7 +648,7 @@ _           (Compile_Function (function));
         }
 
         IM3FuncType ftype = function->funcType;
-        if (ftype->numArgs != 0 || ftype->returnType != c_m3Type_none)
+        if (ftype->numArgs != 0 || ftype->numRets != 0)
             _throw (m3Err_argumentCountMismatch);
 
         IM3Module module = function->module;
@@ -765,7 +769,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
             u64 * s = & stack [i];
             ccstr_t str = i_argv[i];
 
-            switch (ftype->argTypes[i]) {
+            switch (ftype->types[ftype->numRets + i]) {
 #ifdef USE_HUMAN_FRIENDLY_ARGS
             case c_m3Type_i32:  *(i32*)(s) = atol(str);  break;
             case c_m3Type_i64:  *(i64*)(s) = atoll(str); break;
@@ -785,7 +789,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
 _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
 #if d_m3LogOutput
-        switch (ftype->returnType) {
+        switch (GetSingleRetType(ftype)) {
         case c_m3Type_none: fprintf (stderr, "Result: <Empty Stack>\n"); break;
 #ifdef USE_HUMAN_FRIENDLY_ARGS
         case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)(stack));  break;

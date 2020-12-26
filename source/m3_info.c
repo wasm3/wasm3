@@ -66,18 +66,26 @@ cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
     sprintf (string, "(");
 
     u32 numArgs = i_funcType->numArgs;
-    u8 * types = i_funcType->argTypes;
+    u32 numRets = i_funcType->numRets;
+    u8 * types = i_funcType->types;
 
     for (u32 i = 0; i < numArgs; ++i)
     {
         if (i != 0)
             strcat (string, ", ");
 
-        strcat (string, GetTypeName (types [i]));
+        strcat (string, GetTypeName (types [numRets + i]));
     }
 
     strcat (string, ") -> ");
-    strcat (string, GetTypeName (i_funcType->returnType));
+
+    for (u32 i = 0; i < numRets; ++i)
+    {
+        if (i != 0)
+            strcat (string, ", ");
+
+        strcat (string, GetTypeName (types [i]));
+    }
 
     return string;
 }
@@ -123,11 +131,11 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
     if (funcType)
     {
         u32 numArgs = funcType->numArgs;
-        u8 * types = funcType->argTypes;
+        u8 * argTypes = funcType->types + funcType->numRets;
 
         for (u32 i = 0; i < numArgs; ++i)
         {
-            u8 type = types [i];
+            u8 type = argTypes [i];
 
             ret = snprintf (s, e-s, "%s: ", c_waTypes [type]);
             s += M3_MAX (0, ret);

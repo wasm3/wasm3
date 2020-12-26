@@ -218,14 +218,12 @@ d_m3OpDef  (Entry)
         m3ret_t r = nextOpDirect ();
 
 #       if d_m3LogExec
-            u8 returnType = function->funcType->returnType;
-
             char str [100] = { '!', 0 };
 
             if (not r)
-                SPrintArg (str, 99, _sp, function->funcType->returnType);
+                SPrintArg (str, 99, _sp, GetSingleRetType(function->funcType));
 
-            m3log (exec, " exit  < %s %s %s   %s", function->name, returnType ? "->" : "", str, r ? (cstr_t)r : "");
+            m3log (exec, " exit  < %s %s %s   %s", function->name, function->funcType->numRets ? "->" : "", str, r ? (cstr_t)r : "");
 #       elif d_m3LogStackTrace
             if (r)
                 printf (" ** %s  %p\n", function->name, _sp);

@@ -39,8 +39,6 @@ _try {
 
     cstr_t sig = i_signature;
 
-    bool hasReturn = false;
-
     size_t maxNumArgs = strlen (i_signature);
     _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 3);
 
@@ -56,9 +54,6 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
 
         if (typeChar == '(')
         {
-            if (not hasReturn)
-                break;
-
             parsingArgs = true;
             continue;
         }
@@ -71,25 +66,22 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
 
         _throwif ("unknown argument type char", c_m3Type_unknown == type);
 
+        if (type == c_m3Type_none)
+        	continue;
+
         if (not parsingArgs)
         {
-            if (hasReturn)
-                _throw ("malformed function signature; too many return types");
+            _throwif ("malformed function signature; too many return types", funcType->numRets >= 1);
 
-            hasReturn = true;
-
-            funcType->returnType = type;
+            funcType->types [funcType->numRets++] = type;
         }
         else
         {
             _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
 
-            funcType->argTypes [funcType->numArgs++] = type;
+            funcType->types [funcType->numRets + funcType->numArgs++] = type;
         }
     }
-
-    if (not hasReturn)
-        _throw (m3Err_funcSignatureMissingReturnType);
 
 } _catch:
 
