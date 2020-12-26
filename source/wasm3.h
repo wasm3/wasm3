@@ -157,13 +157,16 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     IM3Runtime          m3_NewRuntime               (IM3Environment         io_environment,
                                                      uint32_t               i_stackSizeInBytes,
-                                                     void *                 unused);
+                                                     void *                 i_userdata);
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 
     uint8_t *           m3_GetMemory                (IM3Runtime             i_runtime,
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
+
+    void *              m3_GetUserData              (IM3Runtime             i_runtime);
+
     // Wasm currently only supports one memory region. i_memoryIndex should be zero.
 
 //-------------------------------------------------------------------------------------------------------------------------------

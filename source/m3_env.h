@@ -196,10 +196,6 @@ IM3Function                 Module_GetFunction          (IM3Module i_module, u32
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
-static const u32 c_m3NumTypesPerPage = 8;
-
-//---------------------------------------------------------------------------------------------------------------------------------
-
 typedef struct M3Environment
 {
 //    struct M3Runtime *      runtimes;
@@ -237,19 +233,21 @@ typedef struct M3Runtime
     u32                     stackSize;
     u32                     numStackSlots;
 
+    i32                     exit_code;
     u32                     argc;
     ccstr_t *               argv;
 
-    M3Result                runtimeError;
+    void *                  userdata;
 
     M3Memory                memory;
     u32                     memoryLimit;
+
+    M3Result                runtimeError;
 
     M3ErrorInfo             error;
 #if d_m3VerboseLogs
     char                    error_message[256];
 #endif
-    i32                     exit_code;
 }
 M3Runtime;
 
