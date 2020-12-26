@@ -177,8 +177,8 @@ M3CodePageHeader;
 #define d_externalKind_memory               2
 #define d_externalKind_global               3
 
-static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
-static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v", "*" };
+static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "unknown" };
+static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "?" };
 
 
 # if d_m3VerboseLogs

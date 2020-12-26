@@ -2137,11 +2137,11 @@ const M3OpInfo c_operations [] =
 # endif
 
 # ifdef d_m3CompileExtendedOpcode
-    [0xFC] = M3OP( "0xFC", 0, c_m3Type_void,   d_emptyOpList,  Compile_ExtendedOpcode ),
+    [0xFC] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 
 # ifdef DEBUG
-    M3OP( "termination", 0, c_m3Type_void ) // for find_operation_info
+    M3OP( "termination", 0, c_m3Type_unknown ) // for find_operation_info
 # endif
 };
 
@@ -2157,7 +2157,7 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
 
 # ifdef DEBUG
-    M3OP( "termination", 0, c_m3Type_void ) // for find_operation_info
+    M3OP( "termination", 0, c_m3Type_unknown ) // for find_operation_info
 # endif
 };
 

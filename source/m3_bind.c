@@ -14,14 +14,14 @@
 u8  ConvertTypeCharToTypeId (char i_code)
 {
     switch (i_code) {
-    case 'v': return c_m3Type_void;
+    case 'v': return c_m3Type_none;
     case 'i': return c_m3Type_i32;
     case 'I': return c_m3Type_i64;
     case 'f': return c_m3Type_f32;
     case 'F': return c_m3Type_f64;
-    case '*': return c_m3Type_ptr;
+    case '*': return c_m3Type_i32;
     }
-    return c_m3Type_none;
+    return c_m3Type_unknown;
 }
 
 
@@ -69,8 +69,7 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
 
         u8 type = ConvertTypeCharToTypeId (typeChar);
 
-        if (not type)
-            _throw ("unknown argument type char");
+        _throwif ("unknown argument type char", c_m3Type_unknown == type);
 
         if (not parsingArgs)
         {
@@ -79,20 +78,11 @@ _   (AllocFuncType (& funcType, (u32) maxNumArgs));
 
             hasReturn = true;
 
-            // M3FuncType doesn't speak 'void'
-            if (type == c_m3Type_void)
-                type = c_m3Type_none;
-            if (type == c_m3Type_ptr)
-                type = c_m3Type_i32;
-
             funcType->returnType = type;
         }
         else
         {
             _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
-
-            if (type == c_m3Type_ptr)
-                type = c_m3Type_i32;
 
             funcType->argTypes [funcType->numArgs++] = type;
         }

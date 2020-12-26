@@ -52,7 +52,7 @@ void  m3_PrintRuntimeInfo  (IM3Runtime i_runtime)
 
 cstr_t  GetTypeName  (u8 i_m3Type)
 {
-    if (i_m3Type < 7)
+    if (i_m3Type < 5)
         return c_waTypes [i_m3Type];
     else
         return "?";
@@ -160,7 +160,7 @@ OpInfo find_operation_info  (IM3Operation i_operation)
     {
         IM3OpInfo oi = GetOpInfo(i);
 
-        if (oi->type != c_m3Type_void)
+        if (oi->type != c_m3Type_unknown)
         {
             for (u32 o = 0; o < 4; ++o)
             {

@@ -43,7 +43,6 @@ m3ApiRawFunction(m3_libc_memset)
     m3ApiReturn(result);
 }
 
-
 m3ApiRawFunction(m3_libc_memmove)
 {
     m3ApiReturnType (int32_t)
@@ -54,6 +53,19 @@ m3ApiRawFunction(m3_libc_memmove)
 
     u32 result = m3ApiPtrToOffset(memmove (o_dst, i_src, i_size));
     m3ApiReturn(result);
+}
+
+m3ApiRawFunction(m3_libc_print)
+{
+    m3ApiReturnType (uint32_t)
+
+    m3ApiGetArgMem  (void*,    i_ptr)
+    m3ApiGetArg     (uint32_t, i_size)
+
+    fwrite(i_ptr, i_size, 1, stdout);
+    fflush(stdout);
+
+    m3ApiReturn(i_size);
 }
 
 m3ApiRawFunction(m3_libc_clock)
@@ -128,6 +140,7 @@ M3Result  m3_LinkLibC  (IM3Module module)
 
     const char* env = "env";
 
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_debug",            "i(*i)",   &m3_libc_print)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_memset",           "*(*ii)",  &m3_libc_memset)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_memmove",          "*(**i)",  &m3_libc_memmove)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_memcpy",           "*(**i)",  &m3_libc_memmove))); // just alias of memmove

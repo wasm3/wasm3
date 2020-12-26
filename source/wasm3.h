@@ -53,9 +53,7 @@ enum // EWaTypes
     c_m3Type_f32    = 3,
     c_m3Type_f64    = 4,
 
-    c_m3Type_void,
-    c_m3Type_ptr,
-    c_m3Type_trap
+    c_m3Type_unknown
 };
 
 
