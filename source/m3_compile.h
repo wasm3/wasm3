@@ -35,7 +35,7 @@ typedef struct M3FuncType
 
     u32                     numRets;
     u32                     numArgs;
-    u8                      types[0];  		// returns, then args
+    u8                      types[];   		// returns, then args
 }
 M3FuncType;
 

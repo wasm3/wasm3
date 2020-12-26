@@ -63,7 +63,11 @@ _           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 
             _throwif ("insane argument count", numArgs > d_m3MaxSaneFunctionArgCount);
 
+#if defined(M3_COMPILER_MSVC)
+            u8 argTypes[d_m3MaxSaneFunctionArgCount];
+#else
             u8 argTypes[numArgs];
+#endif
             for (u32 a = 0; a < numArgs; ++a)
             {
                 i8 wasmType;
