@@ -2113,7 +2113,7 @@ const M3OpInfo c_operations [] =
 
     d_m3DebugOp (Entry),            d_m3DebugOp (Compile),      d_m3DebugOp (End),
 
-    d_m3DebugOp (CallRawFunction),  d_m3DebugOp (CallRawFunctionEx),
+    d_m3DebugOp (CallRawFunction),
 
     d_m3DebugOp (GetGlobal_s32),    d_m3DebugOp (GetGlobal_s64),    d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
 

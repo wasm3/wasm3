@@ -159,6 +159,8 @@ const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
 
 #if d_m3HasFloat
     #define M3OP_F          M3OP
+#elif d_m3NoFloatDynamic
+    #define M3OP_F(n,o,t,op,...)        M3OP(n, o, t, { op_Unsupported, op_Unsupported, op_Unsupported, op_Unsupported }, __VA_ARGS__)
 #else
     #define M3OP_F(...)     { 0 }
 #endif

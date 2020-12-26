@@ -118,6 +118,10 @@
 #   define d_m3HasFloat                         1       // implement floating point ops
 # endif
 
+#if !d_m3HasFloat && !defined(d_m3NoFloatDynamic)
+#   define d_m3NoFloatDynamic                   1       // if no floats, do not fail until flops are actually executed
+#endif
+
 # ifndef d_m3SkipStackCheck
 #   define d_m3SkipStackCheck                   0       // skip stack overrun checks
 # endif

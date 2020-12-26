@@ -28,7 +28,7 @@
 d_m3BeginExternC
 
 #if !defined(d_m3ShortTypesDefined)
-#if d_m3HasFloat
+#if d_m3HasFloat || d_m3NoFloatDynamic
 typedef double          f64;
 typedef float           f32;
 #endif
@@ -229,7 +229,7 @@ u32         SizeOfType              (u8 i_m3Type);
 
 M3Result    Read_u64                (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_u32                (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
-#if d_m3HasFloat
+#if d_m3HasFloat || d_m3NoFloatDynamic
 M3Result    Read_f64                (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_f32                (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 #endif
