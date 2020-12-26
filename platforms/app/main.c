@@ -232,8 +232,8 @@ void print_usage() {
     puts("  wasm3 [options] <file> [args...]");
     puts("  wasm3 --repl [file]");
     puts("Options:");
-    puts("  --func <function>     function to run       default: _start)");
-    puts("  --stack-size <size>   stack size in bytes   default: 64KB)");
+    puts("  --func <function>     function to run       default: _start");
+    puts("  --stack-size <size>   stack size in bytes   default: 64KB");
     puts("  --dump-on-trap        dump wasm memory");
 }
 

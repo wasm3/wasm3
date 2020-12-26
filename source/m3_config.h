@@ -25,7 +25,7 @@
 # endif
 
 # ifndef d_m3MaxFunctionSlots
-#   define d_m3MaxFunctionSlots                 4000    // twice d_m3MaxFunctionStackHeight
+#   define d_m3MaxFunctionSlots                 ((d_m3MaxFunctionStackHeight)*2)
 # endif
 
 # ifndef d_m3MaxConstantTableSize

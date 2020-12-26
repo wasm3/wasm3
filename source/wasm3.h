@@ -184,24 +184,20 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime
 
-    typedef const void * (* M3RawCall) (IM3Runtime runtime, uint64_t * _sp, void * _mem);
+    typedef const void * (* M3RawCall) (IM3Runtime runtime, uint64_t * _sp, void * _mem, void * userdata);
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,
                                                      const char * const     i_functionName,
                                                      const char * const     i_signature,
-                                                     M3RawCall              i_function);
+													 M3RawCall              i_function);
 
-    typedef const void * (* M3RawCallEx) (IM3Runtime runtime, uint64_t * _sp, void * _mem, void * cookie);
-
-    // m3_LinkRawFunctionEx links a native callback function that has a cookie parameter, allowing one native
-    // callback to receive multiple m3 function calls. This ease for dynamic routing in the callback.
     M3Result            m3_LinkRawFunctionEx        (IM3Module              io_module,
                                                      const char * const     i_moduleName,
                                                      const char * const     i_functionName,
                                                      const char * const     i_signature,
-                                                     M3RawCallEx            i_function,
-                                                     void *                 i_cookie);
+                                                     M3RawCall              i_function,
+                                                     const void *           i_userdata);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  functions

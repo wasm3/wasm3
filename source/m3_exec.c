@@ -117,17 +117,10 @@ d_m3OpDef  (CallIndirect)
 d_m3OpDef  (CallRawFunction)
 {
     M3RawCall call = (M3RawCall) (* _pc++);
+    IM3Function function = immediate (IM3Function);
+    void * userdata = immediate (void *);
 
-    m3ret_t possible_trap = call (m3MemRuntime(_mem), (u64 *) _sp, m3MemData(_mem));
-    return possible_trap;
-}
-
-d_m3OpDef  (CallRawFunctionEx)
-{
-    M3RawCallEx call = (M3RawCallEx) (* _pc++);
-    void * cookie = immediate (void *);
-
-    m3ret_t possible_trap = call (m3MemRuntime(_mem), (u64 *)_sp, m3MemData(_mem), cookie);
+    m3ret_t possible_trap = call (m3MemRuntime(_mem), (u64 *)_sp, m3MemData(_mem), userdata);
     return possible_trap;
 }
 
