@@ -319,7 +319,7 @@ void  dump_type_stack  (IM3Compilation o)
 {
     /* Reminders about how the stack works! :)
      -- args & locals remain on the type stack for duration of the function. Denoted with a constant 'A' and 'L' in this dump.
-     -- the intial stack dumps originate from the CompileLocals () function, so these identifiers won't/can't be
+     -- the initial stack dumps originate from the CompileLocals () function, so these identifiers won't/can't be
      applied until this compilation stage is finished
      -- constants are not statically represented in the type stack (like args & constants) since they don't have/need
      write counts
@@ -336,6 +336,7 @@ void  dump_type_stack  (IM3Compilation o)
     i32 regAllocated [2] = { (i32) IsRegisterAllocated (o, 0), (i32) IsRegisterAllocated (o, 1) };
 
     // display whether r0 or fp0 is allocated. these should then also be reflected somewhere in the stack too.
+    d_m3Log(stack, "");
     printf ("                                                        ");
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
 
@@ -369,6 +370,7 @@ void  dump_type_stack  (IM3Compilation o)
 
         printf (" ");
     }
+    printf ("\n");
 
     for (u32 r = 0; r < 2; ++r)
         d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
@@ -433,11 +435,12 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 # ifdef DEBUG
     OpInfo i = find_operation_info (i_operation);
 
+    d_m3Log(emit, "");
     if (i.info)
     {
-        printf ("%p: %s", GetPC (o),  i.info->name);
+        printf ("%p: %s\n", GetPC (o),  i.info->name);
     }
-    else printf ("not found: %p", i_operation);
+    else printf ("not found: %p\n", i_operation);
 # endif
 }
 

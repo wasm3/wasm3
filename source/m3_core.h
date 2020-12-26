@@ -65,12 +65,6 @@ typedef m3slot_t *              m3stack_t;
 typedef
 const void * const  cvptr_t;
 
-# define d_m3Log_parse d_m3LogParse         // required for m3logif
-# define d_m3Log_stack d_m3LogWasmStack
-# define d_m3Log_runtime d_m3LogRuntime
-# define d_m3Log_exec d_m3LogExec
-# define d_m3Log_emit d_m3LogEmit
-
 # if d_m3LogOutput && defined (DEBUG)
 
 #   define d_m3Log(CATEGORY, FMT, ...)                  printf (" %8s  |  " FMT, #CATEGORY, ##__VA_ARGS__);
@@ -124,10 +118,9 @@ const void * const  cvptr_t;
 #   endif
 
 #   define m3log(CATEGORY, FMT, ...)                    m3log_##CATEGORY (CATEGORY, FMT "\n", ##__VA_ARGS__)
-#   define m3logif(CATEGORY, STATEMENT)                 m3log_##CATEGORY (CATEGORY, ""); if (d_m3Log_##CATEGORY) { STATEMENT; printf ("\n"); }
 # else
+#   define d_m3Log(CATEGORY, FMT, ...)                  {}
 #   define m3log(CATEGORY, FMT, ...)                    {}
-#   define m3logif(CATEGORY, STATEMENT)                 {}
 # endif
 
 
@@ -207,8 +200,7 @@ size_t      m3StackGetMax           ();
 #define     m3StackGetMax()         0
 #endif
 
-void        m3Abort                 (const char* message);
-
+void        m3_Abort                 (const char* message);
 M3Result    m3_Malloc                (void ** o_ptr, size_t i_size);
 M3Result    m3_Realloc               (void ** io_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_Free                  (void ** io_ptr);

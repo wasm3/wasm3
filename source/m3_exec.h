@@ -660,6 +660,10 @@ d_m3Op  (Const64)
     nextOp ();
 }
 
+d_m3Op  (Unsupported)
+{                                                   m3log (exec, "*** unsupported ***");
+    return "unsupported instruction executed";
+}
 
 d_m3Op  (Unreachable)
 {                                                   m3log (exec, "*** trapping ***");

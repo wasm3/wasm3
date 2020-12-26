@@ -430,7 +430,7 @@ void  ProfileHit  (cstr_t i_operationName)
     {
         if (slot->opName != i_operationName)
         {
-            m3Abort ("profiler slot collision; increase d_m3ProfilerSlotMask");
+            m3_Abort ("profiler slot collision; increase d_m3ProfilerSlotMask");
         }
     }
 

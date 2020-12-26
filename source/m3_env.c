@@ -800,7 +800,7 @@ _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memo
 
 #if d_m3LogNativeStack
         size_t stackUsed =  m3StackGetMax();
-        fprintf (stderr, "Native stack used: %d\n", stackUsed);
+        fprintf (stderr, "Native stack used: %zu\n", stackUsed);
 #endif // d_m3LogNativeStack
 
 #endif // d_m3LogOutput

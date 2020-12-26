@@ -14,7 +14,7 @@
 
 //-------------------------------------------------------------------------------------------------------------------------
 
-#define d_indent "     | "
+#define d_indent "     | %s"
 
 // just want less letter and numbers to stare at down the way in the compiler table
 #define i_32    c_m3Type_i32
@@ -101,8 +101,6 @@ bool  IsRegisterLocation        (i16 i_location)    { return (i_location >= d_m3
 bool  IsFpRegisterLocation      (i16 i_location)    { return (i_location == d_m3Fp0SlotAlias);  }
 bool  IsIntRegisterLocation     (i16 i_location)    { return (i_location == d_m3Reg0SlotAlias); }
 
-u8      GetBlockType        (IM3Compilation o)      { return o->block.type; }
-bool    BlockHasType        (IM3Compilation o)      { return GetBlockType (o) != c_m3Type_none; }
 i16     GetNumBlockValues   (IM3Compilation o)      { return o->stackIndex - o->block.initStackIndex; }
 
 u16 GetTypeNumSlots (u8 i_type)
@@ -456,7 +454,7 @@ M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_location)
             }
         }
 
-        m3logif (stack, dump_type_stack (o))
+        if (d_m3LogWasmStack) dump_type_stack (o);
     }
     else result = m3Err_functionStackOverflow;
 
@@ -491,8 +489,6 @@ M3Result  Pop  (IM3Compilation o)
         {
             DeallocateSlot (o, slot, type);
         }
-
-//        m3logif (stack, dump_type_stack (o))
     }
     else if (not IsStackPolymorphic (o))
         result = m3Err_functionStackUnderrun;
@@ -919,7 +915,7 @@ M3Result  Compile_Const_i32  (IM3Compilation o, m3opcode_t i_opcode)
 
     i32 value;
 _   (ReadLEB_i32 (& value, & o->wasm, o->wasmEnd));
-_   (PushConst (o, value, c_m3Type_i32));                       m3log (compile, d_indent "%s (const i32 = %" PRIi32 ")", get_indention_string (o), value);
+_   (PushConst (o, value, c_m3Type_i32));                       m3log (compile, d_indent " (const i32 = %" PRIi32 ")", get_indention_string (o), value);
     _catch: return result;
 }
 
@@ -930,7 +926,7 @@ M3Result  Compile_Const_i64  (IM3Compilation o, m3opcode_t i_opcode)
 
     i64 value;
 _   (ReadLEB_i64 (& value, & o->wasm, o->wasmEnd));
-_   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, d_indent "%s (const i64 = %" PRIi64 ")", get_indention_string (o), value);
+_   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, d_indent " (const i64 = %" PRIi64 ")", get_indention_string (o), value);
     _catch: return result;
 }
 
@@ -942,7 +938,7 @@ M3Result  Compile_Const_f32  (IM3Compilation o, m3opcode_t i_opcode)
 
     union { u32 u; f32 f; } value = { 0 };
 
-_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));              m3log (compile, d_indent "%s (const f32 = %f)", get_indention_string (o), value.f);
+_   (Read_f32 (& value.f, & o->wasm, o->wasmEnd));              m3log (compile, d_indent " (const f32 = %f)", get_indention_string (o), value.f);
 _   (PushConst (o, value.u, c_m3Type_f32));
 
     _catch: return result;
@@ -955,7 +951,7 @@ M3Result  Compile_Const_f64  (IM3Compilation o, m3opcode_t i_opcode)
 
     union { u64 u; f64 f; } value = { 0 };
 
-_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));              m3log (compile, d_indent "%s (const f64 = %lf)", get_indention_string (o), value.f);
+_   (Read_f64 (& value.f, & o->wasm, o->wasmEnd));              m3log (compile, d_indent " (const f64 = %lf)", get_indention_string (o), value.f);
 _   (PushConst (o, value.u, c_m3Type_f64));
 
     _catch: return result;
@@ -971,7 +967,7 @@ M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
     i32 value;
 
     u8 opcode;
-_   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent "%s (FC: %" PRIi32 ")", get_indention_string (o), opcode);
+_   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
 
     i_opcode = (i_opcode << 8) | opcode;
 
@@ -995,9 +991,7 @@ M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    bool hasReturn = GetFunctionNumReturns (o->function);
-
-    if (hasReturn)
+    if (GetFunctionNumReturns (o->function))
     {
 _       (ReturnStackTop (o));
 _       (Pop (o));
@@ -1401,7 +1395,7 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
     IM3Function function = Module_GetFunction (o->module, functionIndex);
 
     if (function)
-    {                                                                   m3log (compile, d_indent "%s (func= '%s'; args= %d)",
+    {                                                                   m3log (compile, d_indent " (func= '%s'; args= %d)",
                                                                                 get_indention_string (o), GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
@@ -1504,7 +1498,7 @@ _   (PushRegister (o, c_m3Type_i32));
     _catch: return result;
 }
 
-
+static
 M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
 {
     M3Result result;                                                        d_m3Assert (o_blockType);
@@ -1512,7 +1506,7 @@ M3Result  ReadBlockType  (IM3Compilation o, u8 * o_blockType)
     i8 type;
 
 _   (ReadLEB_i7 (& type, & o->wasm, o->wasmEnd));
-_   (NormalizeType (o_blockType, type));                                if (* o_blockType)  m3log (compile, d_indent "%s (type: %s)",
+_   (NormalizeType (o_blockType, type));                                if (* o_blockType)  m3log (compile, d_indent " (type: %s)",
                                                                                                    get_indention_string (o), c_waTypes [(u32) * o_blockType]);
     _catch: return result;
 }
@@ -1718,7 +1712,7 @@ _   (PushRegister (o, type));
 
 M3Result  Compile_Drop  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result = Pop (o);                                              m3logif (stack, dump_type_stack (o))
+    M3Result result = Pop (o);                                              if (d_m3LogWasmStack) dump_type_stack (o);
     return result;
 }
 
@@ -1858,7 +1852,7 @@ _try {
 
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
-                                                                        m3log (compile, d_indent "%s (offset = %d)", get_indention_string (o), memoryOffset);
+                                                                        m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
     const M3OpInfo * op = GetOpInfo(i_opcode);
 
     if (IsFpType (op->type))
@@ -2113,6 +2107,7 @@ const M3OpInfo c_operations [] =
 
     d_m3DebugOp (Entry),            d_m3DebugOp (Compile),      d_m3DebugOp (End),
 
+    d_m3DebugOp (Unsupported),
     d_m3DebugOp (CallRawFunction),
 
     d_m3DebugOp (GetGlobal_s32),    d_m3DebugOp (GetGlobal_s64),    d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),

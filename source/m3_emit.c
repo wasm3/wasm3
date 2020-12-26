@@ -61,7 +61,7 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
         result = BridgeToNewPageIfNecessary (o);
 
         if (not result)
-        {                                                           m3logif (emit, log_emit (o, i_operation))
+        {                                                           if (d_m3LogEmit) log_emit (o, i_operation);
             EmitWord (o->page, i_operation);
         }
     }
