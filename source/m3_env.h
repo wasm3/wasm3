@@ -189,6 +189,8 @@ typedef struct M3Environment
 
     IM3FuncType             funcTypes;          // linked list
 
+    IM3FuncType             retFuncTypes[5];
+
     M3CodePage *            pagesReleased;
 }
 M3Environment;
@@ -197,7 +199,6 @@ void                        Environment_Release         (IM3Environment i_enviro
 
 // takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
 void                        Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
-M3Result                    Environment_AddRetType      (IM3Environment i_environment, u8 i_valType, IM3FuncType* o_functype);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 

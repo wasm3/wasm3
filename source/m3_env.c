@@ -151,6 +151,18 @@ IM3Environment  m3_NewEnvironment  ()
     IM3Environment env = NULL;
     m3Alloc (& env, M3Environment, 1);
 
+    // create FuncTypes for all simple block return ValueTypes
+    for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
+    {
+        IM3FuncType ftype;
+        AllocFuncType (& ftype, 1);
+        ftype->numArgs = 0;
+        ftype->numRets = (t == c_m3Type_none) ? 0 : 1;
+        ftype->types[0] = t;
+
+        env->retFuncTypes[t] = ftype;
+    }
+
     return env;
 }
 
@@ -204,22 +216,6 @@ void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_f
 
     * io_funcType = newType;
 }
-
-M3Result  Environment_AddRetType  (IM3Environment i_environment, u8 i_valType, IM3FuncType* o_functype)
-{
-    M3Result result;
-    IM3FuncType ftype;
-_   (AllocFuncType (& ftype, 1));
-    ftype->numArgs = 0;
-    ftype->numRets = (i_valType == c_m3Type_none) ? 0 : 1;
-    ftype->types[0] = i_valType;
-    Environment_AddFuncType (i_environment, & ftype);
-
-    *o_functype = ftype;
-
-    _catch: return result;
-}
-
 
 IM3CodePage RemoveCodePageOfCapacity (M3CodePage ** io_list, u32 i_minimumLineCount)
 {
@@ -405,8 +401,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
     if (o->page)
     {
-        IM3FuncType ftype;
-_       (Environment_AddRetType(runtime.environment, i_type, &ftype));
+        IM3FuncType ftype = runtime.environment->retFuncTypes[i_type];
 
         pc_t m3code = GetPagePC (o->page);
         result = CompileBlock (o, ftype, c_waOp_block);
@@ -440,7 +435,7 @@ _       (Environment_AddRetType(runtime.environment, i_type, &ftype));
 
     * io_bytes = o->wasm;
 
-    _catch: return result;
+    return result;
 }
 
 

@@ -39,13 +39,11 @@ _try {
 
     cstr_t sig = i_signature;
 
-    size_t maxNumArgs = strlen (i_signature);
-    _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 3);
-
-    maxNumArgs -= 3;  // "v()"
+    int maxNumArgs = strlen (i_signature) - 2; // "()"
+    _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 0);
     _throwif ("insane argument count", maxNumArgs > d_m3MaxSaneFunctionArgCount);
 
-_   (AllocFuncType (& funcType, (u32) maxNumArgs));
+_   (AllocFuncType (& funcType, maxNumArgs));
 
     bool parsingArgs = false;
     while (* sig)

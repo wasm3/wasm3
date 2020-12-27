@@ -1507,7 +1507,7 @@ _   (ReadLebSigned (& type, 33, & o->wasm, o->wasmEnd));
     {
         u8 valueType;
 _       (NormalizeType (&valueType, type));                                m3log (compile, d_indent " (type: %s)", get_indention_string (o), c_waTypes [valueType]);
-_       (Environment_AddRetType(o->module->environment, valueType, o_blockType));
+        *o_blockType = o->module->environment->retFuncTypes[valueType];
     }
     else if (type < o->module->numFuncTypes)
     {
