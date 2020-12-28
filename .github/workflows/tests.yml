@@ -440,6 +440,7 @@ jobs:
         cd build
         g++ -xc++ -Dd_m3HasWASI -DDEBUG \
             -Dd_m3EnableOpTracing=1     \
+            -Dd_m3EnableStrace=1        \
             -Dd_m3LogParse=1            \
             -Dd_m3LogModule=1           \
             -Dd_m3LogCompile=1          \

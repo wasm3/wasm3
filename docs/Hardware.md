@@ -25,6 +25,7 @@ Particle Argon, Boron, Xenon  | nRF52840  | Cortex-M4F | 64MHz      |  1 MB | 25
 Particle Photon, Electron     | STM32F205 | Cortex-M3  | 120Mhz     |  1 MB | 128KB
 Sparkfun Photon RedBoard      | STM32F205 | Cortex-M3  | 120Mhz     |  1 MB | 128KB
 Air602                        | WM W600   | Cortex-M3  | 80MHz      |  1 MB | 160KB+128KB
+Adafruit PyBadge            | ATSAMD51J19 | Cortex-M4F | 120MHz     | 512KB | 192KB
 Realtek RTL8711               |           | Cortex-M3  | 166MHz     |  2 MB | 2 MB+512KB
 Nordic nRF52840               |           | Cortex-M4F | 64MHz      |  1 MB | 256KB
 Nordic nRF52833               |           | Cortex-M4F | 64MHz      | 512KB | 128KB
