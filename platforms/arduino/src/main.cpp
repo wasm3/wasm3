@@ -21,7 +21,7 @@ void run_wasm()
     M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
-    size_t fsize = fib32_wasm_len-1;
+    size_t fsize = fib32_wasm_len;
 
     Serial.println("Loading WebAssembly...");
 

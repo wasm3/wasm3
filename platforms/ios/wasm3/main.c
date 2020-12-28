@@ -55,7 +55,7 @@ void run_wasm()
     M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
-    uint32_t fsize = fib32_wasm_len - 1;
+    uint32_t fsize = fib32_wasm_len;
 
     printf("Loading WebAssembly...\n");
 

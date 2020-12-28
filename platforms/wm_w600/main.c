@@ -8,7 +8,7 @@
 #include "wm_include.h"
 
 #include "m3/wasm3.h"
-#include "m3/m3_env.h"
+//#include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
 
@@ -24,7 +24,7 @@ void run_wasm()
     M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)fib32_wasm;
-    uint32_t fsize = fib32_wasm_len-1;
+    uint32_t fsize = fib32_wasm_len;
 
     printf("Loading WebAssembly...\n");
     IM3Environment env = m3_NewEnvironment ();
@@ -51,8 +51,8 @@ void run_wasm()
 
     if (result) FATAL("m3_CallWithArgs: %s", result);
 
-    long value = *(uint64_t*)(runtime->stack);
-    printf("Result: %ld\n", value);
+    //long value = *(uint64_t*)(runtime->stack);
+    //printf("Result: %ld\n", value);
 }
 
 

@@ -24,7 +24,7 @@ static void run_wasm(void)
     M3Result result = m3Err_none;
 
     uint8_t* wasm = (uint8_t*)wasi_test_wasm;
-    uint32_t fsize = wasi_test_wasm_len-1;
+    uint32_t fsize = wasi_test_wasm_len;
 
     printf("Loading WebAssembly...\n");
     IM3Environment env = m3_NewEnvironment ();
