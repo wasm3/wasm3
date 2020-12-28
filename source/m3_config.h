@@ -68,6 +68,10 @@
 #   define d_m3EnableOpTracing                  0       // only works with DEBUG
 # endif
 
+# ifndef d_m3EnableStrace
+#   define d_m3EnableStrace                     0       // trace exported function calls
+# endif
+
 
 // logging --------------------------------------------------------------------
 

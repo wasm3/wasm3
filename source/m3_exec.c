@@ -119,8 +119,49 @@ d_m3OpDef  (CallRawFunction)
     M3RawCall call = (M3RawCall) (* _pc++);
     IM3Function function = immediate (IM3Function);
     void * userdata = immediate (void *);
+    u64* const sp = ((u64*)_sp);
 
-    m3ret_t possible_trap = call (m3MemRuntime(_mem), (u64 *)_sp, m3MemData(_mem), userdata);
+#if d_m3EnableStrace
+    IM3FuncType ftype = function->funcType;
+
+    FILE* out = stderr;
+    char outbuff[1024];
+    char* outp = outbuff;
+    char* oute = outbuff+1024;
+
+    outp += snprintf(outp, oute-outp, "%s.%s(", function->import.moduleUtf8, function->import.fieldUtf8);
+
+    const int nArgs = ftype->numArgs;
+    const int nRets = ftype->numRets;
+    for (int i=0; i<nArgs; i++) {
+        const int type = ftype->types[nRets + i];
+        switch (type) {
+        case c_m3Type_i32:  outp += snprintf(outp, oute-outp, "%i",   *(i32*)(sp+i)); break;
+        case c_m3Type_i64:  outp += snprintf(outp, oute-outp, "%lli", *(i64*)(sp+i)); break;
+        case c_m3Type_f32:  outp += snprintf(outp, oute-outp, "%f",   *(f32*)(sp+i)); break;
+        case c_m3Type_f64:  outp += snprintf(outp, oute-outp, "%lf",  *(f64*)(sp+i)); break;
+        default:            outp += snprintf(outp, oute-outp, "<unknown type %d>", type); break;
+        }
+        outp += snprintf(outp, oute-outp, (i < nArgs-1) ? ", " : ")");
+    }
+#endif
+
+    m3ret_t possible_trap = call (m3MemRuntime(_mem), sp, m3MemData(_mem), userdata);
+
+#if d_m3EnableStrace
+    if (possible_trap) {
+        fprintf(out, "%s -> %s\n", outbuff, possible_trap);
+    } else {
+        switch (GetSingleRetType(ftype)) {
+        case c_m3Type_none: fprintf(out, "%s\n", outbuff); break;
+        case c_m3Type_i32:  fprintf(out, "%s = %i\n",   outbuff, *(i32*)sp); break;
+        case c_m3Type_i64:  fprintf(out, "%s = %lli\n", outbuff, *(i64*)sp); break;
+        case c_m3Type_f32:  fprintf(out, "%s = %f\n",   outbuff, *(f32*)sp); break;
+        case c_m3Type_f64:  fprintf(out, "%s = %lf\n",  outbuff, *(f64*)sp); break;
+        }
+    }
+#endif
+
     return possible_trap;
 }
 
