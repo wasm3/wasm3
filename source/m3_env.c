@@ -650,6 +650,8 @@ _           (Compile_Function (function));
         IM3Runtime runtime = module->runtime;
 
 _       ((M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+
+		io_module->startFunction = -1;
     }
 
     _catch: return result;
@@ -673,8 +675,8 @@ _       (InitElements (io_module));
         io_module->next = io_runtime->modules;
         io_runtime->modules = io_module;
 
-        // Functions expect module to be linked to a runtime, so we call start here
-_       (InitStartFunc (io_module));
+        // Start func might use imported functions, which are not liked here yet,
+        // so it will be called before a function call is attempted (in m3_FindFuSnction)
     }
     else result = m3Err_moduleAlreadyLinked;
 
@@ -722,6 +724,13 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
         }
     }
     else result = ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
+
+    // Check if start function needs to be called
+    if (function and function->module->startFunction) {
+        result = InitStartFunc (function->module);
+        if (result)
+            return result;
+    }
 
     * o_function = function;
 
@@ -803,8 +812,8 @@ _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memo
         }
 
 #if d_m3LogNativeStack
-        size_t stackUsed =  m3StackGetMax();
-        fprintf (stderr, "Native stack used: %zu\n", stackUsed);
+        int stackUsed =  m3StackGetMax();
+        fprintf (stderr, "Native stack used: %d\n", stackUsed);
 #endif // d_m3LogNativeStack
 
 #endif // d_m3LogOutput

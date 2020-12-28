@@ -163,7 +163,7 @@ M3CodePageHeader;
 #define d_m3Fp0SlotAlias                    30001
 
 #define d_m3MaxSaneUtf8Length               2000
-#define d_m3MaxSaneFunctionArgCount         128
+#define d_m3MaxSaneFunctionArgCount         1000    // still insane, but whatever
 
 #define d_externalKind_function             0
 #define d_externalKind_table                1
@@ -193,7 +193,7 @@ M3Result m3Error (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, I
 #if d_m3LogNativeStack
 void        m3StackCheckInit        ();
 void        m3StackCheck            ();
-size_t      m3StackGetMax           ();
+int         m3StackGetMax           ();
 #else
 #define     m3StackCheckInit()
 #define     m3StackCheck()

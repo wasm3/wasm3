@@ -183,7 +183,7 @@ void        m3StackCheck ()
 //        printf ("maxStack: %ld\n", m3StackGetMax ());
 }
 
-size_t      m3StackGetMax  ()
+int      m3StackGetMax  ()
 {
     return stack_start - stack_end;
 }
