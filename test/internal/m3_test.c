@@ -28,16 +28,17 @@ int  main  (int i_argc, const char  * i_argv [])
         m3Free (ftype);
 
         result = SignatureToFuncType (& ftype, " v () ");               expect (result == m3Err_none)
-                                                                        expect (ftype->returnType == c_m3Type_none)
+                                                                        expect (ftype->numRets == 0)
                                                                         expect (ftype->numArgs == 0)
         m3Free (ftype);
 
         result = SignatureToFuncType (& ftype, "f(IiF)");               expect (result == m3Err_none)
-                                                                        expect (ftype->returnType == c_m3Type_f32)
+                                                                        expect (ftype->numRets == 1)
+                                                                        expect (ftype->types [0] == c_m3Type_f32)
                                                                         expect (ftype->numArgs == 3)
-                                                                        expect (ftype->argTypes [0] == c_m3Type_i64)
-                                                                        expect (ftype->argTypes [1] == c_m3Type_i32)
-                                                                        expect (ftype->argTypes [2] == c_m3Type_f64)
+                                                                        expect (ftype->types [1] == c_m3Type_i64)
+                                                                        expect (ftype->types [2] == c_m3Type_i32)
+                                                                        expect (ftype->types [3] == c_m3Type_f64)
         
         IM3FuncType ftype2 = NULL;
         result = SignatureToFuncType (& ftype2, "f(I i F)");            expect (result == m3Err_none);

@@ -48,6 +48,7 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --repl")
+parser.add_argument("--spec",                          default="v1.1")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
@@ -146,7 +147,7 @@ if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
     from zipfile import ZipFile
     from urllib.request import urlopen
 
-    officialSpec = "https://github.com/wasm3/wasm-core-testsuite/archive/v1.1.zip"
+    officialSpec = f"https://github.com/wasm3/wasm-core-testsuite/archive/{args.spec}.zip"
 
     print(f"Downloading {officialSpec}")
     resp = urlopen(officialSpec)
@@ -482,7 +483,9 @@ for fn in jsonFiles:
 
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
-                wasm3.load(wasm_fn)
+                res = wasm3.load(wasm_fn)
+                if res:
+                    warning(res)
             except Exception as e:
                 pass #fatal(str(e))
 
