@@ -64,7 +64,7 @@ typedef struct wasi_iovec_t
 
 typedef struct Preopen {
     int         fd;
-    char*       path;
+    const char* path;
 } Preopen;
 
 Preopen preopen[PREOPEN_CNT] = {

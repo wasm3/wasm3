@@ -383,6 +383,8 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     runtime.numStackSlots = i_module->runtime->numStackSlots;
     runtime.stack = i_module->runtime->stack;
 
+    m3stack_t stack = (m3stack_t)runtime.stack;
+
     IM3Runtime savedRuntime = i_module->runtime;
     i_module->runtime = & runtime;
 
@@ -406,18 +408,18 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
         if (not result)
         {
-            m3ret_t r = Call (m3code, runtime.stack, NULL, d_m3OpDefaultArgs);
+            m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
             result = runtime.runtimeError;
 
             if (r == 0 and not result)
             {
                 if (SizeOfType (i_type) == sizeof (u32))
                 {
-                    * (u32 *) o_expressed = * ((u32 *) runtime.stack);
+                    * (u32 *) o_expressed = * ((u32 *) stack);
                 }
                 else
                 {
-                    * (u64 *) o_expressed = * ((u64 *) runtime.stack);
+                    * (u64 *) o_expressed = * ((u64 *) stack);
                 }
             }
         }
