@@ -202,8 +202,6 @@ void                        Environment_AddFuncType     (IM3Environment i_enviro
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
-// OPTZ: function types need to move to the runtime structure so that all modules can share types
-// then type equality can be a simple pointer compare for indirect call checks
 typedef struct M3Runtime
 {
     M3Compilation           compilation;
@@ -235,7 +233,7 @@ typedef struct M3Runtime
 
     M3ErrorInfo             error;
 #if d_m3VerboseLogs
-    char                    error_message[256];
+    char                    error_message[256]; // the actual buffer. M3ErrorInfo can point to this
 #endif
 }
 M3Runtime;
