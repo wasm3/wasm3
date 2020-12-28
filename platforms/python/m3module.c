@@ -189,8 +189,9 @@ put_arg_on_stack(u64 *s, u8 type, PyObject *arg)
 }
 
 static PyObject *
-get_result_from_stack(u8 type, m3stack_t stack)
+get_result_from_stack(IM3FuncType ftype, m3stack_t stack)
 {
+	u8 type = GetSingleRetType(ftype);
     switch (type) {
         case c_m3Type_none: Py_RETURN_NONE;
         case c_m3Type_i32: return PyLong_FromLong(*(i32*)(stack));
@@ -213,7 +214,7 @@ M3_Function_call_argv(m3_function *func, PyObject *args)
         argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
     }
     M3Result res = m3_CallWithArgs(func->f, size, argv);
-    return get_result_from_stack(func->f->funcType->returnType, func->r->stack);
+    return get_result_from_stack(func->f->funcType, func->r->stack);
 }
 
 static PyObject*
@@ -231,19 +232,19 @@ Function_num_args(m3_function *self, void * closure)
 static PyObject*
 Function_return_type(m3_function *self, void * closure)
 {
-    return PyLong_FromLong(self->f->funcType->returnType);
+    return PyLong_FromLong(GetSingleRetType(self->f->funcType));
 }
 
 static PyObject*
 Function_arg_types(m3_function *self, void * closure)
 {
     M3FuncType *type = self->f->funcType;
-    Py_ssize_t n = type->numArgs;
-    PyObject *ret = PyTuple_New(n);
+    Py_ssize_t nArgs = type->numArgs;
+    PyObject *ret = PyTuple_New(nArgs);
     if (ret) {
         Py_ssize_t i;
-        for (i = 0; i < n; ++i) {
-            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(type->argTypes[i]));
+        for (i = 0; i < nArgs; ++i) {
+            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(type->types[type->numRets + i]));
         }
     }
     return ret;
@@ -272,10 +273,10 @@ M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
     // args are always 64-bit aligned
     u64 * stack = (u64 *) self->r->stack;
     for (i = 0; i < type->numArgs; ++i) {
-        put_arg_on_stack(&stack[i], type->argTypes[i], PyTuple_GET_ITEM(args, i));
+        put_arg_on_stack(&stack[i], type->types[type->numRets + i], PyTuple_GET_ITEM(args, i));
     }
     Call(f->compiled, (m3stack_t) stack, self->r->memory.mallocated, d_m3OpDefaultArgs);
-    return get_result_from_stack(f->funcType->returnType, self->r->stack);
+    return get_result_from_stack(f->funcType, self->r->stack);
 }
 
 static PyType_Slot M3_Function_Type_slots[] = {
