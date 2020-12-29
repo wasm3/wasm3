@@ -66,7 +66,7 @@ _   (m3ReallocArray (& io_module->globals, M3Global, io_module->numGlobals, inde
 M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo)
 {
     M3Result result = m3Err_none;
-
+_try {
     u32 index = io_module->numFunctions++;
 _   (m3ReallocArray (& io_module->functions, M3Function, io_module->numFunctions, index));
 
@@ -85,8 +85,8 @@ _   (m3ReallocArray (& io_module->functions, M3Function, io_module->numFunctions
 
     //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
 
-
-     _catch: return result;
+} _catch:
+    return result;
 }
 
 
