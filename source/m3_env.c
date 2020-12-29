@@ -49,8 +49,8 @@ void  Function_Release  (IM3Function i_function)
 
     FreeImportInfo (& i_function->import);
 
-    if (i_function->ownsWasmCode)
-        m3Free (i_function->wasm);
+    //if (i_function->ownsWasmCode)
+    //    m3Free (i_function->wasm);
 
     // Function_FreeCompiledCode (func);
 
@@ -602,26 +602,19 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             u32 endElement = numElements + offset;
 
-            if (endElement > offset) // TODO: check this, endElement depends on offset
+            _throwif ("table overflow", offset >= endElement); // TODO: check this, endElement depends on offset
+_           (m3ReallocArray (& io_module->table0, IM3Function, endElement, io_module->table0Size));
+
+            io_module->table0Size = endElement;
+
+            for (u32 e = 0; e < numElements; ++e)
             {
-_               (m3ReallocArray (& io_module->table0, IM3Function, endElement, io_module->table0Size));
-
-                io_module->table0Size = endElement;
-
-                for (u32 e = 0; e < numElements; ++e)
-                {
-                    u32 functionIndex;
-_                       (ReadLEB_u32 (& functionIndex, & bytes, end));
-
-                    if (functionIndex < io_module->numFunctions)
-                    {
-                        IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
-                        io_module->table0 [e + offset] = function;
-                    }
-                    else _throw ("function index out of range");
-                }
+                u32 functionIndex;
+_               (ReadLEB_u32 (& functionIndex, & bytes, end));
+                _throwif ("function index out of range", functionIndex >= io_module->numFunctions);
+                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
+                io_module->table0 [e + offset] = function;
             }
-            else _throw ("table overflow");
         }
         else _throw ("element table index must be zero for MVP");
     }
@@ -651,7 +644,7 @@ _           (Compile_Function (function));
 
 _       ((M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
 
-		io_module->startFunction = -1;
+        io_module->startFunction = -1;
     }
 
     _catch: return result;
@@ -693,7 +686,9 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
     {
         IM3Function f = & i_module->functions [i];
 
-        if (f->name)
+        bool isImported = f->import.moduleUtf8 or f->import.fieldUtf8;
+
+        if (not isImported and f->name)
         {
             if (strcmp (f->name, i_name) == 0)
                 return f;

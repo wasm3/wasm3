@@ -227,6 +227,7 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
 
         if (exportKind == d_externalKind_function)
         {
+            _throwif(m3Err_wasmMalformed, index >= io_module->numFunctions);
             if (not io_module->functions [index].name)
             {
                 io_module->functions [index].name = utf8;
@@ -340,7 +341,7 @@ _                   (NormalizeType (& normalType, wasmType));
                 func->module = io_module;
                 func->wasm = start;
                 func->wasmEnd = i_bytes;
-                func->ownsWasmCode = io_module->hasWasmCodeCopy;
+                //func->ownsWasmCode = io_module->hasWasmCodeCopy;
                 func->numLocals = numLocals;
             }
             else _throw (m3Err_wasmSectionOverrun);
@@ -543,7 +544,7 @@ _   (m3Alloc (& module, M3Module, 1));
 
     module->name = ".unnamed";                                                      m3log (parse, "load module: %d bytes", i_numBytes);
     module->startFunction = -1;
-    module->hasWasmCodeCopy = false;
+    //module->hasWasmCodeCopy = false;
     module->environment = i_environment;
 
     const u8 * pos = i_bytes;

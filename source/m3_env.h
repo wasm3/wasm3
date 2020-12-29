@@ -54,7 +54,7 @@ typedef struct M3Function
     void *                  constants;
     u16                     numConstantBytes;
 
-    bool                    ownsWasmCode;
+    //bool                    ownsWasmCode;
 }
 M3Function;
 
@@ -146,7 +146,7 @@ typedef struct M3Module
     IM3FuncType *           funcTypes;          // array of pointers to list of FuncTypes
 
     u32                     numImports;
-    IM3Function *           imports;            // notice: "I" prefix. imports are pointers to functions in another module.
+    //IM3Function *           imports;   b         // notice: "I" prefix. imports are pointers to functions in another module.
 
     u32                     numFunctions;
     M3Function *            functions;
@@ -156,7 +156,7 @@ typedef struct M3Module
     u32                     numDataSegments;
     M3DataSegment *         dataSegments;
 
-    u32                     importedGlobals;
+    //u32                     importedGlobals;
     u32                     numGlobals;
     M3Global *              globals;
 
@@ -170,7 +170,7 @@ typedef struct M3Module
     M3MemoryInfo            memoryInfo;
     bool                    memoryImported;
 
-    bool                    hasWasmCodeCopy;
+    //bool                    hasWasmCodeCopy;
 
     struct M3Module *       next;
 }

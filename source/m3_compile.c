@@ -1509,13 +1509,10 @@ _   (ReadLebSigned (& type, 33, & o->wasm, o->wasmEnd));
 _       (NormalizeType (&valueType, type));                                m3log (compile, d_indent " (type: %s)", get_indention_string (o), c_waTypes [valueType]);
         *o_blockType = o->module->environment->retFuncTypes[valueType];
     }
-    else if (type < o->module->numFuncTypes)
-    {
-        *o_blockType = o->module->funcTypes[type];                         m3log (compile, d_indent " (type: %s)", get_indention_string (o), SPrintFuncTypeSignature (*o_blockType));
-    }
     else
     {
-        return "func type out of bounds";
+        _throwif("func type out of bounds", type >= o->module->numFuncTypes);
+        *o_blockType = o->module->funcTypes[type];                         m3log (compile, d_indent " (type: %s)", get_indention_string (o), SPrintFuncTypeSignature (*o_blockType));
     }
     _catch: return result;
 }

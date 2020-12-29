@@ -29,7 +29,7 @@ void  m3_FreeModule  (IM3Module i_module)
         Module_FreeFunctions (i_module);
 
         m3Free (i_module->functions);
-        m3Free (i_module->imports);
+        //m3Free (i_module->imports);
         m3Free (i_module->funcTypes);
         m3Free (i_module->dataSegments);
         m3Free (i_module->table0);
@@ -70,22 +70,21 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     u32 index = io_module->numFunctions++;
 _   (m3ReallocArray (& io_module->functions, M3Function, io_module->numFunctions, index));
 
-    if (i_typeIndex < io_module->numFuncTypes)
+    _throwif("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
+
+    IM3FuncType ft = io_module->funcTypes [i_typeIndex];
+
+    IM3Function func = Module_GetFunction (io_module, index);
+    func->funcType = ft;
+
+    if (i_importInfo)
     {
-        IM3FuncType ft = io_module->funcTypes [i_typeIndex];
-
-        IM3Function func = Module_GetFunction (io_module, index);
-        func->funcType = ft;
-
-        if (i_importInfo)
-        {
-            func->import = * i_importInfo;
-            func->name = i_importInfo->fieldUtf8;
-        }
-
-        //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
+        func->import = * i_importInfo;
+        func->name = i_importInfo->fieldUtf8;
     }
-    else result = "type sig index out of bounds";
+
+    //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
+
 
      _catch: return result;
 }
