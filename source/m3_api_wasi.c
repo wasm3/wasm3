@@ -19,6 +19,7 @@
 #if defined (M3_COMPILER_MSVC)
 #  define _Static_assert(...)
 #  define __attribute__(...)
+#  define _Noreturn
 #endif
 
 #include "extra/wasi_core.h"
