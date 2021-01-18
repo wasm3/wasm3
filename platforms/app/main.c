@@ -316,14 +316,18 @@ int  main  (int i_argc, const char* i_argv[])
 
         if (argFunc and not argRepl) {
             if (!strcmp(argFunc, "_start")) {
+            	m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
                 // When passing args to WASI, include wasm filename as argv[0]
-                result = repl_call(runtime, argFunc, i_argc+1, i_argv-1);
+            	wasi_ctx->argc = i_argc+1;
+            	wasi_ctx->argv = i_argv-1;
+                result = repl_call(runtime, argFunc, 0, NULL);
+                if (result == m3Err_trapExit) {
+                    return wasi_ctx->exit_code;
+                }
             } else {
                 result = repl_call(runtime, argFunc, i_argc, i_argv);
             }
-            if (result == m3Err_trapExit) {
-                return runtime->exit_code;
-            }
+
             if (result) {
                 if (argDumpOnTrap) {
                     repl_dump(runtime);
@@ -358,7 +362,7 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_load(runtime, argv[1]);
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(runtime, atol(argv[1]));
-        } else if (!strcmp(":dump", argv[0])) {             // :load <filename>
+        } else if (!strcmp(":dump", argv[0])) {
             result = repl_dump(runtime);
         } else if (argv[0][0] == ':') {
             result = "no such command";
@@ -372,10 +376,10 @@ int  main  (int i_argc, const char* i_argv[])
             M3ErrorInfo info;
             m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)\n", info.message);
-            if (result == m3Err_trapExit) {
+            //TODO: if (result == m3Err_trapExit) {
                 // warn that exit was called
-                fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);
-            }
+            //    fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);
+            //}
         }
     }
 

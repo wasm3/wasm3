@@ -748,10 +748,6 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         IM3Module module = i_function->module;
 
         IM3Runtime runtime = module->runtime;
-        runtime->argc = i_argc;
-        runtime->argv = i_argv;
-        if (i_function->name and strcmp (i_function->name, "_start") == 0) // WASI
-            i_argc = 0;
 
         IM3FuncType ftype = i_function->funcType;                               m3log (runtime, "calling %s", SPrintFuncTypeSignature (ftype));
 
@@ -820,60 +816,6 @@ _       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memo
 
     _catch: return result;
 }
-
-#if 0
-M3Result  m3_CallMain  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
-{
-    M3Result result = m3Err_none;
-
-    if (i_function->compiled)
-    {
-        IM3Module module = i_function->module;
-
-        IM3Runtime runtime = module->runtime;
-
-        u8 * linearMemory = runtime->memory.wasmPages;
-
-        m3stack_t stack = (m3stack_t) runtime->stack;
-
-        if (i_argc)
-        {
-            IM3Memory memory = & runtime->memory;
-            // FIX: memory allocation in general
-
-            i32 offset = AllocatePrivateHeap (memory, sizeof (i32) * i_argc);
-
-            i32 * pointers = (i32 *) (memory->wasmPages + offset);
-
-            for (u32 i = 0; i < i_argc; ++i)
-            {
-                size_t argLength = strlen (i_argv [i]) + 1;
-
-                if (argLength < 4000)
-                {
-                    i32 o = AllocatePrivateHeap (memory, (i32) argLength);
-                    memcpy (memory->wasmPages + o, i_argv [i], argLength);
-
-                    * pointers++ = o;
-                }
-                else _throw ("insane argument string length");
-            }
-
-            stack [0] = i_argc;
-            stack [1] = offset;
-        }
-
-_       ((M3Result)Call (i_function->compiled, stack, linearMemory, d_m3OpDefaultArgs));
-
-        //u64 value = * (u64 *) (stack);
-        //m3log (runtime, "return64: % " PRIu64 " return32: %" PRIu32, value, (u32) value);
-    }
-    else _throw (m3Err_missingCompiledCode);
-
-    _catch: return result;
-}
-#endif
-
 
 void  ReleaseCodePageNoTrack (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {

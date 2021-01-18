@@ -190,7 +190,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      const char * const     i_moduleName,
                                                      const char * const     i_functionName,
                                                      const char * const     i_signature,
-													 M3RawCall              i_function);
+                                                     M3RawCall              i_function);
 
     M3Result            m3_LinkRawFunctionEx        (IM3Module              io_module,
                                                      const char * const     i_moduleName,

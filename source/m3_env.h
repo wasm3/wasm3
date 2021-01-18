@@ -220,10 +220,6 @@ typedef struct M3Runtime
     u32                     stackSize;
     u32                     numStackSlots;
 
-    i32                     exit_code;
-    u32                     argc;
-    ccstr_t *               argv;
-
     void *                  userdata;
 
     M3Memory                memory;

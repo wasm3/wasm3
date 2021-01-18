@@ -16,6 +16,10 @@ jobs:
         - {target: clang-x86,   cc: clang,      flags: -DCMAKE_C_FLAGS="-m32",    install: "gcc-multilib"   }
         - {target: gcc,         cc: gcc,        }
         - {target: gcc-debug,   cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug   }
+        # Builds without uvwasi
+        - {target: gcc-no-uvwasi,   cc: gcc,    flags: -DBUILD_WASI=simple   }
+        - {target: clang-no-uvwasi, cc: clang,  flags: -DBUILD_WASI=simple   }
+
         # TODO: fails on numeric operations
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
 
@@ -63,7 +67,15 @@ jobs:
 
   build-mac:
     runs-on: macos-latest
+    name: build-mac-${{ matrix.config.target }}
     timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {target: uvwasi,      }
+        - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
 
     steps:
     - uses: actions/checkout@v2
@@ -71,7 +83,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build
@@ -93,6 +105,11 @@ jobs:
         - {target: msvc-x64,    platform: "-A x64",     toolset: ""             }
         - {target: clang-x86,   platform: "-A Win32",   toolset: "-T ClangCL"   }
         - {target: msvc-x86,    platform: "-A Win32",   toolset: ""             }
+        # Builds without uvwasi
+        - {target: clang-x64-no-uvwasi,   platform: "-A x64",     toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
+        - {target: msvc-x64-no-uvwasi,    platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple"   }
+        - {target: clang-x86-no-uvwasi,   platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
+        - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple"   }
 
     steps:
     - uses: actions/checkout@v2
@@ -100,7 +117,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
+        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build --config Release
