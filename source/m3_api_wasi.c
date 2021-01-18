@@ -15,6 +15,12 @@
 
 #if defined(d_m3HasWASI)
 
+// Fixup wasi_core.h
+#if defined (M3_COMPILER_MSVC)
+#  define _Static_assert(...)
+#  define __attribute__(...)
+#endif
+
 #include "extra/wasi_core.h"
 
 #include <sys/types.h>
