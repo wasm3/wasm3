@@ -68,18 +68,20 @@ typedef struct wasi_iovec_t
     __wasi_size_t buf_len;
 } wasi_iovec_t;
 
-#define PREOPEN_CNT   4
+#define PREOPEN_CNT   5
 
 typedef struct Preopen {
     int         fd;
     const char* path;
+    const char* real_path;
 } Preopen;
 
 Preopen preopen[PREOPEN_CNT] = {
-    {  0, "<stdin>"  },
-    {  1, "<stdout>" },
-    {  2, "<stderr>" },
-    { -1, "./"       },
+    {  0, "<stdin>" ,   "" },
+    {  1, "<stdout>",   "" },
+    {  2, "<stderr>",   "" },
+    { -1, "./"      , "./" },
+    { -1, "/"       , "./" },
 };
 
 static
@@ -448,7 +450,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
         flags |= O_RDONLY; // no-op because O_RDONLY is 0
     }
     int mode = 0644;
-    int host_fd = openat (dirfd, host_path, flags, mode);
+    int host_fd = openat (preopen[dirfd].fd, host_path, flags, mode);
 
     if (host_fd < 0)
     {
@@ -680,7 +682,7 @@ M3Result  m3_LinkWASI  (IM3Module module)
 #else
     // Preopen dirs
     for (int i = 3; i < PREOPEN_CNT; i++) {
-        preopen[i].fd = open(preopen[i].path, O_RDONLY);
+        preopen[i].fd = open(preopen[i].real_path, O_RDONLY);
     }
 #endif
 
