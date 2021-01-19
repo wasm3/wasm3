@@ -496,10 +496,12 @@ M3Result  m3_LinkWASI  (IM3Module module)
         return "uvwasi_init failed";
     }
 
-    wasi_context = (m3_wasi_context_t*)malloc(sizeof(m3_wasi_context_t));
-    wasi_context->exit_code = 0;
-    wasi_context->argc = 0;
-    wasi_context->argv = 0;
+    if (!wasi_context) {
+        wasi_context = (m3_wasi_context_t*)malloc(sizeof(m3_wasi_context_t));
+        wasi_context->exit_code = 0;
+        wasi_context->argc = 0;
+        wasi_context->argv = 0;
+    }
 
     static const char* namespaces[2] = { "wasi_unstable", "wasi_snapshot_preview1" };
 
