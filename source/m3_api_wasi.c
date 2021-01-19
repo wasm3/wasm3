@@ -448,7 +448,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
         flags |= O_RDONLY; // no-op because O_RDONLY is 0
     }
     int mode = 0644;
-    int host_fd = openat (dirfd, host_path, flags, mode);
+    int host_fd = openat (preopen[dirfd].fd, host_path, flags, mode);
 
     if (host_fd < 0)
     {
