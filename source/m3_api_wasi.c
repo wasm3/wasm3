@@ -81,7 +81,7 @@ Preopen preopen[PREOPEN_CNT] = {
     {  1, "<stdout>",   "" },
     {  2, "<stderr>",   "" },
     { -1, "./"      , "./" },
-    { -2, "/"       , "./" },
+    { -1, "/"       , "./" },
 };
 
 static
