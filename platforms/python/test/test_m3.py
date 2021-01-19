@@ -1,4 +1,4 @@
-import m3
+import wasm3 as m3
 
 FIB32_WASM = bytes.fromhex(
     "00 61 73 6d 01 00 00 00 01 06 01 60 01 7f 01 7f"

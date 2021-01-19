@@ -88,7 +88,7 @@ static PyMethodDef M3_Environment_methods[] = {
 };
 
 static PyType_Slot M3_Environment_Type_slots[] = {
-    {Py_tp_doc, "The m3.Environment type"},
+    {Py_tp_doc, "The wasm3.Environment type"},
     {Py_tp_finalize, delEnvironment},
     {Py_tp_new, newEnvironment},
     {Py_tp_methods, M3_Environment_methods},
@@ -150,7 +150,7 @@ static PyMethodDef M3_Runtime_methods[] = {
 };
 
 static PyType_Slot M3_Runtime_Type_slots[] = {
-    {Py_tp_doc, "The m3.Runtime type"},
+    {Py_tp_doc, "The wasm3.Runtime type"},
     // {Py_tp_finalize, delRuntime},
     // {Py_tp_new, newRuntime},
     {Py_tp_methods, M3_Runtime_methods},
@@ -169,7 +169,7 @@ static PyGetSetDef M3_Module_properties[] = {
 };
 
 static PyType_Slot M3_Module_Type_slots[] = {
-    {Py_tp_doc, "The m3.Module type"},
+    {Py_tp_doc, "The wasm3.Module type"},
     // {Py_tp_finalize, delModule},
     // {Py_tp_new, newModule},
     // {Py_tp_methods, M3_Module_methods},
@@ -280,7 +280,7 @@ M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
 }
 
 static PyType_Slot M3_Function_Type_slots[] = {
-    {Py_tp_doc, "The m3.Function type"},
+    {Py_tp_doc, "The wasm3.Function type"},
     // {Py_tp_finalize, delFunction},
     // {Py_tp_new, newFunction},
     {Py_tp_call, M3_Function_call},
@@ -290,7 +290,7 @@ static PyType_Slot M3_Function_Type_slots[] = {
 };
 
 static PyType_Spec M3_Environment_Type_spec = {
-    "m3.Environment",
+    "wasm3.Environment",
     sizeof(m3_environment),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
@@ -298,7 +298,7 @@ static PyType_Spec M3_Environment_Type_spec = {
 };
 
 static PyType_Spec M3_Runtime_Type_spec = {
-    "m3.Runtime",
+    "wasm3.Runtime",
     sizeof(m3_runtime),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
@@ -306,7 +306,7 @@ static PyType_Spec M3_Runtime_Type_spec = {
 };
 
 static PyType_Spec M3_Module_Type_spec = {
-    "m3.Module",
+    "wasm3.Module",
     sizeof(m3_module),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
@@ -314,7 +314,7 @@ static PyType_Spec M3_Module_Type_spec = {
 };
 
 static PyType_Spec M3_Function_Type_spec = {
-    "m3.Function",
+    "wasm3.Function",
     sizeof(m3_function),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
@@ -353,11 +353,11 @@ static PyModuleDef_Slot m3_slots[] = {
 };
 
 PyDoc_STRVAR(m3_doc,
-"m3 - wasm3 bindings");
+"wasm3 python bindings");
 
 static struct PyModuleDef m3module = {
     PyModuleDef_HEAD_INIT,
-    "m3",
+    "wasm3",
     m3_doc,
     0,
     0, // methods
@@ -368,7 +368,7 @@ static struct PyModuleDef m3module = {
 };
 
 PyMODINIT_FUNC
-PyInit_m3(void)
+PyInit_wasm3(void)
 {
     return PyModuleDef_Init(&m3module);
 }

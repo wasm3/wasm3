@@ -516,8 +516,8 @@ jobs:
       run: |
         cd platforms/python
         python setup.py sdist
-        pip install ./dist/wasm3-*.tar.gz
-    - name: Test with pytest
+        pip install ./dist/pywasm3-*.tar.gz
+    - name: Test
       run: |
         pip install pytest
-        pytest platforms/python/test
+        pytest platforms/python

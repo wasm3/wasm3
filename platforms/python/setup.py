@@ -1,13 +1,35 @@
 from setuptools import setup
 from distutils.core import Extension
 from glob import glob
+from pathlib import Path
+
+HERE = Path(__file__).parent
 
 SOURCES = glob('m3/*.c') + ['m3module.c']
 
 setup(
-    name='wasm3',
-    version='0.0.1',
+    name         = "pywasm3",
+    version      = "0.0.2",
+    description  = "The fastest WebAssembly interpreter",
+    platforms    = "any",
+    url          = "https://github.com/wasm3/wasm3",
+    license      = "MIT",
+    author       = "Volodymyr Shymanskyy",
+    author_email = "vshymanskyi@gmail.com",
+    
+    long_description                = (HERE / "README.md").read_text(),
+    long_description_content_type   = "text/markdown",
+
     ext_modules=[
-        Extension('m3', sources=SOURCES, include_dirs=['m3'],
-        extra_compile_args=['-g', '-O0'])]
+        Extension('wasm3', sources=SOURCES, include_dirs=['m3'],
+        extra_compile_args=['-g', '-O0'])],
+
+    classifiers  = [
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Development Status :: 4 - Beta",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: MacOS :: MacOS X"
+    ]
 )
