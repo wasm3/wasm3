@@ -208,6 +208,9 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 1.8
+    - name: Install NDK
+      run: |
+        ${ANDROID_HOME}/tools/bin/sdkmanager --install ndk-bundle
     - name: Build
       run: |
         cd platforms/android
