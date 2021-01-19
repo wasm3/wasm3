@@ -144,7 +144,7 @@ jobs:
         pip3 --version
     - name: Install Wasienv
       env:
-        WASMER_RELEASE_TAG: "0.17.1"
+        WASMER_RELEASE_TAG: "1.0.1"
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Configure
       run: |
@@ -210,7 +210,7 @@ jobs:
         java-version: 1.8
     - name: Install NDK
       run: |
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;21.1.6352462"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.0.7026061"
     - name: Build
       run: |
         cd platforms/android
