@@ -1,15 +1,12 @@
 from setuptools import setup
 from distutils.core import Extension
 from glob import glob
-from pathlib import Path
-
-HERE = Path(__file__).parent
 
 SOURCES = glob('m3/*.c') + ['m3module.c']
 
 setup(
     name         = "pywasm3",
-    version      = "0.0.2",
+    version      = "0.4.8",
     description  = "The fastest WebAssembly interpreter",
     platforms    = "any",
     url          = "https://github.com/wasm3/wasm3",
@@ -17,7 +14,7 @@ setup(
     author       = "Volodymyr Shymanskyy",
     author_email = "vshymanskyi@gmail.com",
     
-    long_description                = (HERE / "README.md").read_text(),
+    long_description                = open("README.md").read(),
     long_description_content_type   = "text/markdown",
 
     ext_modules=[
