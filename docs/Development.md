@@ -89,6 +89,25 @@ cmake -GNinja ..
 ninja
 ```
 
+## Build using compiler directly
+
+This can be useful for cross-compilation, quick builds or when a build system (CMake, Ninja, etc.) is not available.
+
+### gcc/clang
+```sh
+gcc -O3 -g0 -s -Isource -Dd_m3HasWASI source/*.c platforms/app/main.c -lm -o wasm3
+```
+
+### msvc/clang-cl
+```sh
+cl source/*.c platforms/app/main.c /Isource /MD /Ox /Oy /Gw /GS- /W0 /Dd_m3HasWASI /Fewasm3.exe /link advapi32.lib
+```
+
+### mingw-w64
+```sh
+x86_64-w64-mingw32-gcc -O3 -g0 -s -Isource -Dd_m3HasWASI source/*.c platforms/app/main.c -lm -lpthread -static -o wasm3.exe
+```
+
 ## Build for microcontrollers
 
 In `./platforms/` folder you can find projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.

@@ -353,6 +353,8 @@ typedef int8_t          i8;
 
 # if defined (M3_COMPILER_MSVC)
 #   define vectorcall   // For MSVC, better not to specify any call convention
+# elif defined(__MINGW32__)
+#   define vectorcall
 # elif defined(WIN32)
 #   define vectorcall   __vectorcall
 # elif defined (ESP8266)
