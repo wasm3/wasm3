@@ -571,7 +571,7 @@ _       (ReadLEB_u7 (& section, & pos, end));
         {
             u32 sectionLength;
 _           (ReadLEB_u32 (& sectionLength, & pos, end));
-			_throwif(m3Err_wasmMalformed, pos + sectionLength > end);
+            _throwif(m3Err_wasmMalformed, pos + sectionLength > end);
 _           (ParseModuleSection (module, section, pos, sectionLength));
 
             pos += sectionLength;

@@ -9,6 +9,7 @@
 #include "m3_info.h"
 #include "m3_emit.h"
 #include "m3_compile.h"
+#include "m3_exec.h"
 
 #if d_m3LogOutput
 

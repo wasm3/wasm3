@@ -61,8 +61,6 @@ typedef struct M3ImportInfo
 {
     const char *    moduleUtf8;
     const char *    fieldUtf8;
-
-//  unsigned char   type;
 }
 M3ImportInfo;
 

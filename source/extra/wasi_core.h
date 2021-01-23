@@ -749,7 +749,7 @@ _Static_assert(_Alignof(__wasi_whence_t) == 1, "witx calculated align");
 
 /**
  * A reference to the offset of a directory entry.
- * 
+ *
  * The value 0 signifies the start of the directory.
  */
 typedef uint64_t __wasi_dircookie_t;

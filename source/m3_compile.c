@@ -2176,12 +2176,14 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
         }
 #endif
 
-        M3Compiler compiler = GetOpInfo(opcode)->compiler;
+        IM3OpInfo opinfo = GetOpInfo(opcode);
+        _throwif(m3Err_unknownOpcode, opinfo == NULL);
 
-        if (not compiler)
-            compiler = Compile_Operator;
-
-        result = (* compiler) (o, opcode);
+        if (opinfo->compiler) {
+            result = (* opinfo->compiler) (o, opcode);
+        } else {
+            result = Compile_Operator(o, opcode);
+        }
 
         o->previousOpcode = opcode;                             //                      m3logif (stack, dump_type_stack (o))
 
@@ -2194,7 +2196,7 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
         if (opcode == c_waOp_end or opcode == c_waOp_else)
             break;
     }
-
+_catch:
     return result;
 }
 

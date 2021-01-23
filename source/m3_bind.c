@@ -65,7 +65,7 @@ _   (AllocFuncType (& funcType, maxNumArgs));
         _throwif ("unknown argument type char", c_m3Type_unknown == type);
 
         if (type == c_m3Type_none)
-        	continue;
+            continue;
 
         if (not parsingArgs)
         {
@@ -148,7 +148,7 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
                                     ccstr_t         i_functionName,
                                     ccstr_t         i_signature,
                                     voidptr_t       i_function,
-									voidptr_t       i_userdata)
+                                    voidptr_t       i_userdata)
 {
     M3Result result = m3Err_functionLookupFailed;
 
