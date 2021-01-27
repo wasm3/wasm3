@@ -230,6 +230,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
+        sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
         python3 run-spec-test.py --exec 'sh -c "../platforms/cosmopolitan/wasm3.com --repl"'
 
   build-cross-qemu:
