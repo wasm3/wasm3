@@ -376,7 +376,11 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     M3Result result = m3Err_none;
 
     // create a temporary runtime context
+#if defined(d_m3PreferStaticAlloc)
+    static M3Runtime runtime;
+#else
     M3Runtime runtime;
+#endif
     M3_INIT (runtime);
 
     runtime.environment = i_module->runtime->environment;

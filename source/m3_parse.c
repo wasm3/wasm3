@@ -264,8 +264,13 @@ M3Result  Parse_InitExpr  (M3Module * io_module, bytes_t * io_bytes, cbytes_t i_
     M3Result result = m3Err_none;
 
     // this doesn't generate code pages. just walks the wasm bytecode to find the end
-    IM3Runtime rt;
-    M3Compilation compilation = { rt= NULL, io_module, * io_bytes, i_end };
+
+#if defined(d_m3PreferStaticAlloc)
+    static M3Compilation compilation;
+#else
+    M3Compilation compilation;
+#endif
+    compilation = (M3Compilation){ NULL, io_module, * io_bytes, i_end };
 
     result = Compile_BlockStatements (& compilation);
 

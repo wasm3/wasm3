@@ -3,7 +3,7 @@ COSMOPOLITAN_URL=https://justine.lol/cosmopolitan/cosmopolitan.zip
 
 SOURCE_DIR=../../source
 
-EXTRA_FLAGS= #-Dd_m3HasWASI
+EXTRA_FLAGS="-Dd_m3PreferStaticAlloc" #-Dd_m3HasWASI
 
 STD=./cosmopolitan/std
 

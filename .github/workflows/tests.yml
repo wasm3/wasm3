@@ -215,6 +215,22 @@ jobs:
       run: |
         cd platforms/android
         ./gradlew build
+        
+  build-cosmopolitan:
+    name: cosmopolitan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build αcτµαlly pδrταblε εxεcµταblε
+      run: |
+        cd platforms/cosmopolitan
+        ./build.sh
+    - name: Test WebAssembly spec
+      run: |
+        cd test
+        python3 run-spec-test.py --exec "../platforms/cosmopolitan/wasm3.com --repl"
 
   build-cross-qemu:
     runs-on: ubuntu-latest
