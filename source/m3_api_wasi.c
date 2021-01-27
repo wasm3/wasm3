@@ -92,7 +92,7 @@ Preopen preopen[PREOPEN_CNT] = {
 #  define APE_SWITCH_END          {}
 #  define APE_CASE_RET(e1,e2)     if (errnum == e1)    return e2;   else
 #else
-#  define APE_SWITCH              switch (errnum) {
+#  define APE_SWITCH_BEG          switch (errnum) {
 #  define APE_SWITCH_END          }
 #  define APE_CASE_RET(e1,e2)     case e1:   return e2;   break;
 #endif

@@ -217,7 +217,6 @@ jobs:
         ./gradlew build
         
   build-cosmopolitan:
-    name: cosmopolitan
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -226,6 +225,7 @@ jobs:
     - name: Build αcτµαlly pδrταblε εxεcµταblε
       run: |
         cd platforms/cosmopolitan
+        gcc -v
         ./build.sh
     - name: Test WebAssembly spec
       run: |
