@@ -247,8 +247,6 @@ IM3CodePage                 AcquireCodePage             (IM3Runtime io_runtime);
 IM3CodePage                 AcquireCodePageWithCapacity (IM3Runtime io_runtime, u32 i_lineCount);
 void                        ReleaseCodePage             (IM3Runtime io_runtime, IM3CodePage i_codePage);
 
-M3Result                    m3Error                     (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function, const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
-
 d_m3EndExternC
 
 #endif // m3_env_h

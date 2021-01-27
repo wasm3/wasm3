@@ -31,7 +31,10 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__)
+#if defined(APE)
+// Actually Portable Executable
+// All functions are already included in cosmopolitan.h
+#elif defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__)
 #  include <unistd.h>
 #  include <sys/uio.h>
 #  if defined(__APPLE__)
@@ -84,44 +87,54 @@ Preopen preopen[PREOPEN_CNT] = {
     { -1, "/"       , "./" },
 };
 
+#if defined(APE)
+#  define APE_SWITCH_BEG
+#  define APE_SWITCH_END          {}
+#  define APE_CASE_RET(e1,e2)     if (errnum == e1)    return e2;   else
+#else
+#  define APE_SWITCH              switch (errnum) {
+#  define APE_SWITCH_END          }
+#  define APE_CASE_RET(e1,e2)     case e1:   return e2;   break;
+#endif
+
 static
 __wasi_errno_t errno_to_wasi(int errnum) {
-    switch (errnum) {
-    case EPERM:   return __WASI_ERRNO_PERM;   break;
-    case ENOENT:  return __WASI_ERRNO_NOENT;  break;
-    case ESRCH:   return __WASI_ERRNO_SRCH;   break;
-    case EINTR:   return __WASI_ERRNO_INTR;   break;
-    case EIO:     return __WASI_ERRNO_IO;     break;
-    case ENXIO:   return __WASI_ERRNO_NXIO;   break;
-    case E2BIG:   return __WASI_ERRNO_2BIG;   break;
-    case ENOEXEC: return __WASI_ERRNO_NOEXEC; break;
-    case EBADF:   return __WASI_ERRNO_BADF;   break;
-    case ECHILD:  return __WASI_ERRNO_CHILD;  break;
-    case EAGAIN:  return __WASI_ERRNO_AGAIN;  break;
-    case ENOMEM:  return __WASI_ERRNO_NOMEM;  break;
-    case EACCES:  return __WASI_ERRNO_ACCES;  break;
-    case EFAULT:  return __WASI_ERRNO_FAULT;  break;
-    case EBUSY:   return __WASI_ERRNO_BUSY;   break;
-    case EEXIST:  return __WASI_ERRNO_EXIST;  break;
-    case EXDEV:   return __WASI_ERRNO_XDEV;   break;
-    case ENODEV:  return __WASI_ERRNO_NODEV;  break;
-    case ENOTDIR: return __WASI_ERRNO_NOTDIR; break;
-    case EISDIR:  return __WASI_ERRNO_ISDIR;  break;
-    case EINVAL:  return __WASI_ERRNO_INVAL;  break;
-    case ENFILE:  return __WASI_ERRNO_NFILE;  break;
-    case EMFILE:  return __WASI_ERRNO_MFILE;  break;
-    case ENOTTY:  return __WASI_ERRNO_NOTTY;  break;
-    case ETXTBSY: return __WASI_ERRNO_TXTBSY; break;
-    case EFBIG:   return __WASI_ERRNO_FBIG;   break;
-    case ENOSPC:  return __WASI_ERRNO_NOSPC;  break;
-    case ESPIPE:  return __WASI_ERRNO_SPIPE;  break;
-    case EROFS:   return __WASI_ERRNO_ROFS;   break;
-    case EMLINK:  return __WASI_ERRNO_MLINK;  break;
-    case EPIPE:   return __WASI_ERRNO_PIPE;   break;
-    case EDOM:    return __WASI_ERRNO_DOM;    break;
-    case ERANGE:  return __WASI_ERRNO_RANGE;  break;
-    default:      return __WASI_ERRNO_INVAL;
-    }
+    APE_SWITCH_BEG
+    APE_CASE_RET( EPERM   , __WASI_ERRNO_PERM   )
+    APE_CASE_RET( ENOENT  , __WASI_ERRNO_NOENT  )
+    APE_CASE_RET( ESRCH   , __WASI_ERRNO_SRCH   )
+    APE_CASE_RET( EINTR   , __WASI_ERRNO_INTR   )
+    APE_CASE_RET( EIO     , __WASI_ERRNO_IO     )
+    APE_CASE_RET( ENXIO   , __WASI_ERRNO_NXIO   )
+    APE_CASE_RET( E2BIG   , __WASI_ERRNO_2BIG   )
+    APE_CASE_RET( ENOEXEC , __WASI_ERRNO_NOEXEC )
+    APE_CASE_RET( EBADF   , __WASI_ERRNO_BADF   )
+    APE_CASE_RET( ECHILD  , __WASI_ERRNO_CHILD  )
+    APE_CASE_RET( EAGAIN  , __WASI_ERRNO_AGAIN  )
+    APE_CASE_RET( ENOMEM  , __WASI_ERRNO_NOMEM  )
+    APE_CASE_RET( EACCES  , __WASI_ERRNO_ACCES  )
+    APE_CASE_RET( EFAULT  , __WASI_ERRNO_FAULT  )
+    APE_CASE_RET( EBUSY   , __WASI_ERRNO_BUSY   )
+    APE_CASE_RET( EEXIST  , __WASI_ERRNO_EXIST  )
+    APE_CASE_RET( EXDEV   , __WASI_ERRNO_XDEV   )
+    APE_CASE_RET( ENODEV  , __WASI_ERRNO_NODEV  )
+    APE_CASE_RET( ENOTDIR , __WASI_ERRNO_NOTDIR )
+    APE_CASE_RET( EISDIR  , __WASI_ERRNO_ISDIR  )
+    APE_CASE_RET( EINVAL  , __WASI_ERRNO_INVAL  )
+    APE_CASE_RET( ENFILE  , __WASI_ERRNO_NFILE  )
+    APE_CASE_RET( EMFILE  , __WASI_ERRNO_MFILE  )
+    APE_CASE_RET( ENOTTY  , __WASI_ERRNO_NOTTY  )
+    APE_CASE_RET( ETXTBSY , __WASI_ERRNO_TXTBSY )
+    APE_CASE_RET( EFBIG   , __WASI_ERRNO_FBIG   )
+    APE_CASE_RET( ENOSPC  , __WASI_ERRNO_NOSPC  )
+    APE_CASE_RET( ESPIPE  , __WASI_ERRNO_SPIPE  )
+    APE_CASE_RET( EROFS   , __WASI_ERRNO_ROFS   )
+    APE_CASE_RET( EMLINK  , __WASI_ERRNO_MLINK  )
+    APE_CASE_RET( EPIPE   , __WASI_ERRNO_PIPE   )
+    APE_CASE_RET( EDOM    , __WASI_ERRNO_DOM    )
+    APE_CASE_RET( ERANGE  , __WASI_ERRNO_RANGE  )
+    APE_SWITCH_END
+    return __WASI_ERRNO_INVAL;
 }
 
 #if defined(_WIN32)

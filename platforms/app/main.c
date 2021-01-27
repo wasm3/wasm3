@@ -18,6 +18,10 @@
 
 #define FATAL(msg, ...) { printf("Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
+#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
+#define LINK_WASI
+#endif
+
 M3Result repl_load  (IM3Runtime runtime, const char* fn)
 {
     M3Result result = m3Err_none;
@@ -273,7 +277,7 @@ int  main  (int i_argc, const char* i_argv[])
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
         } else if (!strcmp("--stack-size", arg)) {
-            const char* tmp;
+            const char* tmp = "65536";
             ARGV_SET(tmp);
             argStackSize = atol(tmp);
         } else if (!strcmp("--dir", arg)) {
@@ -301,7 +305,7 @@ int  main  (int i_argc, const char* i_argv[])
         result = repl_load(runtime, argFile);
         if (result) FATAL("repl_load: %s", result);
 
-#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
+#if defined(LINK_WASI)
         result = m3_LinkWASI (runtime->modules);
         if (result) FATAL("m3_LinkWASI: %s", result);
 #endif
@@ -315,6 +319,7 @@ int  main  (int i_argc, const char* i_argv[])
         if (result) FATAL("m3_LinkLibC: %s", result);
 
         if (argFunc and not argRepl) {
+#if defined(LINK_WASI)
             if (!strcmp(argFunc, "_start")) {
             	m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
                 // When passing args to WASI, include wasm filename as argv[0]
@@ -324,7 +329,10 @@ int  main  (int i_argc, const char* i_argv[])
                 if (result == m3Err_trapExit) {
                     return wasi_ctx->exit_code;
                 }
-            } else {
+            }
+            else
+#endif
+            {
                 result = repl_call(runtime, argFunc, i_argc, i_argv);
             }
 
