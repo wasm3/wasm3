@@ -25,9 +25,10 @@ fi
 
 echo "Building Wasm3..."
 
-gcc -g -O -static -fno-pie -no-pie -mno-red-zone -nostdlib -nostdinc                    \
-  -Wl,--oformat=binary -Wl,--gc-sections -Wl,-z,max-page-size=0x1000 -fuse-ld=bfd       \
-  -Wl,-T,cosmopolitan/ape.lds -include cosmopolitan/cosmopolitan.h                      \
-  -Wno-format-security -Wfatal-errors $EXTRA_FLAGS                                      \
-  -o wasm3.com -DAPE -I$STD -I$SOURCE_DIR $SOURCE_DIR/*.c ../app/main.c                 \
+gcc -g -O -static -fno-pie -no-pie -mno-red-zone -nostdlib -nostdinc           \
+  -Wl,--gc-sections -Wl,-z,max-page-size=0x1000 -fuse-ld=bfd                   \
+  -Wl,-T,cosmopolitan/ape.lds -include cosmopolitan/cosmopolitan.h             \
+  -Wno-format-security -Wfatal-errors $EXTRA_FLAGS                             \
+  -o wasm3.com.dbg -DAPE -I$STD -I$SOURCE_DIR $SOURCE_DIR/*.c ../app/main.c    \
   cosmopolitan/crt.o cosmopolitan/ape.o cosmopolitan/cosmopolitan.a
+objcopy -SO binary wasm3.com.dbg wasm3.com
