@@ -231,7 +231,11 @@ jobs:
       run: |
         cd test
         sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
-        python3 run-spec-test.py --exec 'sh -c "../platforms/cosmopolitan/wasm3.com --repl"'
+        python3 run-spec-test.py --exec "../platforms/cosmopolitan/wasm3.com --repl"
+    - name: Test WASI apps
+      run: |
+        cd test
+        python3 run-wasi-test.py --fast --exec "../platforms/cosmopolitan/wasm3.com"
 
   build-cross-qemu:
     runs-on: ubuntu-latest
