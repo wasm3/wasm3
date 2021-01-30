@@ -1,5 +1,5 @@
 
-COSMOPOLITAN_URL=https://justine.lol/cosmopolitan/cosmopolitan.zip
+COSMOPOLITAN_URL=https://github.com/jart/cosmopolitan/releases/download/0.1.1/cosmopolitan-amalgamation-0.1.1.zip
 
 SOURCE_DIR=../../source
 
@@ -9,7 +9,7 @@ STD=./cosmopolitan/std
 
 if [ ! -d "./cosmopolitan" ]; then
     echo "Downloading Cosmopolitan..."
-    curl -o cosmopolitan.zip $COSMOPOLITAN_URL
+    curl -L -o cosmopolitan.zip $COSMOPOLITAN_URL
     unzip cosmopolitan.zip -d cosmopolitan
     rm cosmopolitan.zip
 fi
