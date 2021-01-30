@@ -236,6 +236,17 @@ jobs:
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "../platforms/cosmopolitan/wasm3.com"
+    - name: Install Wine64
+      run: |
+        sudo apt install wine64
+    - name: Test WebAssembly spec (in Wine)
+      run: |
+        cd test
+        python3 run-spec-test.py --exec "wine ../platforms/cosmopolitan/wasm3.com --repl"
+    - name: Test WASI apps (in Wine)
+      run: |
+        cd test
+        python3 run-wasi-test.py --fast --exec "wine ../platforms/cosmopolitan/wasm3.com"
 
   build-cross-qemu:
     runs-on: ubuntu-latest
