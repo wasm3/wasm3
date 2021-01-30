@@ -314,9 +314,9 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
 #ifdef _WIN32
 
     // TODO: This needs a proper implementation
-    if (fd < PREOPEN_CNT){
+    if (fd < PREOPEN_CNT) {
         fdstat->fs_filetype= __WASI_FILETYPE_DIRECTORY;
-    }else{
+    } else {
         fdstat->fs_filetype= __WASI_FILETYPE_REGULAR_FILE;
     }
 
@@ -326,8 +326,12 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 #else
     struct stat fd_stat;
+
+#if !defined(APE) // TODO: not implemented in Cosmopolitan
     int fl = fcntl(fd, F_GETFL);
     if (fl < 0) { m3ApiReturn(errno_to_wasi(errno)); }
+#endif
+
     fstat(fd, &fd_stat);
     int mode = fd_stat.st_mode;
     fdstat->fs_filetype = (S_ISBLK(mode)   ? __WASI_FILETYPE_BLOCK_DEVICE     : 0) |
@@ -336,12 +340,15 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
                           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
                           //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
                           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
+#if !defined(APE)
     m3ApiWriteMem16(&fdstat->fs_flags,
                        ((fl & O_APPEND)    ? __WASI_FDFLAGS_APPEND    : 0) |
                        ((fl & O_DSYNC)     ? __WASI_FDFLAGS_DSYNC     : 0) |
                        ((fl & O_NONBLOCK)  ? __WASI_FDFLAGS_NONBLOCK  : 0) |
                        //((fl & O_RSYNC)     ? __WASI_FDFLAGS_RSYNC     : 0) |
                        ((fl & O_SYNC)      ? __WASI_FDFLAGS_SYNC      : 0));
+#endif // APE
+
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
     m3ApiReturn(__WASI_ERRNO_SUCCESS);

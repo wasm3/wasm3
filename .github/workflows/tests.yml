@@ -227,26 +227,32 @@ jobs:
         cd platforms/cosmopolitan
         gcc -v
         ./build.sh
+    - name: Prepare tests
+      run: |
+        cd test
+        cp ../platforms/cosmopolitan/wasm3.com ./
+        sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
     - name: Test WebAssembly spec
       run: |
         cd test
-        sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
-        python3 run-spec-test.py --exec "../platforms/cosmopolitan/wasm3.com --repl"
+        python3 run-spec-test.py --exec "./wasm3.com --repl"
     - name: Test WASI apps
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "../platforms/cosmopolitan/wasm3.com"
+        python3 run-wasi-test.py --fast --exec "./wasm3.com"
     - name: Install Wine64
       run: |
+        sudo apt update
         sudo apt install wine64
+        wine --version
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
-        python3 run-spec-test.py --exec "wine ../platforms/cosmopolitan/wasm3.com --repl"
+        python3 run-spec-test.py --exec "wine ./wasm3.com --repl"
     - name: Test WASI apps (in Wine)
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "wine ../platforms/cosmopolitan/wasm3.com"
+        python3 run-wasi-test.py --fast --exec "wine ./wasm3.com"
 
   build-cross-qemu:
     runs-on: ubuntu-latest
