@@ -1,5 +1,5 @@
 
-COSMOPOLITAN_URL=https://github.com/jart/cosmopolitan/releases/download/0.1.1/cosmopolitan-amalgamation-0.1.1.zip
+COSMOPOLITAN_URL=https://github.com/jart/cosmopolitan/releases/download/0.1.2/cosmopolitan-amalgamation-0.1.2.zip
 
 SOURCE_DIR=../../source
 
@@ -30,6 +30,7 @@ gcc -g -O -static -fno-pie -no-pie -mno-red-zone -nostdlib -nostdinc            
   -Wl,--gc-sections -Wl,-z,max-page-size=0x1000 -fuse-ld=bfd                        \
   -Wl,-T,cosmopolitan/ape.lds -include cosmopolitan/cosmopolitan.h                  \
   -Wno-format-security -Wfatal-errors $EXTRA_FLAGS                                  \
+  -fomit-frame-pointer -fno-stack-check -fno-stack-protector                        \
   -o wasm3.com.dbg -DAPE -I$STD -I$SOURCE_DIR $SOURCE_DIR/*.c ../app/main.c         \
   cosmopolitan/crt.o cosmopolitan/ape.o cosmopolitan/cosmopolitan.a
 
