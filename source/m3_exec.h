@@ -53,8 +53,16 @@ d_m3BeginExternC
 
 #define jumpOp(PC)                  jumpOpDirect(PC)
 
+#define pushBacktraceFrame()            (PushBacktraceFrame (_mem->runtime, _pc - 1))
+#define fillBacktraceFrame(FUNCTION)    (FillBacktraceFunctionInfo (_mem->runtime, function))
+
+#define newTrap(err)                    return (pushBacktraceFrame (), err)
+#define forwardTrap(err)                return err
+
 d_m3RetSig  Call  (d_m3OpSig)
 {
+    ClearBacktrace (_mem->runtime);
+
     m3ret_t possible_trap = m3_Yield ();
     if (UNLIKELY(possible_trap)) return possible_trap;
 
@@ -482,13 +490,15 @@ d_m3Op  (Call)
     m3stack_t sp = _sp + stackOffset;
 
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+    _mem = memory->mallocated;
 
     if (r == 0)
-    {
-        _mem = memory->mallocated;
         nextOp ();
+    else
+    {
+        pushBacktraceFrame ();
+        forwardTrap (r);
     }
-    else trapOp (r);
 }
 
 
@@ -518,11 +528,14 @@ d_m3Op  (CallIndirect)
                 if (not r)
                 {
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+                    _mem = memory->mallocated;
 
                     if (not r)
-                    {
-                        _mem = memory->mallocated;
                         nextOpDirect ();
+                    else
+                    {
+                        pushBacktraceFrame ();
+                        forwardTrap (r);
                     }
                 }
             }
@@ -532,7 +545,9 @@ d_m3Op  (CallIndirect)
     }
     else r = m3Err_trapTableIndexOutOfRange;
 
-    trapOp (r);
+    if (r)
+        newTrap (r);
+    else forwardTrap (r);
 }
 
 
@@ -542,6 +557,7 @@ d_m3Op  (CallRawFunction)
     IM3Function function = immediate (IM3Function);
     void * userdata = immediate (void *);
     u64* const sp = ((u64*)_sp);
+    IM3Memory memory = m3MemInfo (_mem);
 
 #if d_m3EnableStrace
     IM3FuncType ftype = function->funcType;
@@ -569,6 +585,7 @@ d_m3Op  (CallRawFunction)
 #endif
 
     m3ret_t possible_trap = call (m3MemRuntime(_mem), sp, m3MemData(_mem), userdata);
+    _mem = memory->mallocated;
 
 #if d_m3EnableStrace
     if (possible_trap) {
@@ -584,7 +601,9 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    trapOp (possible_trap);
+    if (possible_trap)
+        pushBacktraceFrame ();
+    forwardTrap (possible_trap);
 }
 
 
@@ -649,7 +668,7 @@ d_m3Op  (Compile)
     }
     else ReportError2 (function, result);
 
-    trapOp (result);
+    newTrap (result);
 }
 
 
@@ -659,6 +678,7 @@ d_m3Op  (Entry)
     d_m3ClearRegisters
 
     IM3Function function = immediate (IM3Function);
+    IM3Memory memory = m3MemInfo (_mem);
 
 #if d_m3SkipStackCheck
     if (true)
@@ -682,6 +702,8 @@ d_m3Op  (Entry)
         }
 
         m3ret_t r = nextOpImpl ();
+        // _mem needs to be valid for a potential fillBacktraceFrame call later
+        _mem = memory->mallocated;
 
 #       if d_m3LogExec
             char str [100] = { '!', 0 };
@@ -695,9 +717,11 @@ d_m3Op  (Entry)
                 printf (" ** %s  %p\n", function->name, _sp);
 #       endif
 
-        return r;
+        if (r)
+            fillBacktraceFrame ();
+        forwardTrap (r);
     }
-    else trapOp (m3Err_trapStackOverflow);
+    else newTrap (m3Err_trapStackOverflow);
 }
 
 
@@ -720,7 +744,7 @@ d_m3Op  (Loop)
     }
     while (r == _pc);
 
-    trapOp (r);
+    forwardTrap (r);
 }
 
 
@@ -983,7 +1007,7 @@ d_m3Select_f (f64, _fp0, s, slot (i32))
 d_m3Op  (Return)
 {
     m3StackCheck();
-    trapOp (m3Err_none);
+    return m3Err_none;
 }
 
 
@@ -1044,7 +1068,7 @@ d_m3Op  (ContinueLoop)
     // has the potential to increase its native-stack usage. (don't forget ContinueLoopIf too.)
 
     void * loopId = immediate (void *);
-    trapOp (loopId);
+    return loopId;
 }
 
 
@@ -1055,7 +1079,7 @@ d_m3Op  (ContinueLoopIf)
 
     if (condition)
     {
-        trapOp (loopId);
+        return loopId;
     }
     else nextOp ();
 }
@@ -1079,20 +1103,20 @@ d_m3Op  (Const64)
 
 d_m3Op  (Unsupported)
 {                                                   m3log (exec, "*** unsupported ***");
-    trapOp ("unsupported instruction executed");
+    newTrap ("unsupported instruction executed");
 }
 
 d_m3Op  (Unreachable)
 {                                                   m3log (exec, "*** trapping ***");
     m3StackCheck();
-    trapOp (m3Err_trapUnreachable);
+    newTrap (m3Err_trapUnreachable);
 }
 
 
 d_m3Op  (End)
 {
     m3StackCheck();
-    trapOp (m3Err_none);
+    return m3Err_none;
 }
 
 
@@ -1140,11 +1164,11 @@ d_m3Op  (SetGlobal_f64)
 #endif
 
 #ifdef DEBUG
-  #define d_outOfBounds trapOp (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess, \
+  #define d_outOfBounds newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
                         _mem->runtime, "memory size: %zu; access offset: %zu",      \
                         _mem->length, operand))
 #else
-  #define d_outOfBounds trapOp (m3Err_trapOutOfBoundsMemoryAccess)
+  #define d_outOfBounds newTrap (m3Err_trapOutOfBoundsMemoryAccess)
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.

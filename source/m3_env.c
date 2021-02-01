@@ -397,6 +397,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     o->module =  i_module;
     o->wasm =    * io_bytes;
     o->wasmEnd = i_end;
+    o->lastOpcodeStart = o->wasm;
 
     o->block.depth = -1;  // so that root compilation depth = 0
 
@@ -1076,4 +1077,19 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
     }
 
     return memory;
+}
+
+
+const char *  m3_GetFunctionName  (IM3Function i_function)
+{
+    if (!i_function || !i_function->name)
+        return "<unknown>";
+
+    return i_function->name;
+}
+
+
+M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
+{
+    return & i_runtime->backtrace;
 }

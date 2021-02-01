@@ -45,8 +45,6 @@ typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 #define nextOpDirect()              return nextOpImpl()
 #define jumpOpDirect(PC)            return jumpOpImpl((pc_t)(PC))
 
-#define trapOp(err)                 return (err)
-
 d_m3EndExternC
 
 #endif // m3_exec_defs_h
