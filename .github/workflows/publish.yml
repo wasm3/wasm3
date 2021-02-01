@@ -43,6 +43,25 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build-cosmopolitan:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build αcτµαlly pδrταblε εxεcµταblε
+      run: |
+        cd platforms/cosmopolitan
+        ./build.sh
+        cp ./wasm3.com ../../wasm3-cosmopolitan.com
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: ${{ env.draft }}
+        files: "*.com"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-wasi:
     runs-on: ubuntu-latest
     name: wasm3-wasi
@@ -93,6 +112,9 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 1.8
+    - name: Install NDK
+      run: |
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.0.7026061"
     - name: Build
       run: |
         cd platforms/android
