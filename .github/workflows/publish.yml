@@ -1,9 +1,8 @@
 name: publish
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  release:
+    types: [published,edited]
 
 env:
   draft: true
@@ -23,7 +22,7 @@ jobs:
 
     env:
       LDFLAGS: -s
-      CFLAGS: -DM3_APP_MAX_STACK=1048576 -DUSE_HUMAN_FRIENDLY_ARGS
+      CFLAGS: -DUSE_HUMAN_FRIENDLY_ARGS
     steps:
     - uses: actions/checkout@v2
     - name: Configure
@@ -50,16 +49,21 @@ jobs:
 
     env:
       LDFLAGS: -s
-      CFLAGS: -DM3_APP_MAX_STACK=1048576 -DUSE_HUMAN_FRIENDLY_ARGS
+      CFLAGS: -DUSE_HUMAN_FRIENDLY_ARGS
     steps:
     - uses: actions/checkout@v2
+    - name: Install Python dependencies
+      run: |
+        python3 -m pip install pip==20.1.1
+        python3 -m pip install --upgrade setuptools wheel
+        pip3 --version
     - name: Install Wasienv
+      env:
+        WASMER_RELEASE_TAG: "1.0.1"
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Configure
       run: |
         source $HOME/.wasienv/wasienv.sh
-        wasienv install-sdk 8
-        wasienv default-sdk 8
         mkdir build
         cd build
         wasimake cmake -DBUILD_WASI=metawasi ..
