@@ -1,8 +1,9 @@
 name: publish
 
 on:
-  release:
-    types: [published,edited]
+  push:
+    tags:
+      - "v*.*.*"
 
 env:
   draft: true
