@@ -1093,3 +1093,61 @@ M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 {
     return & i_runtime->backtrace;
 }
+
+
+uint32_t  m3_GetBacktraceStr  (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize)
+{
+    int remaining = i_bufferSize;
+
+    int result;
+
+    result = snprintf (o_buffer, remaining, "wasm backtrace:");
+    if (result < 0)
+        return 0;
+    else
+    {
+        remaining -= result;
+        if (remaining < 0)
+            return i_bufferSize;
+        o_buffer += result;
+    }
+
+    M3BacktraceFrame * curr = i_runtime->backtrace.frames;
+    int frameCount = 0;
+    while (curr)
+    {
+        const char* moduleName = m3_GetModuleName (curr->module);
+        const char* functionName = m3_GetFunctionName (curr->function);
+
+        result = snprintf (o_buffer, remaining, "\n  %d: 0x%" PRIx64 " - %s!%s",
+                           frameCount, curr->moduleOffset, moduleName, functionName);
+        if (result < 0)
+            return 0;
+        else
+        {
+            remaining -= result;
+            if (remaining < 0)
+                return i_bufferSize;
+            o_buffer += result;
+        }
+
+        curr = curr->next;
+        frameCount++;
+    }
+
+    if (i_runtime->backtrace.backtraceTruncated)
+    {
+        result = snprintf (o_buffer, remaining, "\n  (truncated)");
+        if (result < 0)
+            return 0;
+        else
+        {
+            remaining -= result;
+            if (remaining < 0)
+                return i_bufferSize;
+            o_buffer += result;
+        }
+    }
+
+    return i_bufferSize - remaining;
+}

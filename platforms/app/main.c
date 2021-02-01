@@ -389,6 +389,7 @@ int  main  (int i_argc, const char* i_argv[])
     const char* argFile = NULL;
     const char* argFunc = "_start";
     unsigned argStackSize = 64*1024;
+    char backtrace_buff[4096];
 
 //    m3_PrintM3Info ();
 
@@ -451,7 +452,10 @@ int  main  (int i_argc, const char* i_argv[])
                 if (argDumpOnTrap) {
                     repl_dump();
                 }
-                FATAL("repl_call: %s", result);
+                backtrace_buff[0] = '\0';
+                m3_GetBacktraceStr(runtime, backtrace_buff, 4096);
+
+                FATAL("repl_call: %s\n%s", result, backtrace_buff);
             }
         }
     }
@@ -498,6 +502,11 @@ int  main  (int i_argc, const char* i_argv[])
             M3ErrorInfo info;
             m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)\n", info.message);
+
+            backtrace_buff[0] = '\0';
+            m3_GetBacktraceStr(runtime, backtrace_buff, 4096);
+            fprintf (stderr, "%s\n", backtrace_buff);
+
             //TODO: if (result == m3Err_trapExit) {
                 // warn that exit was called
             //    fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);

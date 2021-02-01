@@ -259,6 +259,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     // The runtime owns the backtrace, do not free the backtrace you obtain
 
     M3BacktraceInfo *   m3_GetBacktrace             (IM3Runtime i_runtime);
+    uint32_t            m3_GetBacktraceStr          (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize);
 
 #if defined(__cplusplus)
 }
