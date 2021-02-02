@@ -256,6 +256,7 @@ void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i
     while (end)
     {
         end->info.lineIndex = 0; // reset page
+        end->info.mapping->size = 0;
 
         IM3CodePage next = end->info.next;
         if (not next)

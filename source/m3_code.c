@@ -99,6 +99,8 @@ void  EmitWord64  (IM3CodePage i_page, const u64 i_word)
 void  EmitMappingEntry  (IM3CodePage i_page, IM3Module i_module, u64 i_moduleOffset)
 {
     M3CodeMappingPage * page = i_page->info.mapping;
+    assert (page->size < page->capacity);
+
     M3CodeMapEntry * entry = & page->entries[page->size++];
     pc_t pc = GetPagePC (i_page);
 

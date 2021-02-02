@@ -525,7 +525,7 @@ u64  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
     if (pageFound)
     {
         IM3Module module;
-        u64 result;
+        u64 result = 0;
 
         bool pcFound = MapPCToOffset (curr, i_pc, & module, & result);
         assert (pcFound);
