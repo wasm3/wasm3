@@ -492,7 +492,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 }
 
 
-u64  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
+u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
 {
     // walk the code pages
     IM3CodePage curr = i_runtime->pagesOpen;
@@ -524,10 +524,9 @@ u64  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
 
     if (pageFound)
     {
-        IM3Module module;
-        u64 result = 0;
+        u32 result = 0;
 
-        bool pcFound = MapPCToOffset (curr, i_pc, & module, & result);
+        bool pcFound = MapPCToOffset (curr, i_pc, & result);
         assert (pcFound);
 
         return result;

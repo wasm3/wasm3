@@ -62,7 +62,7 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 
         if (not result)
         {                                                           if (d_m3LogEmit) log_emit (o, i_operation);
-            EmitMappingEntry (o->page, o->module, o->lastOpcodeStart - o->module->wasmStart);
+            EmitMappingEntry (o->page, o->lastOpcodeStart - o->module->wasmStart);
             EmitWord (o->page, i_operation);
         }
     }

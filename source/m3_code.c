@@ -32,6 +32,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
 
         page->info.mapping = NewCodeMappingPage (page->info.numLines);
+        page->info.mapping->basePC = GetPageStartPC(page);
 
         if (!page->info.mapping)
         {
@@ -96,7 +97,7 @@ void  EmitWord64  (IM3CodePage i_page, const u64 i_word)
 }
 
 
-void  EmitMappingEntry  (IM3CodePage i_page, IM3Module i_module, u64 i_moduleOffset)
+void  EmitMappingEntry  (IM3CodePage i_page, u32 i_moduleOffset)
 {
     M3CodeMappingPage * page = i_page->info.mapping;
     assert (page->size < page->capacity);
@@ -104,8 +105,7 @@ void  EmitMappingEntry  (IM3CodePage i_page, IM3Module i_module, u64 i_moduleOff
     M3CodeMapEntry * entry = & page->entries[page->size++];
     pc_t pc = GetPagePC (i_page);
 
-    entry->pc = pc;
-    entry->module = i_module;
+    entry->pcOffset = pc - page->basePC;
     entry->moduleOffset = i_moduleOffset;
 }
 
@@ -182,9 +182,11 @@ bool  ContainsPC  (IM3CodePage i_page, pc_t i_pc)
 }
 
 
-bool  MapPCToOffset  (IM3CodePage i_page, pc_t i_pc, IM3Module * o_module, u64 * o_moduleOffset)
+bool  MapPCToOffset  (IM3CodePage i_page, pc_t i_pc, u32 * o_moduleOffset)
 {
     M3CodeMappingPage * mapping = i_page->info.mapping;
+
+    u32 pcOffset = i_pc - mapping->basePC;
 
     u32 left = 0;
     u32 right = mapping->size;
@@ -193,17 +195,16 @@ bool  MapPCToOffset  (IM3CodePage i_page, pc_t i_pc, IM3Module * o_module, u64 *
     {
         u32 mid = left + (right - left) / 2;
 
-        if (mapping->entries[mid].pc < i_pc)
+        if (mapping->entries[mid].pcOffset < pcOffset)
         {
             left = mid + 1;
         }
-        else if (mapping->entries[mid].pc > i_pc)
+        else if (mapping->entries[mid].pcOffset > pcOffset)
         {
             right = mid;
         }
         else
         {
-            *o_module = mapping->entries[mid].module;
             *o_moduleOffset = mapping->entries[mid].moduleOffset;
             return true;
         }
@@ -213,7 +214,6 @@ bool  MapPCToOffset  (IM3CodePage i_page, pc_t i_pc, IM3Module * o_module, u64 *
     if (left > 0)
     {
         left--;
-        *o_module = mapping->entries[left].module;
         *o_moduleOffset = mapping->entries[left].moduleOffset;
         return true;
     }
