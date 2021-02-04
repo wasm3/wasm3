@@ -235,7 +235,9 @@ typedef struct M3Runtime
     char                    error_message[256]; // the actual buffer. M3ErrorInfo can point to this
 #endif
 
+#if d_m3RecordBacktraces
     M3BacktraceInfo         backtrace;
+#endif
 }
 M3Runtime;
 

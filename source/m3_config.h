@@ -53,6 +53,9 @@
 #   define d_m3ProfilerSlotMask                 0xFFFF
 # endif
 
+# ifndef d_m3RecordBacktraces
+#   define d_m3RecordBacktraces                 0
+# endif
 
 // profiling and tracing ------------------------------------------------------
 

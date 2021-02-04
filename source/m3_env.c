@@ -256,7 +256,9 @@ void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i
     while (end)
     {
         end->info.lineIndex = 0; // reset page
+#if d_m3RecordBacktraces
         end->info.mapping->size = 0;
+#endif // d_m3RecordBacktraces
 
         IM3CodePage next = end->info.next;
         if (not next)
@@ -1090,14 +1092,25 @@ const char *  m3_GetFunctionName  (IM3Function i_function)
 }
 
 
+bool  m3_BacktraceEnabled  (void)
+{
+    return d_m3RecordBacktraces;
+}
+
+
 M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 {
+# if d_m3RecordBacktraces
     return & i_runtime->backtrace;
+# else
+    return NULL;
+# endif
 }
 
 
 uint32_t  m3_GetBacktraceStr  (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize)
 {
+# if d_m3RecordBacktraces
     int remaining = i_bufferSize;
 
     int result;
@@ -1151,4 +1164,11 @@ uint32_t  m3_GetBacktraceStr  (IM3Runtime i_runtime, char* o_buffer, uint32_t i_
     }
 
     return i_bufferSize - remaining;
+# else
+    (void)i_runtime;
+    (void)o_buffer;
+    (void)i_bufferSize;
+
+    return 0;
+# endif // d_m3RecordBacktraces
 }

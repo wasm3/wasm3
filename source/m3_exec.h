@@ -53,15 +53,25 @@ d_m3BeginExternC
 
 #define jumpOp(PC)                  jumpOpDirect(PC)
 
+# if d_m3RecordBacktraces
 #define pushBacktraceFrame()            (PushBacktraceFrame (_mem->runtime, _pc - 1))
 #define fillBacktraceFrame(FUNCTION)    (FillBacktraceFunctionInfo (_mem->runtime, function))
 
 #define newTrap(err)                    return (pushBacktraceFrame (), err)
 #define forwardTrap(err)                return err
+# else
+#define pushBacktraceFrame()            do {} while (0)
+#define fillBacktraceFrame(FUNCTION)    do {} while (0)
+
+#define newTrap(err)                    return err
+#define forwardTrap(err)                return err
+# endif
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
+# if d_m3RecordBacktraces
     ClearBacktrace (_mem->runtime);
+# endif // d_m3RecordBacktraces
 
     m3ret_t possible_trap = m3_Yield ();
     if (UNLIKELY(possible_trap)) return possible_trap;

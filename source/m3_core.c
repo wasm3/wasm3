@@ -491,7 +491,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
     return result;
 }
 
-
+#if d_m3RecordBacktraces
 u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
 {
     // walk the code pages
@@ -527,7 +527,7 @@ u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
         u32 result = 0;
 
         bool pcFound = MapPCToOffset (curr, i_pc, & result);
-        assert (pcFound);
+                                                                                d_m3Assert (pcFound);
 
         return result;
     }
@@ -590,3 +590,4 @@ void  ClearBacktrace  (IM3Runtime io_runtime)
     io_runtime->backtrace.frames = NULL;
     io_runtime->backtrace.lastFrame = NULL;
 }
+#endif // d_m3RecordBacktraces

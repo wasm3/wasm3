@@ -452,10 +452,16 @@ int  main  (int i_argc, const char* i_argv[])
                 if (argDumpOnTrap) {
                     repl_dump();
                 }
-                backtrace_buff[0] = '\0';
-                m3_GetBacktraceStr(runtime, backtrace_buff, 4096);
-
-                FATAL("repl_call: %s\n%s", result, backtrace_buff);
+                if (m3_BacktraceEnabled())
+                {
+                    backtrace_buff[0] = '\0';
+                    m3_GetBacktraceStr(runtime, backtrace_buff, 4096);
+                    FATAL("repl_call: %s\n%s", result, backtrace_buff);
+                }
+                else
+                {
+                    FATAL("repl_call: %s", result);
+                }
             }
         }
     }
@@ -503,9 +509,12 @@ int  main  (int i_argc, const char* i_argv[])
             m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)\n", info.message);
 
-            backtrace_buff[0] = '\0';
-            m3_GetBacktraceStr(runtime, backtrace_buff, 4096);
-            fprintf (stderr, "%s\n", backtrace_buff);
+            if (m3_BacktraceEnabled())
+            {
+                backtrace_buff[0] = '\0';
+                m3_GetBacktraceStr(runtime, backtrace_buff, 4096);
+                fprintf (stderr, "%s\n", backtrace_buff);
+            }
 
             //TODO: if (result == m3Err_trapExit) {
                 // warn that exit was called

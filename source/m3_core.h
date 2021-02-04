@@ -156,7 +156,9 @@ typedef struct M3CodePageHeader
     u32                           sequence;       // this is just used for debugging; could be removed
     u32                           usageCount;
 
+# if d_m3RecordBacktraces
     struct M3CodeMappingPage *    mapping;
+# endif // d_m3RecordBacktraces
 }
 M3CodePageHeader;
 
@@ -246,9 +248,11 @@ size_t      SPrintArg               (char * o_string, size_t i_n, m3stack_t i_sp
 
 void        ReportError             (IM3Runtime io_runtime, IM3Module i_module, IM3Function i_function, ccstr_t i_errorMessage, ccstr_t i_file, u32 i_lineNum);
 
+# if d_m3RecordBacktraces
 void        PushBacktraceFrame         (IM3Runtime io_runtime, pc_t i_pc);
 void        FillBacktraceFunctionInfo  (IM3Runtime io_runtime, IM3Function i_function);
 void        ClearBacktrace             (IM3Runtime io_runtime);
+# endif
 
 d_m3EndExternC
 

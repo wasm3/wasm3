@@ -257,8 +257,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     void                m3_PrintProfilerInfo        (void);
 
     // The runtime owns the backtrace, do not free the backtrace you obtain
-
-    M3BacktraceInfo *   m3_GetBacktrace             (IM3Runtime i_runtime);
+    bool                m3_BacktraceEnabled         (void);
+    M3BacktraceInfo *   m3_GetBacktrace             (IM3Runtime i_runtime);     // Returns NULL if backtrace is not enabled
     uint32_t            m3_GetBacktraceStr          (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize);
 
 #if defined(__cplusplus)
