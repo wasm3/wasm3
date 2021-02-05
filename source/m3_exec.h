@@ -70,7 +70,8 @@ d_m3BeginExternC
 d_m3RetSig  Call  (d_m3OpSig)
 {
 # if d_m3RecordBacktraces
-    ClearBacktrace (_mem->runtime);
+    if (_mem)
+        ClearBacktrace (_mem->runtime);
 # endif // d_m3RecordBacktraces
 
     m3ret_t possible_trap = m3_Yield ();
