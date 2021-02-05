@@ -23,4 +23,4 @@ else()
     target_link_libraries(${COMPONENT_TARGET} PRIVATE m3)
 endif()
 
-target_compile_options(m3 PUBLIC -DM3_IN_IRAM -DESP32 -Dd_m3LogOutput=false -O3 -freorder-blocks)
+target_compile_options(m3 PUBLIC -DM3_IN_IRAM -DESP32 -O3 -freorder-blocks)

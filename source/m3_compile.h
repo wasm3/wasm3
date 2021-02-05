@@ -35,11 +35,14 @@ typedef struct M3FuncType
 
     u32                     numRets;
     u32                     numArgs;
-    u8                      types[];   	    // returns, then args
+    u8                      types[];        // returns, then args
 }
 M3FuncType;
 
 typedef M3FuncType *        IM3FuncType;
+
+#define d_FuncRetType(ftype,i)  ((ftype)->types[(i)])
+#define d_FuncArgType(ftype,i)  ((ftype)->types[(ftype)->numRets + (i)])
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 

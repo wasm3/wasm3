@@ -168,7 +168,6 @@ jobs:
       run: |
         mkdir build
         cd build
-        export CFLAGS="-Dd_m3LogOutput=0"
         cmake ..
     - name: Build (native)
       run: |

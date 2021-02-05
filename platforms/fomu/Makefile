@@ -25,7 +25,7 @@ BASE_DIR   := .
 LD_DIR     := $(BASE_DIR)/ld
 LDSCRIPT   := $(BASE_DIR)/ld/linker.ld
 ADD_CFLAGS := -I$(BASE_DIR)/include -D__vexriscv__ \
-			  -DFOMU -Dd_m3FixedHeap=8192 -Dd_m3LogOutput=false
+			  -DFOMU -Dd_m3FixedHeap=8192
 
 ADD_LFLAGS := -lm
 PACKAGE    := wasm3

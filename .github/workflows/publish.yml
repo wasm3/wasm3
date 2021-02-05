@@ -23,7 +23,6 @@ jobs:
 
     env:
       LDFLAGS: -s
-      CFLAGS: -DUSE_HUMAN_FRIENDLY_ARGS
     steps:
     - uses: actions/checkout@v2
     - name: Configure
@@ -69,7 +68,6 @@ jobs:
 
     env:
       LDFLAGS: -s
-      CFLAGS: -DUSE_HUMAN_FRIENDLY_ARGS
     steps:
     - uses: actions/checkout@v2
     - name: Install Python dependencies

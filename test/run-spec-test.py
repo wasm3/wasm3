@@ -237,7 +237,7 @@ class Wasm3():
         return res
 
     def invoke(self, cmd):
-        return self._run_cmd(" ".join(map(str, cmd)) + "\n")
+        return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
 
     def _run_cmd(self, cmd):
         if self.autorestart and not self._is_running():

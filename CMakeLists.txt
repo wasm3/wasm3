@@ -8,7 +8,6 @@ set(APP_DIR  "platforms/app")
 
 if(HARDCODED) # Bundle a wasm binary and run a hard-coded func
   set(APP_DIR          "platforms/emscripten")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0")
 endif()
 
 if(CLANG OR CLANG_SUFFIX)
@@ -20,7 +19,7 @@ if(CLANG OR CLANG_SUFFIX)
     set(OUT_FILE         "wasm3-fuzzer")
     set(APP_DIR          "platforms/app_fuzz")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "set build type to Debug")
-    set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -Dd_m3LogOutput=0 -fsanitize=fuzzer,address")
+    set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=fuzzer,address")
   endif()
 endif()

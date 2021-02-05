@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdarg.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -41,11 +42,10 @@ typedef struct M3ErrorInfo
     uint32_t        line;
 
     const char *    message;
-}
-M3ErrorInfo;
+} M3ErrorInfo;
 
 
-enum // EWaTypes
+typedef enum M3ValueType
 {
     c_m3Type_none   = 0,
     c_m3Type_i32    = 1,
@@ -54,7 +54,7 @@ enum // EWaTypes
     c_m3Type_f64    = 4,
 
     c_m3Type_unknown
-};
+} M3ValueType;
 
 
 typedef struct M3ImportInfo
@@ -206,8 +206,15 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
 
-    M3Result            m3_Call                     (IM3Function i_function);
-    M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * const * i_argv);
+    uint32_t            m3_GetArgCount              (IM3Function i_function);
+    uint32_t            m3_GetRetCount              (IM3Function i_function);
+    M3ValueType         m3_GetArgType               (IM3Function i_function, uint32_t index);
+    M3ValueType         m3_GetRetType               (IM3Function i_function, uint32_t index);
+
+    M3Result            m3_CallVariadic             (IM3Function i_function, uint32_t i_argc, ...);
+    M3Result            m3_CallWithVaList           (IM3Function i_function, uint32_t i_argc, va_list i_args);
+    M3Result            m3_Call                     (IM3Function i_function, uint32_t i_argc, const void * i_argptrs[]);
+    M3Result            m3_CallWithArgs             (IM3Function i_function, uint32_t i_argc, const char * i_argv[]);
 
     // IM3Functions are valid during the lifetime of the originating runtime
 

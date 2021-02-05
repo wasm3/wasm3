@@ -32,10 +32,6 @@
 #   define d_m3MaxConstantTableSize             120
 # endif
 
-# ifndef d_m3LogOutput
-#   define d_m3LogOutput                        1
-# endif
-
 # ifndef d_m3VerboseLogs
 #   define d_m3VerboseLogs                      1
 # endif

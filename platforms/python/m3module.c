@@ -244,7 +244,7 @@ Function_arg_types(m3_function *self, void * closure)
     if (ret) {
         Py_ssize_t i;
         for (i = 0; i < nArgs; ++i) {
-            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(type->types[type->numRets + i]));
+            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(d_FuncArgType(type, i)));
         }
     }
     return ret;
@@ -273,7 +273,7 @@ M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
     // args are always 64-bit aligned
     u64 * stack = (u64 *) self->r->stack;
     for (i = 0; i < type->numArgs; ++i) {
-        put_arg_on_stack(&stack[i], type->types[type->numRets + i], PyTuple_GET_ITEM(args, i));
+        put_arg_on_stack(&stack[i], d_FuncArgType(type, i), PyTuple_GET_ITEM(args, i));
     }
     Call(f->compiled, (m3stack_t) stack, self->r->memory.mallocated, d_m3OpDefaultArgs);
     return get_result_from_stack(f->funcType, self->r->stack);

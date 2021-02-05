@@ -736,89 +736,156 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
     return result;
 }
 
-
-M3Result  m3_Call  (IM3Function i_function)
+uint32_t  m3_GetArgCount  (IM3Function i_function)
 {
-    return m3_CallWithArgs (i_function, 0, NULL);
+    if (i_function) {
+        IM3FuncType ft = i_function->funcType;
+        if (ft) {
+            return ft->numArgs;
+        }
+    }
+    return 0;
+}
+
+uint32_t  m3_GetRetCount  (IM3Function i_function)
+{
+    if (i_function) {
+        IM3FuncType ft = i_function->funcType;
+        if (ft) {
+            return ft->numRets;
+        }
+    }
+    return 0;
 }
 
 
-M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char * const * i_argv)
+M3ValueType  m3_GetArgType  (IM3Function i_function, uint32_t index)
 {
-    M3Result result = m3Err_none;
+    if (i_function) {
+        IM3FuncType ft = i_function->funcType;
+        if (ft and index < ft->numArgs) {
+            return (M3ValueType)d_FuncArgType(ft, index);
+        }
+    }
+    return c_m3Type_none;
+}
 
-    if (i_function->compiled)
+M3ValueType  m3_GetRetType  (IM3Function i_function, uint32_t index)
+{
+    if (i_function) {
+        IM3FuncType ft = i_function->funcType;
+        if (ft and index < ft->numRets) {
+            return (M3ValueType)d_FuncRetType(ft, index);
+        }
+    }
+    return c_m3Type_none;
+}
+
+M3Result  m3_CallVariadic  (IM3Function i_function, uint32_t i_argc, ...)
+{
+    va_list ap;
+    va_start(ap, i_argc);
+    M3Result r = m3_CallWithVaList(i_function, i_argc, ap);
+    va_end(ap);
+    return r;
+}
+
+M3Result  m3_CallWithVaList  (IM3Function i_function, uint32_t i_argc, va_list i_args)
+{
+    IM3FuncType ftype = i_function->funcType;
+    if (i_argc != ftype->numArgs) {
+        return m3Err_argumentCountMismatch;
+    }
+    if (!i_function->compiled) {
+        return m3Err_missingCompiledCode;
+    }
+    IM3Runtime runtime = i_function->module->runtime;
+
+    // args are always 64-bit aligned
+    u64* stack = (u64*) runtime->stack;
+
+    for (u32 i = 0; i < ftype->numArgs; ++i)
     {
-        IM3Module module = i_function->module;
-
-        IM3Runtime runtime = module->runtime;
-
-        IM3FuncType ftype = i_function->funcType;                               m3log (runtime, "calling %s", SPrintFuncTypeSignature (ftype));
-
-        if (i_argc != ftype->numArgs)
-            _throw (m3Err_argumentCountMismatch);
-
-        // args are always 64-bit aligned
-        u64 * stack = (u64 *) runtime->stack;
-
-        // The format is currently not user-friendly by default,
-        // as this is used in spec tests
-        for (u32 i = 0; i < ftype->numArgs; ++i)
-        {
-            u64 * s = & stack [i];
-            ccstr_t str = i_argv[i];
-
-            switch (ftype->types[ftype->numRets + i]) {
-#ifdef USE_HUMAN_FRIENDLY_ARGS
-            case c_m3Type_i32:  *(i32*)(s) = atol(str);  break;
-            case c_m3Type_i64:  *(i64*)(s) = atoll(str); break;
-            case c_m3Type_f32:  *(f32*)(s) = atof(str);  break;
-            case c_m3Type_f64:  *(f64*)(s) = atof(str);  break;
-#else
-            case c_m3Type_i32:
-            case c_m3Type_f32:  *(u32*)(s) = strtoul(str, NULL, 10);  break;
-            case c_m3Type_i64:
-            case c_m3Type_f64:  *(u64*)(s) = strtoull(str, NULL, 10); break;
-#endif
-            default: _throw("unknown argument type");
-            }
+        u64* s = & stack[i];
+        switch (d_FuncArgType(ftype, i)) {
+        case c_m3Type_i32:  *(i32*)(s) = va_arg(i_args, i32);  break;
+        case c_m3Type_i64:  *(i64*)(s) = va_arg(i_args, i64);  break;
+        case c_m3Type_f32:  *(f32*)(s) = va_arg(i_args, f64);  break; // f32 is passed as f64
+        case c_m3Type_f64:  *(f64*)(s) = va_arg(i_args, f64);  break;
+        default: return "unknown argument type";
         }
+    }
+    m3StackCheckInit();
+    return (M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+}
 
-        m3StackCheckInit();
-_       ((M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argptrs[])
+{
+    IM3FuncType ftype = i_function->funcType;
+    if (i_argc != ftype->numArgs) {
+        return m3Err_argumentCountMismatch;
+    }
+    if (!i_function->compiled) {
+        return m3Err_missingCompiledCode;
+    }
+    IM3Runtime runtime = i_function->module->runtime;
 
-#if d_m3LogOutput
-        switch (GetSingleRetType(ftype)) {
-        case c_m3Type_none: fprintf (stderr, "Result: <Empty Stack>\n"); break;
-#ifdef USE_HUMAN_FRIENDLY_ARGS
-        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)(stack));  break;
-        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)(stack));  break;
-        case c_m3Type_f32:  fprintf (stderr, "Result: %f\n",   *(f32*)(stack));  break;
-        case c_m3Type_f64:  fprintf (stderr, "Result: %lf\n",  *(f64*)(stack));  break;
-#else
-        case c_m3Type_i32:
-        case c_m3Type_f32:
-            fprintf (stderr, "Result: %u\n",  *(u32*)(stack));  break;
-        case c_m3Type_i64:
-        case c_m3Type_f64:
-            fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)(stack));  break;
-#endif // USE_HUMAN_FRIENDLY_ARGS
-        default: _throw("unknown return type");
+    // args are always 64-bit aligned
+    u64* stack = (u64*) runtime->stack;
+
+    for (u32 i = 0; i < ftype->numArgs; ++i)
+    {
+        u64* s = & stack[i];
+
+        switch (d_FuncArgType(ftype, i)) {
+        case c_m3Type_i32:  *(i32*)(s) = *(i32*)i_argptrs[i];  break;
+        case c_m3Type_i64:  *(i64*)(s) = *(i64*)i_argptrs[i];  break;
+        case c_m3Type_f32:  *(f32*)(s) = *(f32*)i_argptrs[i];  break;
+        case c_m3Type_f64:  *(f64*)(s) = *(f64*)i_argptrs[i];  break;
+        default: return "unknown argument type";
         }
+    }
+
+    m3StackCheckInit();
+    return (M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+}
+
+M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char * i_argv[])
+{
+    IM3FuncType ftype = i_function->funcType;
+    if (i_argc != ftype->numArgs) {
+        return m3Err_argumentCountMismatch;
+    }
+    if (!i_function->compiled) {
+        return m3Err_missingCompiledCode;
+    }
+    IM3Runtime runtime = i_function->module->runtime;
+
+    // args are always 64-bit aligned
+    u64* stack = (u64*) runtime->stack;
+
+    for (u32 i = 0; i < ftype->numArgs; ++i)
+    {
+        u64* s = & stack[i];
+
+        switch (d_FuncArgType(ftype, i)) {
+        case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  break;
+        case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); break;
+        case c_m3Type_f32:  *(f32*)(s) = strtof(i_argv[i], NULL);       break;
+        case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       break;
+        default: return "unknown argument type";
+        }
+    }
+
+    m3StackCheckInit();
+    M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t) stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
 
 #if d_m3LogNativeStack
-        int stackUsed =  m3StackGetMax();
-        fprintf (stderr, "Native stack used: %d\n", stackUsed);
+    int stackUsed =  m3StackGetMax();
+    fprintf (stderr, "Native stack used: %d\n", stackUsed);
 #endif // d_m3LogNativeStack
 
-#endif // d_m3LogOutput
-
-        //u64 value = * (u64 *) (stack);
-        //m3log (runtime, "return64: %" PRIu64 " return32: %u", value, (u32) value);
-    }
-    else _throw (m3Err_missingCompiledCode);
-
-    _catch: return result;
+    return r;
 }
 
 void  ReleaseCodePageNoTrack (IM3Runtime i_runtime, IM3CodePage i_codePage)

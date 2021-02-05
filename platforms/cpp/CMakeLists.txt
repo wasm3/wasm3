@@ -13,4 +13,4 @@ target_link_libraries(${target} PRIVATE wasm3_cpp)
 
 target_compile_options(${target} PUBLIC -g)
 target_compile_options(m3 PUBLIC -g)
-target_compile_options(m3 PRIVATE -Dd_m3LogOutput=0)
+

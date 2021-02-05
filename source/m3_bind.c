@@ -71,13 +71,13 @@ _   (AllocFuncType (& funcType, maxNumArgs));
         {
             _throwif ("malformed function signature; too many return types", funcType->numRets >= 1);
 
-            funcType->types [funcType->numRets++] = type;
+            d_FuncRetType(funcType, funcType->numRets++) = type;
         }
         else
         {
             _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
 
-            funcType->types [funcType->numRets + funcType->numArgs++] = type;
+            d_FuncArgType(funcType, funcType->numArgs++) = type;
         }
     }
 

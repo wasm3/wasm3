@@ -12,7 +12,7 @@
 
 d_m3BeginExternC
 
-#if d_m3LogOutput
+#ifdef DEBUG
 
 void            dump_type_stack         (IM3Compilation o);
 void            log_opcode              (IM3Compilation o, u8 i_opcode);
@@ -22,7 +22,7 @@ void            log_emit                (IM3Compilation o, IM3Operation i_operat
 
 cstr_t          SPrintFuncTypeSignature (IM3FuncType i_funcType);
 
-#else // d_m3LogOutput
+#else // DEBUG
 
 #define         dump_type_stack(...)      {}
 #define         log_opcode(...)           {}
@@ -30,7 +30,7 @@ cstr_t          SPrintFuncTypeSignature (IM3FuncType i_funcType);
 #define         emit_stack_dump(...)      {}
 #define         log_emit(...)             {}
 
-#endif // d_m3LogOutput
+#endif // DEBUG
 
 d_m3EndExternC
 

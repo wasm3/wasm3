@@ -22,7 +22,34 @@
 #define LINK_WASI
 #endif
 
-M3Result repl_load  (IM3Runtime runtime, const char* fn)
+IM3Environment env;
+IM3Runtime runtime;
+
+
+M3Result link_all  (IM3Module module)
+{
+    M3Result res;
+    res = m3_LinkSpecTest (module);
+    if (res) return res;
+
+    res = m3_LinkLibC (module);
+    if (res) return res;
+
+#if defined(LINK_WASI)
+    res = m3_LinkWASI (module);
+    if (res) return res;
+#endif
+
+#if defined(d_m3HasTracer)
+    res = m3_LinkTracer (module);
+    if (res) return res;
+#endif
+
+    return res;
+}
+
+
+M3Result repl_load  (const char* fn)
 {
     M3Result result = m3Err_none;
 
@@ -54,18 +81,18 @@ M3Result repl_load  (IM3Runtime runtime, const char* fn)
     fclose (f);
 
     IM3Module module;
-    result = m3_ParseModule (runtime->environment, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) return result;
 
     result = m3_LoadModule (runtime, module);
     if (result) return result;
 
-    result = m3_LinkSpecTest (runtime->modules);
+    result = link_all (module);
 
     return result;
 }
 
-M3Result repl_load_hex  (IM3Runtime runtime, u32 fsize)
+M3Result repl_load_hex  (u32 fsize)
 {
     M3Result result = m3Err_none;
 
@@ -99,18 +126,18 @@ M3Result repl_load_hex  (IM3Runtime runtime, u32 fsize)
     }
 
     IM3Module module;
-    result = m3_ParseModule (runtime->environment, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) return result;
 
     result = m3_LoadModule (runtime, module);
     if (result) return result;
 
-    result = m3_LinkSpecTest (runtime->modules);
+    result = link_all (module);
 
     return result;
 }
 
-M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char* argv[])
+M3Result repl_call  (const char* name, int argc, const char* argv[])
 {
     M3Result result = m3Err_none;
 
@@ -128,10 +155,93 @@ M3Result repl_call  (IM3Runtime runtime, const char* name, int argc, const char*
     result = m3_CallWithArgs (func, argc, argv);
     if (result) return result;
 
+    // TODO: Stack access API
+    uint64_t* stack = (uint64_t*)runtime->stack;
+
+    int ret_count = m3_GetRetCount(func);
+    if (ret_count <= 0) {
+        fprintf (stderr, "Result: <Empty Stack>\n");
+    }
+    for (int i = 0; i < ret_count; i++) {
+        switch (m3_GetRetType(func, i)) {
+        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)(stack));  break;
+        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)(stack));  break;
+        case c_m3Type_f32:  fprintf (stderr, "Result: %f\n",   *(f32*)(stack));  break;
+        case c_m3Type_f64:  fprintf (stderr, "Result: %lf\n",  *(f64*)(stack));  break;
+        default: return "unknown return type";
+        }
+        stack++;
+    }
+
     return result;
 }
 
-M3Result repl_dump(IM3Runtime runtime)
+// :invoke is used by spec tests, so it treats floats as raw data
+M3Result repl_invoke  (const char* name, int argc, const char* argv[])
+{
+    M3Result result = m3Err_none;
+
+    IM3Function func;
+    result = m3_FindFunction (&func, runtime, name);
+    if (result) return result;
+
+    // TODO
+    if (argc) {
+        if (!strcmp(name, "main") || !strcmp(name, "_main")) {
+            return "passing arguments to main() not implemented";
+        }
+    }
+
+    unsigned arg_count = m3_GetArgCount(func);
+
+    if (arg_count > 128) {
+        return "too many args";
+    }
+
+    uint64_t args[arg_count];
+    const void* argptrs[arg_count];
+    memset(args,    0, sizeof(args));
+    memset(argptrs, 0, sizeof(argptrs));
+
+    for (unsigned i = 0; i < arg_count; i++) {
+        u64* s = &args[i];
+        argptrs[i] = s;
+        switch (m3_GetArgType(func, i)) {
+        case c_m3Type_i32:
+        case c_m3Type_f32:  *(u32*)(s) = strtoul(argv[i], NULL, 10);  break;
+        case c_m3Type_i64:
+        case c_m3Type_f64:  *(u64*)(s) = strtoull(argv[i], NULL, 10); break;
+        default: return "unknown argument type";
+        }
+    }
+
+    result = m3_Call (func, arg_count, argptrs);
+    if (result) return result;
+
+    // TODO: Stack access API
+    uint64_t* stack = (uint64_t*)runtime->stack;
+
+    unsigned ret_count = m3_GetRetCount(func);
+    if (ret_count <= 0) {
+        fprintf (stderr, "Result: <Empty Stack>\n");
+    }
+    for (unsigned i = 0; i < ret_count; i++) {
+        switch (m3_GetRetType(func, i)) {
+        case c_m3Type_i32:
+        case c_m3Type_f32:
+            fprintf (stderr, "Result: %" PRIu32 "\n", *(u32*)(stack));  break;
+        case c_m3Type_i64:
+        case c_m3Type_f64:
+            fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)(stack));  break;
+        default: return "unknown return type";
+        }
+        stack++;
+    }
+
+    return result;
+}
+
+M3Result repl_dump()
 {
     uint32_t len;
     uint8_t* mem = m3_GetMemory(runtime, &len, 0);
@@ -148,18 +258,19 @@ M3Result repl_dump(IM3Runtime runtime)
     return m3Err_none;
 }
 
-void repl_free(IM3Runtime* runtime)
+void repl_free()
 {
-    if (*runtime) {
-        m3_FreeRuntime (*runtime);
+    if (runtime) {
+        m3_FreeRuntime (runtime);
+        runtime = NULL;
     }
 }
 
-M3Result repl_init(IM3Environment env, IM3Runtime* runtime, unsigned stack)
+M3Result repl_init(unsigned stack)
 {
-    repl_free(runtime);
-    *runtime = m3_NewRuntime (env, stack, NULL);
-    if (*runtime == NULL) {
+    repl_free();
+    runtime = m3_NewRuntime (env, stack, NULL);
+    if (runtime == NULL) {
         return "m3_NewRuntime failed";
     }
     return m3Err_none;
@@ -247,9 +358,9 @@ void print_usage() {
 int  main  (int i_argc, const char* i_argv[])
 {
     M3Result result = m3Err_none;
+    env = m3_NewEnvironment ();
+    runtime = NULL;
 
-    IM3Environment env = m3_NewEnvironment ();
-    IM3Runtime runtime = NULL;
     bool argRepl = false;
     bool argDumpOnTrap = false;
     const char* argFile = NULL;
@@ -298,34 +409,21 @@ int  main  (int i_argc, const char* i_argv[])
 
     ARGV_SET(argFile);
 
-    result = repl_init(env, &runtime, argStackSize);
+    result = repl_init(argStackSize);
     if (result) FATAL("repl_init: %s", result);
 
     if (argFile) {
-        result = repl_load(runtime, argFile);
+        result = repl_load(argFile);
         if (result) FATAL("repl_load: %s", result);
-
-#if defined(LINK_WASI)
-        result = m3_LinkWASI (runtime->modules);
-        if (result) FATAL("m3_LinkWASI: %s", result);
-#endif
-
-#if defined(d_m3HasTracer)
-        result = m3_LinkTracer (runtime->modules);
-        if (result) FATAL("m3_LinkTracer: %s", result);
-#endif
-
-        result = m3_LinkLibC (runtime->modules);
-        if (result) FATAL("m3_LinkLibC: %s", result);
 
         if (argFunc and not argRepl) {
 #if defined(LINK_WASI)
-            if (!strcmp(argFunc, "_start")) {
-            	m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+            if (0 == strcmp(argFunc, "_start")) {
+                m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
                 // When passing args to WASI, include wasm filename as argv[0]
-            	wasi_ctx->argc = i_argc+1;
-            	wasi_ctx->argv = i_argv-1;
-                result = repl_call(runtime, argFunc, 0, NULL);
+                wasi_ctx->argc = i_argc+1;
+                wasi_ctx->argv = i_argv-1;
+                result = repl_call(argFunc, 0, NULL);
                 if (result == m3Err_trapExit) {
                     return wasi_ctx->exit_code;
                 }
@@ -333,12 +431,12 @@ int  main  (int i_argc, const char* i_argv[])
             else
 #endif
             {
-                result = repl_call(runtime, argFunc, i_argc, i_argv);
+                result = repl_call(argFunc, i_argc, i_argv);
             }
 
             if (result) {
                 if (argDumpOnTrap) {
-                    repl_dump(runtime);
+                    repl_dump();
                 }
                 FATAL("repl_call: %s", result);
             }
@@ -360,23 +458,26 @@ int  main  (int i_argc, const char* i_argv[])
         }
         result = m3Err_none;
         if (!strcmp(":init", argv[0])) {
-            result = repl_init(env, &runtime, argStackSize);
+            result = repl_init(argStackSize);
         } else if (!strcmp(":version", argv[0])) {
             print_version();
         } else if (!strcmp(":exit", argv[0])) {
-            repl_free(&runtime);
+            repl_free();
             return 0;
         } else if (!strcmp(":load", argv[0])) {             // :load <filename>
-            result = repl_load(runtime, argv[1]);
+            result = repl_load(argv[1]);
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
-            result = repl_load_hex(runtime, atol(argv[1]));
+            result = repl_load_hex(atol(argv[1]));
         } else if (!strcmp(":dump", argv[0])) {
-            result = repl_dump(runtime);
+            result = repl_dump();
+        } else if (!strcmp(":invoke", argv[0])) {
+            unescape(argv[1]);
+            result = repl_invoke(argv[1], argc-2, (const char**)(argv+2));
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {
             unescape(argv[0]);
-            result = repl_call(runtime, argv[0], argc-1, (const char**)(argv+1));
+            result = repl_call(argv[0], argc-1, (const char**)(argv+1));
         }
 
         if (result) {
@@ -398,7 +499,9 @@ _onfatal:
         {
             M3ErrorInfo info;
             m3_GetErrorInfo (runtime, &info);
-            fprintf (stderr, " (%s)", info.message);
+            if (strlen(info.message)) {
+                fprintf (stderr, " (%s)", info.message);
+            }
         }
         fprintf (stderr, "\n");
     }
@@ -406,5 +509,5 @@ _onfatal:
     m3_FreeRuntime (runtime);
     m3_FreeEnvironment (env);
 
-    return 0;
+    return result ? 1 : 0;
 }
