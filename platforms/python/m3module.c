@@ -130,13 +130,6 @@ M3_Runtime_get_memory(m3_runtime *runtime, PyObject *index)
     return PyMemoryView_FromBuffer(&view);
 }
 
-static PyObject *
-M3_Runtime_print_info(m3_runtime *runtime)
-{
-    m3_PrintRuntimeInfo(runtime->r);
-    Py_RETURN_NONE;
-}
-
 static PyMethodDef M3_Runtime_methods[] = {
     {"load",            (PyCFunction)M3_Runtime_load,  METH_O,
         PyDoc_STR("load(module) -> None")},
@@ -144,8 +137,6 @@ static PyMethodDef M3_Runtime_methods[] = {
         PyDoc_STR("find_function(name) -> Function")},
     {"get_memory",     (PyCFunction)M3_Runtime_get_memory,  METH_O,
         PyDoc_STR("get_memory(index) -> memoryview")},
-    {"print_info",     (PyCFunction)M3_Runtime_print_info,  METH_NOARGS,
-        PyDoc_STR("print_info()")},
     {NULL,              NULL}           /* sentinel */
 };
 

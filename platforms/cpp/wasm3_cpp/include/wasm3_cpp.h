@@ -348,22 +348,6 @@ namespace wasm3 {
             return ret;
         }
 
-        /**
-         * Call the function which doesn't take any arguments.
-         * Note that the type of the return value must be explicitly specified as a template argument.
-         * @return the return value of the function.
-         */
-        template<typename Ret>
-        Ret call() {
-            M3Result res = m3_Call(m_func);
-            detail::check_error(res);
-            Ret ret;
-            /* FIXME: there should be a public API to get the return value */
-            auto sp = (detail::stack_type) m_runtime->stack;
-            detail::arg_from_stack(ret, sp, nullptr);
-            return ret;
-        }
-
     protected:
         friend class runtime;
 

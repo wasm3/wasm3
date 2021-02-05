@@ -198,8 +198,8 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         return "too many args";
     }
 
-    uint64_t args[arg_count];
-    const void* argptrs[arg_count];
+    static uint64_t args[128];
+    static const void* argptrs[128];
     memset(args,    0, sizeof(args));
     memset(argptrs, 0, sizeof(argptrs));
 

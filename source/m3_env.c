@@ -871,7 +871,7 @@ M3Result  m3_CallWithArgs  (IM3Function i_function, uint32_t i_argc, const char 
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  break;
         case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); break;
-        case c_m3Type_f32:  *(f32*)(s) = strtof(i_argv[i], NULL);       break;
+        case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       break;
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       break;
         default: return "unknown argument type";
         }
