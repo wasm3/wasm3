@@ -72,10 +72,8 @@ bool run_wasm()
 
     uart_print("Running...\n");
 
-    const char* i_argv[2] = { "24", NULL };
-    result = m3_CallWithArgs (f, 1, i_argv);
-
-    if (result) FATAL("m3_CallWithArgs", result);
+    result = m3_CallVariadic(f, 1, 24);
+    if (result) FATAL("m3_Call: %s", result);
 
     long value = *(uint64_t*)(runtime->stack);
     char buff[32];

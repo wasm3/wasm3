@@ -1,9 +1,11 @@
 #include "Python.h"
 
-#include <m3_api_defs.h>
+#include "m3_api_defs.h"
 #include "wasm3.h"
 /* FIXME: remove when there is a public API to get function return value */
 #include "m3_env.h"
+
+#define MAX_ARGS 32
 
 typedef struct {
     PyObject_HEAD
@@ -169,11 +171,11 @@ static PyType_Slot M3_Module_Type_slots[] = {
 };
 
 static void
-put_arg_on_stack(u64 *s, u8 type, PyObject *arg)
+put_arg_on_stack(u64 *s, M3ValueType type, PyObject *arg)
 {
     switch (type) {
-        case c_m3Type_i32:  *(i32*)(s) = PyLong_AsLong(arg);  break;
-        case c_m3Type_i64:  *(i64*)(s) = PyLong_AsLong(arg); break;
+        case c_m3Type_i32:  *(i32*)(s) = PyLong_AsLong(arg);     break;
+        case c_m3Type_i64:  *(i64*)(s) = PyLong_AsLong(arg);     break;
         case c_m3Type_f32:  *(f32*)(s) = PyFloat_AsDouble(arg);  break;
         case c_m3Type_f64:  *(f64*)(s) = PyFloat_AsDouble(arg);  break;
     }
@@ -182,7 +184,7 @@ put_arg_on_stack(u64 *s, u8 type, PyObject *arg)
 static PyObject *
 get_result_from_stack(IM3FuncType ftype, m3stack_t stack)
 {
-	u8 type = GetSingleRetType(ftype);
+    u8 type = GetSingleRetType(ftype);
     switch (type) {
         case c_m3Type_none: Py_RETURN_NONE;
         case c_m3Type_i32: return PyLong_FromLong(*(i32*)(stack));
@@ -190,22 +192,57 @@ get_result_from_stack(IM3FuncType ftype, m3stack_t stack)
         case c_m3Type_f32: return PyFloat_FromDouble(*(f32*)(stack));
         case c_m3Type_f64: return PyFloat_FromDouble(*(f64*)(stack));
         default:
-            PyErr_Format(PyExc_TypeError, "unknown return type %d", (int)type);
-            return NULL;
+            return PyErr_Format(PyExc_TypeError, "unknown return type %d", (int)type);
     }   
 }
 
-#define MAX_ARGS 8
 static PyObject *
 M3_Function_call_argv(m3_function *func, PyObject *args)
 {
     Py_ssize_t size = PyList_GET_SIZE(args), i;
-    const char* argv[8];
+    const char* argv[MAX_ARGS];
     for(i = 0; i< size;++i) {
         argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
     }
     M3Result res = m3_CallWithArgs(func->f, size, argv);
+
+    if (res) {
+        return PyErr_Format(PyExc_TypeError, "Error: %s", res);
+    }
+
     return get_result_from_stack(func->f->funcType, func->r->stack);
+}
+
+static PyObject*
+M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
+{
+    u32 i;
+    IM3Function f = self->f;
+
+    unsigned nArgs = m3_GetArgCount(f);
+
+    if (nArgs > MAX_ARGS) {
+        return PyErr_Format(PyExc_TypeError, "too many args");
+    }
+
+    static uint64_t    argsbuf[MAX_ARGS];
+    static const void* argptrs[MAX_ARGS];
+    memset(argsbuf, 0, sizeof(args));
+    memset(argptrs, 0, sizeof(argptrs));
+
+    for (unsigned i = 0; i < nArgs; i++) {
+        u64* s = &argsbuf[i];
+        argptrs[i] = s;
+        put_arg_on_stack(s, m3_GetArgType(f, i), PyTuple_GET_ITEM(args, i));
+    }
+
+    M3Result res = m3_Call (f, nArgs, argptrs);
+    
+    if (res) {
+        return PyErr_Format(PyExc_TypeError, "Error: %s", res);
+    }
+
+    return get_result_from_stack(f->funcType, self->r->stack);
 }
 
 static PyObject*
@@ -217,7 +254,7 @@ Function_name(m3_function *self, void * closure)
 static PyObject*
 Function_num_args(m3_function *self, void * closure)
 {
-    return PyLong_FromLong(self->f->funcType->numArgs);
+    return PyLong_FromLong(m3_GetArgCount(self->f));
 }
 
 static PyObject*
@@ -229,13 +266,12 @@ Function_return_type(m3_function *self, void * closure)
 static PyObject*
 Function_arg_types(m3_function *self, void * closure)
 {
-    M3FuncType *type = self->f->funcType;
-    Py_ssize_t nArgs = type->numArgs;
+    Py_ssize_t nArgs = m3_GetArgCount(self->f);
     PyObject *ret = PyTuple_New(nArgs);
     if (ret) {
         Py_ssize_t i;
         for (i = 0; i < nArgs; ++i) {
-            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(d_FuncArgType(type, i)));
+            PyTuple_SET_ITEM(ret, i, PyLong_FromLong(m3_GetArgType(self->f, i)));
         }
     }
     return ret;
@@ -254,21 +290,6 @@ static PyMethodDef M3_Function_methods[] = {
         PyDoc_STR("call_argv(args...) -> result")},
     {NULL, NULL}           /* sentinel */
 };
-
-static PyObject*
-M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
-{
-    u32 i;
-    IM3Function f = self->f;
-    M3FuncType *type = f->funcType;
-    // args are always 64-bit aligned
-    u64 * stack = (u64 *) self->r->stack;
-    for (i = 0; i < type->numArgs; ++i) {
-        put_arg_on_stack(&stack[i], d_FuncArgType(type, i), PyTuple_GET_ITEM(args, i));
-    }
-    Call(f->compiled, (m3stack_t) stack, self->r->memory.mallocated, d_m3OpDefaultArgs);
-    return get_result_from_stack(f->funcType, self->r->stack);
-}
 
 static PyType_Slot M3_Function_Type_slots[] = {
     {Py_tp_doc, "The wasm3.Function type"},
