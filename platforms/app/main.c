@@ -139,17 +139,41 @@ M3Result repl_load_hex  (u32 fsize)
 
 M3Result repl_call  (const char* name, int argc, const char* argv[])
 {
-    M3Result result = m3Err_none;
-
     IM3Function func;
-    result = m3_FindFunction (&func, runtime, name);
+    M3Result result = m3_FindFunction (&func, runtime, name);
     if (result) return result;
 
-    // TODO
-    if (argc) {
-        if (!strcmp(name, "main") || !strcmp(name, "_main")) {
-            return "passing arguments to libc main() not implemented";
+    if (argc && (!strcmp(name, "main") || !strcmp(name, "_main"))) {
+        return "passing arguments to libc main() not implemented";
+    }
+
+    if (!strcmp(name, "_start")) {
+#if defined(LINK_WASI)
+        m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+        wasi_ctx->argc = argc;
+        wasi_ctx->argv = argv;
+
+        IM3Function func;
+        M3Result result = m3_FindFunction (&func, runtime, "_start");
+        if (result) return result;
+
+        result = m3_CallWithArgs(func, 0, NULL);
+
+        if (result == m3Err_trapExit) {
+            exit(wasi_ctx->exit_code);
         }
+
+        return result;
+#else
+        return "WASI not linked";
+#endif
+    }
+
+    int arg_count = m3_GetArgCount(func);
+    if (argc < arg_count) {
+        return "not enough arguments";
+    } else if (argc > arg_count) {
+        return "too many arguments";
     }
 
     result = m3_CallWithArgs (func, argc, argv);
@@ -179,32 +203,26 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 // :invoke is used by spec tests, so it treats floats as raw data
 M3Result repl_invoke  (const char* name, int argc, const char* argv[])
 {
-    M3Result result = m3Err_none;
-
     IM3Function func;
-    result = m3_FindFunction (&func, runtime, name);
+    M3Result result = m3_FindFunction (&func, runtime, name);
     if (result) return result;
 
-    // TODO
-    if (argc) {
-        if (!strcmp(name, "main") || !strcmp(name, "_main")) {
-            return "passing arguments to main() not implemented";
-        }
+    int arg_count = m3_GetArgCount(func);
+    if (argc > 128) {
+        return "arguments limit reached";
+    } else if (argc < arg_count) {
+        return "not enough arguments";
+    } else if (argc > arg_count) {
+        return "too many arguments";
     }
 
-    unsigned arg_count = m3_GetArgCount(func);
-
-    if (arg_count > 128) {
-        return "too many args";
-    }
-
-    static uint64_t args[128];
+    static uint64_t    argbuff[128];
     static const void* argptrs[128];
-    memset(args,    0, sizeof(args));
+    memset(argbuff, 0, sizeof(argbuff));
     memset(argptrs, 0, sizeof(argptrs));
 
-    for (unsigned i = 0; i < arg_count; i++) {
-        u64* s = &args[i];
+    for (int i = 0; i < argc; i++) {
+        u64* s = &argbuff[i];
         argptrs[i] = s;
         switch (m3_GetArgType(func, i)) {
         case c_m3Type_i32:
@@ -215,7 +233,7 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         }
     }
 
-    result = m3_Call (func, arg_count, argptrs);
+    result = m3_Call (func, argc, argptrs);
     if (result) return result;
 
     // TODO: Stack access API
@@ -417,20 +435,10 @@ int  main  (int i_argc, const char* i_argv[])
         if (result) FATAL("repl_load: %s", result);
 
         if (argFunc and not argRepl) {
-#if defined(LINK_WASI)
-            if (0 == strcmp(argFunc, "_start")) {
-                m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+            if (!strcmp(argFunc, "_start")) {
                 // When passing args to WASI, include wasm filename as argv[0]
-                wasi_ctx->argc = i_argc+1;
-                wasi_ctx->argv = i_argv-1;
-                result = repl_call(argFunc, 0, NULL);
-                if (result == m3Err_trapExit) {
-                    return wasi_ctx->exit_code;
-                }
-            }
-            else
-#endif
-            {
+                result = repl_call(argFunc, i_argc+1, i_argv-1);
+            } else {
                 result = repl_call(argFunc, i_argc, i_argv);
             }
 
