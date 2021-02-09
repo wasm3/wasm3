@@ -72,7 +72,7 @@ bool run_wasm()
 
     uart_print("Running...\n");
 
-    result = m3_CallVariadic(f, 1, 24);
+    result = m3_CallV (f, 24);
     if (result) FATAL("m3_Call: %s", result);
 
     long value = *(uint64_t*)(runtime->stack);

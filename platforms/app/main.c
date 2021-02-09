@@ -14,7 +14,6 @@
 #include "m3_api_wasi.h"
 #include "m3_api_libc.h"
 #include "m3_api_tracer.h"
-#include "m3_env.h"
 
 #define FATAL(msg, ...) { printf("Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
@@ -157,7 +156,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
         M3Result result = m3_FindFunction (&func, runtime, "_start");
         if (result) return result;
 
-        result = m3_CallWithArgs(func, 0, NULL);
+        result = m3_CallArgV(func, 0, NULL);
 
         if (result == m3Err_trapExit) {
             exit(wasi_ctx->exit_code);
@@ -170,31 +169,36 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
     }
 
     int arg_count = m3_GetArgCount(func);
+    int ret_count = m3_GetRetCount(func);
     if (argc < arg_count) {
         return "not enough arguments";
     } else if (argc > arg_count) {
         return "too many arguments";
     }
 
-    result = m3_CallWithArgs (func, argc, argv);
+    result = m3_CallArgV (func, argc, argv);
     if (result) return result;
 
-    // TODO: Stack access API
-    uint64_t* stack = (uint64_t*)runtime->stack;
+    static uint64_t    valbuff[128];
+    static const void* valptrs[128];
+    memset(valbuff, 0, sizeof(valbuff));
+    for (int i = 0; i < ret_count; i++) {
+        valptrs[i] = &valbuff[i];
+    }
+    result = m3_GetResults (func, ret_count, valptrs);
+    if (result) return result;
 
-    int ret_count = m3_GetRetCount(func);
     if (ret_count <= 0) {
         fprintf (stderr, "Result: <Empty Stack>\n");
     }
     for (int i = 0; i < ret_count; i++) {
         switch (m3_GetRetType(func, i)) {
-        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)(stack));  break;
-        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)(stack));  break;
-        case c_m3Type_f32:  fprintf (stderr, "Result: %f\n",   *(f32*)(stack));  break;
-        case c_m3Type_f64:  fprintf (stderr, "Result: %lf\n",  *(f64*)(stack));  break;
+        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)valptrs[i]);  break;
+        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)valptrs[i]);  break;
+        case c_m3Type_f32:  fprintf (stderr, "Result: %" PRIf32 "\n", *(f32*)valptrs[i]);  break;
+        case c_m3Type_f64:  fprintf (stderr, "Result: %" PRIf64 "\n", *(f64*)valptrs[i]);  break;
         default: return "unknown return type";
         }
-        stack++;
     }
 
     return result;
@@ -208,6 +212,8 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
     if (result) return result;
 
     int arg_count = m3_GetArgCount(func);
+    int ret_count = m3_GetRetCount(func);
+
     if (argc > 128) {
         return "arguments limit reached";
     } else if (argc < arg_count) {
@@ -216,14 +222,14 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         return "too many arguments";
     }
 
-    static uint64_t    argbuff[128];
-    static const void* argptrs[128];
-    memset(argbuff, 0, sizeof(argbuff));
-    memset(argptrs, 0, sizeof(argptrs));
+    static uint64_t    valbuff[128];
+    static const void* valptrs[128];
+    memset(valbuff, 0, sizeof(valbuff));
+    memset(valptrs, 0, sizeof(valptrs));
 
     for (int i = 0; i < argc; i++) {
-        u64* s = &argbuff[i];
-        argptrs[i] = s;
+        u64* s = &valbuff[i];
+        valptrs[i] = s;
         switch (m3_GetArgType(func, i)) {
         case c_m3Type_i32:
         case c_m3Type_f32:  *(u32*)(s) = strtoul(argv[i], NULL, 10);  break;
@@ -233,27 +239,30 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         }
     }
 
-    result = m3_Call (func, argc, argptrs);
+    result = m3_Call (func, argc, valptrs);
     if (result) return result;
 
-    // TODO: Stack access API
-    uint64_t* stack = (uint64_t*)runtime->stack;
+    // reuse valbuff for return values
+    memset(valbuff, 0, sizeof(valbuff));
+    for (int i = 0; i < ret_count; i++) {
+        valptrs[i] = &valbuff[i];
+    }
+    result = m3_GetResults (func, ret_count, valptrs);
+    if (result) return result;
 
-    unsigned ret_count = m3_GetRetCount(func);
     if (ret_count <= 0) {
         fprintf (stderr, "Result: <Empty Stack>\n");
     }
-    for (unsigned i = 0; i < ret_count; i++) {
+    for (int i = 0; i < ret_count; i++) {
         switch (m3_GetRetType(func, i)) {
         case c_m3Type_i32:
         case c_m3Type_f32:
-            fprintf (stderr, "Result: %" PRIu32 "\n", *(u32*)(stack));  break;
+            fprintf (stderr, "Result: %" PRIu32 "\n", *(u32*)valptrs[i]);  break;
         case c_m3Type_i64:
         case c_m3Type_f64:
-            fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)(stack));  break;
+            fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)valptrs[i]);  break;
         default: return "unknown return type";
         }
-        stack++;
     }
 
     return result;

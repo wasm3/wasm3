@@ -44,7 +44,7 @@ void run_wasm()
 
     puts("Running...");
 
-    result = m3_CallVariadic(f, 1, 24);
+    result = m3_CallV (f, 24);
     if (result) FATAL("m3_Call", result);
 
     long value = *(uint64_t*)(runtime->stack);

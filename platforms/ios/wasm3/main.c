@@ -81,10 +81,10 @@ void run_wasm()
     const char* i_argv[2] = { FIB_ARG_VALUE, NULL };
 
     clock_t start = clock();
-    result = m3_CallWithArgs (f, 1, i_argv);
+    result = m3_CallArgV (f, 1, i_argv);
     clock_t end = clock();
 
-    if (result) FATAL("m3_CallWithArgs: %s", result);
+    if (result) FATAL("m3_Call: %s", result);
     printf("Elapsed: %ld ms\n\n", (end - start) * 1000 / CLOCKS_PER_SEC);
 
     // uint64_t value = *(uint64_t*)(runtime->stack);

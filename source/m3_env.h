@@ -218,6 +218,7 @@ typedef struct M3Runtime
     void *                  stack;
     u32                     stackSize;
     u32                     numStackSlots;
+    IM3Function				lastCalled;		// last function that successfully executed
 
     void *                  userdata;
 

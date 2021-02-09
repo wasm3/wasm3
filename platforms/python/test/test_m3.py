@@ -54,8 +54,9 @@ def test_m3(capfd):
     assert func.call_argv('10') == 55
     assert func.name == 'fib'
     assert func.num_args == 1
-    assert func.return_type == 1
+    assert func.num_rets == 1
     assert func.arg_types == (1,)
+    assert func.ret_types == (1,)
     assert func(0) == 0
     assert func(1) == 1
     rt.load(env.parse_module(ADD_WASM))

@@ -309,7 +309,7 @@ namespace wasm3 {
         call_argv(Args... args) {
             /* std::enable_if above checks that all argument types are convertible const char* */
             const char* argv[] = {args...};
-            M3Result res = m3_CallWithArgs(m_func, sizeof...(args), argv);
+            M3Result res = m3_CallArgV(m_func, sizeof...(args), argv);
             detail::check_error(res);
             Ret ret;
             /* FIXME: there should be a public API to get the return value */

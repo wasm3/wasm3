@@ -41,8 +41,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                     IM3Function f = NULL;
                     result = m3_FindFunction (&f, runtime, "fib");
                     if (f) {
-                        const char* i_argv[1] = { "10", NULL };
-                        m3_CallWithArgs (f, 1, i_argv);
+                        m3_CallV (f, 10);
                     }
                 }
 

@@ -558,10 +558,10 @@ d_m3Op  (CallRawFunction)
     for (int i=0; i<nArgs; i++) {
         const int type = ftype->types[nRets + i];
         switch (type) {
-        case c_m3Type_i32:  outp += snprintf(outp, oute-outp, "%i",   *(i32*)(sp+i)); break;
-        case c_m3Type_i64:  outp += snprintf(outp, oute-outp, "%lli", *(i64*)(sp+i)); break;
-        case c_m3Type_f32:  outp += snprintf(outp, oute-outp, "%f",   *(f32*)(sp+i)); break;
-        case c_m3Type_f64:  outp += snprintf(outp, oute-outp, "%lf",  *(f64*)(sp+i)); break;
+        case c_m3Type_i32:  outp += snprintf(outp, oute-outp, "%" PRIi32, *(i32*)(sp+i)); break;
+        case c_m3Type_i64:  outp += snprintf(outp, oute-outp, "%" PRIi64, *(i64*)(sp+i)); break;
+        case c_m3Type_f32:  outp += snprintf(outp, oute-outp, "%" PRIf32, *(f32*)(sp+i)); break;
+        case c_m3Type_f64:  outp += snprintf(outp, oute-outp, "%" PRIf64, *(f64*)(sp+i)); break;
         default:            outp += snprintf(outp, oute-outp, "<unknown type %d>", type); break;
         }
         outp += snprintf(outp, oute-outp, (i < nArgs-1) ? ", " : ")");
@@ -576,10 +576,10 @@ d_m3Op  (CallRawFunction)
     } else {
         switch (GetSingleRetType(ftype)) {
         case c_m3Type_none: fprintf(out, "%s\n", outbuff); break;
-        case c_m3Type_i32:  fprintf(out, "%s = %i\n",   outbuff, *(i32*)sp); break;
-        case c_m3Type_i64:  fprintf(out, "%s = %lli\n", outbuff, *(i64*)sp); break;
-        case c_m3Type_f32:  fprintf(out, "%s = %f\n",   outbuff, *(f32*)sp); break;
-        case c_m3Type_f64:  fprintf(out, "%s = %lf\n",  outbuff, *(f64*)sp); break;
+        case c_m3Type_i32:  fprintf(out, "%s = %" PRIi32 "\n", outbuff, *(i32*)sp); break;
+        case c_m3Type_i64:  fprintf(out, "%s = %" PRIi64 "\n", outbuff, *(i64*)sp); break;
+        case c_m3Type_f32:  fprintf(out, "%s = %" PRIf32 "\n", outbuff, *(f32*)sp); break;
+        case c_m3Type_f64:  fprintf(out, "%s = %" PRIf64 "\n", outbuff, *(f64*)sp); break;
         }
     }
 #endif
@@ -861,8 +861,9 @@ d_m3Op  (DumpStack)
 
     printf (" %4d ", opcodeIndex);
     printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
-    printf ("                                    fp0: %lf\n", _fp0);
-
+#if d_m3HasFloat
+    printf ("                                    fp0: %" PRIf64 "\n", _fp0);
+#endif
     m3stack_t sp = _sp;
 
     for (u32 i = 0; i < stackHeight; ++i)

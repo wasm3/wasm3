@@ -10,7 +10,6 @@
 #include <time.h>
 
 #include "m3/wasm3.h"
-#include "m3/m3_env.h"
 #include "m3/m3_config.h"
 
 #include "m3/extra/fib32.wasm.h"
@@ -45,10 +44,9 @@ void run_wasm()
 
     printf("Running...\n");
 
-    const char* i_argv[2] = { "40", NULL };
-    result = m3_CallWithArgs (f, 1, i_argv);
+    result = m3_CallV (f, 40);
 
-    if (result) FATAL("m3_CallWithArgs: %s", result);
+    if (result) FATAL("m3_Call: %s", result);
 
     long value = *(uint64_t*)(runtime->stack);
     printf("Result: %ld\n", value);

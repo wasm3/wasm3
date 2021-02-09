@@ -43,6 +43,9 @@ typedef uint8_t         u8;
 typedef int8_t          i8;
 #endif // d_m3ShortTypesDefined
 
+#define PRIf32          "f"
+#define PRIf64          "lf"
+
 typedef const void *            m3ret_t;
 typedef const void *            voidptr_t;
 typedef const char *            cstr_t;

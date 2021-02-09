@@ -50,8 +50,7 @@ void run_wasm()
     result = m3_FindFunction (&f, runtime, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
 
-    const char* i_argv[2] = { "40", NULL };
-    result = m3_CallWithArgs (f, 1, i_argv);
+    result = m3_CallV (f, 40);
 
     if (result) FATAL("Call: %s", result);
 

@@ -50,7 +50,7 @@ static void run_wasm(void)
     printf("Running...\n");
 
     const char* i_argv[2] = { "test.wasm", NULL };
-    result = m3_CallWithArgs (f, 1, i_argv);
+    result = m3_CallArgV (f, 1, i_argv);
 
     if (result) FATAL("m3_CallWithArgs: %s", result);
 
