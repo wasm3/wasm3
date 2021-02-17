@@ -1,6 +1,6 @@
 ## Build for ESP-IDF
 
-Download and install ESP-IDF v4.0
+Download and install ESP-IDF v4.3-beta1
 
 ```sh
 export IDF_PATH=/opt/esp32/esp-idf
@@ -13,7 +13,9 @@ source $IDF_PATH/export.sh
 idf.py menuconfig
 
 # Select target:
-idf.py set-target esp32s2beta # or esp32
+idf.py set-target esp32
+#idf.py set-target esp32s2
+#idf.py --preview set-target esp32c3
 
 idf.py build
 
