@@ -80,7 +80,7 @@ void run_wasm()
     const char* i_argv[2] = { FIB_ARG_VALUE, NULL };
 
     clock_t start = clock();
-    result = m3_CallArgV (f, 1, i_argv);
+    result = m3_CallArgv (f, 1, i_argv);
     clock_t end = clock();
 
     if (result) FATAL("m3_Call: %s", result);

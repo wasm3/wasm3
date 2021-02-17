@@ -326,7 +326,7 @@ namespace wasm3 {
          *
          * This function provides a way to pass integer/float types, by first converting them to strings,
          * and then letting WASM3 do the reverse conversion. This is to be fixed once WASM3 gains an equivalent
-         * of m3_CallWithArgs which can accept arbitrary types, not just strings.
+         * of m3_CallArgv which can accept arbitrary types, not just strings.
          *
          * Note that the type of the return value must be explicitly specified as a template argument.
          *
@@ -339,7 +339,7 @@ namespace wasm3 {
             for (size_t i = 0; i < sizeof...(Args); ++i) {
                 argv[i] = argv_str[i].c_str();
             }
-            M3Result res = m3_CallWithArgs(m_func, sizeof...(args), argv);
+            M3Result res = m3_CallArgv(m_func, sizeof...(args), argv);
             detail::check_error(res);
             Ret ret;
             /* FIXME: there should be a public API to get the return value */

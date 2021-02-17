@@ -45,11 +45,13 @@ void run_wasm()
     printf("Running...\n");
 
     result = m3_CallV (f, 40);
-
     if (result) FATAL("m3_Call: %s", result);
 
-    long value = *(uint64_t*)(runtime->stack);
-    printf("Result: %ld\n", value);
+    uint64_t value = 0;
+    result = m3_GetResultsV (f, &result);
+    if (result) FATAL("m3_GetResults: %s", result);
+
+    printf("Result: %lld\n", value);
 }
 
 int main()
