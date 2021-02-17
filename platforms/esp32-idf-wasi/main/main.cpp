@@ -12,7 +12,6 @@
 #include <unistd.h>
 
 #include "m3/wasm3.h"
-#include "m3/m3_env.h"
 
 #include "m3_api_esp_wasi.h"
 #include "wasi_test.wasm.h"
@@ -50,12 +49,8 @@ static void run_wasm(void)
     printf("Running...\n");
 
     const char* i_argv[2] = { "test.wasm", NULL };
-    result = m3_CallArgV (f, 1, i_argv);
-
-    if (result) FATAL("m3_CallWithArgs: %s", result);
-
-    long value = *(uint64_t*)(runtime->stack);
-    printf("Result: %ld\n", value);
+    result = m3_CallArgv (f, 1, i_argv);
+    if (result) FATAL("m3_Call: %s", result);
 }
 
 extern "C" void app_main(void)

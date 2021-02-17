@@ -50,7 +50,7 @@ uint32_t call(IM3Runtime runtime, int argc, const char* argv[]) {
     result = m3_FindFunction (&f, runtime, argv[0]);
     if (result) return -1;
 
-    result = m3_CallArgV (f, argc-1, argv+1);
+    result = m3_CallArgv (f, argc-1, argv+1);
     if (result) return -2;
 
     return *(uint64_t*)(runtime->stack);

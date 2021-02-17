@@ -230,7 +230,7 @@ M3_Function_call_argv(m3_function *func, PyObject *args)
     for(i = 0; i< size;++i) {
         argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
     }
-    M3Result res = m3_CallArgV(func->f, size, argv);
+    M3Result res = m3_CallArgv(func->f, size, argv);
 
     if (res) {
         return PyErr_Format(PyExc_TypeError, "Error: %s", res);

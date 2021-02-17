@@ -15,7 +15,6 @@
 #include <sys/mman.h>
 
 #include "wasm3.h"
-#include "m3_env.h"
 #include "m3_config.h"
 
 #include "fib32.wasm.h"
@@ -87,8 +86,11 @@ void run_wasm()
     if (result) FATAL("m3_Call: %s", result);
     printf("Elapsed: %ld ms\n\n", (end - start) * 1000 / CLOCKS_PER_SEC);
 
-    // uint64_t value = *(uint64_t*)(runtime->stack);
-    // printf("Result: %llu\n", value);
+    uint64_t value = 0;
+    result = m3_GetResultsV (f, &result);
+    if (result) FATAL("m3_GetResults: %s", result);
+
+    printf("Result: %lld\n", value);
 }
 
 static void* runMain(void* ctx)

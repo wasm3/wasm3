@@ -214,7 +214,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_CallV                    (IM3Function i_function, ...);
     M3Result            m3_CallVL                   (IM3Function i_function, va_list i_args);
     M3Result            m3_Call                     (IM3Function i_function, uint32_t i_argc, const void * i_argptrs[]);
-    M3Result            m3_CallArgV                 (IM3Function i_function, uint32_t i_argc, const char * i_argv[]);
+    M3Result            m3_CallArgv                 (IM3Function i_function, uint32_t i_argc, const char * i_argv[]);
 
     M3Result            m3_GetResultsV              (IM3Function i_function, ...);
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);

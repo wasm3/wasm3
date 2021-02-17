@@ -6,7 +6,6 @@
 //
 
 #include "wasm3.h"
-#include "m3_env.h"
 
 #include "extra/fib32.wasm.h"
 
@@ -47,10 +46,12 @@ void run_wasm()
 
     Serial.println("Running...");
 
-    result = m3_CallVariadic(f, 1, 24);
+    result = m3_CallV (f, 24);
     if (result) FATAL("m3_Call: %s", result);
 
-    long value = *(uint64_t*)(runtime->stack);
+    uint64_t value = 0;
+    result = m3_GetResultsV (f, &result);
+    if (result) FATAL("m3_GetResults: %s", result);
 
     Serial.print("Result: ");
     Serial.println(value);

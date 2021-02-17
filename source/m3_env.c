@@ -860,7 +860,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     return r;
 }
 
-M3Result  m3_CallArgV  (IM3Function i_function, uint32_t i_argc, const char * i_argv[])
+M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_argv[])
 {
     IM3FuncType ftype = i_function->funcType;
     IM3Runtime runtime = i_function->module->runtime;

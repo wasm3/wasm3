@@ -152,11 +152,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
         wasi_ctx->argc = argc;
         wasi_ctx->argv = argv;
 
-        IM3Function func;
-        M3Result result = m3_FindFunction (&func, runtime, "_start");
-        if (result) return result;
-
-        result = m3_CallArgV(func, 0, NULL);
+        result = m3_CallArgv(func, 0, NULL);
 
         if (result == m3Err_trapExit) {
             exit(wasi_ctx->exit_code);
@@ -176,7 +172,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
         return "too many arguments";
     }
 
-    result = m3_CallArgV (func, argc, argv);
+    result = m3_CallArgv (func, argc, argv);
     if (result) return result;
 
     static uint64_t    valbuff[128];
