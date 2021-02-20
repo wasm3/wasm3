@@ -639,7 +639,7 @@ _           (m3ReallocArray (& io_module->table0, IM3Function, endElement, io_mo
                 u32 functionIndex;
 _               (ReadLEB_u32 (& functionIndex, & bytes, end));
                 _throwif ("function index out of range", functionIndex >= io_module->numFunctions);
-                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
+                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", GetFunctionName(function));
                 io_module->table0 [e + offset] = function;
             }
         }
