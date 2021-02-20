@@ -718,9 +718,9 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
         if (isImported)
             continue;
 
-        for (int i = 0; i < f->numNames; i++)
+        for (int j = 0; j < f->numNames; j++)
         {
-            if (f->names [i] and strcmp (f->names [i], i_name) == 0)
+            if (f->names [j] and strcmp (f->names [j], i_name) == 0)
                 return f;
         }
     }
