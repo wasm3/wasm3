@@ -228,9 +228,11 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         if (exportKind == d_externalKind_function)
         {
             _throwif(m3Err_wasmMalformed, index >= io_module->numFunctions);
-            if (not io_module->functions [index].name)
+            u16 numNames = io_module->functions [index].numNames;
+            if (numNames < d_m3MaxDuplicateFunctionImpl - 1)
             {
-                io_module->functions [index].name = utf8;
+                io_module->functions [index].numNames++;
+                io_module->functions [index].names[numNames] = utf8;
                 utf8 = NULL; // ownership transfered to M3Function
             }
         }
@@ -478,9 +480,10 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
 
                 if (index < io_module->numFunctions)
                 {
-                    if (not io_module->functions [index].name)
+                    if (io_module->functions [index].numNames == 0)
                     {
-                        io_module->functions [index].name = name;                   m3log (parse, "    naming function%5d:  %s", index, name);
+                        io_module->functions [index].numNames = 1;
+                        io_module->functions [index].names[0] = name;        m3log (parse, "    naming function%5d:  %s", index, name);
                         name = NULL; // transfer ownership
                     }
 //                          else m3log (parse, "prenamed: %s", io_module->functions [index].name);

@@ -28,14 +28,15 @@ typedef struct M3Function
     bytes_t                 wasm;
     bytes_t                 wasmEnd;
 
-    cstr_t                  name;
+    u16                     numNames;                               // maximum of d_m3MaxDuplicateFunctionImpl
+    cstr_t                  names[d_m3MaxDuplicateFunctionImpl];
 
     IM3FuncType             funcType;
 
     pc_t                    compiled;
 
 #   if (d_m3EnableCodePageRefCounting)
-    IM3CodePage *           codePageRefs;           // array of all pages used
+    IM3CodePage *           codePageRefs;                           // array of all pages used
     u32                     numCodePageRefs;
 #   endif
 
@@ -47,7 +48,7 @@ typedef struct M3Function
 
     u16                     numArgSlots;
 
-    u16                     numLocals;          // not including args
+    u16                     numLocals;                              // not including args
     u16                     numLocalBytes;
 
     void *                  constants;
@@ -62,6 +63,7 @@ void        Function_FreeCompiledCode   (IM3Function i_function);
 
 cstr_t      GetFunctionImportModuleName (IM3Function i_function);
 cstr_t      GetFunctionName             (IM3Function i_function);
+cstr_t *    GetFunctionNames            (IM3Function i_function, u16 * o_numNames);
 u32         GetFunctionNumArgs          (IM3Function i_function);
 u32         GetFunctionNumReturns       (IM3Function i_function);
 

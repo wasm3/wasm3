@@ -274,7 +274,7 @@ M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
 static PyObject*
 Function_name(m3_function *self, void * closure)
 {
-    return PyUnicode_FromString(self->f->name); // TODO
+    return PyUnicode_FromString(GetFunctionName(self->f)); // TODO
 }
 
 static PyObject*
