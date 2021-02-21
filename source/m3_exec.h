@@ -566,6 +566,8 @@ d_m3Op  (CallRawFunction)
         }
         outp += snprintf(outp, oute-outp, (i < nArgs-1) ? ", " : ")");
     }
+#else
+    (void)function;  // unused
 #endif
 
     m3ret_t possible_trap = call (m3MemRuntime(_mem), sp, m3MemData(_mem), userdata);
