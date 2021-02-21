@@ -325,8 +325,6 @@ void *  m3_GetUserData  (IM3Runtime i_runtime)
     return i_runtime ? i_runtime->userdata : NULL;
 }
 
-typedef void * (* ModuleVisitor) (IM3Module i_module, void * i_info);
-
 void *  ForEachModule  (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info)
 {
     void * r = NULL;

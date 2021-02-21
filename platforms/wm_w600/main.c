@@ -8,7 +8,6 @@
 #include "wm_include.h"
 
 #include "m3/wasm3.h"
-//#include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
 
@@ -49,8 +48,8 @@ void run_wasm()
     result = m3_CallV (f, 24);
     if (result) FATAL("m3_Call: %s", result);
 
-    uint64_t value = 0;
-    result = m3_GetResultsV (f, &result);
+    uint32_t value = 0;
+    result = m3_GetResultsV (f, &value);
     if (result) FATAL("m3_GetResults: %s", result);
 
     printf("Result: %lld\n", value);

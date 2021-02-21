@@ -36,6 +36,8 @@ if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(CMAKE_C_COMPILER   "emcc")
   set(CMAKE_CXX_COMPILER "em++")
 
+  set(BUILD_WASI         "none")
+
   if (EMSCRIPTEN_LIB)
     set(APP_DIR          "platforms/emscripten_lib")
     set(OUT_FILE         "wasm3.wasm")
