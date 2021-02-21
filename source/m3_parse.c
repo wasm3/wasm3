@@ -229,7 +229,7 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         {
             _throwif(m3Err_wasmMalformed, index >= io_module->numFunctions);
             u16 numNames = io_module->functions [index].numNames;
-            if (numNames < d_m3MaxDuplicateFunctionImpl - 1)
+            if (numNames < d_m3MaxDuplicateFunctionImpl)
             {
                 io_module->functions [index].numNames++;
                 io_module->functions [index].names[numNames] = utf8;
