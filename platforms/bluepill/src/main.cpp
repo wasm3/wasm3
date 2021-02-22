@@ -9,6 +9,7 @@
 
 #include "m3/extra/fib32.wasm.h"
 
+#include <stdio.h>
 #include <jee.h>
 
 #define FATAL(func, msg) {           \
