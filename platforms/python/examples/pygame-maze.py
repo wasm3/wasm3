@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, time, random
+import os, time, random, math
 import pygame
 import wasm3
 
@@ -8,7 +8,10 @@ print("WebAssembly demo file provided by Ben Smith (binji)")
 print("Sources: https://github.com/binji/raw-wasm")
 
 scriptpath = os.path.dirname(os.path.realpath(__file__))
-wasm_fn = os.path.join(scriptpath, "./wasm/dino.wasm")
+wasm_fn = os.path.join(scriptpath, "./wasm/maze.wasm")
+
+def env_t(start):
+    pass
 
 # Prepare Wasm3 engine
 
@@ -17,29 +20,33 @@ rt = env.new_runtime(1024)
 with open(wasm_fn, "rb") as f:
     mod = env.parse_module(f.read())
     rt.load(mod)
-    mod.link_function("Math", "random", "f()", lambda: random.random())
+    mod.link_function("Math", "sin", "f(f)", math.sin)
+    mod.link_function("Math", "random", "f()", random.random)
+    mod.link_function("env", "t", "v(i)", env_t)
 
 wasm_run = rt.find_function("run")
 mem = rt.get_memory(0)
 
 # Map memory region to an RGBA image
 
-img_base = 0x5000
-img_size = (300, 75)
+img_base = 0x3000
+img_size = (320, 240)
 (img_w, img_h) = img_size
 region = mem[img_base : img_base + (img_w * img_h * 4)]
 img = pygame.image.frombuffer(region, img_size, "RGBA")
 
 # Prepare PyGame
 
-scr_size = (img_w*4, img_h*4)
+scr_size = (img_w*2, img_h*2)
 pygame.init()
 surface = pygame.display.set_mode(scr_size)
-pygame.display.set_caption("Wasm3 Dino")
+pygame.display.set_caption("Wasm3 Maze")
 white = (255, 255, 255)
 
-k_jump = False
-k_duck = False
+k_up    = False
+k_down  = False
+k_left  = False
+k_right = False
 
 clock = pygame.time.Clock()
 
@@ -51,16 +58,20 @@ while True:
             pygame.quit()
             quit()
         elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+            is_pressed = (event.type == pygame.KEYDOWN)
             if event.key == pygame.K_UP:
-                k_jump = (event.type == pygame.KEYDOWN)
+                k_up = is_pressed
             elif event.key == pygame.K_DOWN:
-                k_duck = (event.type == pygame.KEYDOWN)
+                k_down = is_pressed
+            elif event.key == pygame.K_LEFT:
+                k_left = is_pressed
+            elif event.key == pygame.K_RIGHT:
+                k_right = is_pressed
 
-    mem[0] = 0
-    if k_jump:
-        mem[0] |= 0x1       # Jump flag
-    if k_duck:
-        mem[0] |= 0x2       # Duck flag
+    mem[0] = k_left
+    mem[1] = k_right
+    mem[2] = k_up
+    mem[3] = k_down
 
     # Render next frame
     wasm_run()
