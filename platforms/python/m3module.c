@@ -63,6 +63,30 @@ formatError(PyObject *exception, IM3Runtime runtime, M3Result err)
     return NULL;
 }
 
+static void
+put_arg_on_stack(u64 *s, M3ValueType type, PyObject *arg)
+{
+    switch (type) {
+        case c_m3Type_i32:  *(i32*)(s) = PyLong_AsLong(arg);     break;
+        case c_m3Type_i64:  *(i64*)(s) = PyLong_AsLongLong(arg); break;
+        case c_m3Type_f32:  *(f32*)(s) = PyFloat_AsDouble(arg);  break;
+        case c_m3Type_f64:  *(f64*)(s) = PyFloat_AsDouble(arg);  break;
+    }
+}
+
+static PyObject *
+get_arg_from_stack(u64 *s, M3ValueType type)
+{
+    switch (type) {
+        case c_m3Type_i32:  return PyLong_FromLong(     *(i32*)s);   break;
+        case c_m3Type_i64:  return PyLong_FromLongLong( *(i64*)s);   break;
+        case c_m3Type_f32:  return PyFloat_FromDouble(  *(f32*)s);   break;
+        case c_m3Type_f64:  return PyFloat_FromDouble(  *(f64*)s);   break;
+        default:
+            return PyErr_Format(PyExc_TypeError, "unknown type %d", (int)type);
+    }
+}
+
 static PyObject *
 M3_Environment_new_runtime(m3_environment *env, PyObject *stack_size_bytes)
 {
@@ -171,32 +195,79 @@ static PyType_Slot M3_Runtime_Type_slots[] = {
     {0, 0}
 };
 
-static PyObject*
+static PyObject *
 Module_name(m3_module *self, void * closure)
 {
     return PyUnicode_FromString(self->m->name); // TODO
 }
 
-m3ApiRawFunction(CallPyFunction)
+m3ApiRawFunction(CallImport)
 {
-    // TODO
+    PyObject *pFunc = (PyObject *)(_ctx->userdata);
+    IM3Function f = _ctx->function;
+    int nArgs = m3_GetArgCount(_ctx->function);
+    int nRets = m3_GetRetCount(_ctx->function);
+    PyObject *pArgs = PyTuple_New(nArgs);
+    if (!pArgs) {
+        m3ApiTrap("python call: args not allocated");
+    }
 
+    for (Py_ssize_t i = 0; i < nArgs; ++i) {
+        PyObject *arg = get_arg_from_stack(&_sp[i], m3_GetArgType(f, i));
+        PyTuple_SET_ITEM(pArgs, i, arg);
+    }
+
+    PyObject * pRets = PyObject_CallObject(pFunc, pArgs);
+    if (!pRets) m3ApiTrap("python call: function raised exception");
+
+    if (PyTuple_Check(pRets)) {
+        if (PyTuple_GET_SIZE(pRets) != nRets) {
+            m3ApiTrap("python call: return tuple length mismatch");
+        }
+        for (Py_ssize_t i = 0; i < nRets; ++i) {
+            PyObject *ret = PyTuple_GET_ITEM(pRets, i);
+            if (!ret) m3ApiTrap("python call: return type invalid");
+            put_arg_on_stack(&_sp[i], m3_GetRetType(f, i), ret);
+        }
+    } else {
+        if (nRets == 0) {
+            if (pRets != Py_None) {
+                //m3ApiTrap("python call: return value ignored");
+            }
+        } else if (nRets == 1) {
+            if (pRets == Py_None) {
+                m3ApiTrap("python call: should return a value");
+            }
+            put_arg_on_stack(&_sp[0], m3_GetRetType(f, 0), pRets);
+        } else {
+            m3ApiTrap("python call: should return a tuple");
+        }
+    }
     m3ApiSuccess();
 }
 
 static PyObject *
-M3_Module_link_function(m3_module *self,
-                           PyObject *const *args,
-                           Py_ssize_t nargs)
+M3_Module_link_function(m3_module *self, PyObject *args)
 {
-    if (nargs != 4) {
+    if (PyTuple_Size(args) != 4) {
         PyErr_SetString(PyExc_TypeError, "link_function takes 4 arguments");
         return NULL;
     }
-    M3Result err = m3_LinkRawFunctionEx (self->m, PyUnicode_AsUTF8(args[0]), PyUnicode_AsUTF8(args[1]), PyUnicode_AsUTF8(args[2]), CallPyFunction, NULL);
+
+    PyObject *mod_name  = PyTuple_GET_ITEM(args, 0);
+    PyObject *func_name = PyTuple_GET_ITEM(args, 1);
+    PyObject *func_sig  = PyTuple_GET_ITEM(args, 2);
+    PyObject *pFunc     = PyTuple_GET_ITEM(args, 3);
+    if (!PyCallable_Check(pFunc)) {
+        PyErr_SetString(PyExc_TypeError, "function should be a callable object");
+        return NULL;
+    }
+    M3Result err = m3_LinkRawFunctionEx (self->m, PyUnicode_AsUTF8(mod_name), PyUnicode_AsUTF8(func_name),
+                                         PyUnicode_AsUTF8(func_sig), CallImport, pFunc);
     if (err && err != m3Err_functionLookupFailed) {
         return formatError(PyExc_RuntimeError, self->m->runtime, err);
     }
+    Py_INCREF(pFunc);
     Py_RETURN_NONE;
 }
 
@@ -206,7 +277,7 @@ static PyGetSetDef M3_Module_properties[] = {
 };
 
 static PyMethodDef M3_Module_methods[] = {
-    {"link_function", (PyCFunction)M3_Module_link_function,  METH_FASTCALL,
+    {"link_function", (PyCFunction)M3_Module_link_function,  METH_VARARGS,
         PyDoc_STR("link_function(module, name, signature, function)")},
     {NULL,              NULL}           /* sentinel */
 };
@@ -219,17 +290,6 @@ static PyType_Slot M3_Module_Type_slots[] = {
     {Py_tp_getset, M3_Module_properties},
     {0, 0}
 };
-
-static void
-put_arg_on_stack(u64 *s, M3ValueType type, PyObject *arg)
-{
-    switch (type) {
-        case c_m3Type_i32:  *(i32*)(s) = PyLong_AsLong(arg);     break;
-        case c_m3Type_i64:  *(i64*)(s) = PyLong_AsLong(arg);     break;
-        case c_m3Type_f32:  *(f32*)(s) = PyFloat_AsDouble(arg);  break;
-        case c_m3Type_f64:  *(f64*)(s) = PyFloat_AsDouble(arg);  break;
-    }
-}
 
 static PyObject *
 get_result_from_stack(IM3Function f)
@@ -262,24 +322,15 @@ get_result_from_stack(IM3Function f)
         return formatError(PyExc_RuntimeError, f->module->runtime, err);
     }
 
-    int i = 0;
-    u8 type = m3_GetRetType(f, i);
-    switch (type) {
-        case c_m3Type_i32:  return PyLong_FromLong(   *(i32*)valptrs[i]);   break;
-        case c_m3Type_i64:  return PyLong_FromLong(   *(i64*)valptrs[i]);   break;
-        case c_m3Type_f32:  return PyFloat_FromDouble(*(f32*)valptrs[i]);   break;
-        case c_m3Type_f64:  return PyFloat_FromDouble(*(f64*)valptrs[i]);   break;
-        default:
-            return PyErr_Format(PyExc_TypeError, "unknown return type %d", (int)type);
-    }
+    return get_arg_from_stack(valptrs[0], m3_GetRetType(f, 0));
 }
 
 static PyObject *
 M3_Function_call_argv(m3_function *func, PyObject *args)
 {
-    Py_ssize_t size = PyList_GET_SIZE(args), i;
+    Py_ssize_t size = PyTuple_GET_SIZE(args);
     const char* argv[MAX_ARGS];
-    for(i = 0; i< size;++i) {
+    for(Py_ssize_t i = 0; i< size;++i) {
         argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
     }
     M3Result err = m3_CallArgv(func->f, size, argv);

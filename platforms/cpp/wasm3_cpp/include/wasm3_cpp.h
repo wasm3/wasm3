@@ -77,7 +77,7 @@ namespace wasm3 {
 
         template <typename Ret, typename ...Args, Ret (*Fn)(Args...)>
         struct wrap_helper<Fn> {
-            static const void *wrap_fn(IM3Runtime rt, stack_type sp, mem_type mem, void* userdata) {
+            static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type sp, mem_type mem) {
                 Ret *ret_ptr = (Ret *) (sp);
                 std::tuple<Args...> args;
                 get_args_from_stack(sp, mem, args);
@@ -89,7 +89,7 @@ namespace wasm3 {
 
         template <typename ...Args, void (*Fn)(Args...)>
         struct wrap_helper<Fn> {
-            static const void *wrap_fn(IM3Runtime rt, stack_type sp, mem_type mem, void* userdata) {
+            static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type sp, mem_type mem) {
                 std::tuple<Args...> args;
                 get_args_from_stack(sp, mem, args);
                 std::apply(Fn, args);
