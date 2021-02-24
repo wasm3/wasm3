@@ -5,3 +5,5 @@
 */target
 /build
 */build
+*/.cxx
+

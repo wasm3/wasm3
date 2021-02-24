@@ -67,6 +67,14 @@ M3ImportInfo;
 typedef M3ImportInfo * IM3ImportInfo;
 
 
+typedef struct M3ImportContext
+{
+    void *          userdata;
+    IM3Function     function;
+}
+M3ImportContext;
+
+typedef M3ImportContext * IM3ImportContext;
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //  error codes
@@ -182,7 +190,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime
 
-    typedef const void * (* M3RawCall) (IM3Runtime runtime, uint64_t * _sp, void * _mem, void * userdata);
+    typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext context, uint64_t * _sp, void * _mem);
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,

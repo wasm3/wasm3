@@ -66,7 +66,7 @@ M3Result repl_load  (const char* fn)
     if (fsize < 8) {
         return "file is too small";
     } else if (fsize > 10*1024*1024) {
-        return "file too big";
+        return "file is too big";
     }
 
     wasm = (u8*) malloc(fsize);

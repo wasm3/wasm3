@@ -14,4 +14,13 @@ brew install wasm3
 Download `wasm3-cosmopolitan.com` from the [latest release page](https://github.com/wasm3/wasm3/releases/latest)
 
 ## OpenWRT
-Check instructions [here](https://github.com/wasm3/wasm3-openwrt-packages).
+Follow instructions [here](https://github.com/wasm3/wasm3-openwrt-packages).
+
+## Arduino / PlatformIO library
+Find `Wasm3` in the `Library Manager` and install it.
+
+## Python module
+```sh
+pip3 install pywasm3
+```
+

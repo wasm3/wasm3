@@ -538,20 +538,22 @@ d_m3Op  (CallIndirect)
 
 d_m3Op  (CallRawFunction)
 {
+    M3ImportContext ctx;
+
     M3RawCall call = (M3RawCall) (* _pc++);
-    IM3Function function = immediate (IM3Function);
-    void * userdata = immediate (void *);
+    ctx.function = immediate (IM3Function);
+    ctx.userdata = immediate (void *);
     u64* const sp = ((u64*)_sp);
 
 #if d_m3EnableStrace
-    IM3FuncType ftype = function->funcType;
+    IM3FuncType ftype = ctx.function->funcType;
 
     FILE* out = stderr;
     char outbuff[1024];
     char* outp = outbuff;
     char* oute = outbuff+1024;
 
-    outp += snprintf(outp, oute-outp, "%s.%s(", function->import.moduleUtf8, function->import.fieldUtf8);
+    outp += snprintf(outp, oute-outp, "%s.%s(", ctx.function->import.moduleUtf8, ctx.function->import.fieldUtf8);
 
     const int nArgs = ftype->numArgs;
     const int nRets = ftype->numRets;
@@ -566,11 +568,9 @@ d_m3Op  (CallRawFunction)
         }
         outp += snprintf(outp, oute-outp, (i < nArgs-1) ? ", " : ")");
     }
-#else
-    (void)function;  // unused
 #endif
 
-    m3ret_t possible_trap = call (m3MemRuntime(_mem), sp, m3MemData(_mem), userdata);
+    m3ret_t possible_trap = call (m3MemRuntime(_mem), &ctx, sp, m3MemData(_mem));
 
 #if d_m3EnableStrace
     if (possible_trap) {
