@@ -190,7 +190,7 @@ typedef struct M3Environment
 
     IM3FuncType             funcTypes;          // linked list
 
-    IM3FuncType             retFuncTypes[5];
+    IM3FuncType             retFuncTypes[5];    // the number of elements must match the basic types as per M3ValueType
 
     M3CodePage *            pagesReleased;
 }
