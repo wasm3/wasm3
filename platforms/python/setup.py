@@ -21,7 +21,8 @@ setup(
 
     ext_modules=[
         Extension('wasm3', sources=SOURCES, include_dirs=['m3'],
-        extra_compile_args=['-g', '-O0'])],
+        extra_compile_args=['-g', '-O3'])
+    ],
 
     classifiers  = [
         "Topic :: Software Development :: Libraries :: Python Modules",

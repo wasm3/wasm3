@@ -1,2 +1,3 @@
 dist/
-wasm3.egg-info/
+pywasm3.egg-info/
+.pytest*

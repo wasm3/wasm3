@@ -1,4 +1,5 @@
 import wasm3 as m3
+import pytest
 
 FIB32_WASM = bytes.fromhex(
     "00 61 73 6d 01 00 00 00 01 06 01 60 01 7f 01 7f"
@@ -48,6 +49,9 @@ def test_m3(capfd):
 #  module [0]  name: '.unnamed'; funcs: 1
 # ----------------------------------------------------------------
 # """
+    with pytest.raises(RuntimeError):
+        rt.find_function('not_existing')
+
     func = rt.find_function('fib')
     assert isinstance(func, m3.Function)
     assert func.call_argv('5') == 5
