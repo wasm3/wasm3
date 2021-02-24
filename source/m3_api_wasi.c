@@ -211,7 +211,7 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
     m3ApiGetArgMem   (uint32_t *           , argv)
     m3ApiGetArgMem   (char *               , argv_buf)
 
-    m3_wasi_context_t* context = (m3_wasi_context_t*)userdata;
+    m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
 
@@ -234,7 +234,7 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
     m3ApiGetArgMem   (__wasi_size_t *      , argc)
     m3ApiGetArgMem   (__wasi_size_t *      , argv_buf_size)
 
-    m3_wasi_context_t* context = (m3_wasi_context_t*)userdata;
+    m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
 
@@ -665,7 +665,7 @@ m3ApiRawFunction(m3_wasi_unstable_proc_exit)
 {
     m3ApiGetArg      (uint32_t, code)
 
-    m3_wasi_context_t* context = (m3_wasi_context_t*)userdata;
+    m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context) {
         context->exit_code = code;
