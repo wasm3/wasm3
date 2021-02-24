@@ -647,11 +647,11 @@ _               (ReadLEB_u32 (& functionIndex, & bytes, end));
     _catch: return result;
 }
 
-M3Result  InitStartFunc  (IM3Module io_module)
+M3Result  m3_RunStart  (IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
-    if (io_module->startFunction >= 0)
+    if (io_module and io_module->startFunction >= 0)
     {
         IM3Function function = & io_module->functions [io_module->startFunction];
 
@@ -750,7 +750,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
 
     // Check if start function needs to be called
     if (function and function->module->startFunction) {
-        result = InitStartFunc (function->module);
+        result = m3_RunStart (function->module);
         if (result)
             return result;
     }
