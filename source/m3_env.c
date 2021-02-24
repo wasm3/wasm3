@@ -177,6 +177,8 @@ IM3Environment  m3_NewEnvironment  ()
     // create FuncTypes for all simple block return ValueTypes
     for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
     {
+        d_m3Assert (t < 5);
+
         IM3FuncType ftype;
         AllocFuncType (& ftype, 1);
         ftype->numArgs = 0;
@@ -199,7 +201,15 @@ void  Environment_Release  (IM3Environment i_environment)
         IM3FuncType next = ftype->next;
         m3Free (ftype);
         ftype = next;
-    }                                                       m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
+    }
+    for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
+    {
+        d_m3Assert (t < 5);
+        ftype = i_environment->retFuncTypes[t];
+        d_m3Assert (ftype->next == NULL);
+        m3Free (ftype);
+    }
+    m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
 }
 
