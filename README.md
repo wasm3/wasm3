@@ -54,10 +54,12 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 ☐ Tail call  
 ☐ Fixed-width SIMD  
 
-## Libraries
+## Installation
 
+Please follow the [installation instructions](./docs/Installation.md).  
 Wasm3 can be used as a library for:
 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/python.svg" width="18" height="18" /> Python3](https://github.com/wasm3/wasm3/platforms/python) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
@@ -77,6 +79,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 ## Further Resources
 
 [Demos](./docs/Demos.md)  
+[Installation instructions](./docs/Installation.md)  
 [Build and Development instructions](./docs/Development.md)  
 [Supported Hardware](./docs/Hardware.md)  
 [Testing & Fuzzing](./docs/Testing.md)  
