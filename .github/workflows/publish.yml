@@ -77,14 +77,14 @@ jobs:
         pip3 --version
     - name: Install Wasienv
       env:
-        WASMER_RELEASE_TAG: "1.0.1"
+        WASMER_RELEASE_TAG: "1.0.2"
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Configure
       run: |
         source $HOME/.wasienv/wasienv.sh
         mkdir build
         cd build
-        wasimake cmake -DBUILD_WASI=metawasi ..
+        wasimake cmake ..
     - name: Build
       run: |
         source $HOME/.wasienv/wasienv.sh
