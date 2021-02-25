@@ -205,8 +205,8 @@ m3ApiRawFunction(CallImport)
 {
     PyObject *pFunc = (PyObject *)(_ctx->userdata);
     IM3Function f = _ctx->function;
-    int nArgs = m3_GetArgCount(_ctx->function);
-    int nRets = m3_GetRetCount(_ctx->function);
+    int nArgs = m3_GetArgCount(f);
+    int nRets = m3_GetRetCount(f);
     PyObject *pArgs = PyTuple_New(nArgs);
     if (!pArgs) {
         m3ApiTrap("python call: args not allocated");

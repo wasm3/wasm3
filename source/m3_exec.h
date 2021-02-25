@@ -545,6 +545,8 @@ d_m3Op  (CallRawFunction)
     ctx.userdata = immediate (void *);
     u64* const sp = ((u64*)_sp);
 
+    IM3Runtime runtime = m3MemRuntime(_mem);
+
 #if d_m3EnableStrace
     IM3FuncType ftype = ctx.function->funcType;
 
@@ -570,7 +572,13 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    m3ret_t possible_trap = call (m3MemRuntime(_mem), &ctx, sp, m3MemData(_mem));
+    // m3_Call uses runtime->stack to set-up initial exported function stack.
+    // Reconfigure the stack to enable recursive invocations of m3_Call.
+    // I.e. exported/table function can be called from an impoted function.
+    void* stack_backup = runtime->stack;
+    runtime->stack = sp;
+    m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
+    runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
     if (possible_trap) {
