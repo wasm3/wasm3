@@ -118,6 +118,10 @@ elseif(WASIENV)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
 
+  if(WASM_EXT)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
+  endif()
+
   # TODO: LTO breaks wasm imports currently:
   # https://www.mail-archive.com/llvm-bugs@lists.llvm.org/msg36273.html
 
