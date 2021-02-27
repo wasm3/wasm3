@@ -556,6 +556,9 @@ jobs:
         cd platforms/python
         python setup.py sdist
         pip install ./dist/pywasm3-*.tar.gz
+    - name: Install WABT
+      run: |
+        sudo apt install wabt
     - name: Test
       run: |
         pip install pytest

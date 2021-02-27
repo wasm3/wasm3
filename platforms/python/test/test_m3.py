@@ -1,34 +1,49 @@
 import wasm3 as m3
 import pytest
 
-FIB32_WASM = bytes.fromhex(
-    "00 61 73 6d 01 00 00 00  01 06 01 60 01 7f 01 7f"
-    "03 02 01 00 07 07 01 03  66 69 62 00 00 0a 1f 01"
-    "1d 00 20 00 41 02 49 04  40 20 00 0f 0b 20 00 41"
-    "02 6b 10 00 20 00 41 01  6b 10 00 6a 0f 0b")
+import tempfile, subprocess
 
-FIB64_WASM = bytes.fromhex(
-    "00 61 73 6d 01 00 00 00  01 06 01 60 01 7e 01 7e"
-    "03 02 01 00 07 07 01 03  66 69 62 00 00 0a 1f 01"
-    "1d 00 20 00 42 02 54 04  40 20 00 0f 0b 20 00 42"
-    "02 7d 10 00 20 00 42 01  7d 10 00 7c 0f 0b")
+def wat2wasm(wat):
+    with tempfile.TemporaryDirectory() as d:
+        fn_in = d + "/input.wat"
+        fn_out = d + "/output.wasm"
+        with open(fn_in, "wb") as f:
+            f.write(wat.encode('utf8'))
+        subprocess.run(["wat2wasm", "-o", fn_out, fn_in], check=True)
+        with open(fn_out, "rb") as f:
+            return f.read()
 
-"""
-(type (;0;) (func (param i32 i32) (result i32)))
-(func $i (import "env" "callback") (type 0))
-(func (export "run_callback") (type 0)
+FIB64_WASM = wat2wasm("""
+(module
+  (func $fib2 (param $n i64) (param $a i64) (param $b i64) (result i64)
+    (if (result i64)
+        (i64.eqz (get_local $n))
+        (then (get_local $a))
+        (else (call $fib2 (i64.sub (get_local $n)
+                                   (i64.const 1))
+                          (get_local $b)
+                          (i64.add (get_local $a)
+                                   (get_local $b))))))
+
+  (func $fib (export "fib") (param i64) (result i64)
+    (call $fib2 (get_local 0)
+                (i64.const 0)   ;; seed value $a
+                (i64.const 1))) ;; seed value $b
+)
+""")
+
+CALLBACK_WASM = wat2wasm("""
+(module
+  (type (;0;) (func (param i32 i32) (result i32)))
+  (func $i (import "env" "callback") (type 0))
+  (func (export "run_callback") (type 0)
     local.get 0
     local.get 1
     call $i)
-"""
-CALLBACK_WASM = bytes.fromhex(
-    "00 61 73 6d 01 00 00 00  01 07 01 60 02 7f 7f 01"
-    "7f 02 10 01 03 65 6e 76  08 63 61 6c 6c 62 61 63"
-    "6b 00 00 03 02 01 00 07  10 01 0c 72 75 6e 5f 63"
-    "61 6c 6c 62 61 63 6b 00  01 0a 0a 01 08 00 20 00"
-    "20 01 10 00 0b")
+)
+""")
 
-"""
+DYN_CALLBACK_WASM = wat2wasm("""
 (module
   (type $t0 (func (param i32 i32) (result i32)))
   (type $t1 (func))
@@ -62,34 +77,19 @@ CALLBACK_WASM = bytes.fromhex(
     call_indirect $table (type $t0))
   (table $table (export "table") 2 funcref)
   (elem (global.get $env.__table_base) func $f2 $f3))
-"""
-DYN_CALLBACK_WASM = bytes.fromhex(
-    "00 61 73 6d 01 00 00 00  01 15 04 60 02 7f 7f 01"
-    "7f 60 00 00 60 01 7f 00  60 03 7f 7f 7f 01 7f 02"
-    "25 02 03 65 6e 76 09 70  61 73 73 5f 66 70 74 72"
-    "00 02 03 65 6e 76 0c 5f  5f 74 61 62 6c 65 5f 62"
-    "61 73 65 03 7f 00 03 06  05 01 00 00 02 03 04 04"
-    "01 70 00 02 07 33 04 08  72 75 6e 5f 74 65 73 74"
-    "00 01 0e 63 61 6c 6c 5f  70 61 73 73 5f 66 70 74"
-    "72 00 04 0b 64 79 6e 43  61 6c 6c 5f 69 69 69 00"
-    "05 05 74 61 62 6c 65 01  00 09 08 01 00 23 00 0b"
-    "02 02 03 0a 32 05 0d 00  23 00 10 00 23 00 41 01"
-    "6a 10 00 0b 07 00 20 00  20 01 6a 0b 07 00 20 00"
-    "20 01 6c 0b 06 00 20 00  10 00 0b 0b 00 20 01 20"
-    "02 20 00 11 00 00 0b")
+""")
 
-"""
-(func (export "add") (param i64 i64) (result i64)
+
+ADD_WASM = wat2wasm("""
+(module
+  (func (export "add") (param i64 i64) (result i64)
     local.get 0
     local.get 1
     i64.add
-    return
+    return)
 )
-"""
-ADD_WASM = bytes.fromhex(
-    "00 61 73 6d 01 00 00 00 01 07 01 60 02 7e 7e 01"
-    "7e 03 02 01 00 07 07 01 03 61 64 64 00 00 0a 0a"
-    "01 08 00 20 00 20 01 7c 0f 0b")
+""")
+
 
 def test_classes():
     assert isinstance(m3.Environment, type)
@@ -166,7 +166,7 @@ def test_m3(capfd):
     env = m3.Environment()
     rt = env.new_runtime(1024)
     assert isinstance(rt, m3.Runtime)
-    mod = env.parse_module(FIB32_WASM)
+    mod = env.parse_module(FIB64_WASM)
     assert isinstance(mod, m3.Module)
     assert mod.name == '.unnamed'
     rt.load(mod)
@@ -189,8 +189,8 @@ def test_m3(capfd):
     assert func.name == 'fib'
     assert func.num_args == 1
     assert func.num_rets == 1
-    assert func.arg_types == (1,)
-    assert func.ret_types == (1,)
+    assert func.arg_types == (2,)
+    assert func.ret_types == (2,)
     assert func(0) == 0
     assert func(1) == 1
     rt.load(env.parse_module(ADD_WASM))
