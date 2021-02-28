@@ -209,5 +209,5 @@ def call_function(wasm, func, *args):
 def test_fib64():
     assert call_function(FIB64_WASM, 'fib', '5') == 5
     assert call_function(FIB64_WASM, 'fib', '10') == 55
-    assert call_function(FIB64_WASM, 'fib', '90') == 2880067194370816120
+    assert call_function(FIB64_WASM, 'fib', '64') == 10610209857723
 
