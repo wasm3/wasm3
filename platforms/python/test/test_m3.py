@@ -9,7 +9,7 @@ def wat2wasm(wat):
         fn_out = d + "/output.wasm"
         with open(fn_in, "wb") as f:
             f.write(wat.encode('utf8'))
-        subprocess.run(["wat2wasm", "-o", fn_out, fn_in], check=True)
+        subprocess.run(["wat2wasm", "--enable-all", "-o", fn_out, fn_in], check=True)
         with open(fn_out, "rb") as f:
             return f.read()
 
@@ -19,14 +19,14 @@ FIB64_WASM = wat2wasm("""
     (if (result i64)
         (i64.eqz (get_local $n))
         (then (get_local $a))
-        (else (call $fib2 (i64.sub (get_local $n)
+        (else (return_call $fib2 (i64.sub (get_local $n)
                                    (i64.const 1))
                           (get_local $b)
                           (i64.add (get_local $a)
                                    (get_local $b))))))
 
   (func $fib (export "fib") (param i64) (result i64)
-    (call $fib2 (get_local 0)
+    (return_call $fib2 (get_local 0)
                 (i64.const 0)   ;; seed value $a
                 (i64.const 1))) ;; seed value $b
 )
@@ -200,7 +200,7 @@ def test_m3(capfd):
 
 def call_function(wasm, func, *args):
     env = m3.Environment()
-    rt = env.new_runtime(1024)
+    rt = env.new_runtime(4096)
     mod = env.parse_module(wasm)
     rt.load(mod)
     f = rt.find_function(func)
@@ -209,3 +209,5 @@ def call_function(wasm, func, *args):
 def test_fib64():
     assert call_function(FIB64_WASM, 'fib', '5') == 5
     assert call_function(FIB64_WASM, 'fib', '10') == 55
+    assert call_function(FIB64_WASM, 'fib', '90') == 2880067194370816120
+
