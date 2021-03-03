@@ -50,11 +50,15 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
 
     if (context == NULL) { m3ApiReturn(UVWASI_EINVAL); }
 
+    m3ApiCheckMem(argv, context->argc * sizeof(uint32_t));
+
     for (u32 i = 0; i < context->argc; ++i)
     {
         m3ApiWriteMem32(&argv[i], m3ApiPtrToOffset(argv_buf));
 
         size_t len = strlen (context->argv[i]);
+
+        m3ApiCheckMem(argv_buf, len);
         memcpy (argv_buf, context->argv[i], len);
         argv_buf += len;
         * argv_buf++ = 0;
@@ -69,18 +73,21 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
     m3ApiGetArgMem   (uvwasi_size_t *      , argc)
     m3ApiGetArgMem   (uvwasi_size_t *      , argv_buf_size)
 
+    m3ApiCheckMem(argc,             sizeof(uvwasi_size_t));
+    m3ApiCheckMem(argv_buf_size,    sizeof(uvwasi_size_t));
+
     m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context == NULL) { m3ApiReturn(UVWASI_EINVAL); }
 
-    uvwasi_size_t buflen = 0;
+    uvwasi_size_t buf_len = 0;
     for (u32 i = 0; i < context->argc; ++i)
     {
-        buflen += strlen (context->argv[i]) + 1;
+        buf_len += strlen (context->argv[i]) + 1;
     }
 
     m3ApiWriteMem32(argc, context->argc);
-    m3ApiWriteMem32(argv_buf_size, buflen);
+    m3ApiWriteMem32(argv_buf_size, buf_len);
 
     m3ApiReturn(UVWASI_ESUCCESS);
 }
@@ -93,8 +100,17 @@ m3ApiRawFunction(m3_wasi_unstable_environ_get)
 
     char **environment;
     uvwasi_errno_t ret;
+    uvwasi_size_t env_count, env_buf_size;
 
-    environment = calloc(uvwasi.envc, sizeof(char *));
+    ret = uvwasi_environ_sizes_get(&uvwasi, &env_count, &env_buf_size);
+    if (ret != UVWASI_ESUCCESS) {
+        m3ApiReturn(ret);
+    }
+
+    m3ApiCheckMem(env,      env_count * sizeof(uint32_t));
+    m3ApiCheckMem(env_buf,  env_buf_size);
+
+    environment = calloc(env_count, sizeof(char *));
     if (environment == NULL) {
         m3ApiReturn(UVWASI_ENOMEM);
     }
@@ -107,11 +123,11 @@ m3ApiRawFunction(m3_wasi_unstable_environ_get)
 
     uint32_t environ_buf_offset = m3ApiPtrToOffset(env_buf);
 
-    for (u32 i = 0; i < uvwasi.envc; ++i)
+    for (u32 i = 0; i < env_count; ++i)
     {
         uint32_t offset = environ_buf_offset +
                           (environment[i] - environment[0]);
-        env[i] = offset;
+        m3ApiWriteMem32(&env[i], offset);
     }
 
     free(environment);
@@ -123,6 +139,9 @@ m3ApiRawFunction(m3_wasi_unstable_environ_sizes_get)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uvwasi_size_t *      , env_count)
     m3ApiGetArgMem   (uvwasi_size_t *      , env_buf_size)
+
+    m3ApiCheckMem(env_count,    sizeof(uvwasi_size_t));
+    m3ApiCheckMem(env_buf_size, sizeof(uvwasi_size_t));
 
     uvwasi_size_t count;
     uvwasi_size_t buf_size;
@@ -142,6 +161,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_dir_name)
     m3ApiGetArgMem   (char *               , path)
     m3ApiGetArg      (uvwasi_size_t        , path_len)
 
+    m3ApiCheckMem(path, path_len);
+
     uvwasi_errno_t ret = uvwasi_fd_prestat_dir_name(&uvwasi, fd, path, path_len);
 
     m3ApiReturn(ret);
@@ -152,6 +173,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_get)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t *           , buf)
+
+    m3ApiCheckMem(buf, 2*sizeof(uint32_t));
 
     uvwasi_prestat_t prestat;
     uvwasi_errno_t ret;
@@ -171,6 +194,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (uint8_t *            , fdstat)
+
+    m3ApiCheckMem(fdstat, 24);
 
     uvwasi_fdstat_t stat;
     uvwasi_errno_t ret = uvwasi_fd_fdstat_get(&uvwasi, fd, &stat);
@@ -206,6 +231,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     m3ApiGetArg      (uint32_t             , wasi_whence)
     m3ApiGetArgMem   (uvwasi_filesize_t *  , result)
 
+    m3ApiCheckMem(result, sizeof(uvwasi_filesize_t));
+
     uvwasi_whence_t whence = wasi_whence;
 
     switch (wasi_whence) {
@@ -230,6 +257,8 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
     m3ApiGetArg      (uint32_t             , whence)
     m3ApiGetArgMem   (uvwasi_filesize_t *  , result)
 
+    m3ApiCheckMem(result, sizeof(uvwasi_filesize_t));
+
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, result);
 
     //TODO: m3ApiWriteMem
@@ -250,6 +279,9 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     m3ApiGetArg      (uvwasi_rights_t      , fs_rights_inheriting)
     m3ApiGetArg      (uvwasi_fdflags_t     , fs_flags)
     m3ApiGetArgMem   (uvwasi_fd_t *        , fd)
+
+    m3ApiCheckMem(path, path_len);
+    m3ApiCheckMem(fd,   sizeof(uvwasi_fd_t));
 
     uvwasi_errno_t ret = uvwasi_path_open(&uvwasi,
                                  dirfd,
@@ -276,6 +308,9 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
     m3ApiGetArg      (uint32_t             , path_len)
     m3ApiGetArgMem   (uvwasi_filestat_t *  , buf)
 
+    m3ApiCheckMem(path, path_len);
+    m3ApiCheckMem(buf,  sizeof(uvwasi_filestat_t));
+
     uvwasi_errno_t ret = uvwasi_path_filestat_get(&uvwasi, fd, flags, path, path_len, buf);
 
     //TODO: m3ApiWriteMem
@@ -290,6 +325,9 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     m3ApiGetArgMem   (wasi_iovec_t *       , wasi_iovs)
     m3ApiGetArg      (uvwasi_size_t        , iovs_len)
     m3ApiGetArgMem   (uvwasi_size_t *      , nread)
+
+    m3ApiCheckMem(wasi_iovs,    iovs_len * sizeof(wasi_iovec_t));
+    m3ApiCheckMem(nread,        sizeof(uvwasi_size_t));
 
 #if defined(M3_COMPILER_MSVC)
     if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
@@ -319,6 +357,9 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     m3ApiGetArg      (uvwasi_size_t        , iovs_len)
     m3ApiGetArgMem   (uvwasi_size_t *      , nwritten)
 
+    m3ApiCheckMem(wasi_iovs,    iovs_len * sizeof(wasi_iovec_t));
+    m3ApiCheckMem(nwritten,     sizeof(uvwasi_size_t));
+
 #if defined(M3_COMPILER_MSVC)
     if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[32];
@@ -347,6 +388,9 @@ m3ApiRawFunction(m3_wasi_unstable_fd_readdir)
     m3ApiGetArg      (uvwasi_size_t        , buf_len)
     m3ApiGetArg      (uvwasi_dircookie_t   , cookie)
     m3ApiGetArgMem   (uvwasi_size_t *      , bufused)
+
+    m3ApiCheckMem(buf,      buf_len);
+    m3ApiCheckMem(bufused,  sizeof(uvwasi_size_t));
 
     uvwasi_size_t uvbufused;
     uvwasi_errno_t ret = uvwasi_fd_readdir(&uvwasi, fd, buf, buf_len, cookie, &uvbufused);
@@ -380,9 +424,11 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint8_t *            , buf)
-    m3ApiGetArg      (uvwasi_size_t        , buflen)
+    m3ApiGetArg      (uvwasi_size_t        , buf_len)
 
-    uvwasi_errno_t ret = uvwasi_random_get(&uvwasi, buf, buflen);
+    m3ApiCheckMem(buf, buf_len);
+
+    uvwasi_errno_t ret = uvwasi_random_get(&uvwasi, buf, buf_len);
 
     m3ApiReturn(ret);
 }
@@ -392,6 +438,8 @@ m3ApiRawFunction(m3_wasi_unstable_clock_res_get)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_clockid_t     , wasi_clk_id)
     m3ApiGetArgMem   (uvwasi_timestamp_t * , resolution)
+
+    m3ApiCheckMem(resolution, sizeof(uvwasi_timestamp_t));
 
     uvwasi_errno_t ret = uvwasi_clock_res_get(&uvwasi, wasi_clk_id, resolution);
 
@@ -407,6 +455,8 @@ m3ApiRawFunction(m3_wasi_unstable_clock_time_get)
     m3ApiGetArg      (uvwasi_timestamp_t   , precision)
     m3ApiGetArgMem   (uvwasi_timestamp_t * , time)
 
+    m3ApiCheckMem(time, sizeof(uvwasi_timestamp_t));
+
     uvwasi_errno_t ret = uvwasi_clock_time_get(&uvwasi, wasi_clk_id, precision, time);
 
     //TODO: m3ApiWriteMem64
@@ -421,6 +471,10 @@ m3ApiRawFunction(m3_wasi_unstable_poll_oneoff)
     m3ApiGetArgMem   (uvwasi_event_t *              , out)
     m3ApiGetArg      (uvwasi_size_t                 , nsubscriptions)
     m3ApiGetArgMem   (uvwasi_size_t *               , nevents)
+
+    m3ApiCheckMem(in,       nsubscriptions * sizeof(uvwasi_subscription_t));
+    m3ApiCheckMem(out,      nsubscriptions * sizeof(uvwasi_event_t));
+    m3ApiCheckMem(nevents,  sizeof(uvwasi_size_t));
 
     uvwasi_errno_t ret = uvwasi_poll_oneoff(&uvwasi, in, out, nsubscriptions, nevents);
 
