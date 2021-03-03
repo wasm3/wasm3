@@ -306,7 +306,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        ${{ matrix.config.cc }} -DASSERTS -Dd_m3HasWASI \
+        ${{ matrix.config.cc }} -DASSERTS -Dd_m3HasWASI ${{ matrix.config.cflags }} \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -flto -lm -static \
             -o wasm3

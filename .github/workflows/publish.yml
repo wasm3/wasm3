@@ -53,11 +53,14 @@ jobs:
         cd platforms/cosmopolitan
         ./build.sh
         cp ./wasm3.com ../../wasm3-cosmopolitan.com
+        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
         draft: ${{ env.draft }}
-        files: "*.com"
+        files: |
+            *.com
+            *.com.dbg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -90,6 +93,26 @@ jobs:
         source $HOME/.wasienv/wasienv.sh
         cmake --build build
         cp ./build/wasm3.wasm ./wasm3-wasi.wasm
+    - name: Configure, Build strace
+      env:
+        CFLAGS: -Dd_m3EnableStrace=1
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        mkdir build-strace
+        cd build-strace
+        wasimake cmake ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-strace.wasm
+    - name: Configure, Build tracer
+      env:
+        CFLAGS: -Dd_m3EnableStrace=3
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        mkdir build-tracer
+        cd build-tracer
+        wasimake cmake ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-tracer.wasm
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
