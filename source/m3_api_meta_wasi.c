@@ -331,11 +331,11 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint8_t *            , buf)
-    m3ApiGetArg      (__wasi_size_t        , buflen)
+    m3ApiGetArg      (__wasi_size_t        , buf_len)
 
     m3ApiCheckMem(buf, buf_len);
 
-    __wasi_errno_t ret = __wasi_random_get(buf, buflen);
+    __wasi_errno_t ret = __wasi_random_get(buf, buf_len);
 
     m3ApiReturn(ret);
 }
