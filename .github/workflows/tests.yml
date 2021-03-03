@@ -111,6 +111,10 @@ jobs:
         - {target: clang-x86-no-uvwasi,   platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
         - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple"   }
 
+    defaults:
+      run:
+        shell: cmd
+
     steps:
     - uses: actions/checkout@v2
     - name: Configure
@@ -127,9 +131,9 @@ jobs:
         cd test
         python run-spec-test.py
     - name: Test WASI apps
-      shell: python
-      working-directory: test
-      run: run-wasi-test.py
+      run: |
+        cd test
+        python run-wasi-test.py
 
   build-wasi:
     runs-on: ubuntu-latest
