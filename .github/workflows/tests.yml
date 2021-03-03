@@ -127,9 +127,9 @@ jobs:
         cd test
         python run-spec-test.py
     - name: Test WASI apps
-      run: |
-        cd test
-        python run-wasi-test.py
+      shell: python
+      working-directory: test
+      run: run-wasi-test.py
 
   build-wasi:
     runs-on: ubuntu-latest
