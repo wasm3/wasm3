@@ -80,11 +80,11 @@ typedef struct Preopen {
 } Preopen;
 
 Preopen preopen[PREOPEN_CNT] = {
-    {  0, "<stdin>" ,   "" },
-    {  1, "<stdout>",   "" },
-    {  2, "<stderr>",   "" },
-    { -1, "./"      , "./" },
-    { -1, "/"       , "./" },
+    {  0, "<stdin>" , "" },
+    {  1, "<stdout>", "" },
+    {  2, "<stderr>", "" },
+    { -1, "./"      , "." },
+    { -1, "/"       , "." },
 };
 
 #if defined(APE)
@@ -421,7 +421,36 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     memcpy (host_path, path, path_len);
     host_path[path_len] = '\0'; // NULL terminator
 
-#if defined(_WIN32)
+#if defined(APE)
+    // TODO: This all needs a proper implementation
+
+    int flags = ((oflags & __WASI_OFLAGS_CREAT)             ? O_CREAT     : 0) |
+                ((oflags & __WASI_OFLAGS_EXCL)              ? O_EXCL      : 0) |
+                ((oflags & __WASI_OFLAGS_TRUNC)             ? O_TRUNC     : 0) |
+                ((fs_flags & __WASI_FDFLAGS_APPEND)     ? O_APPEND    : 0);
+
+    if ((fs_rights_base & __WASI_RIGHTS_FD_READ) &&
+        (fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {
+        flags |= O_RDWR;
+    } else if ((fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {
+        flags |= O_WRONLY;
+    } else if ((fs_rights_base & __WASI_RIGHTS_FD_READ)) {
+        flags |= O_RDONLY; // no-op because O_RDONLY is 0
+    }
+    int mode = 0644;
+
+    int host_fd = open (host_path, flags, mode);
+
+    if (host_fd < 0)
+    {
+        m3ApiReturn(errno_to_wasi (errno));
+    }
+    else
+    {
+        m3ApiWriteMem32(fd, host_fd);
+        m3ApiReturn(__WASI_ERRNO_SUCCESS);
+    }
+#elif defined(_WIN32)
     // TODO: This all needs a proper implementation
 
     int flags = ((oflags & __WASI_OFLAGS_CREAT)             ? _O_CREAT     : 0) |
