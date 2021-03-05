@@ -91,8 +91,8 @@ commands_full = [
     "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
   }, {
     "name":           "CoreMark",
-    "wasm":           "./benchmark/coremark/coremark-wasi.wasm",
-    "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / HEAP*"
+    "wasm":           "./benchmark/coremark/coremark.wasm",
+    "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / STATIC*"
   }
 ]
 
