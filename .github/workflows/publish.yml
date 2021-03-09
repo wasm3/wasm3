@@ -142,7 +142,7 @@ jobs:
         ./gradlew build
     - name: Copy
       run: |
-        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-test.apk
+        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-coremark.apk
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:

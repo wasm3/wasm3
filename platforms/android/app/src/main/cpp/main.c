@@ -10,9 +10,9 @@
 #include <time.h>
 
 #include "m3/wasm3.h"
-#include "m3/m3_config.h"
+#include "m3/m3_api_libc.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "m3/extra/coremark_minimal.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
@@ -20,8 +20,8 @@ void run_wasm()
 {
     M3Result result = m3Err_none;
 
-    uint8_t* wasm = (uint8_t*)fib32_wasm;
-    size_t fsize = fib32_wasm_len;
+    uint8_t* wasm = (uint8_t*)coremark_minimal_wasm;
+    size_t fsize = coremark_minimal_wasm_len;
 
     printf("Loading WebAssembly...\n");
 
@@ -38,20 +38,23 @@ void run_wasm()
     result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
 
+    result = m3_LinkLibC (module);
+    if (result) FATAL("m3_LinkLibC: %s", result);
+
     IM3Function f;
-    result = m3_FindFunction (&f, runtime, "fib");
+    result = m3_FindFunction (&f, runtime, "run");
     if (result) FATAL("m3_FindFunction: %s", result);
 
-    printf("Running...\n");
+    printf("Running CoreMark 1.0...\n");
 
-    result = m3_CallV (f, 40);
+    result = m3_CallV (f);
     if (result) FATAL("m3_Call: %s", result);
 
-    uint32_t value = 0;
+    float value = 0;
     result = m3_GetResultsV (f, &value);
     if (result) FATAL("m3_GetResults: %s", result);
 
-    printf("Result: %d\n", value);
+    printf("Result: %0.3f\n", value);
 }
 
 int main()

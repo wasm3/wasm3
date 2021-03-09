@@ -75,11 +75,11 @@ m3ApiRawFunction(m3_libc_print)
     m3ApiReturn(i_size);
 }
 
-m3ApiRawFunction(m3_libc_clock)
+m3ApiRawFunction(m3_libc_clock_ms)
 {
     m3ApiReturnType (uint32_t)
 
-    m3ApiReturn(clock());
+    m3ApiReturn(clock() / (CLOCKS_PER_SEC/1000));
 }
 
 static
@@ -127,7 +127,7 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_memmove",        
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_memcpy",           "*(**i)",  &m3_libc_memmove))); // just alias of memmove
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_abort",            "v()",     &m3_libc_abort)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_exit",             "v(i)",    &m3_libc_exit)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_clock",            "i()",     &m3_libc_clock)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "clock_ms",          "i()",     &m3_libc_clock_ms)));
 
 _catch:
     return result;
