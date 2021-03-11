@@ -166,9 +166,13 @@ jobs:
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-spec-test.py --exec "wasmer run --dir=. ../build-wasi/wasm3.wasm -- --repl"
+        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. ../build-wasi/wasm3.wasm -- --repl"
 
-    # TODO: Test WASI apps in Wasmer
+    - name: Test WASI apps (in Wasmer)
+      run: |
+        source $HOME/.wasmer/wasmer.sh
+        cd test
+        python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. ../build-wasi/wasm3.wasm --" --fast
 
     - name: Configure (native)
       run: |

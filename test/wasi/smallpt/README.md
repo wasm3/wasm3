@@ -13,7 +13,7 @@ TODO
 ### Building
 
 ```sh
-wasic++ -O3 -Wl,-z,stack-size=$[1024*1024] smallpt-ex.cpp -o smallpt-ex.wasm
+wasic++ -g0 -Oz -Wl,--stack-first -Wl,-z,stack-size=$[1024*1024] smallpt-ex.cpp -o smallpt-ex.wasm
 ```
 
 ### Running
