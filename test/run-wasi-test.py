@@ -36,17 +36,12 @@ commands_full = [
     "name":           "Simple WASI test",
     "wasm":           "./wasi/test.wasm",
     "args":           ["cat", "/wasi/0.txt"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; /wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
+    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; /wasi/0.txt;*fib(20) = 6765* ms*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
     "name":           "Simple WASI test (wasm-opt -O3)",
     "wasm":           "./wasi/test-opt.wasm",
     "args":           ["cat", "./wasi/0.txt"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
-  }, {
-    "skip":           True,  # Direct native calls were removed from wasm3
-    "name":           "Raw/Native funcs benchmark",
-    "wasm":           "./wasi/test_native_vs_raw.wasm",
-    "expect_pattern": "Validation...*Native/Raw: *"
+    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765* ms*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
     "name":           "mandelbrot",
     "wasm":           "./benchmark/mandelbrot/mandel.wasm",
@@ -68,12 +63,12 @@ commands_full = [
     "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
     "args":           ["16", "64"],
     "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
-  # TODO: Fails on Windows on CI only, CNR
-  #}, {
-  #  "name":           "mal",
-  #  "wasm":           "./benchmark/mal/mal.wasm",
-  #  "args":           ["./benchmark/mal/test-fib.mal", "16"],
-  #  "expect_pattern": "987\n",
+  }, {
+    "skip":           True,  # Fails on Windows on CI only, CNR
+    "name":           "mal",
+    "wasm":           "./benchmark/mal/mal.wasm",
+    "args":           ["./benchmark/mal/test-fib.mal", "16"],
+    "expect_pattern": "987\n",
   }, {
     "name":           "STREAM",
     "wasm":           "./benchmark/stream/stream.wasm",
@@ -101,7 +96,14 @@ commands_fast = [
     "name":           "Simple WASI test",
     "wasm":           "./wasi/test.wasm",
     "args":           ["cat", "./wasi/0.txt"],
-    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765*[* ms]*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
+    "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/0.txt;*fib(20) = 6765* ms*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
+  }, {
+    "skip":           True,  # Backtraces not enabled by default
+    "name":           "Simple WASI test",
+    "wasm":           "./wasi/test.wasm",
+    "args":           ["trap"],
+    "can_crash":      True,
+    "expect_pattern": "Hello world*Constructor OK*Args: *; trap;* wasm backtrace:* 6: 0x*Error:* unreachable executed*"
   }, {
     "name":           "mandelbrot",
     "wasm":           "./benchmark/mandelbrot/mandel.wasm",
@@ -168,6 +170,9 @@ for cmd in commands:
             f = open(fn, "rb")
             print(f"cat {fn} | {' '.join(command)}")
             output = subprocess.check_output(command, timeout=args.timeout, stdin=f)
+        elif "can_crash" in cmd:
+            print(f"{' '.join(command)}")
+            output = subprocess.run(command, timeout=args.timeout, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout
         else:
             print(f"{' '.join(command)}")
             output = subprocess.check_output(command, timeout=args.timeout)
@@ -186,8 +191,9 @@ for cmd in commands:
             fail(f"Actual sha1: {actual}")
 
     if "expect_pattern" in cmd:
-        if not fnmatch.fnmatch(output.decode("utf-8"), cmd['expect_pattern']):
-            fail(f"Output does not match pattern")
+        actual = output.decode("utf-8")
+        if not fnmatch.fnmatch(actual, cmd['expect_pattern']):
+            fail(f"Output does not match pattern:\n{actual}")
 
     print()
 
