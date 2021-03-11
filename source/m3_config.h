@@ -110,10 +110,6 @@
 #   define d_m3LogRuntime                       0       // higher-level runtime information
 # endif
 
-# ifndef d_m3LogStackTrace
-#   define d_m3LogStackTrace                    0       // dump the call stack when traps occur
-# endif
-
 # ifndef d_m3LogNativeStack
 #   define d_m3LogNativeStack                   0       // track the memory usage of the C-stack
 # endif

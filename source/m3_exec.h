@@ -727,9 +727,6 @@ d_m3Op  (Entry)
                 SPrintArg (str, 99, _sp, GetSingleRetType(function->funcType));
 
             m3log (exec, " exit  < %s %s %s   %s", m3_GetFunctionName(function), function->funcType->numRets ? "->" : "", str, r ? (cstr_t)r : "");
-#       elif d_m3LogStackTrace
-            if (r)
-                printf (" ** %s  %p\n", m3_GetFunctionName(function), _sp);
 #       endif
 
         if (UNLIKELY(r)) {
