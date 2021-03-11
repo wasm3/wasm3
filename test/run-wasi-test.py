@@ -4,8 +4,8 @@
 # Usage:
 #   ./run-wasi-test.py
 #   ./run-wasi-test.py --exec ../custom_build/wasm3 --timeout 120
-#   ./run-wasi-test.py --exec "wasmer run --dir=."
-#
+#   ./run-wasi-test.py --exec "wasmer run --mapdir=/:." --separate-args
+#   ./run-wasi-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm --" --fast
 
 import argparse
 import sys
@@ -24,6 +24,7 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument("--separate-args",  action='store_true')      # use "--" separator for wasmer, wasmtime
 parser.add_argument("--timeout", type=int,             default=120)
 parser.add_argument("--fast",    action='store_true')
 
@@ -82,7 +83,7 @@ commands_full = [
     "name":           "Brotli",
     "stdin":          "./benchmark/brotli/alice29.txt",
     "wasm":           "./benchmark/brotli/brotli.wasm",
-    "args":           ["-c"],
+    "args":           ["-c", "-f"],
     "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
   }, {
     "name":           "CoreMark",
@@ -134,7 +135,7 @@ commands_fast = [
     "name":           "Brotli",
     "stdin":          "./benchmark/brotli/alice29_small.txt",
     "wasm":           "./benchmark/brotli/brotli.wasm",
-    "args":           ["-c"],
+    "args":           ["-c", "-f"],
     "expect_sha1":    "0e8af02a7207c0c617d7d38eed92853c4a619987"
   }
 ]
@@ -142,11 +143,6 @@ commands_fast = [
 def fail(msg):
     print(f"{ansi.FAIL}FAIL:{ansi.ENDC} {msg}")
     stats.failed += 1
-
-
-args_sep = None
-if "wasmer" in args.exec or "wasmtime" in args.exec:
-    args_sep = "--"
 
 commands = commands_fast if args.fast else commands_full
 
@@ -157,8 +153,8 @@ for cmd in commands:
     command = args.exec.split(' ')
     command.append(cmd['wasm'])
     if "args" in cmd:
-        if args_sep:
-            command.append(args_sep)
+        if args.separate_args:
+            command.append("--")
         command.extend(cmd['args'])
 
     command = list(map(str, command))
