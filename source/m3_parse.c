@@ -558,6 +558,9 @@ _   (m3Alloc (& module, M3Module, 1));
     const u8 * pos = i_bytes;
     const u8 * end = pos + i_numBytes;
 
+    module->wasmStart = pos;
+    module->wasmEnd = end;
+
     u32 magic, version;
 _   (Read_u32 (& magic, & pos, end));
 _   (Read_u32 (& version, & pos, end));

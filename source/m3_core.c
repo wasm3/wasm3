@@ -9,6 +9,7 @@
 #include "wasm3.h"
 
 #include "m3_core.h"
+#include "m3_env.h"
 
 void m3_Abort(const char* message) {
 #ifdef DEBUG
@@ -489,3 +490,104 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 
     return result;
 }
+
+#if d_m3RecordBacktraces
+u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
+{
+    // walk the code pages
+    IM3CodePage curr = i_runtime->pagesOpen;
+    bool pageFound = false;
+
+    while (curr)
+    {
+        if (ContainsPC (curr, i_pc))
+        {
+            pageFound = true;
+            break;
+        }
+        curr = curr->info.next;
+    }
+
+    if (!pageFound)
+    {
+        curr = i_runtime->pagesFull;
+        while (curr)
+        {
+            if (ContainsPC (curr, i_pc))
+            {
+                pageFound = true;
+                break;
+            }
+            curr = curr->info.next;
+        }
+    }
+
+    if (pageFound)
+    {
+        u32 result = 0;
+
+        bool pcFound = MapPCToOffset (curr, i_pc, & result);
+                                                                                d_m3Assert (pcFound);
+
+        return result;
+    }
+    else return 0;
+}
+
+
+void  PushBacktraceFrame  (IM3Runtime io_runtime, pc_t i_pc)
+{
+    // don't try to push any more frames if we've already had an alloc failure
+    if (UNLIKELY (io_runtime->backtrace.backtraceTruncated))
+        return;
+
+    M3BacktraceFrame * newFrame;
+    m3Alloc ((void **) & newFrame, M3BacktraceFrame, 1);
+
+    if (!newFrame)
+    {
+        io_runtime->backtrace.backtraceTruncated = true;
+        return;
+    }
+
+    newFrame->moduleOffset = FindModuleOffset (io_runtime, i_pc);
+
+    if (!io_runtime->backtrace.frames || !io_runtime->backtrace.lastFrame)
+        io_runtime->backtrace.frames = newFrame;
+    else
+        io_runtime->backtrace.lastFrame->next = newFrame;
+    io_runtime->backtrace.lastFrame = newFrame;
+}
+
+
+void  FillBacktraceFunctionInfo  (IM3Runtime io_runtime, IM3Function i_function)
+{
+    // If we've had an alloc failure then the last frame doesn't refer to the
+    // frame we want to fill in the function info for.
+    if (UNLIKELY (io_runtime->backtrace.backtraceTruncated))
+        return;
+
+    if (!io_runtime->backtrace.lastFrame)
+        return;
+
+    io_runtime->backtrace.lastFrame->function = i_function;
+    io_runtime->backtrace.lastFrame->module = i_function->module;
+}
+
+
+void  ClearBacktrace  (IM3Runtime io_runtime)
+{
+    io_runtime->backtrace.backtraceTruncated = false;
+
+    M3BacktraceFrame * currentFrame = io_runtime->backtrace.frames;
+    while (currentFrame)
+    {
+        M3BacktraceFrame * nextFrame = currentFrame->next;
+        m3Free (currentFrame);
+        currentFrame = nextFrame;
+    }
+
+    io_runtime->backtrace.frames = NULL;
+    io_runtime->backtrace.lastFrame = NULL;
+}
+#endif // d_m3RecordBacktraces

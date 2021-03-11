@@ -15,6 +15,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <stdarg.h>
 
@@ -43,6 +44,24 @@ typedef struct M3ErrorInfo
 
     const char *    message;
 } M3ErrorInfo;
+
+typedef struct M3BacktraceFrame
+{
+    uint64_t                     moduleOffset;
+    IM3Module                    module;
+    IM3Function                  function;
+
+    struct M3BacktraceFrame *    next;
+}
+M3BacktraceFrame;
+
+typedef struct M3BacktraceInfo
+{
+    bool                   backtraceTruncated;      // true if an allocation failure occurred when writing backtrace
+    M3BacktraceFrame *     frames;
+    M3BacktraceFrame *     lastFrame;
+}
+M3BacktraceInfo;
 
 
 typedef enum M3ValueType
@@ -208,6 +227,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      M3RawCall              i_function,
                                                      const void *           i_userdata);
 
+    const char*         m3_GetModuleName            (IM3Module i_module);
+
 //-------------------------------------------------------------------------------------------------------------------------------
 //  functions
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -236,6 +257,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
 
+    const char*         m3_GetFunctionName          (IM3Function i_function);
+
 //-------------------------------------------------------------------------------------------------------------------------------
 //  debug info
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -243,6 +266,11 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     void                m3_PrintRuntimeInfo         (IM3Runtime i_runtime);
     void                m3_PrintM3Info              (void);
     void                m3_PrintProfilerInfo        (void);
+
+    // The runtime owns the backtrace, do not free the backtrace you obtain
+    bool                m3_BacktraceEnabled         (void);
+    M3BacktraceInfo *   m3_GetBacktrace             (IM3Runtime i_runtime);     // Returns NULL if backtrace is not enabled
+    uint32_t            m3_GetBacktraceStr          (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize);
 
 #if defined(__cplusplus)
 }

@@ -86,6 +86,7 @@ typedef struct
 
     bytes_t             wasm;
     bytes_t             wasmEnd;
+    bytes_t             lastOpcodeStart;
 
     M3CompilationScope  block;
 

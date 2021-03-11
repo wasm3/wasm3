@@ -21,9 +21,10 @@
 #define LINK_WASI
 #endif
 
+#define BACKTRACE_SIZE 1024
+
 IM3Environment env;
 IM3Runtime runtime;
-
 
 M3Result link_all  (IM3Module module)
 {
@@ -389,6 +390,7 @@ int  main  (int i_argc, const char* i_argv[])
     const char* argFile = NULL;
     const char* argFunc = "_start";
     unsigned argStackSize = 64*1024;
+    char backtrace_buff[BACKTRACE_SIZE];
 
 //    m3_PrintM3Info ();
 
@@ -451,7 +453,16 @@ int  main  (int i_argc, const char* i_argv[])
                 if (argDumpOnTrap) {
                     repl_dump();
                 }
-                FATAL("repl_call: %s", result);
+                if (m3_BacktraceEnabled())
+                {
+                    backtrace_buff[0] = '\0';
+                    m3_GetBacktraceStr(runtime, backtrace_buff, BACKTRACE_SIZE);
+                    FATAL("repl_call: %s\n%s", result, backtrace_buff);
+                }
+                else
+                {
+                    FATAL("repl_call: %s", result);
+                }
             }
         }
     }
@@ -498,6 +509,14 @@ int  main  (int i_argc, const char* i_argv[])
             M3ErrorInfo info;
             m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)\n", info.message);
+
+            if (m3_BacktraceEnabled())
+            {
+                backtrace_buff[0] = '\0';
+                m3_GetBacktraceStr(runtime, backtrace_buff, BACKTRACE_SIZE);
+                fprintf (stderr, "%s\n", backtrace_buff);
+            }
+
             //TODO: if (result == m3Err_trapExit) {
                 // warn that exit was called
             //    fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);

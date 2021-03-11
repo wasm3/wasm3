@@ -62,6 +62,9 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 
         if (not result)
         {                                                           if (d_m3LogEmit) log_emit (o, i_operation);
+# if d_m3RecordBacktraces
+            EmitMappingEntry (o->page, o->lastOpcodeStart - o->module->wasmStart);
+# endif // d_m3RecordBacktraces
             EmitWord (o->page, i_operation);
         }
     }

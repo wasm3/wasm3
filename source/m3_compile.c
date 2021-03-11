@@ -2168,6 +2168,7 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
 
     while (o->wasm < o->wasmEnd)
     {                                                                   emit_stack_dump (o);
+        o->lastOpcodeStart = o->wasm;
         m3opcode_t opcode = * (o->wasm++);                              log_opcode (o, opcode);
 
 #ifndef d_m3CompileExtendedOpcode

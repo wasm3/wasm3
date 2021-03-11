@@ -7,6 +7,16 @@
 
 #include "m3_code.h"
 
+#if d_m3RecordBacktraces
+// Code mapping page ops
+
+M3CodeMappingPage *  NewCodeMappingPage   (u32 i_minCapacity);
+void                 FreeCodeMappingPage  (M3CodeMappingPage * i_page);
+#endif // d_m3RecordBacktraces
+
+//---------------------------------------------------------------------------------------------------------------------------------
+
+
 IM3CodePage  NewCodePage  (u32 i_minNumLines)
 {
     static u32 s_sequence = 0;
@@ -22,6 +32,16 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
     {
         page->info.sequence = ++s_sequence;
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
+
+#if d_m3RecordBacktraces
+        page->info.mapping = NewCodeMappingPage (page->info.numLines);
+        if (!page->info.mapping)
+        {
+            m3Free (page);
+            return NULL;
+        }
+        page->info.mapping->basePC = GetPageStartPC(page);
+#endif // d_m3RecordBacktraces
 
         m3log (runtime, "new page: %p; seq: %d; bytes: %d; lines: %d", GetPagePC (page), page->info.sequence, pageSize, page->info.numLines);
     }
@@ -39,6 +59,9 @@ void  FreeCodePages  (IM3CodePage * io_list)
         m3log (code, "free page: %d; %p; util: %3.1f%%", page->info.sequence, page, 100. * page->info.lineIndex / page->info.numLines);
 
         IM3CodePage next = page->info.next;
+#if d_m3RecordBacktraces
+        FreeCodeMappingPage (page->info.mapping);
+#endif // d_m3RecordBacktraces
         m3Free (page);
         page = next;
     }
@@ -78,6 +101,20 @@ void  EmitWord64  (IM3CodePage i_page, const u64 i_word)
 #endif
 }
 
+
+#if d_m3RecordBacktraces
+void  EmitMappingEntry  (IM3CodePage i_page, u32 i_moduleOffset)
+{
+    M3CodeMappingPage * page = i_page->info.mapping;
+                                                                        d_m3Assert (page->size < page->capacity);
+
+    M3CodeMapEntry * entry = & page->entries[page->size++];
+    pc_t pc = GetPagePC (i_page);
+
+    entry->pcOffset = pc - page->basePC;
+    entry->moduleOffset = i_moduleOffset;
+}
+#endif // d_m3RecordBacktraces
 
 pc_t  GetPageStartPC  (IM3CodePage i_page)
 {
@@ -143,3 +180,76 @@ IM3CodePage GetEndCodePage  (IM3CodePage i_list)
 
     return end;
 }
+
+#if d_m3RecordBacktraces
+bool  ContainsPC  (IM3CodePage i_page, pc_t i_pc)
+{
+    return GetPageStartPC (i_page) <= i_pc && i_pc < GetPagePC (i_page);
+}
+
+
+bool  MapPCToOffset  (IM3CodePage i_page, pc_t i_pc, u32 * o_moduleOffset)
+{
+    M3CodeMappingPage * mapping = i_page->info.mapping;
+
+    u32 pcOffset = i_pc - mapping->basePC;
+
+    u32 left = 0;
+    u32 right = mapping->size;
+
+    while (left < right)
+    {
+        u32 mid = left + (right - left) / 2;
+
+        if (mapping->entries[mid].pcOffset < pcOffset)
+        {
+            left = mid + 1;
+        }
+        else if (mapping->entries[mid].pcOffset > pcOffset)
+        {
+            right = mid;
+        }
+        else
+        {
+            *o_moduleOffset = mapping->entries[mid].moduleOffset;
+            return true;
+        }
+    }
+
+    // Getting here means left is now one more than the element we want.
+    if (left > 0)
+    {
+        left--;
+        *o_moduleOffset = mapping->entries[left].moduleOffset;
+        return true;
+    }
+    else return false;
+}
+#endif // d_m3RecordBacktraces
+
+//---------------------------------------------------------------------------------------------------------------------------------
+
+
+#if d_m3RecordBacktraces
+M3CodeMappingPage *  NewCodeMappingPage  (u32 i_minCapacity)
+{
+    M3CodeMappingPage * page;
+    u32 pageSize = sizeof (M3CodeMappingPage) + sizeof (M3CodeMapEntry) * i_minCapacity;
+
+    m3Alloc ((void **) & page, u8, pageSize);
+
+    if (page)
+    {
+        page->size = 0;
+        page->capacity = i_minCapacity;
+    }
+
+    return page;
+}
+
+
+void  FreeCodeMappingPage  (M3CodeMappingPage * i_page)
+{
+    m3Free (i_page);
+}
+#endif // d_m3RecordBacktraces

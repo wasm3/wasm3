@@ -141,6 +141,9 @@ typedef struct M3Module
     struct M3Runtime *      runtime;
     struct M3Environment *  environment;
 
+    bytes_t                 wasmStart;
+    bytes_t                 wasmEnd;
+
     cstr_t                  name;
 
     u32                     numFuncTypes;
@@ -232,6 +235,10 @@ typedef struct M3Runtime
     M3ErrorInfo             error;
 #if d_m3VerboseLogs
     char                    error_message[256]; // the actual buffer. M3ErrorInfo can point to this
+#endif
+
+#if d_m3RecordBacktraces
+    M3BacktraceInfo         backtrace;
 #endif
 }
 M3Runtime;
