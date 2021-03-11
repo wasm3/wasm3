@@ -260,7 +260,7 @@ jobs:
         python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.com"
 
   build-cross-qemu:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: build-cross-qemu-${{ matrix.config.target }}
     timeout-minutes: 10
 
@@ -293,13 +293,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install QEMU
-      env:
-        QEMU_SRC: "http://archive.ubuntu.com/ubuntu/pool/universe/q/qemu"
-        QEMU_VER: "qemu-user-static_4\\.2-.*_amd64.deb$"
       run: |
-        DEB=`curl -s $QEMU_SRC/ | grep -o -E 'href="([^"#]+)"' | cut -d'"' -f2 | grep $QEMU_VER | tail -1`
-        wget $QEMU_SRC/$DEB
-        sudo dpkg -i $DEB
+        sudo apt install qemu-user-static
     - name: Install ${{ matrix.config.toolchain }}
       run: |
         sudo apt install ${{ matrix.config.toolchain }}
