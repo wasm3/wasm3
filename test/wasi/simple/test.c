@@ -137,12 +137,14 @@ int main(int argc, char **argv)
   test_args(argc, argv);
   test_gettime();
   test_random();
+  if (0 == strcmp(argv[1], "trap")) {
+    test_trap();
+  }
+
   test_perf_fib(20);
 
   if (0 == strcmp(argv[1], "cat")) {
     test_cat(argv[2]);
-  } else if (0 == strcmp(argv[1], "trap")) {
-    test_trap();
   }
 
   puts("=== done ===");
