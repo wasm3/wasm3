@@ -482,7 +482,7 @@ jobs:
             -O3 -g0 -lm \
             -o wasm3
     - name: Test
-      run: ./build/wasm3 ./test/wasi/test.wasm
+      run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
   build-with-logs:
     name: maintenance (debug logs)
@@ -511,7 +511,7 @@ jobs:
             -O3 -g0 -lm \
             -o wasm3
     - name: Test
-      run: ./build/wasm3 ./test/wasi/test.wasm > /dev/null
+      run: ./build/wasm3 ./test/wasi/simple/test.wasm > /dev/null
 
   build-preprocessed-ops:
     name: maintenance (preprocess ops)
@@ -533,7 +533,7 @@ jobs:
             -O3 -g0 -lm \
             -o wasm3
     - name: Test
-      run: ./build/wasm3 ./test/wasi/test.wasm
+      run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
   build-python:
     runs-on: ubuntu-20.04

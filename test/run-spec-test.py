@@ -163,7 +163,7 @@ if not (os.path.isdir(spec_dir)):
                 parts = pathlib.Path(zipInfo.filename).parts
                 newpath = str(pathlib.Path(*parts[1:-1]))
                 newfn   = str(pathlib.Path(*parts[-1:]))
-                ensure_path(newpath)
+                ensure_path(os.path.join(spec_dir, newpath))
                 newpath = os.path.join(spec_dir, newpath, newfn)
                 zipInfo.filename = newpath
                 zipFile.extract(zipInfo)
