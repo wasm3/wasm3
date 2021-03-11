@@ -8,7 +8,6 @@
 #include "wm_include.h"
 
 #include "m3/wasm3.h"
-//#include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
 
@@ -49,11 +48,11 @@ void run_wasm()
     result = m3_CallV (f, 24);
     if (result) FATAL("m3_Call: %s", result);
 
-    uint64_t value = 0;
-    result = m3_GetResultsV (f, &result);
+    uint32_t value = 0;
+    result = m3_GetResultsV (f, &value);
     if (result) FATAL("m3_GetResults: %s", result);
 
-    printf("Result: %lld\n", value);
+    printf("Result: %ld\n", value);
 }
 
 
@@ -66,9 +65,9 @@ void wasm3_task(void *data)
 {
     printf("\nWasm3 v" M3_VERSION " on W600, build " __DATE__ " " __TIME__ "\n");
 
-    u32 start = millis();
+    uint32_t start = millis();
     run_wasm();
-    u32 end = millis();
+    uint32_t end = millis();
 
     printf("Elapsed: %ld ms\n", (end - start));
 }

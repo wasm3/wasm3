@@ -80,11 +80,11 @@ typedef struct Preopen {
 } Preopen;
 
 Preopen preopen[PREOPEN_CNT] = {
-    {  0, "<stdin>" ,   "" },
-    {  1, "<stdout>",   "" },
-    {  2, "<stderr>",   "" },
-    { -1, "./"      , "./" },
-    { -1, "/"       , "./" },
+    {  0, "<stdin>" , "" },
+    {  1, "<stdout>", "" },
+    {  2, "<stderr>", "" },
+    { -1, "./"      , "." },
+    { -1, "/"       , "." },
 };
 
 #if defined(APE)
@@ -211,15 +211,19 @@ m3ApiRawFunction(m3_wasi_unstable_args_get)
     m3ApiGetArgMem   (uint32_t *           , argv)
     m3ApiGetArgMem   (char *               , argv_buf)
 
-    m3_wasi_context_t* context = (m3_wasi_context_t*)userdata;
+    m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+
+    m3ApiCheckMem(argv, context->argc * sizeof(uint32_t));
 
     for (u32 i = 0; i < context->argc; ++i)
     {
         m3ApiWriteMem32(&argv[i], m3ApiPtrToOffset(argv_buf));
 
         size_t len = strlen (context->argv[i]);
+
+        m3ApiCheckMem(argv_buf, len);
         memcpy (argv_buf, context->argv[i], len);
         argv_buf += len;
         * argv_buf++ = 0;
@@ -234,18 +238,21 @@ m3ApiRawFunction(m3_wasi_unstable_args_sizes_get)
     m3ApiGetArgMem   (__wasi_size_t *      , argc)
     m3ApiGetArgMem   (__wasi_size_t *      , argv_buf_size)
 
-    m3_wasi_context_t* context = (m3_wasi_context_t*)userdata;
+    m3ApiCheckMem(argc,             sizeof(__wasi_size_t));
+    m3ApiCheckMem(argv_buf_size,    sizeof(__wasi_size_t));
+
+    m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
 
-    __wasi_size_t buflen = 0;
+    __wasi_size_t buf_len = 0;
     for (u32 i = 0; i < context->argc; ++i)
     {
-        buflen += strlen (context->argv[i]) + 1;
+        buf_len += strlen (context->argv[i]) + 1;
     }
 
     m3ApiWriteMem32(argc, context->argc);
-    m3ApiWriteMem32(argv_buf_size, buflen);
+    m3ApiWriteMem32(argv_buf_size, buf_len);
 
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
@@ -256,7 +263,6 @@ m3ApiRawFunction(m3_wasi_unstable_environ_get)
     m3ApiGetArgMem   (uint32_t *           , env)
     m3ApiGetArgMem   (char *               , env_buf)
 
-    if (runtime == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
     // TODO
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
@@ -267,7 +273,8 @@ m3ApiRawFunction(m3_wasi_unstable_environ_sizes_get)
     m3ApiGetArgMem   (__wasi_size_t *      , env_count)
     m3ApiGetArgMem   (__wasi_size_t *      , env_buf_size)
 
-    if (runtime == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(env_count,    sizeof(__wasi_size_t));
+    m3ApiCheckMem(env_buf_size, sizeof(__wasi_size_t));
 
     // TODO
     m3ApiWriteMem32(env_count,    0);
@@ -283,7 +290,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_dir_name)
     m3ApiGetArgMem   (char *               , path)
     m3ApiGetArg      (__wasi_size_t        , path_len)
 
-    if (runtime == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(path, path_len);
+
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_ERRNO_BADF); }
     size_t slen = strlen(preopen[fd].path);
     memcpy(path, preopen[fd].path, M3_MIN(slen, path_len));
@@ -296,7 +304,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_prestat_get)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t *           , buf)  // TODO: use actual struct
 
-    if (runtime == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(buf, 2*sizeof(uint32_t));
+
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_ERRNO_BADF); }
     m3ApiWriteMem32(buf,    __WASI_PREOPENTYPE_DIR);
     m3ApiWriteMem32(buf+1,  strlen(preopen[fd].path));
@@ -309,7 +318,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_fdstat_get)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (__wasi_fdstat_t *    , fdstat)
 
-    if (runtime == NULL || fdstat == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(fdstat, sizeof(__wasi_fdstat_t));
 
 #ifdef _WIN32
 
@@ -374,7 +383,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     m3ApiGetArg      (__wasi_whence_t      , wasi_whence)
     m3ApiGetArgMem   (__wasi_filesize_t *  , result)
 
-    if (runtime == NULL || result == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
 
     int whence;
     switch (wasi_whence) {
@@ -409,6 +418,9 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     m3ApiGetArg      (__wasi_fdflags_t     , fs_flags)
     m3ApiGetArgMem   (__wasi_fd_t *        , fd)
 
+    m3ApiCheckMem(path, path_len);
+    m3ApiCheckMem(fd,   sizeof(__wasi_fd_t));
+
     if (path_len >= 512)
         m3ApiReturn(__WASI_ERRNO_INVAL);
 
@@ -421,7 +433,36 @@ m3ApiRawFunction(m3_wasi_unstable_path_open)
     memcpy (host_path, path, path_len);
     host_path[path_len] = '\0'; // NULL terminator
 
-#if defined(_WIN32)
+#if defined(APE)
+    // TODO: This all needs a proper implementation
+
+    int flags = ((oflags & __WASI_OFLAGS_CREAT)             ? O_CREAT     : 0) |
+                ((oflags & __WASI_OFLAGS_EXCL)              ? O_EXCL      : 0) |
+                ((oflags & __WASI_OFLAGS_TRUNC)             ? O_TRUNC     : 0) |
+                ((fs_flags & __WASI_FDFLAGS_APPEND)     ? O_APPEND    : 0);
+
+    if ((fs_rights_base & __WASI_RIGHTS_FD_READ) &&
+        (fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {
+        flags |= O_RDWR;
+    } else if ((fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {
+        flags |= O_WRONLY;
+    } else if ((fs_rights_base & __WASI_RIGHTS_FD_READ)) {
+        flags |= O_RDONLY; // no-op because O_RDONLY is 0
+    }
+    int mode = 0644;
+
+    int host_fd = open (host_path, flags, mode);
+
+    if (host_fd < 0)
+    {
+        m3ApiReturn(errno_to_wasi (errno));
+    }
+    else
+    {
+        m3ApiWriteMem32(fd, host_fd);
+        m3ApiReturn(__WASI_ERRNO_SUCCESS);
+    }
+#elif defined(_WIN32)
     // TODO: This all needs a proper implementation
 
     int flags = ((oflags & __WASI_OFLAGS_CREAT)             ? _O_CREAT     : 0) |
@@ -492,7 +533,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_read)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (__wasi_size_t *      , nread)
 
-    if (runtime == NULL || nread == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(wasi_iovs,    iovs_len * sizeof(wasi_iovec_t));
+    m3ApiCheckMem(nread,        sizeof(__wasi_size_t));
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
@@ -527,7 +569,8 @@ m3ApiRawFunction(m3_wasi_unstable_fd_write)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (__wasi_size_t *      , nwritten)
 
-    if (runtime == NULL || nwritten == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(wasi_iovs,    iovs_len * sizeof(wasi_iovec_t));
+    m3ApiCheckMem(nwritten,     sizeof(__wasi_size_t));
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
@@ -584,22 +627,24 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint8_t *            , buf)
-    m3ApiGetArg      (__wasi_size_t        , buflen)
+    m3ApiGetArg      (__wasi_size_t        , buf_len)
+
+    m3ApiCheckMem(buf, buf_len);
 
     while (1) {
         ssize_t retlen = 0;
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__EMSCRIPTEN__)
-        size_t reqlen = M3_MIN (buflen, 256);
+        size_t reqlen = M3_MIN (buf_len, 256);
 #   if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
         retlen = SecRandomCopyBytes(kSecRandomDefault, reqlen, buf) < 0 ? -1 : reqlen;
 #   else
         retlen = getentropy(buf, reqlen) < 0 ? -1 : reqlen;
 #   endif
 #elif defined(__FreeBSD__) || defined(__linux__)
-        retlen = getrandom(buf, buflen, 0);
+        retlen = getrandom(buf, buf_len, 0);
 #elif defined(_WIN32)
-        if (RtlGenRandom(buf, buflen) == TRUE) {
+        if (RtlGenRandom(buf, buf_len) == TRUE) {
             m3ApiReturn(__WASI_ERRNO_SUCCESS);
         }
 #else
@@ -610,11 +655,11 @@ m3ApiRawFunction(m3_wasi_unstable_random_get)
                 continue;
             }
             m3ApiReturn(errno_to_wasi(errno));
-        } else if (retlen == buflen) {
+        } else if (retlen == buf_len) {
             m3ApiReturn(__WASI_ERRNO_SUCCESS);
         } else {
-            buf    += retlen;
-            buflen -= retlen;
+            buf     += retlen;
+            buf_len -= retlen;
         }
     }
 }
@@ -625,7 +670,7 @@ m3ApiRawFunction(m3_wasi_unstable_clock_res_get)
     m3ApiGetArg      (__wasi_clockid_t     , wasi_clk_id)
     m3ApiGetArgMem   (__wasi_timestamp_t * , resolution)
 
-    if (runtime == NULL || resolution == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(resolution, sizeof(__wasi_timestamp_t));
 
     int clk = convert_clockid(wasi_clk_id);
     if (clk < 0) m3ApiReturn(__WASI_ERRNO_INVAL);
@@ -647,7 +692,7 @@ m3ApiRawFunction(m3_wasi_unstable_clock_time_get)
     m3ApiGetArg      (__wasi_timestamp_t   , precision)
     m3ApiGetArgMem   (__wasi_timestamp_t * , time)
 
-    if (runtime == NULL || time == NULL) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+    m3ApiCheckMem(time, sizeof(__wasi_timestamp_t));
 
     int clk = convert_clockid(wasi_clk_id);
     if (clk < 0) m3ApiReturn(__WASI_ERRNO_INVAL);
@@ -665,7 +710,7 @@ m3ApiRawFunction(m3_wasi_unstable_proc_exit)
 {
     m3ApiGetArg      (uint32_t, code)
 
-    m3_wasi_context_t* context = (m3_wasi_context_t*)userdata;
+    m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
 
     if (context) {
         context->exit_code = code;

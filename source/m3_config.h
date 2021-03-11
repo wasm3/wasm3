@@ -32,6 +32,10 @@
 #   define d_m3MaxConstantTableSize             120
 # endif
 
+# ifndef d_m3MaxDuplicateFunctionImpl
+#   define d_m3MaxDuplicateFunctionImpl         3
+# endif
+
 # ifndef d_m3VerboseLogs
 #   define d_m3VerboseLogs                      1
 # endif

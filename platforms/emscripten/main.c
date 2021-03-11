@@ -10,9 +10,6 @@
 #include <time.h>
 
 #include "wasm3.h"
-#include "m3_api_wasi.h"
-#include "m3_api_libc.h"
-#include "m3_env.h"
 
 #include "extra/fib32.wasm.h"
 
@@ -38,14 +35,6 @@ void run_wasm()
     result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
 
-    /*
-    result = m3_LinkWASI (runtime->modules);
-    if (result) FATAL("m3_LinkWASI: %s", result);
-
-    result = m3_LinkLibC (runtime->modules);
-    if (result) FATAL("m3_LinkLibC: %s", result);
-    */
-
     IM3Function f;
     result = m3_FindFunction (&f, runtime, "fib");
     if (result) FATAL("m3_FindFunction: %s", result);
@@ -54,8 +43,11 @@ void run_wasm()
 
     if (result) FATAL("Call: %s", result);
 
-    uint64_t value = *(uint64_t*)(runtime->stack);
-    printf("Result: %ld\n", value);
+    uint32_t value = 0;
+    result = m3_GetResultsV (f, &value);
+    if (result) FATAL("m3_GetResults: %s", result);
+
+    printf("Result: %d\n", value);
 }
 
 int  main  (int i_argc, const char * i_argv [])

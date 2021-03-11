@@ -8,7 +8,7 @@
 #include "Arduino.h"
 
 #include "m3/wasm3.h"
-#include "m3/m3_env.h"
+#include "m3/m3_config.h"
 
 #include "m3/extra/fib32.wasm.h"
 
@@ -47,7 +47,9 @@ void run_wasm()
     result = m3_CallV(f, 24);
     if (result) FATAL("m3_Call", result);
 
-    long value = *(uint64_t*)(runtime->stack);
+    uint32_t value = 0;
+    result = m3_GetResultsV (f, &value);
+    if (result) FATAL("m3_GetResults: %s", result);
 
     Serial.print("Result: ");
     Serial.println(value);
@@ -65,9 +67,9 @@ void setup()
   Serial.println("Wasm3 v" M3_VERSION " on Arduino (" M3_ARCH "), build " __DATE__ " " __TIME__);
 
   digitalWrite(LED_BUILTIN, HIGH);
-  u32 start = millis();
+  uint32_t start = millis();
   run_wasm();
-  u32 end = millis();
+  uint32_t end = millis();
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.print("Elapsed: ");

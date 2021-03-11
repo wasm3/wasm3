@@ -41,10 +41,13 @@ void  Function_Release  (IM3Function i_function)
 {
     m3Free (i_function->constants);
 
-    // name can be an alias of fieldUtf8
-    if (i_function->name != i_function->import.fieldUtf8)
+    for (int i = 0; i < i_function->numNames; i++)
     {
-        m3Free (i_function->name);
+        // name can be an alias of fieldUtf8
+        if (i_function->names[i] != i_function->import.fieldUtf8)
+        {
+            m3Free (i_function->names[i]);
+        }
     }
 
     FreeImportInfo (& i_function->import);
@@ -90,10 +93,30 @@ void  Function_FreeCompiledCode (IM3Function i_function)
 
 cstr_t  GetFunctionName  (IM3Function i_function)
 {
-    if (i_function->import.fieldUtf8)
-        return i_function->import.fieldUtf8;
+    u16 numNames = 0;
+    cstr_t *names = GetFunctionNames(i_function, &numNames);
+    if (numNames > 0)
+        return names[0];
     else
-        return (i_function->name) ? i_function->name : "<unnamed>";
+        return "<unnamed>";
+}
+
+
+cstr_t *  GetFunctionNames  (IM3Function i_function, u16 * o_numNames)
+{
+    if (o_numNames == NULL)
+        return NULL;
+
+    if (i_function->import.fieldUtf8)
+    {
+        *o_numNames = 1;
+        return &i_function->import.fieldUtf8;
+    }
+    else
+    {
+        *o_numNames = i_function->numNames;
+        return i_function->names;
+    }
 }
 
 
@@ -154,6 +177,8 @@ IM3Environment  m3_NewEnvironment  ()
     // create FuncTypes for all simple block return ValueTypes
     for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
     {
+        d_m3Assert (t < 5);
+
         IM3FuncType ftype;
         AllocFuncType (& ftype, 1);
         ftype->numArgs = 0;
@@ -176,7 +201,15 @@ void  Environment_Release  (IM3Environment i_environment)
         IM3FuncType next = ftype->next;
         m3Free (ftype);
         ftype = next;
-    }                                                       m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
+    }
+    for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
+    {
+        d_m3Assert (t < 5);
+        ftype = i_environment->retFuncTypes[t];
+        d_m3Assert (ftype->next == NULL);
+        m3Free (ftype);
+    }
+    m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
 }
 
@@ -304,8 +337,6 @@ void *  m3_GetUserData  (IM3Runtime i_runtime)
 {
     return i_runtime ? i_runtime->userdata : NULL;
 }
-
-typedef void * (* ModuleVisitor) (IM3Module i_module, void * i_info);
 
 void *  ForEachModule  (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info)
 {
@@ -620,7 +651,7 @@ _           (m3ReallocArray (& io_module->table0, IM3Function, endElement, io_mo
                 u32 functionIndex;
 _               (ReadLEB_u32 (& functionIndex, & bytes, end));
                 _throwif ("function index out of range", functionIndex >= io_module->numFunctions);
-                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", function->name);
+                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", GetFunctionName(function));
                 io_module->table0 [e + offset] = function;
             }
         }
@@ -630,11 +661,11 @@ _               (ReadLEB_u32 (& functionIndex, & bytes, end));
     _catch: return result;
 }
 
-M3Result  InitStartFunc  (IM3Module io_module)
+M3Result  m3_RunStart  (IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
-    if (io_module->startFunction >= 0)
+    if (io_module and io_module->startFunction >= 0)
     {
         IM3Function function = & io_module->functions [io_module->startFunction];
 
@@ -696,9 +727,12 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 
         bool isImported = f->import.moduleUtf8 or f->import.fieldUtf8;
 
-        if (not isImported and f->name)
+        if (isImported)
+            continue;
+
+        for (int j = 0; j < f->numNames; j++)
         {
-            if (strcmp (f->name, i_name) == 0)
+            if (f->names [j] and strcmp (f->names [j], i_name) == 0)
                 return f;
         }
     }
@@ -730,7 +764,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
 
     // Check if start function needs to be called
     if (function and function->module->startFunction) {
-        result = InitStartFunc (function->module);
+        result = m3_RunStart (function->module);
         if (result)
             return result;
     }

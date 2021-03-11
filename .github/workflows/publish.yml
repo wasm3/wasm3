@@ -53,11 +53,14 @@ jobs:
         cd platforms/cosmopolitan
         ./build.sh
         cp ./wasm3.com ../../wasm3-cosmopolitan.com
+        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
         draft: ${{ env.draft }}
-        files: "*.com"
+        files: |
+            *.com
+            *.com.dbg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -77,19 +80,39 @@ jobs:
         pip3 --version
     - name: Install Wasienv
       env:
-        WASMER_RELEASE_TAG: "1.0.1"
+        WASMER_RELEASE_TAG: "1.0.2"
       run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
     - name: Configure
       run: |
         source $HOME/.wasienv/wasienv.sh
         mkdir build
         cd build
-        wasimake cmake -DBUILD_WASI=metawasi ..
+        wasimake cmake ..
     - name: Build
       run: |
         source $HOME/.wasienv/wasienv.sh
         cmake --build build
         cp ./build/wasm3.wasm ./wasm3-wasi.wasm
+    - name: Configure, Build strace
+      env:
+        CFLAGS: -Dd_m3EnableStrace=1
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        mkdir build-strace
+        cd build-strace
+        wasimake cmake ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-strace.wasm
+    - name: Configure, Build tracer
+      env:
+        CFLAGS: -Dd_m3EnableStrace=3
+      run: |
+        source $HOME/.wasienv/wasienv.sh
+        mkdir build-tracer
+        cd build-tracer
+        wasimake cmake ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-tracer.wasm
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
@@ -119,7 +142,7 @@ jobs:
         ./gradlew build
     - name: Copy
       run: |
-        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-test.apk
+        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-coremark.apk
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:

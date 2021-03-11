@@ -68,6 +68,12 @@ commands_full = [
     "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
     "args":           ["16", "64"],
     "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
+  # TODO: Fails on Windows on CI only, CNR
+  #}, {
+  #  "name":           "mal",
+  #  "wasm":           "./benchmark/mal/mal.wasm",
+  #  "args":           ["./benchmark/mal/test-fib.mal", "16"],
+  #  "expect_pattern": "987\n",
   }, {
     "name":           "STREAM",
     "wasm":           "./benchmark/stream/stream.wasm",
@@ -85,8 +91,8 @@ commands_full = [
     "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
   }, {
     "name":           "CoreMark",
-    "wasm":           "./benchmark/coremark/coremark-wasi.wasm",
-    "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / HEAP*"
+    "wasm":           "./benchmark/coremark/coremark.wasm",
+    "expect_pattern": "*Correct operation validated.*CoreMark 1.0 : * / Clang* / STATIC*"
   }
 ]
 
@@ -117,6 +123,11 @@ commands_fast = [
     "wasm":           "./benchmark/smallpt/smallpt-ex.wasm",
     "args":           ["4", "32"],
     "expect_sha1":    "ea05d85998b2f453b588ef76a1256215bf9b851c"
+  }, {
+    "name":           "mal",
+    "wasm":           "./benchmark/mal/mal.wasm",
+    "args":           ["./benchmark/mal/test-fib.mal", "16"],
+    "expect_pattern": "987\n",
   }, {
     "name":           "Brotli",
     "stdin":          "./benchmark/brotli/alice29_small.txt",

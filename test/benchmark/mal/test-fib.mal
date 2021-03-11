@@ -1,0 +1,8 @@
+;; Compute a Fibonacci number with two recursions.
+(def! fib
+  (fn* [n]                              ; non-negative number
+    (if (<= n 1)
+      n
+      (+ (fib (- n 1)) (fib (- n 2))))))
+
+(println (fib (read-string (first *ARGV*))))

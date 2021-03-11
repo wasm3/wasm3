@@ -564,21 +564,25 @@ d_m3Op  (CallIndirect)
 
 d_m3Op  (CallRawFunction)
 {
+    M3ImportContext ctx;
+
     M3RawCall call = (M3RawCall) (* _pc++);
-    IM3Function function = immediate (IM3Function);
-    void * userdata = immediate (void *);
+    ctx.function = immediate (IM3Function);
+    ctx.userdata = immediate (void *);
     u64* const sp = ((u64*)_sp);
     IM3Memory memory = m3MemInfo (_mem);
 
+    IM3Runtime runtime = m3MemRuntime(_mem);
+
 #if d_m3EnableStrace
-    IM3FuncType ftype = function->funcType;
+    IM3FuncType ftype = ctx.function->funcType;
 
     FILE* out = stderr;
     char outbuff[1024];
     char* outp = outbuff;
     char* oute = outbuff+1024;
 
-    outp += snprintf(outp, oute-outp, "%s.%s(", function->import.moduleUtf8, function->import.fieldUtf8);
+    outp += snprintf(outp, oute-outp, "%s.%s(", ctx.function->import.moduleUtf8, ctx.function->import.fieldUtf8);
 
     const int nArgs = ftype->numArgs;
     const int nRets = ftype->numRets;
@@ -595,8 +599,13 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    m3ret_t possible_trap = call (m3MemRuntime(_mem), sp, m3MemData(_mem), userdata);
-    _mem = memory->mallocated;
+    // m3_Call uses runtime->stack to set-up initial exported function stack.
+    // Reconfigure the stack to enable recursive invocations of m3_Call.
+    // I.e. exported/table function can be called from an impoted function.
+    void* stack_backup = runtime->stack;
+    runtime->stack = sp;
+    m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
+    runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
     if (possible_trap) {
@@ -612,8 +621,10 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    if (possible_trap)
+    if (possible_trap) {
+        _mem = memory->mallocated;
         pushBacktraceFrame ();
+    }
     forwardTrap (possible_trap);
 }
 
@@ -697,7 +708,7 @@ d_m3Op  (Entry)
     if ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack)
 #endif
     {
-                                                                m3log (exec, " enter %p > %s %s", _pc - 2, function->name ? function->name : ".unnamed", SPrintFunctionArgList (function, _sp));
+                                                                m3log (exec, " enter %p > %s %s", _pc - 2, GetFunctionName(function), SPrintFunctionArgList (function, _sp));
 
 #if defined(DEBUG)
         function->hits++;
@@ -722,10 +733,10 @@ d_m3Op  (Entry)
             if (not r)
                 SPrintArg (str, 99, _sp, GetSingleRetType(function->funcType));
 
-            m3log (exec, " exit  < %s %s %s   %s", function->name, function->funcType->numRets ? "->" : "", str, r ? (cstr_t)r : "");
+            m3log (exec, " exit  < %s %s %s   %s", GetFunctionName(function), function->funcType->numRets ? "->" : "", str, r ? (cstr_t)r : "");
 #       elif d_m3LogStackTrace
             if (r)
-                printf (" ** %s  %p\n", function->name, _sp);
+                printf (" ** %s  %p\n", GetFunctionName(function), _sp);
 #       endif
 
         if (r)
@@ -892,7 +903,7 @@ d_m3Op  (DumpStack)
     u32 stackHeight         = immediate (u32);
     IM3Function function    = immediate (IM3Function);
 
-    cstr_t funcName = (function) ? function->name : "";
+    cstr_t funcName = (function) ? GetFunctionName(function) : "";
 
     printf (" %4d ", opcodeIndex);
     printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);

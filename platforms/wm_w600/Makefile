@@ -90,7 +90,8 @@ endif
 #   for a subtree within the makefile rooted therein
 #
 
-DEFINES = -DWM_W600 -Os -flto -Wfatal-errors
+DEFINES = -DWM_W600 -Os -flto -Wfatal-errors \
+			-Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers
 #			-Dd_m3FixedHeap=8192
 #			-fno-optimize-sibling-calls
 

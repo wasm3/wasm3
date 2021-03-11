@@ -1,14 +1,39 @@
 cmake_minimum_required(VERSION 3.11)
 
-set(BUILD_WASI "uvwasi" CACHE STRING "WASI implementation")
+# Detect WasiEnv
+if(DEFINED ENV{WASI_CC})
+  set(WASIENV           1)
+endif()
+
+# Detect MinGW
+if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
+  set(MINGW             1)
+endif()
+
+# Set options
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "set build type to Release")
+endif()
+
+if(WASIENV)
+  set(BUILD_WASI "metawasi" CACHE STRING "WASI implementation")
+elseif(EMSCRIPTEN OR EMSCRIPTEN_LIB)
+  set(BUILD_WASI "none" CACHE STRING "WASI implementation")
+else()
+  set(BUILD_WASI "uvwasi" CACHE STRING "WASI implementation")
+endif()
 set_property(CACHE BUILD_WASI PROPERTY STRINGS none simple uvwasi metawasi)
 
-set(OUT_FILE "wasm3")
-set(APP_DIR  "platforms/app")
+set(BUILD_NATIVE "Build with machine-specific optimisations" ON)
 
-if(HARDCODED) # Bundle a wasm binary and run a hard-coded func
-  set(APP_DIR          "platforms/emscripten")
+set(OUT_FILE "wasm3")
+
+if(NOT APP_DIR)
+  set(APP_DIR  "platforms/app")
 endif()
+
+# Configure the toolchain
 
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
@@ -44,23 +69,11 @@ if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   endif()
 endif()
 
-# Detect WasiEnv
-if(DEFINED ENV{WASI_CC})
-  set(WASIENV            1)
-endif()
-
-# Detect MinGW
-if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
-  set(MINGW              1)
-endif()
-
 if(BUILD_32BIT)
-  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -m32")
+  set(CMAKE_C_FLAGS      "${CMAKE_C_FLAGS}   -m32")
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "set build type to Release")
-endif()
+
 
 project(wasm3)
 
@@ -91,13 +104,13 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1")
 if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s GLOBAL_BASE=1024 -s TOTAL_STACK=2MB -s INITIAL_MEMORY=4MB -s ALLOW_MEMORY_GROWTH")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=\"[\\\"_malloc\\\",\\\"_free\\\"]\"")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=\"[\\\"_malloc\\\",\\\"_free\\\",\\\"_main\\\"]\"")
 
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -Wfatal-errors -s ASSERTIONS=0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} --strip-all --gc-sections")
 
   if(WASM_EXT)
-    set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
   endif()
 
 elseif(WASIENV)
@@ -105,11 +118,15 @@ elseif(WASIENV)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
 
+  if(WASM_EXT)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
+  endif()
+
   # TODO: LTO breaks wasm imports currently:
   # https://www.mail-archive.com/llvm-bugs@lists.llvm.org/msg36273.html
 
   #-flto -Wl,--lto-O3
-  set(CMAKE_EXE_LINKER_FLAGS      "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
 
 elseif(WIN32 AND NOT MINGW)
 
@@ -153,7 +170,12 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow")
   endif()
 
-  set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
+  set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
+
+  if(BUILD_NATIVE)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
+  endif()
+
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 

@@ -12,20 +12,20 @@ ninja
 
 **Note:**
 
-To enable `tail-call` WebAssembly extension:
+To enable WebAssembly extensions:
 ```sh
-cmake -GNinja -DEMSCRIPTEN=1 -DWASM_TCO=1 ..
+cmake -GNinja -DEMSCRIPTEN=1 -DWASM_EXT=1 ..
 ```
 
 You can convert the generated wasm to wat to see the effect:
 ```sh
-wasm2wat --enable-tail-call wasm3.wasm > wasm3.wat
+wasm2wat --enable-tail-call --enable-bulk-memory wasm3.wasm > wasm3.wat
 ```
 
 Running `tail-call` version will require Chrome with experimental flags:
 ```sh
 emrun --no_browser --no_emrun_detect --port 8080 .
-chrome --js-flags="--experimental-wasm-return-call --wasm-opt --wasm-no-bounds-checks --wasm-no-stack-checks" http://localhost:8080/wasm3.html
+chrome --js-flags="--experimental-wasm-return-call --wasm-opt" --no-sandbox http://localhost:8080/wasm3.html
 ```
 
 Or use Node.js:

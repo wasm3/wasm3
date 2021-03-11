@@ -86,11 +86,11 @@ void run_wasm()
     if (result) FATAL("m3_Call: %s", result);
     printf("Elapsed: %ld ms\n\n", (end - start) * 1000 / CLOCKS_PER_SEC);
 
-    uint64_t value = 0;
-    result = m3_GetResultsV (f, &result);
+    uint32_t value = 0;
+    result = m3_GetResultsV (f, &value);
     if (result) FATAL("m3_GetResults: %s", result);
 
-    printf("Result: %lld\n", value);
+    printf("Result: %d\n", value);
 }
 
 static void* runMain(void* ctx)

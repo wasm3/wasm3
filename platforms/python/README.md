@@ -6,6 +6,10 @@ Python binding for Wasm3, the fastest WebAssembly interpreter.
 
 ```sh
 pip3 install pywasm3
+
+# Or, if you have a local copy:
+python3 setup.py sdist
+pip3 install dist/pywasm3-*.tar.gz
 ```
 
 ## Usage example

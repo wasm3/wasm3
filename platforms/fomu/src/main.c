@@ -35,7 +35,6 @@ void uart_print(const char *str) {
 }
 
 #include "m3/wasm3.h"
-#include "m3/m3_env.h"
 
 #include "m3/extra/fib32.wasm.h"
 
@@ -75,7 +74,10 @@ bool run_wasm()
     result = m3_CallV (f, 24);
     if (result) FATAL("m3_Call: %s", result);
 
-    long value = *(uint64_t*)(runtime->stack);
+    uint32_t value = 0;
+    result = m3_GetResultsV (f, &value);
+    if (result) FATAL("m3_GetResults: %s", result);
+
     char buff[32];
     ltoa(value, buff, 10);
 
