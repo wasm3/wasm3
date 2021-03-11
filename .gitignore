@@ -1,7 +1,6 @@
 /build*
 /source-*
-test/core
-test/proposals
+test/.spec
 test/*.log
 test/tailcall/*.S
 node_modules/

@@ -19,8 +19,8 @@ jobs:
         - {target: gcc-no-uvwasi,   cc: gcc,    flags: -DBUILD_WASI=simple   }
         - {target: clang-no-uvwasi, cc: clang,  flags: -DBUILD_WASI=simple   }
         # Debug builds
-        - {target: gcc-debug,           cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug,  cflags: -DDEBUG   }
-        - {target: gcc-no-uvwasi-debug, cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple,  cflags: -DDEBUG   }
+        - {target: gcc-debug,               cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug                         }
+        - {target: clang-no-uvwasi-debug,   cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple     }
 
         # TODO: fails on numeric operations
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }

@@ -81,6 +81,10 @@ def fatal(msg):
     log.flush()
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
+    
+def safe_fn(fn):
+    keepcharacters = (' ','.','_','-')
+    return "".join(c for c in fn if c.isalnum() or c in keepcharacters).strip()
 
 def binaryToFloat(num, t):
     if t == "f32":
@@ -142,7 +146,9 @@ if args.format == "fp":
 # Spec tests preparation
 #
 
-if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
+spec_dir = os.path.join(".", ".spec-" + safe_fn(args.spec))
+
+if not (os.path.isdir(spec_dir)):
     from io import BytesIO
     from zipfile import ZipFile
     from urllib.request import urlopen
@@ -158,7 +164,7 @@ if not (os.path.isdir("./core") and os.path.isdir("./proposals")):
                 newpath = str(pathlib.Path(*parts[1:-1]))
                 newfn   = str(pathlib.Path(*parts[-1:]))
                 ensure_path(newpath)
-                newpath = newpath + "/" + newfn
+                newpath = os.path.join(spec_dir, newpath, newfn)
                 zipInfo.filename = newpath
                 zipFile.extract(zipInfo)
 
@@ -450,9 +456,9 @@ def runInvoke(test):
 if args.file:
     jsonFiles = args.file
 else:
-    jsonFiles  = glob.glob(os.path.join(".", "core", "*.json"))
-    jsonFiles += glob.glob(os.path.join(".", "proposals", "sign-extension-ops", "*.json"))
-    jsonFiles += glob.glob(os.path.join(".", "proposals", "nontrapping-float-to-int-conversions", "*.json"))
+    jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"))
+    jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "sign-extension-ops", "*.json"))
+    jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "nontrapping-float-to-int-conversions", "*.json"))
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
@@ -566,3 +572,8 @@ elif stats.success > 0:
     if stats.skipped > 0:
         print(f"{ansi.WARNING} ({stats.skipped} tests skipped){ansi.OKGREEN}")
     print(f"======================={ansi.ENDC}")
+    
+elif stats.total_run == 0:
+    print("Error: No tests run")
+    sys.exit(1)
+
