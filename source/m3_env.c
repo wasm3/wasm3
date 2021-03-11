@@ -453,9 +453,8 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
         if (not result)
         {
             m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
-            result = runtime.runtimeError;
 
-            if (r == 0 and not result)
+            if (r == 0)
             {
                 if (SizeOfType (i_type) == sizeof (u32))
                 {

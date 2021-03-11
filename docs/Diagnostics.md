@@ -10,7 +10,6 @@ To enable various logs, modify the defines in `m3_config.h`.  These are only ena
 # define d_m3LogWasmStack       0   // dump the wasm stack when pushed or popped
 # define d_m3LogEmit            0   // metacode-generation info
 # define d_m3LogCodePages       0   // dump metacode pages when released
-# define d_m3LogExec            0   // low-level interpreter specific logs
 # define d_m3LogRuntime         0   // higher-level runtime information
 # define d_m3LogNativeStack     0   // track the memory usage of the C-stack
 ```

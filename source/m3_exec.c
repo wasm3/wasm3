@@ -10,12 +10,6 @@
 #include "m3_compile.h"
 
 
-void  ReportError2  (IM3Function i_function, m3ret_t i_result)
-{
-    i_function->module->runtime->runtimeError = (M3Result)i_result;
-}
-
-
 # if d_m3EnableOpProfiling
 //--------------------------------------------------------------------------------------------------------
 static M3ProfilerSlot s_opProfilerCounts [d_m3ProfilerSlotMask + 1] = {};

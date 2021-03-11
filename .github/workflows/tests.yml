@@ -508,7 +508,6 @@ jobs:
             -Dd_m3LogWasmStack=1        \
             -Dd_m3LogEmit=1             \
             -Dd_m3LogCodePages=1        \
-            -Dd_m3LogExec=1             \
             -Dd_m3LogRuntime=1          \
             -Dd_m3LogNativeStack=1      \
             -I../source ../source/*.c ../platforms/app/main.c \

@@ -72,7 +72,9 @@
 # endif
 
 # ifndef d_m3EnableStrace
-#   define d_m3EnableStrace                     0       // trace exported function calls
+#   define d_m3EnableStrace                     0       // 1 - trace exported function calls
+                                                        // 2 - trace all calls (structured) - requires DEBUG
+                                                        // 3 - all calls + loops + memory operations
 # endif
 
 
@@ -100,10 +102,6 @@
 
 # ifndef d_m3LogCodePages
 #   define d_m3LogCodePages                     0       // dump metacode pages when released
-# endif
-
-# ifndef d_m3LogExec
-#   define d_m3LogExec                          0       // low-level interpreter specific logs
 # endif
 
 # ifndef d_m3LogRuntime

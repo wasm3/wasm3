@@ -76,6 +76,9 @@ _   (m3ReallocArray (& io_module->functions, M3Function, io_module->numFunctions
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
+#if d_m3EnableStrace >= 2
+    func->index = index;
+#endif
 
     if (i_importInfo and func->numNames == 0)
     {

@@ -93,9 +93,9 @@ jobs:
         source $HOME/.wasienv/wasienv.sh
         cmake --build build
         cp ./build/wasm3.wasm ./wasm3-wasi.wasm
-    - name: Configure, Build strace
+    - name: Configure, Build wasm3-strace
       env:
-        CFLAGS: -Dd_m3EnableStrace=1
+        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2
       run: |
         source $HOME/.wasienv/wasienv.sh
         mkdir build-strace
@@ -103,16 +103,6 @@ jobs:
         wasimake cmake ..
         cmake --build .
         cp ./wasm3.wasm ../wasm3-strace.wasm
-    - name: Configure, Build tracer
-      env:
-        CFLAGS: -Dd_m3EnableStrace=3
-      run: |
-        source $HOME/.wasienv/wasienv.sh
-        mkdir build-tracer
-        cd build-tracer
-        wasimake cmake ..
-        cmake --build .
-        cp ./wasm3.wasm ../wasm3-tracer.wasm
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:

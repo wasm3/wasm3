@@ -114,12 +114,6 @@ const void * const  cvptr_t;
 #       define m3log_runtime(...) {}
 #   endif
 
-#   if d_m3LogExec
-#       define m3log_exec(CATEGORY, FMT, ...)           d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
-#   else
-#       define m3log_exec(...) {}
-#   endif
-
 #   define m3log(CATEGORY, FMT, ...)                    m3log_##CATEGORY (CATEGORY, FMT "\n", ##__VA_ARGS__)
 # else
 #   define d_m3Log(CATEGORY, FMT, ...)                  {}

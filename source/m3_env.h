@@ -35,15 +35,18 @@ typedef struct M3Function
 
     pc_t                    compiled;
 
-#   if (d_m3EnableCodePageRefCounting)
+#if (d_m3EnableCodePageRefCounting)
     IM3CodePage *           codePageRefs;                           // array of all pages used
     u32                     numCodePageRefs;
-#   endif
+#endif
 
-#   if defined(DEBUG)
+#if defined(DEBUG)
     u32                     hits;
-#   endif
+#endif
 
+#if d_m3EnableStrace >= 2
+    u16                     index;
+#endif
     u16                     maxStackSlots;
 
     u16                     numArgSlots;
@@ -229,7 +232,9 @@ typedef struct M3Runtime
     M3Memory                memory;
     u32                     memoryLimit;
 
-    M3Result                runtimeError;
+#if d_m3EnableStrace >= 2
+    u32                     callDepth;
+#endif
 
     M3ErrorInfo             error;
 #if d_m3VerboseLogs
