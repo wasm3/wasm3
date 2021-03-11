@@ -224,6 +224,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      const void *           i_userdata);
 
     const char*         m3_GetModuleName            (IM3Module i_module);
+    IM3Runtime          m3_GetModuleRuntime         (IM3Module i_module);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  functions

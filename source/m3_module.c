@@ -109,3 +109,9 @@ const char*  m3_GetModuleName  (IM3Module i_module)
 
     return i_module->name;
 }
+
+IM3Runtime  m3_GetModuleRuntime  (IM3Module i_module)
+{
+    return i_module ? i_module->runtime : NULL;
+}
+

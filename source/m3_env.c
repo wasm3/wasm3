@@ -1090,16 +1090,21 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 
 void  m3_GetErrorInfo  (IM3Runtime i_runtime, M3ErrorInfo* o_info)
 {
-    *o_info = i_runtime->error;
-
-    m3_ResetErrorInfo (i_runtime);
+    if (i_runtime)
+    {
+        *o_info = i_runtime->error;
+        m3_ResetErrorInfo (i_runtime);
+    }
 }
 
 
 void m3_ResetErrorInfo (IM3Runtime i_runtime)
 {
-    M3_INIT(i_runtime->error);
-    i_runtime->error.message = "";
+    if (i_runtime)
+    {
+        M3_INIT(i_runtime->error);
+        i_runtime->error.message = "";
+    }
 }
 
 uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)

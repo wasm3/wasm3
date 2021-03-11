@@ -2,8 +2,6 @@
 
 #include "wasm3.h"
 #include "m3_api_defs.h"
-/* FIXME: remove when there is a public API to get module/function names */
-#include "m3_env.h"
 
 #define MAX_ARGS 32
 
@@ -54,6 +52,7 @@ static PyObject *
 formatError(PyObject *exception, IM3Runtime runtime, M3Result err)
 {
     M3ErrorInfo info;
+    memset(&info, 0, sizeof(info));
     m3_GetErrorInfo (runtime, &info);
     if (strlen(info.message)) {
         PyErr_Format(exception, "%s (%s)", err, info.message);
@@ -198,7 +197,7 @@ static PyType_Slot M3_Runtime_Type_slots[] = {
 static PyObject *
 Module_name(m3_module *self, void * closure)
 {
-    return PyUnicode_FromString(self->m->name); // TODO
+    return PyUnicode_FromString(m3_GetModuleName(self->m));
 }
 
 m3ApiRawFunction(CallImport)
@@ -265,7 +264,7 @@ M3_Module_link_function(m3_module *self, PyObject *args)
     M3Result err = m3_LinkRawFunctionEx (self->m, PyUnicode_AsUTF8(mod_name), PyUnicode_AsUTF8(func_name),
                                          PyUnicode_AsUTF8(func_sig), CallImport, pFunc);
     if (err && err != m3Err_functionLookupFailed) {
-        return formatError(PyExc_RuntimeError, self->m->runtime, err);
+        return formatError(PyExc_RuntimeError, m3_GetModuleRuntime(self->m), err);
     }
     Py_INCREF(pFunc);
     Py_RETURN_NONE;
@@ -292,9 +291,9 @@ static PyType_Slot M3_Module_Type_slots[] = {
 };
 
 static PyObject *
-get_result_from_stack(IM3Function f)
+get_result_from_stack(m3_function *func)
 {
-    int nRets = m3_GetRetCount(f);
+    int nRets = m3_GetRetCount(func->f);
     if (nRets <= 0) {
         Py_RETURN_NONE;
     }
@@ -317,12 +316,12 @@ get_result_from_stack(IM3Function f)
     for (int i = 0; i < nRets; i++) {
         valptrs[i] = &valbuff[i];
     }
-    M3Result err = m3_GetResults (f, nRets, valptrs);
+    M3Result err = m3_GetResults (func->f, nRets, valptrs);
     if (err) {
-        return formatError(PyExc_RuntimeError, f->module->runtime, err);
+        return formatError(PyExc_RuntimeError, func->r, err);
     }
 
-    return get_arg_from_stack(valptrs[0], m3_GetRetType(f, 0));
+    return get_arg_from_stack(valptrs[0], m3_GetRetType(func->f, 0));
 }
 
 static PyObject *
@@ -335,10 +334,10 @@ M3_Function_call_argv(m3_function *func, PyObject *args)
     }
     M3Result err = m3_CallArgv(func->f, size, argv);
     if (err) {
-        return formatError(PyExc_RuntimeError, func->f->module->runtime, err);
+        return formatError(PyExc_RuntimeError, func->r, err);
     }
 
-    return get_result_from_stack(func->f);
+    return get_result_from_stack(func);
 }
 
 static PyObject*
@@ -367,16 +366,16 @@ M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
 
     M3Result err = m3_Call (f, nArgs, valptrs);
     if (err) {
-        return formatError(PyExc_RuntimeError, f->module->runtime, err);
+        return formatError(PyExc_RuntimeError, self->r, err);
     }
 
-    return get_result_from_stack(f);
+    return get_result_from_stack(self);
 }
 
 static PyObject*
 Function_name(m3_function *self, void * closure)
 {
-    return PyUnicode_FromString(GetFunctionName(self->f)); // TODO
+    return PyUnicode_FromString(m3_GetFunctionName(self->f));
 }
 
 static PyObject*

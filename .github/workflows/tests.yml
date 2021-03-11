@@ -15,10 +15,12 @@ jobs:
         - {target: clang,       cc: clang,      }
         - {target: clang-x86,   cc: clang,      flags: -DCMAKE_C_FLAGS="-m32",    install: "gcc-multilib"   }
         - {target: gcc,         cc: gcc,        }
-        - {target: gcc-debug,   cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug   }
         # Builds without uvwasi
         - {target: gcc-no-uvwasi,   cc: gcc,    flags: -DBUILD_WASI=simple   }
         - {target: clang-no-uvwasi, cc: clang,  flags: -DBUILD_WASI=simple   }
+        # Debug builds
+        - {target: gcc-debug,           cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug,  cflags: -DDEBUG   }
+        - {target: gcc-no-uvwasi-debug, cc: gcc,        flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple,  cflags: -DDEBUG   }
 
         # TODO: fails on numeric operations
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
@@ -28,11 +30,11 @@ jobs:
     - name: Install ${{ matrix.config.install }}
       if: ${{ matrix.config.install }}
       run: |
-        sudo apt update
         sudo apt install ${{ matrix.config.install }}
     - name: Configure
       env:
         CC: ${{ matrix.config.cc }}
+        CFLAGS: ${{ matrix.config.cflags }}
       run: |
         mkdir build
         cd build
@@ -300,7 +302,6 @@ jobs:
         sudo dpkg -i $DEB
     - name: Install ${{ matrix.config.toolchain }}
       run: |
-        sudo apt update
         sudo apt install ${{ matrix.config.toolchain }}
     - name: Build
       run: |
@@ -527,7 +528,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install sponge
       run: |
-        sudo apt update
         sudo apt install moreutils
     - name: Build
       run: |
