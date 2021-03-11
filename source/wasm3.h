@@ -81,9 +81,7 @@ typedef struct M3ImportInfo
     const char *    moduleUtf8;
     const char *    fieldUtf8;
 }
-M3ImportInfo;
-
-typedef M3ImportInfo * IM3ImportInfo;
+M3ImportInfo, * IM3ImportInfo;
 
 
 typedef struct M3ImportContext
@@ -91,9 +89,7 @@ typedef struct M3ImportContext
     void *          userdata;
     IM3Function     function;
 }
-M3ImportContext;
-
-typedef M3ImportContext * IM3ImportContext;
+M3ImportContext, * IM3ImportContext;
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //  error codes
@@ -258,6 +254,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
 
     const char*         m3_GetFunctionName          (IM3Function i_function);
+    IM3Module           m3_GetFunctionModule        (IM3Function i_function);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  debug info

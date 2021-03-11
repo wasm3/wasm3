@@ -62,7 +62,6 @@ void        Function_Release            (IM3Function i_function);
 void        Function_FreeCompiledCode   (IM3Function i_function);
 
 cstr_t      GetFunctionImportModuleName (IM3Function i_function);
-cstr_t      GetFunctionName             (IM3Function i_function);
 cstr_t *    GetFunctionNames            (IM3Function i_function, u16 * o_numNames);
 u32         GetFunctionNumArgs          (IM3Function i_function);
 u32         GetFunctionNumReturns       (IM3Function i_function);

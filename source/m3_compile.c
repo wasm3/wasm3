@@ -1394,7 +1394,7 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
 
     if (function)
     {                                                                   m3log (compile, d_indent " (func= '%s'; args= %d)",
-                                                                                get_indention_string (o), GetFunctionName (function), function->funcType->numArgs);
+                                                                                get_indention_string (o), m3_GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
             // OPTZ: could avoid arg copy when args are already sequential and at top
@@ -1422,7 +1422,7 @@ _           (EmitOp     (o, op));
         }
         else
         {
-            result = ErrorCompile (m3Err_functionImportMissing, o, "'%s.%s'", GetFunctionImportModuleName (function), GetFunctionName (function));
+            result = ErrorCompile (m3Err_functionImportMissing, o, "'%s.%s'", GetFunctionImportModuleName (function), m3_GetFunctionName (function));
         }
     }
     else result = m3Err_functionLookupFailed;

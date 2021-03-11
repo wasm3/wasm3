@@ -91,7 +91,7 @@ void  Function_FreeCompiledCode (IM3Function i_function)
 
 
 
-cstr_t  GetFunctionName  (IM3Function i_function)
+cstr_t  m3_GetFunctionName  (IM3Function i_function)
 {
     u16 numNames = 0;
     cstr_t *names = GetFunctionNames(i_function, &numNames);
@@ -101,10 +101,15 @@ cstr_t  GetFunctionName  (IM3Function i_function)
         return "<unnamed>";
 }
 
+IM3Module  m3_GetFunctionModule  (IM3Function i_function)
+{
+    return i_function ? i_function->module : NULL;
+}
+
 
 cstr_t *  GetFunctionNames  (IM3Function i_function, u16 * o_numNames)
 {
-    if (o_numNames == NULL)
+    if (!i_function || !o_numNames)
         return NULL;
 
     if (i_function->import.fieldUtf8)
@@ -1115,16 +1120,6 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
 
     return memory;
 }
-
-
-const char *  m3_GetFunctionName  (IM3Function i_function)
-{
-    if (!i_function || !i_function->name)
-        return "<unknown>";
-
-    return i_function->name;
-}
-
 
 bool  m3_BacktraceEnabled  (void)
 {
