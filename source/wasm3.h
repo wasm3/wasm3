@@ -15,7 +15,6 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <inttypes.h>
 #include <stdarg.h>
 
@@ -30,6 +29,7 @@ struct M3Runtime;       typedef struct M3Runtime *      IM3Runtime;
 struct M3Module;        typedef struct M3Module *       IM3Module;
 struct M3Function;      typedef struct M3Function *     IM3Function;
 
+#define M3_BACKTRACE_TRUNCATED (void*)(SIZE_MAX)
 
 typedef struct M3ErrorInfo
 {
@@ -47,21 +47,19 @@ typedef struct M3ErrorInfo
 
 typedef struct M3BacktraceFrame
 {
-    uint64_t                     moduleOffset;
-    IM3Module                    module;
+    uint32_t                     moduleOffset;
     IM3Function                  function;
 
     struct M3BacktraceFrame *    next;
 }
-M3BacktraceFrame;
+M3BacktraceFrame, * IM3BacktraceFrame;
 
 typedef struct M3BacktraceInfo
 {
-    bool                   backtraceTruncated;      // true if an allocation failure occurred when writing backtrace
-    M3BacktraceFrame *     frames;
-    M3BacktraceFrame *     lastFrame;
+    IM3BacktraceFrame      frames;
+    IM3BacktraceFrame      lastFrame;    // can be M3_BACKTRACE_TRUNCATED
 }
-M3BacktraceInfo;
+M3BacktraceInfo, * IM3BacktraceInfo;
 
 
 typedef enum M3ValueType
@@ -266,9 +264,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     void                m3_PrintProfilerInfo        (void);
 
     // The runtime owns the backtrace, do not free the backtrace you obtain
-    bool                m3_BacktraceEnabled         (void);
-    M3BacktraceInfo *   m3_GetBacktrace             (IM3Runtime i_runtime);     // Returns NULL if backtrace is not enabled
-    uint32_t            m3_GetBacktraceStr          (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize);
+    // Returns NULL if there's no backtrace
+    IM3BacktraceInfo    m3_GetBacktrace             (IM3Runtime i_runtime);
 
 #if defined(__cplusplus)
 }

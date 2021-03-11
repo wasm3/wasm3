@@ -43,7 +43,9 @@ _try {
     _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 0);
     _throwif ("insane argument count", maxNumArgs > d_m3MaxSaneFunctionArgCount);
 
-_   (AllocFuncType (& funcType, maxNumArgs));
+    const unsigned umaxNumArgs = (unsigned)maxNumArgs;
+
+_   (AllocFuncType (& funcType, umaxNumArgs));
 
     bool parsingArgs = false;
     while (* sig)
@@ -75,7 +77,7 @@ _   (AllocFuncType (& funcType, maxNumArgs));
         }
         else
         {
-            _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= maxNumArgs);  // forgot trailing ')' ?
+            _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= umaxNumArgs);  // forgot trailing ')' ?
 
             d_FuncArgType(funcType, funcType->numArgs++) = type;
         }

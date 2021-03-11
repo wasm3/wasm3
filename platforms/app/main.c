@@ -21,8 +21,6 @@
 #define LINK_WASI
 #endif
 
-#define BACKTRACE_SIZE 1024
-
 IM3Environment env;
 IM3Runtime runtime;
 
@@ -135,6 +133,33 @@ M3Result repl_load_hex  (u32 fsize)
     result = link_all (module);
 
     return result;
+}
+
+void print_backtrace()
+{
+    IM3BacktraceInfo info = m3_GetBacktrace(runtime);
+    if (!info) {
+        return;
+    }
+
+    fprintf(stderr, "==== wasm backtrace:");
+
+    int frameCount = 0;
+    IM3BacktraceFrame curr = info->frames;
+    while (curr)
+    {
+        fprintf(stderr, "\n  %d: 0x%06x - %s!%s",
+                           frameCount, curr->moduleOffset,
+                           m3_GetModuleName (m3_GetFunctionModule(curr->function)),
+                           m3_GetFunctionName (curr->function)
+               );
+        curr = curr->next;
+        frameCount++;
+    }
+    if (info->lastFrame == M3_BACKTRACE_TRUNCATED) {
+        fprintf(stderr, "\n  (truncated)");
+    }
+    fprintf(stderr, "\n");
 }
 
 M3Result repl_call  (const char* name, int argc, const char* argv[])
@@ -390,7 +415,6 @@ int  main  (int i_argc, const char* i_argv[])
     const char* argFile = NULL;
     const char* argFunc = "_start";
     unsigned argStackSize = 64*1024;
-    char backtrace_buff[BACKTRACE_SIZE];
 
 //    m3_PrintM3Info ();
 
@@ -453,16 +477,8 @@ int  main  (int i_argc, const char* i_argv[])
                 if (argDumpOnTrap) {
                     repl_dump();
                 }
-                if (m3_BacktraceEnabled())
-                {
-                    backtrace_buff[0] = '\0';
-                    m3_GetBacktraceStr(runtime, backtrace_buff, BACKTRACE_SIZE);
-                    FATAL("repl_call: %s\n%s", result, backtrace_buff);
-                }
-                else
-                {
-                    FATAL("repl_call: %s", result);
-                }
+                print_backtrace();
+                goto _onfatal;
             }
         }
     }
@@ -502,25 +518,18 @@ int  main  (int i_argc, const char* i_argv[])
         } else {
             unescape(argv[0]);
             result = repl_call(argv[0], argc-1, (const char**)(argv+1));
+            if (result) {
+                print_backtrace();
+            }
         }
 
-        if (result) {
+        if (result == m3Err_trapExit) {
+            //TODO: fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);
+        } else if (result) {
             fprintf (stderr, "Error: %s", result);
             M3ErrorInfo info;
             m3_GetErrorInfo (runtime, &info);
             fprintf (stderr, " (%s)\n", info.message);
-
-            if (m3_BacktraceEnabled())
-            {
-                backtrace_buff[0] = '\0';
-                m3_GetBacktraceStr(runtime, backtrace_buff, BACKTRACE_SIZE);
-                fprintf (stderr, "%s\n", backtrace_buff);
-            }
-
-            //TODO: if (result == m3Err_trapExit) {
-                // warn that exit was called
-            //    fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);
-            //}
         }
     }
 

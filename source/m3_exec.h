@@ -69,11 +69,6 @@ d_m3BeginExternC
 
 d_m3RetSig  Call  (d_m3OpSig)
 {
-# if d_m3RecordBacktraces
-    if (_mem)
-        ClearBacktrace (_mem->runtime);
-# endif // d_m3RecordBacktraces
-
     m3ret_t possible_trap = m3_Yield ();
     if (UNLIKELY(possible_trap)) return possible_trap;
 
@@ -503,7 +498,7 @@ d_m3Op  (Call)
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
     _mem = memory->mallocated;
 
-    if (r == 0)
+    if (LIKELY(not r))
         nextOp ();
     else
     {
@@ -525,23 +520,23 @@ d_m3Op  (CallIndirect)
 
     m3ret_t r = m3Err_none;
 
-    if (tableIndex < module->table0Size)
+    if (LIKELY(tableIndex < module->table0Size))
     {
         IM3Function function = module->table0 [tableIndex];
 
-        if (function)
+        if (LIKELY(function))
         {
-            if (type == function->funcType)
+            if (LIKELY(type == function->funcType))
             {
                 if (UNLIKELY(not function->compiled))
                     r = Compile_Function (function);
 
-                if (not r)
+                if (LIKELY(not r))
                 {
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
                     _mem = memory->mallocated;
 
-                    if (not r)
+                    if (LIKELY(not r))
                         nextOpDirect ();
                     else
                     {
@@ -556,7 +551,7 @@ d_m3Op  (CallIndirect)
     }
     else r = m3Err_trapTableIndexOutOfRange;
 
-    if (r)
+    if (UNLIKELY(r))
         newTrap (r);
     else forwardTrap (r);
 }
@@ -608,7 +603,7 @@ d_m3Op  (CallRawFunction)
     runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
-    if (possible_trap) {
+    if (UNLIKELY(possible_trap)) {
         fprintf(out, "%s -> %s\n", outbuff, possible_trap);
     } else {
         switch (GetSingleRetType(ftype)) {
@@ -621,7 +616,7 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    if (possible_trap) {
+    if (UNLIKELY(possible_trap)) {
         _mem = memory->mallocated;
         pushBacktraceFrame ();
     }
@@ -705,7 +700,7 @@ d_m3Op  (Entry)
 #if d_m3SkipStackCheck
     if (true)
 #else
-    if ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack)
+    if (LIKELY((void *)((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
                                                                 m3log (exec, " enter %p > %s %s", _pc - 2, m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp));
@@ -724,8 +719,6 @@ d_m3Op  (Entry)
         }
 
         m3ret_t r = nextOpImpl ();
-        // _mem needs to be valid for a potential fillBacktraceFrame call later
-        _mem = memory->mallocated;
 
 #       if d_m3LogExec
             char str [100] = { '!', 0 };
@@ -739,8 +732,10 @@ d_m3Op  (Entry)
                 printf (" ** %s  %p\n", m3_GetFunctionName(function), _sp);
 #       endif
 
-        if (r)
+        if (UNLIKELY(r)) {
+            _mem = memory->mallocated;
             fillBacktraceFrame ();
+        }
         forwardTrap (r);
     }
     else newTrap (m3Err_trapStackOverflow);
@@ -804,12 +799,12 @@ d_m3Op  (If_s)
 
 d_m3Op  (BranchTable)
 {
-    i32 branchIndex = slot (i32);           // branch index is always in a slot
-    i32 numTargets  = immediate (i32);
+    u32 branchIndex = slot (u32);           // branch index is always in a slot
+    u32 numTargets  = immediate (u32);
 
     pc_t * branches = (pc_t *) _pc;
 
-    if (branchIndex < 0 or branchIndex > numTargets)
+    if (branchIndex > numTargets)
         branchIndex = numTargets; // the default index
 
     jumpOp (branches [branchIndex]);

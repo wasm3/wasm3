@@ -842,6 +842,10 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
         return m3Err_missingCompiledCode;
     }
 
+# if d_m3RecordBacktraces
+    ClearBacktrace (runtime);
+# endif
+
     u8* s = (u8*) runtime->stack;
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
@@ -877,6 +881,10 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     if (!i_function->compiled) {
         return m3Err_missingCompiledCode;
     }
+
+# if d_m3RecordBacktraces
+    ClearBacktrace (runtime);
+# endif
 
     u8* s = (u8*) runtime->stack;
     for (u32 i = 0; i < ftype->numArgs; ++i)
@@ -914,6 +922,10 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     if (!i_function->compiled) {
         return m3Err_missingCompiledCode;
     }
+
+# if d_m3RecordBacktraces
+    ClearBacktrace (runtime);
+# endif
 
     u8* s = (u8*) runtime->stack;
     for (u32 i = 0; i < ftype->numArgs; ++i)
@@ -1126,12 +1138,6 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
     return memory;
 }
 
-bool  m3_BacktraceEnabled  (void)
-{
-    return d_m3RecordBacktraces;
-}
-
-
 M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 {
 # if d_m3RecordBacktraces
@@ -1141,68 +1147,3 @@ M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 # endif
 }
 
-
-uint32_t  m3_GetBacktraceStr  (IM3Runtime i_runtime, char* o_buffer, uint32_t i_bufferSize)
-{
-# if d_m3RecordBacktraces
-    int remaining = i_bufferSize;
-
-    int result;
-
-    result = snprintf (o_buffer, remaining, "wasm backtrace:");
-    if (result < 0)
-        return 0;
-    else
-    {
-        remaining -= result;
-        if (remaining < 0)
-            return i_bufferSize;
-        o_buffer += result;
-    }
-
-    M3BacktraceFrame * curr = i_runtime->backtrace.frames;
-    int frameCount = 0;
-    while (curr)
-    {
-        const char* moduleName = m3_GetModuleName (curr->module);
-        const char* functionName = m3_GetFunctionName (curr->function);
-
-        result = snprintf (o_buffer, remaining, "\n  %d: 0x%" PRIx64 " - %s!%s",
-                           frameCount, curr->moduleOffset, moduleName, functionName);
-        if (result < 0)
-            return 0;
-        else
-        {
-            remaining -= result;
-            if (remaining < 0)
-                return i_bufferSize;
-            o_buffer += result;
-        }
-
-        curr = curr->next;
-        frameCount++;
-    }
-
-    if (i_runtime->backtrace.backtraceTruncated)
-    {
-        result = snprintf (o_buffer, remaining, "\n  (truncated)");
-        if (result < 0)
-            return 0;
-        else
-        {
-            remaining -= result;
-            if (remaining < 0)
-                return i_bufferSize;
-            o_buffer += result;
-        }
-    }
-
-    return i_bufferSize - remaining;
-# else
-    (void)i_runtime;
-    (void)o_buffer;
-    (void)i_bufferSize;
-
-    return 0;
-# endif // d_m3RecordBacktraces
-}

@@ -538,7 +538,7 @@ u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
 void  PushBacktraceFrame  (IM3Runtime io_runtime, pc_t i_pc)
 {
     // don't try to push any more frames if we've already had an alloc failure
-    if (UNLIKELY (io_runtime->backtrace.backtraceTruncated))
+    if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
     M3BacktraceFrame * newFrame;
@@ -546,7 +546,7 @@ void  PushBacktraceFrame  (IM3Runtime io_runtime, pc_t i_pc)
 
     if (!newFrame)
     {
-        io_runtime->backtrace.backtraceTruncated = true;
+        io_runtime->backtrace.lastFrame = M3_BACKTRACE_TRUNCATED;
         return;
     }
 
@@ -564,21 +564,18 @@ void  FillBacktraceFunctionInfo  (IM3Runtime io_runtime, IM3Function i_function)
 {
     // If we've had an alloc failure then the last frame doesn't refer to the
     // frame we want to fill in the function info for.
-    if (UNLIKELY (io_runtime->backtrace.backtraceTruncated))
+    if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
     if (!io_runtime->backtrace.lastFrame)
         return;
 
     io_runtime->backtrace.lastFrame->function = i_function;
-    io_runtime->backtrace.lastFrame->module = i_function->module;
 }
 
 
 void  ClearBacktrace  (IM3Runtime io_runtime)
 {
-    io_runtime->backtrace.backtraceTruncated = false;
-
     M3BacktraceFrame * currentFrame = io_runtime->backtrace.frames;
     while (currentFrame)
     {

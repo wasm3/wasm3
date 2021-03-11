@@ -120,6 +120,11 @@ void test_cat(char* fn) {
   }
 }
 
+__attribute__((noinline))   void c() {          __builtin_trap();   }
+__attribute__((noinline))   void b() {          c();   }
+__attribute__((noinline))   void a() {          b();   }
+__attribute__((noinline))   void test_trap() {  a();   }
+
 /*
  * Main
  */
@@ -136,6 +141,8 @@ int main(int argc, char **argv)
 
   if (0 == strcmp(argv[1], "cat")) {
     test_cat(argv[2]);
+  } else if (0 == strcmp(argv[1], "trap")) {
+    test_trap();
   }
 
   puts("=== done ===");
