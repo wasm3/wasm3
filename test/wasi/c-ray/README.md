@@ -22,7 +22,7 @@ Native (GCC 7.4.0, 32-bit)      249
 ### Building
 
 ```sh
-wasicc -O3 c-ray-f.c -Dunix -o c-ray.wasm
+wasicc -g0 -O3 c-ray-f.c -Dunix -o c-ray.wasm
 ```
 
 ### Running

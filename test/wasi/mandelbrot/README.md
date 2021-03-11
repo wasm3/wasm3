@@ -13,8 +13,8 @@ TODO
 ### Building
 
 ```sh
-wasicc -O3 -s mandel_dd.c -o mandel_dd.wasm
-wasicc -O3 -s mandel.c -o mandel.wasm
+wasicc -g0 -O3 mandel_dd.c -o mandel_dd.wasm
+wasicc -g0 -O3 mandel.c -o mandel.wasm
 ```
 
 ### Running
