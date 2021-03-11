@@ -113,7 +113,7 @@ jobs:
 
   build-android:
     runs-on: ubuntu-latest
-    name: wasm3-android-tests
+    name: wasm3-android-coremark
     timeout-minutes: 10
 
     steps:
