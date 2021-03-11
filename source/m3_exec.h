@@ -708,7 +708,7 @@ d_m3Op  (Entry)
     if ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack)
 #endif
     {
-                                                                m3log (exec, " enter %p > %s %s", _pc - 2, GetFunctionName(function), SPrintFunctionArgList (function, _sp));
+                                                                m3log (exec, " enter %p > %s %s", _pc - 2, m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp));
 
 #if defined(DEBUG)
         function->hits++;
@@ -733,10 +733,10 @@ d_m3Op  (Entry)
             if (not r)
                 SPrintArg (str, 99, _sp, GetSingleRetType(function->funcType));
 
-            m3log (exec, " exit  < %s %s %s   %s", GetFunctionName(function), function->funcType->numRets ? "->" : "", str, r ? (cstr_t)r : "");
+            m3log (exec, " exit  < %s %s %s   %s", m3_GetFunctionName(function), function->funcType->numRets ? "->" : "", str, r ? (cstr_t)r : "");
 #       elif d_m3LogStackTrace
             if (r)
-                printf (" ** %s  %p\n", GetFunctionName(function), _sp);
+                printf (" ** %s  %p\n", m3_GetFunctionName(function), _sp);
 #       endif
 
         if (r)
@@ -903,7 +903,7 @@ d_m3Op  (DumpStack)
     u32 stackHeight         = immediate (u32);
     IM3Function function    = immediate (IM3Function);
 
-    cstr_t funcName = (function) ? GetFunctionName(function) : "";
+    cstr_t funcName = (function) ? m3_GetFunctionName(function) : "";
 
     printf (" %4d ", opcodeIndex);
     printf (" %-25s     r0: 0x%016" PRIx64 "  i:%" PRIi64 "  u:%" PRIu64 "\n", funcName, _r0, _r0, _r0);
