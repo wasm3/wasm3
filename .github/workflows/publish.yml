@@ -95,7 +95,7 @@ jobs:
         cp ./build/wasm3.wasm ./wasm3-wasi.wasm
     - name: Configure, Build wasm3-strace
       env:
-        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2
+        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
       run: |
         source $HOME/.wasienv/wasienv.sh
         mkdir build-strace
