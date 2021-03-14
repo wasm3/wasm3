@@ -41,7 +41,7 @@ Fomu (soft CPU)       | Lattice ICE40UP5K |      RV32I | 12MHz      |  2 MB | 12
 ## Limited support
 
 The following devices can run Wasm3, however they cannot afford to allocate even a single Linear Memory page (64KB).
-This means `memoryLimit` should be set to the actual amount of RAM available, and that in turn usually breaks the allocator of the hosted Wasm application (which still asumes the page is 64KB and performs OOB access).
+This means `memoryLimit` should be set to the actual amount of RAM available, and that in turn usually breaks the allocator of the hosted Wasm application (which still assumes the page is 64KB and performs OOB access).
 
 Device                        | Chipset   | Architecture | Clock     | Flash | RAM
 ---                           |:---:      | ---         |     -----:| ---   | ---

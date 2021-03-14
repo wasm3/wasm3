@@ -8,7 +8,7 @@
 #   ./run-spec-test.py ./proposals/tail-call/*.json
 #   ./run-spec-test.py --exec "../build-custom/wasm3 --repl"
 #
-# Running WASI verison with different engines:
+# Running WASI version with different engines:
 #   cp ../build-wasi/wasm3.wasm ./
 #   ./run-spec-test.py --exec "../build/wasm3 wasm3.wasm --repl"
 #   ./run-spec-test.py --exec "wasmtime --dir=. wasm3.wasm -- --repl"

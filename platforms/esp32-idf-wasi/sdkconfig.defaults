@@ -4,7 +4,7 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=65536
 # Disable task watchdog
 CONFIG_ESP_TASK_WDT=n
 
-# Increse CPU frequency
+# Increase CPU frequency
 CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
 
 # PSRAM support

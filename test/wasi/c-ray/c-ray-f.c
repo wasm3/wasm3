@@ -87,14 +87,14 @@ unsigned long get_msec(void);
 #define HALF_FOV		(FOV * 0.5)
 #define ERR_MARGIN		1e-6			/* an arbitrary error margin to avoid surface acne */
 
-/* bit-shift ammount for packing each color into a 32bit uint */
+/* bit-shift amount for packing each color into a 32bit uint */
 #ifdef LITTLE_ENDIAN
 #define RSHIFT	16
 #define BSHIFT	0
 #else	/* big endian */
 #define RSHIFT	0
 #define BSHIFT	16
-#endif	/* endianess */
+#endif	/* endianness */
 #define GSHIFT	8	/* this is the same in both byte orders */
 
 /* some helpful macros... */
@@ -258,7 +258,7 @@ void render(int xsz, int ysz, uint32_t *fb, int samples) {
 	}
 }
 
-/* trace a ray throught the scene recursively (the recursion happens through
+/* trace a ray through the scene recursively (the recursion happens through
  * shade() to calculate reflection rays if necessary).
  */
 struct vec3 trace(struct ray ray, int depth) {
