@@ -43,7 +43,7 @@ class Blacklist():
         self._regex = re.compile('|'.join(self._patterns))
 
     def __contains__(self, item):
-        return self._regex.match(item) != None
+        return self._regex.match(item) is not None
 
 def filename(p):
     _, fn = os.path.split(p)

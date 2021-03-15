@@ -98,7 +98,7 @@ def escape_str(s):
     if s == "":
         return r'\x00'
 
-    if all((ord(c) < 128 and c.isprintable() and not c in " \n\r\t\\") for c in s):
+    if all((ord(c) < 128 and c.isprintable() and c not in " \n\r\t\\") for c in s):
         return s
 
     return '\\x' + '\\x'.join('{0:02x}'.format(x) for x in s.encode('utf-8'))
@@ -127,7 +127,8 @@ def formatValueFloat(num, t):
         return str(num)
 
     result = "{0:.{1}f}".format(binaryToFloat(num, t), s).rstrip('0')
-    if result.endswith('.'): result = result + '0'
+    if result.endswith('.'):
+        result = result + '0'
     if len(result) > s*2:
         result = "{0:.{1}e}".format(binaryToFloat(num, t), s)
     return result
@@ -262,7 +263,7 @@ class Wasm3():
         while time.time() < tout:
             try:
                 data = self.q.get(timeout=0.1)
-                if data == None:
+                if data is None:
                     error = "Crashed"
                     break
                 buff = buff + data.decode("utf-8")
@@ -282,7 +283,7 @@ class Wasm3():
         self.p.stdin.flush()
 
     def _is_running(self):
-        return self.p and (self.p.poll() == None)
+        return self.p and (self.p.poll() is None)
 
     def _flush_input(self):
         while not self.q.empty():
@@ -405,7 +406,7 @@ def runInvoke(test):
             value = str(test.expected[0]['value'])
             expect = "result " + value
 
-            if actual_val != None:
+            if actual_val is not None:
                 if (t == "f32" or t == "f64") and (value == "nan:canonical" or value == "nan:arithmetic"):
                     val = binaryToFloat(actual_val, t)
                     #warning(f"{actual_val} => {val}")
@@ -448,7 +449,8 @@ def runInvoke(test):
     else:
         stats.failed += 1
         log.write(f"FAIL: {actual}, should be: {expect}\n")
-        if args.silent: return
+        if args.silent:
+            return
 
         showTestResult()
         #sys.exit(1)
