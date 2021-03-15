@@ -327,7 +327,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -356,7 +356,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -387,7 +387,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -548,7 +548,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
     - name: Build Python module
@@ -563,3 +563,7 @@ jobs:
       run: |
         pip install pytest
         pytest platforms/python
+    - name: Spellcheck
+      run: |
+        pip install codespell
+        codespell --ignore-words-list="gameboy,iif,panting,strng" --quiet-level=2  # --skip=""
