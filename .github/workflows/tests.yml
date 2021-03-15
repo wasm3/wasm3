@@ -563,3 +563,7 @@ jobs:
       run: |
         pip install pytest
         pytest platforms/python
+    - name: Spellcheck
+      run: |
+        pip install codespell
+        codespell --quiet-level=2  # --ignore-words-list="" --skip=""
