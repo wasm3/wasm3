@@ -566,4 +566,4 @@ jobs:
     - name: Spellcheck
       run: |
         pip install codespell
-        codespell --quiet-level=2  # --ignore-words-list="" --skip=""
+        codespell --ignore-words-list="gameboy,iif,panting,strng" --quiet-level=2  # --skip=""
