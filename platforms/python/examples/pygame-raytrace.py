@@ -52,7 +52,7 @@ while True:
 
     # Render next frame
     wasm_run(t)
-    t += 50;
+    t += 50
 
     # Image output
     img_scaled = pygame.transform.scale(img, scr_size)

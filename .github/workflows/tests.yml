@@ -543,7 +543,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.5", "3.6", "3.7", "3.8", "3.9" ]
+        python-version: [ "3.6", "3.7", "3.8", "3.9" ]
 
     steps:
     - uses: actions/checkout@v2
@@ -559,6 +559,10 @@ jobs:
     - name: Install WABT
       run: |
         sudo apt install wabt
+    - name: Lint
+      run: |
+        pip install flake8
+        flake8 . --count --select=E7,E9,F63,F7,F82 --show-source --statistics
     - name: Test
       run: |
         pip install pytest
