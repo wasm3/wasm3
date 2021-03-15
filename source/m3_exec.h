@@ -8,7 +8,7 @@
 #ifndef m3_exec_h
 #define m3_exec_h
 
-// TODO: all these functions could move over to the .c at some point. normally, i'd say screw it,
+// TODO: all these functions could move over to the .c at some point. normally, I'd say screw it,
 // but it might prove useful to be able to compile m3_exec alone w/ optimizations while the remaining
 // code is at debug O0
 
@@ -687,7 +687,7 @@ d_m3Op  (MemGrow)
 
 // it's a debate: should the compilation be trigger be the caller or callee page.
 // it's a much easier to put it in the caller pager. if it's in the callee, either the entire page
-// has be left dangling or it's just a stub that jumps to a newly acquire page.  In Gestalt, I opted
+// has be left dangling or it's just a stub that jumps to a newly acquired page.  In Gestalt, I opted
 // for the stub approach. Stubbing makes it easier to dynamically free the compilation. You can also
 // do both.
 d_m3Op  (Compile)
@@ -703,7 +703,7 @@ d_m3Op  (Compile)
 
     if (not result)
     {
-        // patch up compiled pc and call rewriten op_Call
+        // patch up compiled pc and call rewritten op_Call
         * ((void**) --_pc) = (void*) (function->compiled);
         --_pc;
         nextOpDirect ();

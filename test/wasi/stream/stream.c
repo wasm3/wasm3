@@ -227,7 +227,7 @@ main()
 #ifdef N
     printf("*****  WARNING: ******\n");
     printf("      It appears that you set the preprocessor variable N when compiling this code.\n");
-    printf("      This version of the code uses the preprocesor variable STREAM_ARRAY_SIZE to control the array size\n");
+    printf("      This version of the code uses the preprocessor variable STREAM_ARRAY_SIZE to control the array size\n");
     printf("      Reverting to default value of STREAM_ARRAY_SIZE=%llu\n",(unsigned long long) STREAM_ARRAY_SIZE);
     printf("*****  WARNING: ******\n");
 #endif

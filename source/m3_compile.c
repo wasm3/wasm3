@@ -16,7 +16,7 @@
 
 #define d_indent "     | %s"
 
-// just want less letter and numbers to stare at down the way in the compiler table
+// just want less letters and numbers to stare at down the way in the compiler table
 #define i_32    c_m3Type_i32
 #define i_64    c_m3Type_i64
 #define f_32    c_m3Type_f32
@@ -382,7 +382,7 @@ _       (EmitOp (o, c_setSetOps [type]));
 }
 
 
-// all values must be in slots befor entering loop, if, and else blocks
+// all values must be in slots before entering loop, if, and else blocks
 // otherwise they'd end up preserve-copied in the block to probably different locations (if/else)
 M3Result  PreserveRegisters  (IM3Compilation o)
 {
@@ -1743,7 +1743,7 @@ _   (EmitOp (o, op_Unreachable));
 }
 
 
-// TODO OPTZ: currently all stack slot indicies take up a full word, but
+// TODO OPTZ: currently all stack slot indices take up a full word, but
 // dual stack source operands could be packed together
 M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -2316,7 +2316,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
 
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
     // operations as needed. Compiled expressions (global inits) don't pass through this
-    // ReserveConstants function and thus always produce inline contants.
+    // ReserveConstants function and thus always produce inline constants.
     numConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);
 
     o->firstDynamicSlotIndex = o->firstConstSlotIndex + numConstantSlots;

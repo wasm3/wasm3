@@ -233,7 +233,7 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
             {
                 io_module->functions [index].numNames++;
                 io_module->functions [index].names[numNames] = utf8;
-                utf8 = NULL; // ownership transfered to M3Function
+                utf8 = NULL; // ownership transferred to M3Function
             }
         }
 

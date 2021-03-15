@@ -125,7 +125,7 @@ static const uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         0x10,                                   // bcdCDC: spec release number
         0x01,
 
-        // Call Managment Functional Descriptor
+        // Call Management Functional Descriptor
         0x05,                                   // bFunctionLength
         CS_INTERFACE,                           // bDescriptorType: CS_INTERFACE
         USB_CDC_TYPE_CALL_MANAGEMENT,           // bDescriptorSubtype: Call Management Func Desc
