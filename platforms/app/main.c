@@ -312,20 +312,23 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
     result = m3_GetResults (func, ret_count, valptrs);
     if (result) return result;
 
+    fprintf (stderr, "Result: ");
     if (ret_count <= 0) {
-        fprintf (stderr, "Result: <Empty Stack>\n");
+        fprintf (stderr, "<Empty Stack>");
     }
     for (int i = 0; i < ret_count; i++) {
         switch (m3_GetRetType(func, i)) {
-        case c_m3Type_i32:
-        case c_m3Type_f32:
-            fprintf (stderr, "Result: %" PRIu32 "\n", *(u32*)valptrs[i]);  break;
-        case c_m3Type_i64:
-        case c_m3Type_f64:
-            fprintf (stderr, "Result: %" PRIu64 "\n", *(u64*)valptrs[i]);  break;
+        case c_m3Type_i32: fprintf (stderr, "%" PRIu32 ":i32", *(u32*)valptrs[i]);  break;
+        case c_m3Type_f32: fprintf (stderr, "%" PRIu32 ":f32", *(u32*)valptrs[i]);  break;
+        case c_m3Type_i64: fprintf (stderr, "%" PRIu64 ":i64", *(u64*)valptrs[i]);  break;
+        case c_m3Type_f64: fprintf (stderr, "%" PRIu64 ":f64", *(u64*)valptrs[i]);  break;
         default: return "unknown return type";
         }
+        if (i != ret_count-1) {
+            fprintf (stderr, ", ");
+        }
     }
+    fprintf (stderr, "\n");
 
     return result;
 }

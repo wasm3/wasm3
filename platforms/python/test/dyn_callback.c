@@ -1,6 +1,6 @@
 /*
  * Build using:
- *   emcc fptr.c -Os -s WASM=1 -s SIDE_MODULE=1 -o fptr.wasm
+ *   emcc dyn_callback.c -Os -s WASM=1 -s SIDE_MODULE=1 -o dyn_callback.wasm
  */
 
 typedef int (*fptr_type)(int x, int y);

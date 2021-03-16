@@ -296,6 +296,34 @@ class Wasm3():
         self.p = None
 
 #
+# Multi-value result handling
+#
+
+def parseResults(s):
+    values = s.split(", ")
+    values = [x.split(":") for x in values]
+    values = [{ "type": x[1], "value": int(x[0]) } for x in values]
+
+    return normalizeResults(values)
+
+def normalizeResults(values):
+    for x in values:
+        t = x["type"]
+        v = x["value"]
+        if t == "f32" or t == "f64":
+            if v == "nan:canonical" or v == "nan:arithmetic" or math.isnan(binaryToFloat(v, t)):
+                x["value"] = "nan:any"
+            else:
+                x["value"] = formatValue(v, t)
+        else:
+            x["value"] = formatValue(v, t)
+    return values
+
+def combineResults(values):
+    values = [x["value"]+":"+x["type"] for x in values]
+    return ", ".join(values)
+
+#
 # Actual test
 #
 
@@ -401,25 +429,11 @@ def runInvoke(test):
     if "expected" in test:
         if len(test.expected) == 0:
             expect = "result <Empty Stack>"
-        elif len(test.expected) == 1:
-            t = test.expected[0]['type']
-            value = str(test.expected[0]['value'])
-            expect = "result " + value
-
-            if actual_val is not None:
-                if (t == "f32" or t == "f64") and (value == "nan:canonical" or value == "nan:arithmetic"):
-                    val = binaryToFloat(actual_val, t)
-                    #warning(f"{actual_val} => {val}")
-                    if math.isnan(val):
-                        actual = "nan:any"
-                        expect = "nan:any"
-                else:
-                    expect = "result " + formatValue(value, t)
-                    actual = "result " + formatValue(actual_val, t)
-
         else:
-            warning(f"Test {test.source} specifies multiple results")
-            expect = "result <Multiple>"
+            if actual_val is not None:
+                actual = "result " + combineResults(parseResults(actual_val))
+            expect = "result " + combineResults(normalizeResults(test.expected))
+
     elif "expected_trap" in test:
         if test.expected_trap in trapmap:
             test.expected_trap = trapmap[test.expected_trap]
