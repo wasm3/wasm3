@@ -3,9 +3,10 @@
 # Author: Volodymyr Shymanskyy
 # Usage:
 #   ./run-spec-test.py
-#   ./run-spec-test.py ./core/i32.json
-#   ./run-spec-test.py ./core/float_exprs.json --line 2070
-#   ./run-spec-test.py ./proposals/tail-call/*.json
+#   ./run-spec-test.py --spec=opam-1.1.1
+#   ./run-spec-test.py .spec-v1.1/core/i32.json
+#   ./run-spec-test.py .spec-v1.1/core/float_exprs.json --line 2070
+#   ./run-spec-test.py .spec-v1.1/proposals/tail-call/*.json
 #   ./run-spec-test.py --exec "../build-custom/wasm3 --repl"
 #
 # Running WASI version with different engines:

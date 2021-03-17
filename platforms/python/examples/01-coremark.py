@@ -19,9 +19,6 @@ with open(wasm_fn, "rb") as f:
     rt.load(mod)
     mod.link_function("env", "clock_ms",    "i()",  clock_ms)
 
-# Gas metering will only apply to metered (pre-instrumented) modules
-mod.gasLimit = 200_000_000
-
 wasm_run = rt.find_function("run")
 
 print("Running CoreMark 1.0...")
@@ -31,7 +28,4 @@ if res > 1:
     print(f"Result: {res:.3f}")
 else:
     print("Error")
-
-if mod.gasUsed:
-    print(f"Gas used: {mod.gasUsed}")
 
