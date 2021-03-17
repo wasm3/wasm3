@@ -20,6 +20,9 @@ typedef struct {
     PyObject_HEAD
     m3_environment *env;
     IM3Module m;
+    //bool is_gas_metered;
+    int64_t total_gas;
+    int64_t current_gas;
 } m3_module;
 
 typedef struct {
@@ -117,6 +120,7 @@ M3_Environment_parse_module(m3_environment *env, PyObject *bytes)
     Py_INCREF(env);
     self->env = env;
     self->m = m;
+    self->total_gas = self->current_gas = 0;
     return self;
 }
 
@@ -200,6 +204,40 @@ Module_name(m3_module *self, void * closure)
     return PyUnicode_FromString(m3_GetModuleName(self->m));
 }
 
+static int
+Module_setGasLimit(m3_module *self, PyObject *value, void * closure)
+{
+    self->total_gas = PyFloat_AsDouble(value)*10000.0;
+    self->current_gas = self->total_gas;
+    return 0;
+}
+
+static PyObject *
+Module_getGasLimit(m3_module *self, void * closure)
+{
+    return PyFloat_FromDouble((double)(self->total_gas)/10000.0);
+}
+
+static PyObject *
+Module_getGasUsed(m3_module *self, void * closure)
+{
+    return PyFloat_FromDouble((double)(self->total_gas - self->current_gas)/10000.0);
+}
+
+m3ApiRawFunction(metering_usegas)
+{
+    m3ApiGetArg     (int32_t, gas)
+
+    m3_module *mod = (m3_module *)(_ctx->userdata);
+
+    mod->current_gas -= gas;
+
+    if (UNLIKELY(mod->current_gas < 0)) {
+        m3ApiTrap("[trap] Out of gas");
+    }
+    m3ApiSuccess();
+}
+
 m3ApiRawFunction(CallImport)
 {
     PyObject *pFunc = (PyObject *)(_ctx->userdata);
@@ -266,12 +304,23 @@ M3_Module_link_function(m3_module *self, PyObject *args)
     if (err && err != m3Err_functionLookupFailed) {
         return formatError(PyExc_RuntimeError, m3_GetModuleRuntime(self->m), err);
     }
+    
+    err = m3_LinkRawFunctionEx (self->m, "metering", "usegas", "v(i)", &metering_usegas, self);
+    /*if (!err) {
+        self->is_gas_metered = true;
+    }*/
+    if (err && err != m3Err_functionLookupFailed) {
+        return formatError(PyExc_RuntimeError, m3_GetModuleRuntime(self->m), err);
+    }
+
     Py_INCREF(pFunc);
     Py_RETURN_NONE;
 }
 
 static PyGetSetDef M3_Module_properties[] = {
-    {"name", (getter) Module_name, NULL, "module name", NULL},
+    {"name",        (getter) Module_name, NULL, "module name", NULL},
+    {"gasLimit",    (getter) Module_getGasLimit, (setter) Module_setGasLimit, "gas limit for metered modules", NULL},
+    {"gasUsed",     (getter) Module_getGasUsed, NULL, "gas used", NULL},
     {0},
 };
 
