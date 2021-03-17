@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import wasm3
-import time, timeit
+import base64, time, timeit
 
 # WebAssembly binary
-WASM = bytes.fromhex(
-    "00 61 73 6d 01 00 00 00  01 06 01 60 01 7e 01 7e"
-    "03 02 01 00 07 07 01 03  66 69 62 00 00 0a 1f 01"
-    "1d 00 20 00 42 02 54 04  40 20 00 0f 0b 20 00 42"
-    "02 7d 10 00 20 00 42 01  7d 10 00 7c 0f 0b")
+WASM = base64.b64decode("""
+    AGFzbQEAAAABBgFgAX4BfgMCAQAHBwEDZmliAAAKHwEdACAAQgJUBEAgAA8LIABCAn0QACAAQgF9
+    EAB8Dws=
+""")
 
 (N, RES, CYCLES) = (24, 46368, 1000)
 

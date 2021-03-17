@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import wasm3
 import os, time, random
 import pygame
-import wasm3
 
 print("WebAssembly demo file provided by Ben Smith (binji)")
 print("Sources: https://github.com/binji/raw-wasm")
