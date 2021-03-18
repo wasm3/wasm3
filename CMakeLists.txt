@@ -165,11 +165,6 @@ else()
   endif()
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0")
 
-  if(NOT BUILD_WASI MATCHES "uvwasi")
-    # -Werror=shadow fails when building libuv. Enable it only if libuv is not present.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=shadow")
-  endif()
-
   set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
 
   if(BUILD_NATIVE)
