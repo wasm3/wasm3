@@ -570,6 +570,7 @@ jobs:
 
   spellcheck:
     runs-on: ubuntu-latest
+    steps:
     - name: Install codespell
       run: |
         pip install codespell
