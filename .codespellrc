@@ -1,0 +1,5 @@
+[codespell]
+skip = ./test/wasi/brotli/alice29.txt,./test/.spec-*,./build*
+quiet-level = 2
+ignore-words-list = gameboy,iif,strng,woh
+

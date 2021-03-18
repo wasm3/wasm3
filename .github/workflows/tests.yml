@@ -567,7 +567,12 @@ jobs:
       run: |
         pip install pytest
         pytest platforms/python
-    - name: Spellcheck
+
+  spellcheck:
+    runs-on: ubuntu-latest
+    - name: Install codespell
       run: |
         pip install codespell
-        codespell --ignore-words-list="gameboy,iif,panting,strng" --quiet-level=2  # --skip=""
+    - name: Spellcheck
+      run: |
+        codespell
