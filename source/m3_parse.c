@@ -66,7 +66,7 @@ _           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 #if defined(M3_COMPILER_MSVC)
             u8 argTypes[d_m3MaxSaneFunctionArgCount];
 #else
-            u8 argTypes[numArgs];
+            u8 argTypes[numArgs+1]; // make ubsan happy
 #endif
             for (u32 a = 0; a < numArgs; ++a)
             {

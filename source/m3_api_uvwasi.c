@@ -544,17 +544,17 @@ M3Result  m3_LinkWASI  (IM3Module module)
     init_options.preopenc = PREOPENS_COUNT;
     init_options.preopens = preopens;
 
-    uvwasi_errno_t ret = uvwasi_init(&uvwasi, &init_options);
-
-    if (ret != UVWASI_ESUCCESS) {
-        return "uvwasi_init failed";
-    }
-
     if (!wasi_context) {
         wasi_context = (m3_wasi_context_t*)malloc(sizeof(m3_wasi_context_t));
         wasi_context->exit_code = 0;
         wasi_context->argc = 0;
         wasi_context->argv = 0;
+
+        uvwasi_errno_t ret = uvwasi_init(&uvwasi, &init_options);
+
+        if (ret != UVWASI_ESUCCESS) {
+            return "uvwasi_init failed";
+        }
     }
 
     static const char* namespaces[2] = { "wasi_unstable", "wasi_snapshot_preview1" };
