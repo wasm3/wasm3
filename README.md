@@ -7,11 +7,7 @@
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests/master?style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions) 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
 
-A high performance WebAssembly interpreter written in C.
-
-**∼ 8x faster** than other known wasm interpreters  
-**∼ 4-5x slower** than state of the art wasm `JIT` engines  
-**∼ 12x slower** than native execution  
+The fastest WebAssembly interpreter*, and the most universal runtime.  
 <sub>* Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
 
 
