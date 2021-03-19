@@ -7,11 +7,7 @@
 [![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests/master?style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions) 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
 
-A high performance WebAssembly interpreter written in C.
-
-**∼ 8x faster** than other known wasm interpreters  
-**∼ 4-5x slower** than state of the art wasm `JIT` engines  
-**∼ 12x slower** than native execution  
+The fastest WebAssembly interpreter*, and the most universal runtime.  
 <sub>* Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
 
 
@@ -44,14 +40,17 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/firefoxbrowser.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
-## Post-MVP [features](https://github.com/WebAssembly/proposals) support
+## Advanced features and [post-mvp proposals](https://github.com/WebAssembly/proposals) support
 
 ☑ Sign-extension operators  
 ☑ Non-trapping float-to-int conversions  
-☐ Bulk memory operations  
+☑ Structured execution tracing  
+☑ Self-hosting  
+☑ Gas metering  
 ☐ Multi-value  
-☐ Import/Export of Mutable Globals  
-☐ Tail call  
+☐ Bulk memory operations  
+☐ Reference types  
+☐ Tail call optimization  
 ☐ Fixed-width SIMD  
 
 ## Installation
@@ -86,7 +85,8 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [Testing & Fuzzing](./docs/Testing.md)  
 [Performance](./docs/Performance.md)  
 [Interpreter Architecture](./docs/Interpreter.md)  
-[Logging](./docs/Diagnostics.md)
+[Logging](./docs/Diagnostics.md)  
+[Awesome WebAssembly Tools](https://github.com/vshymanskyy/awesome-wasm-tools/blob/main/README.md)
 
 ### License
 This project is released under The MIT License (MIT)
