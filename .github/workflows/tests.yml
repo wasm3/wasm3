@@ -279,7 +279,7 @@ jobs:
         - {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
         - {target: ppc,     toolchain: gcc-powerpc-linux-gnu,     cc: powerpc-linux-gnu-gcc,      qemu: qemu-ppc-static     }
         - {target: ppc64,   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static   }
-        - {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
+        #- {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
         - {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static   }
         - {target: mips,    toolchain: gcc-mips-linux-gnu,          cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static     }
         - {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64,   cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static   }

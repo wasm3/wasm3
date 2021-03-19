@@ -37,9 +37,9 @@ m3ApiRawFunction(m3_libc_memset)
 {
     m3ApiReturnType (int32_t)
 
-    m3ApiGetArgMem  (void*,   		i_ptr)
-    m3ApiGetArg     (int32_t, 		i_value)
-    m3ApiGetArg     (wasm_size_t, 	i_size)
+    m3ApiGetArgMem  (void*,           i_ptr)
+    m3ApiGetArg     (int32_t,         i_value)
+    m3ApiGetArg     (wasm_size_t,     i_size)
 
     m3ApiCheckMem(i_ptr, i_size);
 
@@ -51,9 +51,9 @@ m3ApiRawFunction(m3_libc_memmove)
 {
     m3ApiReturnType (int32_t)
 
-    m3ApiGetArgMem  (void*,   		o_dst)
-    m3ApiGetArgMem  (void*,   		i_src)
-    m3ApiGetArg     (wasm_size_t, 	i_size)
+    m3ApiGetArgMem  (void*,           o_dst)
+    m3ApiGetArgMem  (void*,           i_src)
+    m3ApiGetArg     (wasm_size_t,     i_size)
 
     m3ApiCheckMem(o_dst, i_size);
     m3ApiCheckMem(i_src, i_size);
@@ -66,8 +66,8 @@ m3ApiRawFunction(m3_libc_print)
 {
     m3ApiReturnType (uint32_t)
 
-    m3ApiGetArgMem  (void*,    		i_ptr)
-    m3ApiGetArg     (wasm_size_t, 	i_size)
+    m3ApiGetArgMem  (void*,           i_ptr)
+    m3ApiGetArg     (wasm_size_t,     i_size)
 
     m3ApiCheckMem(i_ptr, i_size);
 
@@ -109,12 +109,12 @@ m3ApiRawFunction(m3_libc_printf)
 {
     m3ApiReturnType (int32_t)
 
-    m3ApiGetArgMem  (const char*,   i_fmt)
-    m3ApiGetArgMem  (wasm_ptr_t*,	i_args)
+    m3ApiGetArgMem  (const char*,    i_fmt)
+    m3ApiGetArgMem  (wasm_ptr_t*,    i_args)
 
-	if (m3ApiIsNullPtr(i_fmt)) {
-		m3ApiReturn(0);
-	}
+    if (m3ApiIsNullPtr(i_fmt)) {
+        m3ApiReturn(0);
+    }
 
     m3ApiCheckMem(i_fmt, 1);
     size_t fmt_len = strnlen(i_fmt, 1024);
@@ -154,10 +154,10 @@ m3ApiRawFunction(m3_libc_printf)
                 const char* string_temp;
                 size_t string_len;
 
-                string_temp = m3ApiOffsetToPtr(*i_args++);
+                string_temp = (const char*)m3ApiOffsetToPtr(*i_args++);
                 if (m3ApiIsNullPtr(string_temp)) {
-                	string_temp = "(null)";
-                	string_len = 6;
+                    string_temp = "(null)";
+                    string_len = 6;
                 } else {
                     string_len = strnlen(string_temp, 1024);
                     m3ApiCheckMem(string_temp, string_len+1);

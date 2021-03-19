@@ -18,7 +18,7 @@
 #define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
 #define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((u32 *) (_sp++)));
 
-# define m3ApiIsNullPtr(addr)	   ((void*)(addr) <= _mem)
+# define m3ApiIsNullPtr(addr)      ((void*)(addr) <= _mem)
 
 #if d_m3SkipMemoryBoundsCheck
 # define m3ApiCheckMem(off, len)
