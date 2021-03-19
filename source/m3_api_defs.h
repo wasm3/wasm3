@@ -18,10 +18,12 @@
 #define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
 #define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((u32 *) (_sp++)));
 
+# define m3ApiIsNullPtr(addr)	   ((void*)(addr) <= _mem)
+
 #if d_m3SkipMemoryBoundsCheck
 # define m3ApiCheckMem(off, len)
 #else
-# define m3ApiCheckMem(off, len)   { if (UNLIKELY(off == _mem || ((u64)(off) + (len)) > ((u64)(_mem)+runtime->memory.mallocated->length))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+# define m3ApiCheckMem(addr, len)  { if (UNLIKELY(m3ApiIsNullPtr(addr) || ((u64)(addr) + (len)) > ((u64)(_mem)+runtime->memory.mallocated->length))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
 #endif
 
 #define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)

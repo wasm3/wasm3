@@ -17,6 +17,8 @@
 #include <errno.h>
 #include <stdio.h>
 
+typedef uint32_t wasm_ptr_t;
+typedef uint32_t wasm_size_t;
 
 m3ApiRawFunction(m3_libc_abort)
 {
@@ -35,9 +37,9 @@ m3ApiRawFunction(m3_libc_memset)
 {
     m3ApiReturnType (int32_t)
 
-    m3ApiGetArgMem  (void*,   i_ptr)
-    m3ApiGetArg     (int32_t, i_value)
-    m3ApiGetArg     (int32_t, i_size)
+    m3ApiGetArgMem  (void*,   		i_ptr)
+    m3ApiGetArg     (int32_t, 		i_value)
+    m3ApiGetArg     (wasm_size_t, 	i_size)
 
     m3ApiCheckMem(i_ptr, i_size);
 
@@ -49,9 +51,9 @@ m3ApiRawFunction(m3_libc_memmove)
 {
     m3ApiReturnType (int32_t)
 
-    m3ApiGetArgMem  (void*,   o_dst)
-    m3ApiGetArgMem  (void*,   i_src)
-    m3ApiGetArg     (int32_t, i_size)
+    m3ApiGetArgMem  (void*,   		o_dst)
+    m3ApiGetArgMem  (void*,   		i_src)
+    m3ApiGetArg     (wasm_size_t, 	i_size)
 
     m3ApiCheckMem(o_dst, i_size);
     m3ApiCheckMem(i_src, i_size);
@@ -64,8 +66,8 @@ m3ApiRawFunction(m3_libc_print)
 {
     m3ApiReturnType (uint32_t)
 
-    m3ApiGetArgMem  (void*,    i_ptr)
-    m3ApiGetArg     (uint32_t, i_size)
+    m3ApiGetArgMem  (void*,    		i_ptr)
+    m3ApiGetArg     (wasm_size_t, 	i_size)
 
     m3ApiCheckMem(i_ptr, i_size);
 
@@ -107,13 +109,16 @@ m3ApiRawFunction(m3_libc_printf)
 {
     m3ApiReturnType (int32_t)
 
-    m3ApiGetArgMem  (const char*,    i_fmt)
-    m3ApiGetArgMem  (u32*,             i_args)
+    m3ApiGetArgMem  (const char*,   i_fmt)
+    m3ApiGetArgMem  (wasm_ptr_t*,	i_args)
+
+	if (m3ApiIsNullPtr(i_fmt)) {
+		m3ApiReturn(0);
+	}
 
     m3ApiCheckMem(i_fmt, 1);
-
-    size_t fmt_len = strlen(i_fmt);
-    m3ApiCheckMem(i_fmt, fmt_len+1);
+    size_t fmt_len = strnlen(i_fmt, 1024);
+    m3ApiCheckMem(i_fmt, fmt_len+1); // include `\0`
 
     FILE* file = stdout;
 
@@ -127,13 +132,8 @@ m3ApiRawFunction(m3_libc_printf)
         }
         ch = *i_fmt++;
         switch (ch) {
-            case '%': {
-                fputc('%', file);
-                length++;
-                break;
-            }
             case 'c': {
-                m3ApiCheckMem(i_args, sizeof(int));
+                m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
                 char char_temp = *i_args++;
                 fputc(char_temp, file);
                 length++;
@@ -141,23 +141,34 @@ m3ApiRawFunction(m3_libc_printf)
             }
             case 'd':
             case 'x': {
-                m3ApiCheckMem(i_args, sizeof(int));
+                m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
                 int int_temp = *i_args++;
                 char buffer[32] = { 0, };
                 internal_itoa(int_temp, buffer, (ch == 'x') ? 16 : 10);
                 fputs(buffer, file);
-                length += strlen(buffer);
+                length += strnlen(buffer, sizeof(buffer));
                 break;
             }
             case 's': {
-                m3ApiCheckMem(i_args, sizeof(int));
-                const char* string_temp = m3ApiOffsetToPtr(*i_args++);
-                size_t string_len = strlen(string_temp);
+                m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
+                const char* string_temp;
+                size_t string_len;
 
-                m3ApiCheckMem(string_temp, string_len+1);
+                string_temp = m3ApiOffsetToPtr(*i_args++);
+                if (m3ApiIsNullPtr(string_temp)) {
+                	string_temp = "(null)";
+                	string_len = 6;
+                } else {
+                    string_len = strnlen(string_temp, 1024);
+                    m3ApiCheckMem(string_temp, string_len+1);
+                }
 
-                fputs(string_temp, file);
+                fwrite(string_temp, 1, string_len, file);
                 length += string_len;
+                break;
+            default:
+                fputc(ch, file);
+                length++;
                 break;
             }
         }
