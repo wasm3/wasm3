@@ -78,10 +78,10 @@ m3ApiRawFunction(m3_libc_print)
 static
 void internal_itoa(int n, char s[], int radix)
 {
-	static char const HEXDIGITS[0x10] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-	    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-	};
+    static char const HEXDIGITS[0x10] = {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
 
     int i, j, sign;
     char c;
@@ -107,59 +107,59 @@ m3ApiRawFunction(m3_libc_printf)
 {
     m3ApiReturnType (int32_t)
 
-	m3ApiGetArgMem  (const char*,	i_fmt)
-    m3ApiGetArgMem  (u32*,     		i_args)
+    m3ApiGetArgMem  (const char*,    i_fmt)
+    m3ApiGetArgMem  (u32*,             i_args)
 
-	m3ApiCheckMem(i_fmt, 1);
+    m3ApiCheckMem(i_fmt, 1);
 
-	size_t fmt_len = strlen(i_fmt);
-	m3ApiCheckMem(i_fmt, fmt_len+1);
+    size_t fmt_len = strlen(i_fmt);
+    m3ApiCheckMem(i_fmt, fmt_len+1);
 
-	FILE* file = stdout;
+    FILE* file = stdout;
 
-	int32_t length = 0;
-	char ch;
+    int32_t length = 0;
+    char ch;
     while ((ch = *i_fmt++)) {
         if ( '%' != ch ) {
             putc(ch, file);
             length++;
             continue;
         }
-		ch = *i_fmt++;
-		switch (ch) {
-			case '%': {
-				fputc('%', file);
-				length++;
-				break;
-			}
-			case 'c': {
-				m3ApiCheckMem(i_args, sizeof(int));
-				char char_temp = *i_args++;
-				fputc(char_temp, file);
-				length++;
-				break;
-			}
-			case 'd':
-			case 'x': {
-				m3ApiCheckMem(i_args, sizeof(int));
-				int int_temp = *i_args++;
-				char buffer[32] = { 0, };
-				internal_itoa(int_temp, buffer, (ch == 'x') ? 16 : 10);
-				fputs(buffer, file);
-				length += strlen(buffer);
-				break;
-			}
-			case 's': {
-				m3ApiCheckMem(i_args, sizeof(int));
-				const char* string_temp = m3ApiOffsetToPtr(*i_args++);
-				size_t string_len = strlen(string_temp);
+        ch = *i_fmt++;
+        switch (ch) {
+            case '%': {
+                fputc('%', file);
+                length++;
+                break;
+            }
+            case 'c': {
+                m3ApiCheckMem(i_args, sizeof(int));
+                char char_temp = *i_args++;
+                fputc(char_temp, file);
+                length++;
+                break;
+            }
+            case 'd':
+            case 'x': {
+                m3ApiCheckMem(i_args, sizeof(int));
+                int int_temp = *i_args++;
+                char buffer[32] = { 0, };
+                internal_itoa(int_temp, buffer, (ch == 'x') ? 16 : 10);
+                fputs(buffer, file);
+                length += strlen(buffer);
+                break;
+            }
+            case 's': {
+                m3ApiCheckMem(i_args, sizeof(int));
+                const char* string_temp = m3ApiOffsetToPtr(*i_args++);
+                size_t string_len = strlen(string_temp);
 
-				m3ApiCheckMem(string_temp, string_len+1);
+                m3ApiCheckMem(string_temp, string_len+1);
 
-				fputs(string_temp, file);
-				length += string_len;
-				break;
-			}
+                fputs(string_temp, file);
+                length += string_len;
+                break;
+            }
         }
     }
 
