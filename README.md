@@ -44,14 +44,17 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/firefoxbrowser.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/googlechrome.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/safari.svg" width="18" height="18" /> <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/microsoftedge.svg" width="18" height="18" /> Browsers... yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
-## Post-MVP [features](https://github.com/WebAssembly/proposals) support
+## Advanced features and [post-mvp proposals](https://github.com/WebAssembly/proposals) support
 
 ☑ Sign-extension operators  
 ☑ Non-trapping float-to-int conversions  
-☐ Bulk memory operations  
+☑ Structured execution tracing  
+☑ Self-hosting  
+☑ Gas metering  
 ☐ Multi-value  
-☐ Import/Export of Mutable Globals  
-☐ Tail call  
+☐ Bulk memory operations  
+☐ Reference types  
+☐ Tail call optimization  
 ☐ Fixed-width SIMD  
 
 ## Installation
@@ -86,7 +89,8 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [Testing & Fuzzing](./docs/Testing.md)  
 [Performance](./docs/Performance.md)  
 [Interpreter Architecture](./docs/Interpreter.md)  
-[Logging](./docs/Diagnostics.md)
+[Logging](./docs/Diagnostics.md)  
+[Awesome WebAssembly Tools](https://github.com/vshymanskyy/awesome-wasm-tools/blob/main/README.md)
 
 ### License
 This project is released under The MIT License (MIT)
