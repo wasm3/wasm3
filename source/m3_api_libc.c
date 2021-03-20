@@ -80,9 +80,8 @@ m3ApiRawFunction(m3_libc_print)
 static
 void internal_itoa(int n, char s[], int radix)
 {
-    static char const HEXDIGITS[0x10] = {
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    static char const DIGITS[10] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
     };
 
     int i, j, sign;
@@ -91,7 +90,7 @@ void internal_itoa(int n, char s[], int radix)
     if ((sign = n) < 0) { n = -n; }
     i = 0;
     do {
-        s[i++] = HEXDIGITS[n % radix];
+        s[i++] = DIGITS[n % radix];
     } while ((n /= radix) > 0);
 
     if (sign < 0) { s[i++] = '-'; }
@@ -103,6 +102,125 @@ void internal_itoa(int n, char s[], int radix)
         s[i] = s[j];
         s[j] = c;
     }
+}
+
+static
+void internal_uitoa(uint32_t n, char s[], int radix, bool upper)
+{
+    static char const HEXDIGITS_UPPER[0x10] = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
+
+    static char const HEXDIGITS_LOWER[0x10] = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    };
+
+    int i, j;
+    char c;
+
+    i = 0;
+    do {
+        s[i++] = (char)(upper ? HEXDIGITS_UPPER[n % radix] : HEXDIGITS_LOWER[n % radix]);
+    } while ((n /= radix) > 0);
+
+    s[i] = '\0';
+
+    // reverse
+    for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+        c = s[i];
+        s[i] = s[j];
+        s[j] = c;
+    }
+}
+
+
+m3ApiRawFunction(m3_libc_snprintf)
+{
+    m3ApiReturnType (int32_t)
+
+    m3ApiGetArgMem  (char*,             buf)
+    m3ApiGetArg     (int32_t,                len)
+    m3ApiGetArgMem  (const char*,    i_fmt)
+    m3ApiGetArgMem  (wasm_ptr_t*,    i_args)
+
+    if (m3ApiIsNullPtr(i_fmt) || m3ApiIsNullPtr(buf) || len == 0) {
+        m3ApiReturn(0);
+    }
+
+    int32_t length = 0;
+    int32_t len_left = len;
+    char ch;
+    while ((ch = *i_fmt++) && len_left > 0) {
+        if ( '%' != ch ) {
+            strcat(buf, &ch);
+            length++;
+            len_left--;
+            continue;
+        }
+
+        ch = *i_fmt++;
+        switch (ch) {
+            case 'c': {
+                m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
+                char char_temp = *i_args++;
+                strcat(buf, &char_temp);
+                length++;
+                len_left--;
+                break;
+            }
+            case 'd':
+            case 'u':
+            case 'X':
+            case 'x': {
+                m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
+                int int_temp = *i_args++;
+                char buffer[32] = { 0, };
+
+                if (ch == 'x' || ch == 'X') {
+                    internal_uitoa((uint32_t)int_temp, buffer, 16, ch == 'X');
+                } else if (ch == 'u') {
+                    internal_uitoa((uint32_t)int_temp, buffer, 10, false);
+                } else {
+                    internal_itoa(int_temp, buffer, 10);
+                }
+
+                int len_append = strnlen(buffer, len_left);
+
+                strncat(buf, buffer, len_append);
+                length += len_append;
+                len_left -= len_append;
+                break;
+            }
+            case 's': {
+                m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
+                const char* string_temp;
+                size_t string_len;
+
+                string_temp = (const char*)m3ApiOffsetToPtr(*i_args++);
+                if (m3ApiIsNullPtr(string_temp)) {
+                    string_temp = "(null)";
+                    string_len = 6;
+                } else {
+                    string_len = strnlen(string_temp, len_left);
+                    m3ApiCheckMem(string_temp, string_len+1);
+                }
+
+                strncat(buf, string_temp, string_len);
+                length += string_len;
+                len_left -= string_len;
+                break;
+            default:
+                strcat(buf, &ch);
+                length++;
+                len_left--;
+                break;
+            }
+        }
+    }
+
+    m3ApiReturn(length);
 }
 
 m3ApiRawFunction(m3_libc_printf)
@@ -140,11 +258,21 @@ m3ApiRawFunction(m3_libc_printf)
                 break;
             }
             case 'd':
+            case 'u':
+            case 'X':
             case 'x': {
                 m3ApiCheckMem(i_args, sizeof(wasm_ptr_t));
                 int int_temp = *i_args++;
                 char buffer[32] = { 0, };
-                internal_itoa(int_temp, buffer, (ch == 'x') ? 16 : 10);
+
+                if (ch == 'x' || ch == 'X') {
+                    internal_uitoa((uint32_t)int_temp, buffer, 16, ch == 'X');
+                } else if (ch == 'u') {
+                    internal_uitoa((uint32_t)int_temp, buffer, 10, false);
+                } else {
+                    internal_itoa(int_temp, buffer, 10);
+                }
+
                 fputs(buffer, file);
                 length += strnlen(buffer, sizeof(buffer));
                 break;
@@ -231,6 +359,7 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_abort",          
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "_exit",             "v(i)",    &m3_libc_exit)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "clock_ms",          "i()",     &m3_libc_clock_ms)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "printf",            "i(**)",   &m3_libc_printf)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "snprintf",          "i(*i**)", &m3_libc_snprintf)));
 
 _catch:
     return result;
