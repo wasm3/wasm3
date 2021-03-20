@@ -121,8 +121,8 @@ const void * const  cvptr_t;
 # endif
 
 
-# if (defined(DEBUG) || defined(ASSERTS)) && !defined(NASSERTS)
-#   define d_m3Assert(ASS)      assert (ASS)
+# if (defined(DEBUG))
+#   define d_m3Assert(ASS)  if (!(ASS)) { printf("Assertion failed at %s:%d : %s\n", __FILE__, __LINE__, #ASS); abort(); }
 # else
 #   define d_m3Assert(ASS)
 # endif
@@ -202,17 +202,17 @@ int         m3StackGetMax           ();
 #define     m3StackGetMax()         0
 #endif
 
-void        m3_Abort                 (const char* message);
-M3Result    m3_Malloc                (void ** o_ptr, size_t i_size);
-M3Result    m3_Realloc               (void ** io_ptr, size_t i_newSize, size_t i_oldSize);
-void        m3_Free                  (void ** io_ptr);
-M3Result    m3_CopyMem               (void ** o_to, const void * i_from, size_t i_size);
+void        m3_Abort                (const char* message);
+void *      m3_Malloc               (size_t i_size);
+void *      m3_Realloc              (void *i_ptr, size_t i_newSize, size_t i_oldSize);
+void        m3_FreeImpl             (void * i_ptr);
+void *      m3_CopyMem              (const void * i_from, size_t i_size);
 
-#define m3Alloc(OPTR, STRUCT, NUM)                  m3_Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
-#define m3ReallocArray(PTR, STRUCT, NEW, OLD)       m3_Realloc ((void **) (PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
-#define m3Reallocate(_ptr, _newSize, _oldSize)      m3_Realloc ((void **) _ptr, _newSize, _oldSize)
-#define m3Free(P)                                   m3_Free ((void **)(& P));
-#define m3CopyMem(_to, _from, _size)                m3_CopyMem ((void **) _to, (void *) _from, _size)
+#define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc (sizeof (STRUCT))
+#define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))
+#define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define     m3_Free(P)                              do { m3_FreeImpl ((void*)(P)); (P) = NULL; } while(0)
+#define     _throwifnull(PTR)                       _throwif (m3Err_mallocFailed, !(PTR))
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 

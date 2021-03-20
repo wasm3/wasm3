@@ -28,16 +28,16 @@ void  m3_FreeModule  (IM3Module i_module)
 
         Module_FreeFunctions (i_module);
 
-        m3Free (i_module->functions);
-        //m3Free (i_module->imports);
-        m3Free (i_module->funcTypes);
-        m3Free (i_module->dataSegments);
-        m3Free (i_module->table0);
+        m3_Free (i_module->functions);
+        //m3_Free (i_module->imports);
+        m3_Free (i_module->funcTypes);
+        m3_Free (i_module->dataSegments);
+        m3_Free (i_module->table0);
 
         // TODO: free importinfo
-        m3Free (i_module->globals);
+        m3_Free (i_module->globals);
 
-        m3Free (i_module);
+        m3_Free (i_module);
     }
 }
 
@@ -47,8 +47,8 @@ M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_typ
     M3Result result = m3Err_none;
 _try {
     u32 index = io_module->numGlobals++;
-_   (m3ReallocArray (& io_module->globals, M3Global, io_module->numGlobals, index));
-
+    io_module->globals = m3_ReallocArray (M3Global, io_module->globals, io_module->numGlobals, index);
+    _throwifnull(io_module->globals);
     M3Global * global = & io_module->globals [index];
 
     global->type = i_type;
@@ -68,8 +68,8 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 _try {
     u32 index = io_module->numFunctions++;
-_   (m3ReallocArray (& io_module->functions, M3Function, io_module->numFunctions, index));
-
+    io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
+    _throwifnull(io_module->functions);
     _throwif("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
 
     IM3FuncType ft = io_module->funcTypes [i_typeIndex];

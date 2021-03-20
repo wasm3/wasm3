@@ -687,8 +687,10 @@ M3Result  AcquirePatch  (IM3Compilation o, IM3BranchPatch * o_patch)
         o->releasedPatches = patch->next;
         patch->next = NULL;
     }
-    else
-_       (m3Alloc (& patch, M3BranchPatch, 1));
+    else {
+        patch = m3_AllocStruct(M3BranchPatch);
+        _throwifnull(patch);
+    }
 
     * o_patch = patch;
 
@@ -1239,7 +1241,7 @@ _       (EmitOp (o, op));
         if (IsValidSlot (valueSlot))
             EmitSlotOffset (o, valueSlot);
 
-        IM3BranchPatch patch;
+        IM3BranchPatch patch = NULL;
 _       (AcquirePatch (o, & patch));
 
         patch->location = (pc_t *) ReservePointer (o);
@@ -1308,7 +1310,7 @@ _           (EmitOp (o, op_ContinueLoop));
         }
         else
         {
-            IM3BranchPatch patch;
+            IM3BranchPatch patch = NULL;
 _           (AcquirePatch (o, & patch));
 
             patch->location = (pc_t *) ReservePointer (o);
@@ -2413,7 +2415,8 @@ _   (Compile_BlockStatements (o));
 
     if (numConstantSlots)
     {
-_       (m3CopyMem (& io_function->constants, o->constants, io_function->numConstantBytes));
+        io_function->constants = m3_CopyMem(o->constants, io_function->numConstantBytes);
+        _throwifnull(io_function->constants);
     }
 
 } _catch:

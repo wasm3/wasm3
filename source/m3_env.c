@@ -16,7 +16,8 @@
 
 M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
 {
-    return m3Alloc (o_functionType, u8, sizeof (M3FuncType) + i_numTypes);
+    *o_functionType = (IM3FuncType)m3_Malloc (sizeof (M3FuncType) + i_numTypes);
+    return (*o_functionType) ? m3Err_none : m3Err_mallocFailed;
 }
 
 
@@ -39,14 +40,14 @@ void Runtime_ReleaseCodePages (IM3Runtime i_runtime)
 
 void  Function_Release  (IM3Function i_function)
 {
-    m3Free (i_function->constants);
+    m3_Free (i_function->constants);
 
     for (int i = 0; i < i_function->numNames; i++)
     {
         // name can be an alias of fieldUtf8
         if (i_function->names[i] != i_function->import.fieldUtf8)
         {
-            m3Free (i_function->names[i]);
+            m3_Free (i_function->names[i]);
         }
     }
 
@@ -169,15 +170,15 @@ u32  GetFunctionNumArgsAndLocals (IM3Function i_function)
 
 void FreeImportInfo (M3ImportInfo * i_info)
 {
-    m3Free (i_info->moduleUtf8);
-    m3Free (i_info->fieldUtf8);
+    m3_Free (i_info->moduleUtf8);
+    m3_Free (i_info->fieldUtf8);
 }
 
 
 IM3Environment  m3_NewEnvironment  ()
 {
-    IM3Environment env = NULL;
-    m3Alloc (& env, M3Environment, 1);
+    IM3Environment env = m3_AllocStruct (M3Environment);
+    if (!env) return NULL;
 
     // create FuncTypes for all simple block return ValueTypes
     for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
@@ -204,7 +205,7 @@ void  Environment_Release  (IM3Environment i_environment)
     while (ftype)
     {
         IM3FuncType next = ftype->next;
-        m3Free (ftype);
+        m3_Free (ftype);
         ftype = next;
     }
     for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
@@ -212,7 +213,7 @@ void  Environment_Release  (IM3Environment i_environment)
         d_m3Assert (t < 5);
         ftype = i_environment->retFuncTypes[t];
         d_m3Assert (ftype->next == NULL);
-        m3Free (ftype);
+        m3_Free (ftype);
     }
     m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
@@ -224,7 +225,7 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
     if (i_environment)
     {
         Environment_Release (i_environment);
-        m3Free (i_environment);
+        m3_Free (i_environment);
     }
 }
 
@@ -238,7 +239,7 @@ void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_f
     {
         if (AreFuncTypesEqual (newType, addType))
         {
-            m3Free (addType);
+            m3_Free (addType);
             break;
         }
 
@@ -316,8 +317,7 @@ void  Environment_ReleaseCodePages  (IM3Environment i_environment, IM3CodePage i
 
 IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes, void * i_userdata)
 {
-    IM3Runtime runtime = NULL;
-    m3Alloc (& runtime, M3Runtime, 1);
+    IM3Runtime runtime = m3_AllocStruct (M3Runtime);
 
     if (runtime)
     {
@@ -326,13 +326,13 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
         runtime->environment = i_environment;
         runtime->userdata = i_userdata;
 
-        m3Alloc (& runtime->stack, u8, i_stackSizeInBytes);
+        runtime->stack = m3_Malloc (i_stackSizeInBytes);
 
         if (runtime->stack)
         {
             runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->stack);
         }
-        else m3Free (runtime);
+        else m3_Free (runtime);
     }
 
     return runtime;
@@ -378,7 +378,7 @@ void  FreeCompilationPatches  (IM3Compilation o)
     while (patches)
     {
         IM3BranchPatch next = patches->next;
-        m3Free (patches);
+        m3_Free (patches);
         patches = next;
     }
 }
@@ -393,8 +393,8 @@ void  Runtime_Release  (IM3Runtime i_runtime)
 
     FreeCompilationPatches (& i_runtime->compilation);
 
-    m3Free (i_runtime->stack);
-    m3Free (i_runtime->memory.mallocated);
+    m3_Free (i_runtime->stack);
+    m3_Free (i_runtime->memory.mallocated);
 }
 
 
@@ -405,7 +405,7 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
         m3_PrintProfilerInfo ();
 
         Runtime_Release (i_runtime);
-        m3Free (i_runtime);
+        m3_Free (i_runtime);
     }
 }
 
@@ -531,7 +531,10 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
-_       (m3Reallocate (& memory->mallocated, numBytes, numPreviousBytes));
+        void* newMem = m3_Realloc (memory->mallocated, numBytes, numPreviousBytes);
+        _throwifnull(newMem);
+
+        memory->mallocated = (M3MemoryHeader*)newMem;
 
 # if d_m3LogRuntime
         M3MemoryHeader * oldMallocated = memory->mallocated;
@@ -646,8 +649,8 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
             u32 endElement = numElements + offset;
 
             _throwif ("table overflow", offset >= endElement); // TODO: check this, endElement depends on offset
-_           (m3ReallocArray (& io_module->table0, IM3Function, endElement, io_module->table0Size));
-
+            io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
+            _throwifnull(io_module->table0);
             io_module->table0Size = endElement;
 
             for (u32 e = 0; e < numElements; ++e)

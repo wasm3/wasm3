@@ -49,7 +49,8 @@ _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                               
     if (numTypes)
     {
         // table of IM3FuncType (that point to the actual M3FuncType struct in the Environment)
-_       (m3Alloc (& io_module->funcTypes, IM3FuncType, numTypes));
+        io_module->funcTypes = m3_AllocArray (IM3FuncType, numTypes);
+        _throwifnull(io_module->funcTypes);
         io_module->numFuncTypes = numTypes;
 
         for (u32 i = 0; i < numTypes; ++i)
@@ -107,8 +108,8 @@ _               (NormalizeType (& retType, wasmType));
 
     if (result)
     {
-        m3Free (ftype);
-        m3Free (io_module->funcTypes);
+        m3_Free (ftype);
+        m3_Free (io_module->funcTypes);
         io_module->numFuncTypes = 0;
     }
 
@@ -237,7 +238,7 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
             }
         }
 
-        m3Free (utf8);
+        m3_Free (utf8);
     }
 
     _catch: return result;
@@ -371,8 +372,8 @@ M3Result  ParseSection_Data  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_
     u32 numDataSegments;
 _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                            m3log (parse, "** Data [%d]", numDataSegments);
 
-_   (m3Alloc (& io_module->dataSegments, M3DataSegment, numDataSegments));
-
+    io_module->dataSegments = m3_AllocArray (M3DataSegment, numDataSegments);
+    _throwifnull(io_module->dataSegments);
     io_module->numDataSegments = numDataSegments;
 
     for (u32 i = 0; i < numDataSegments; ++i)
@@ -456,7 +457,7 @@ _   (Read_utf8 (& name, & i_bytes, i_end));
     if (strcmp (name, "name") != 0)
         i_bytes = i_end;
 
-    m3Free (name);
+    m3_Free (name);
 
     while (i_bytes < i_end)
     {
@@ -489,7 +490,7 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
 //                          else m3log (parse, "prenamed: %s", io_module->functions [index].name);
                 }
 
-                m3Free (name);
+                m3_Free (name);
             }
         }
 
@@ -548,8 +549,8 @@ M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, c
 
     IM3Module module;
 _try {
-_   (m3Alloc (& module, M3Module, 1));
-
+    module = m3_AllocStruct (M3Module);
+    _throwifnull(module);
     module->name = ".unnamed";                                                      m3log (parse, "load module: %d bytes", i_numBytes);
     module->startFunction = -1;
     //module->hasWasmCodeCopy = false;

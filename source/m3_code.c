@@ -26,7 +26,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
     u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
 
     pageSize = (pageSize + (d_m3CodePageAlignSize-1)) & ~(d_m3CodePageAlignSize-1); // align
-    m3Alloc ((void **) & page, u8, pageSize);
+    page = (IM3CodePage)m3_Malloc (pageSize);
 
     if (page)
     {
@@ -62,7 +62,7 @@ void  FreeCodePages  (IM3CodePage * io_list)
 #if d_m3RecordBacktraces
         FreeCodeMappingPage (page->info.mapping);
 #endif // d_m3RecordBacktraces
-        m3Free (page);
+        m3_Free (page);
         page = next;
     }
 

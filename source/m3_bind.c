@@ -86,7 +86,7 @@ _   (AllocFuncType (& funcType, umaxNumArgs));
 } _catch:
 
     if (result)
-        m3Free (funcType);  // nulls funcType
+        m3_Free (funcType);
 
     * o_functionType = funcType;
 
@@ -112,7 +112,7 @@ _   (SignatureToFuncType (& ftype, i_linkingSignature));
 
     _catch:
 
-    m3Free (ftype);
+    m3_Free (ftype);
 
     return result;
 }
