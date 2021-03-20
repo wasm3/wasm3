@@ -3,9 +3,9 @@ name: tests
 on: [push, pull_request]
 
 jobs:
-  build-linux:
+  linux:
     runs-on: ubuntu-latest
-    name: build-linux-${{ matrix.config.target }}
+    name: linux-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
@@ -47,7 +47,7 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
-  build-linux-alpine:
+  linux-alpine:
     runs-on: ubuntu-latest
     container: alpine:3.10
 
@@ -67,9 +67,9 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
-  build-mac:
+  macos:
     runs-on: macos-latest
-    name: build-mac-${{ matrix.config.target }}
+    name: macos-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
@@ -94,9 +94,9 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
-  build-windows:
+  windows:
     runs-on: windows-latest
-    name: build-windows-${{ matrix.config.target }}
+    name: windows-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
@@ -137,7 +137,7 @@ jobs:
         cd test
         python run-wasi-test.py
 
-  build-wasi:
+  wasi:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -192,7 +192,7 @@ jobs:
         cd test
         python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm"
 
-  build-ios:
+  ios:
     runs-on: macos-latest
     timeout-minutes: 10
 
@@ -207,7 +207,7 @@ jobs:
         cd platforms/ios
         xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=13.3'
 
-  build-android:
+  android:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -225,7 +225,7 @@ jobs:
         cd platforms/android
         ./gradlew build
         
-  build-cosmopolitan:
+  cosmopolitan:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
 
@@ -263,9 +263,9 @@ jobs:
         cd test
         python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.com"
 
-  build-cross-qemu:
+  cross-qemu:
     runs-on: ubuntu-20.04
-    name: build-cross-qemu-${{ matrix.config.target }}
+    name: cross-qemu-${{ matrix.config.target }}
     timeout-minutes: 10
 
     strategy:
@@ -320,7 +320,7 @@ jobs:
         cd test
         python3 run-wasi-test.py --fast --exec "${{ matrix.config.qemu }} ../build/wasm3"
 
-  build-platformio:
+  platformio:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -349,7 +349,7 @@ jobs:
     #    cd platforms/esp32-pio
     #    pio run
 
-  build-platformio-arm:
+  platformio-arm:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -380,7 +380,7 @@ jobs:
         cd platforms/arduino
         pio run -e az3166
 
-  build-platformio-riscv:
+  platformio-riscv:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -403,7 +403,7 @@ jobs:
         cd platforms/arduino
         pio run -e maix
 
-  build-particle:
+  particle:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: "github.event_name == 'push'"
@@ -421,7 +421,7 @@ jobs:
         cd platforms/particle
         particle compile --followSymlinks photon
 
-  build-esp32-idf:
+  esp32-idf:
     runs-on: ubuntu-latest
     container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
     timeout-minutes: 10
@@ -449,7 +449,7 @@ jobs:
         diff -q platforms/esp32-idf/main/main.cpp platforms/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
 
-  build-cpp:
+  cpp:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -470,7 +470,7 @@ jobs:
           cd platforms/cpp/build
           ./wasm3_cpp_example
 
-  build-as-cpp:
+  as-cpp:
     name: maintenance (build as C++)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -488,7 +488,7 @@ jobs:
     - name: Test
       run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
-  build-with-logs:
+  with-logs:
     name: maintenance (debug logs)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -516,7 +516,7 @@ jobs:
     - name: Test
       run: ./build/wasm3 ./test/wasi/simple/test.wasm > /dev/null
 
-  build-preprocessed-ops:
+  preprocessed-ops:
     name: maintenance (preprocess ops)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -538,7 +538,7 @@ jobs:
     - name: Test
       run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
-  build-python:
+  python:
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false

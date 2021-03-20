@@ -65,7 +65,7 @@ commands_full = [
     "args":           ["16", "64"],
     "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
   }, {
-    "skip":           True,  # Fails on Windows on CI only, CNR
+    #"skip":           True,  # Fails on Windows on CI only, CNR
     "name":           "mal",
     "wasm":           "./wasi/mal/mal.wasm",
     "args":           ["./wasi/mal/test-fib.mal", "16"],
