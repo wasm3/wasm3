@@ -1,20 +1,13 @@
 # Wasm3
 
-[Wasm3](https://github.com/wasm3/wasm3) is a high performance `WebAssembly` interpreter written in C.  
+[Wasm3](https://github.com/wasm3/wasm3) is the fastest WebAssembly interpreter, and the most universal runtime.  
 It's packaged into a `WebAssembly` package, so you can finally run `WebAssembly` on `WebAssembly` 😆
-
-When running natively, wasm3 is:
-
-**∼ 8x faster** than other known wasm interpreters  
-**∼ 4-5x slower** than state of the art wasm `JIT` engines  
-**∼ 12x slower** than native execution  
-
-<sub>Based on [**CoreMark 1.0** benchmark](https://github.com/wasm3/wasm3/blob/master/docs/Performance.md). Your mileage may vary.</sub>
 
 ## Running on WebAssembly.sh
 
-First you need to make a wasm file you want to run available in the filesystem.  
-One way to do this is to get it from a server using `curl` command:
+Open [**WebAssembly.sh**](https://webassembly.sh)  
+
+First you need to fetch a wasm file you'd like to run:
 
 ```sh
 $ curl https://raw.githubusercontent.com/wasm3/wasm3/master/test/lang/fib32.wasm -o /tmp/fib32.wasm
@@ -53,7 +46,7 @@ or even... run wasm3 inside wasm3:
 
 ```sh
 $ curl https://registry-cdn.wapm.io/contents/vshymanskyy/wasm3/0.4.9/build/wasm3-wasi.wasm -o /tmp/wasm3.wasm
-$ wasm3 /tmp/wasm3.wasm /tmp/test.wasm
+$ wasm3 --stack-size 100000 /tmp/wasm3.wasm /tmp/test.wasm
 ```
 
 ## Tracing

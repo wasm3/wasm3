@@ -16,7 +16,7 @@ Download `wasm3-cosmopolitan.com` from the [latest release page](https://github.
 ## OpenWRT
 Follow instructions [here](https://github.com/wasm3/wasm3-openwrt-packages).
 
-## Arduino / PlatformIO library
+## Arduino / PlatformIO / Particle.io library
 Find `Wasm3` in the `Library Manager` and install it.
 
 ## Python module
