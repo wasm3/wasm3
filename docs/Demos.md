@@ -3,7 +3,7 @@
 - **In-browser Wasm3 (with MetaWASI support) on Webassembly.sh** │ [try it](https://webassembly.sh/?run-command=wasm3)
 - **A set of Pygame + pywasm3 demos** | [github](https://github.com/wasm3/wasm3/tree/main/platforms/python/examples)
 - **Dino game**
-  - on PyBadge/Arduino | [video](https://twitter.com/vshymanskyy/status/1345048053041029121), [github](https://github.com/wasm3/wasm3-arduino/tree/master/examples/Wasm_Dino_PyBadge)
+  - on PyBadge/Arduino | [video](https://twitter.com/vshymanskyy/status/1345048053041029121), [github](https://github.com/wasm3/wasm3-arduino/tree/main/examples/Wasm_Dino_PyBadge)
   - on Raspberry Pi Pico | [github](https://github.com/vshymanskyy/wasm3_dino_rpi_pico)
   - on ESP32 TTGO TDisplay | [github](https://github.com/wasm3/wasm3-arduino/tree/main/examples/Wasm_Dino_ESP32_TDisplay)
 - **Basic WiFi/Gpio access, updating `wasm` file over-the-air** │ [video](https://twitter.com/alvaroviebrantz/status/1221618910803513344), [github](https://github.com/alvarowolfx/wasm-arduino-wifi) [ESP32 / Web] 

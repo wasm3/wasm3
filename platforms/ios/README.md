@@ -1,6 +1,6 @@
 ## Build for iOS
 
-<p align="center"><img width="50%" src="https://github.com/wasm3/wasm3/raw/master/extra/screenshot-ios.png"><br>
+<p align="center"><img width="50%" src="https://github.com/wasm3/wasm3/raw/main/extra/screenshot-ios.png"><br>
   Wasm3 running on <b>iPhone 8</b>
 </p>
 
