@@ -97,7 +97,7 @@ void internal_itoa(int n, char s[], int radix)
     s[i] = '\0';
 
     // reverse
-    for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+    for (j = i - 1, i = 0; i < j; i++, j--) {
         c = s[i];
         s[i] = s[j];
         s[j] = c;
@@ -124,7 +124,7 @@ void internal_uitoa(uint32_t n, char s[], int radix, bool upper)
     s[i] = '\0';
 
     // reverse
-    for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+    for (j = i - 1, i = 0; i < j; i++, j--) {
         c = s[i];
         s[i] = s[j];
         s[j] = c;
