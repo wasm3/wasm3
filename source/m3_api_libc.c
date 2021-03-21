@@ -107,14 +107,9 @@ void internal_itoa(int n, char s[], int radix)
 static
 void internal_uitoa(uint32_t n, char s[], int radix, bool upper)
 {
-    static char const HEXDIGITS_UPPER[0x10] = {
+    static char const HEXDIGITS[0x10] = {
             '0', '1', '2', '3', '4', '5', '6', '7',
             '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-    };
-
-    static char const HEXDIGITS_LOWER[0x10] = {
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
     };
 
     int i, j;
@@ -122,7 +117,8 @@ void internal_uitoa(uint32_t n, char s[], int radix, bool upper)
 
     i = 0;
     do {
-        s[i++] = (char)(upper ? HEXDIGITS_UPPER[n % radix] : HEXDIGITS_LOWER[n % radix]);
+        char ch = HEXDIGITS[n % radix];
+        s[i++] = ch | ((!upper) << 5);
     } while ((n /= radix) > 0);
 
     s[i] = '\0';
@@ -364,4 +360,3 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "snprintf",        
 _catch:
     return result;
 }
-
