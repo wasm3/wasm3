@@ -174,7 +174,7 @@ m3ApiRawFunction(m3_libc_snprintf)
                 int int_temp = *i_args++;
                 char buffer[32] = { 0, };
 
-                if (ch == 'x' || ch == 'X') {
+                if ((ch | 32) == 'x') { // 'x' or 'X'
                     internal_uitoa((uint32_t)int_temp, buffer, 16, ch == 'X');
                 } else if (ch == 'u') {
                     internal_uitoa((uint32_t)int_temp, buffer, 10, false);
@@ -261,7 +261,7 @@ m3ApiRawFunction(m3_libc_printf)
                 int int_temp = *i_args++;
                 char buffer[32] = { 0, };
 
-                if (ch == 'x' || ch == 'X') {
+                if ((ch | 32) == 'x') { // 'x' or 'X'
                     internal_uitoa((uint32_t)int_temp, buffer, 16, ch == 'X');
                 } else if (ch == 'u') {
                     internal_uitoa((uint32_t)int_temp, buffer, 10, false);
