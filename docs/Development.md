@@ -48,8 +48,6 @@ Recommended tools:
 ```sh
 # Prepare environment (if needed):
 "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-set PATH=C:\Program Files\CMake\bin;%PATH%
-set PATH=C:\Program Files\LLVM\bin;%PATH%
 set PATH=C:\Python36-32\;C:\Python36-32\Scripts\;%PATH%
 ```
 
@@ -60,26 +58,29 @@ set PATH=C:\Python36-32\;C:\Python36-32\Scripts\;%PATH%
 mkdir build
 cd build
 
-# Clang, x64
+# Configure Clang, x64
 cmake -G"Visual Studio 16 2019" -A x64 -T ClangCL ..
-cmake --build . --config Release
 
-# Clang, x86
+# Configure Clang, x86
 cmake -G"Visual Studio 16 2019" -A Win32 -T ClangCL ..
-cmake --build . --config Release
 
-# MSVC, x64
+# Configure MSVC, x64
 cmake -G"Visual Studio 16 2019" -A x64 ..
-cmake --build . --config Release
 
-# MSVC, x86
+# Configure MSVC, x86
 cmake -G"Visual Studio 16 2019" -A Win32 ..
+
+# Build
 cmake --build . --config Release
+cp ./Release/wasm3.exe ./
 ```
 
 ### Build with Ninja
 
 ```sh
+set PATH=C:\Program Files\CMake\bin;%PATH%
+set PATH=C:\Program Files\LLVM\bin;%PATH%
+
 # Clang
 cmake -GNinja -DCLANG_CL=1 ..
 ninja

@@ -10,7 +10,7 @@ Open [**WebAssembly.sh**](https://webassembly.sh)
 First you need to fetch a wasm file you'd like to run:
 
 ```sh
-$ curl https://raw.githubusercontent.com/wasm3/wasm3/master/test/lang/fib32.wasm -o /tmp/fib32.wasm
+$ curl https://raw.githubusercontent.com/wasm3/wasm3/main/test/lang/fib32.wasm -o /tmp/fib32.wasm
 
 $ ls -l /tmp/fib32.wasm
 ---------- 1 somebody somegroup 62 1970-01-19 05:45 /tmp/fib32.wasm
@@ -38,7 +38,7 @@ Result: 832040
 `wasm3` also supports `WASI`, so you can run:
 
 ```sh
-$ curl https://raw.githubusercontent.com/wasm3/wasm3/master/test/wasi/simple/test.wasm -o /tmp/test.wasm
+$ curl https://raw.githubusercontent.com/wasm3/wasm3/main/test/wasi/simple/test.wasm -o /tmp/test.wasm
 $ wasm3 /tmp/test.wasm
 ```
 
