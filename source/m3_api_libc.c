@@ -122,7 +122,8 @@ void internal_uitoa(uint32_t n, char s[], int radix, bool upper)
 
     i = 0;
     do {
-        s[i++] = (char)(upper ? HEXDIGITS_UPPER[n % radix] : HEXDIGITS_LOWER[n % radix]);
+        char ch = HEXDIGITS[n % radix];
+        s[i++] = ch | ((!upper) << 5);
     } while ((n /= radix) > 0);
 
     s[i] = '\0';
@@ -364,4 +365,3 @@ _   (SuppressLookupFailure (m3_LinkRawFunction (module, env, "snprintf",        
 _catch:
     return result;
 }
-
