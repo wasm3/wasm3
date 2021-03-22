@@ -33,6 +33,8 @@ Wasm3 can also be used as a library for:
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dot-net.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
+[　 Zig](https://github.com/alichay/zig-wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino)
 
 
@@ -80,7 +82,9 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 ## Used by
 
-[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev/)
+[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev/)　
+[<img src="https://www.balena.io/blog/content/images/2018/10/balena_logo.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
+[<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/vshymanskyy/krustlet-wasm3)　
 
 ## Further Resources
 
