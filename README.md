@@ -86,6 +86,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [<img src="https://upload.wikimedia.org/wikipedia/commons/f/fc/Wowcube_logo.png" height="32" />](https://wowcube.com/)　
 [<img src="https://www.balena.io/blog/content/images/2018/10/balena_logo.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
 [<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
+[<img src="https://shareup.app/images/apple-touch-icon-152x152.b493bfdc3499d37dd8fc08d2edb37faff7929559c9e0c1438f1406592c6eacf5.png" height="32" />](https://shareup.app/blog/introducing-shareup/)　
 
 ## Further Resources
 
