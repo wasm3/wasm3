@@ -84,7 +84,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 [<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev/)　
 [<img src="https://www.balena.io/blog/content/images/2018/10/balena_logo.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
-[<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/vshymanskyy/krustlet-wasm3)　
+[<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
 
 ## Further Resources
 
