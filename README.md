@@ -21,6 +21,21 @@ Here's an online demo and a small [getting started guide](https://wapm.io/packag
 
 [![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wasm3)
 
+
+## Installation
+
+**Please follow the [installation instructions](./docs/Installation.md).**
+
+Wasm3 can also be used as a library for:
+
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/python.svg" width="18" height="18" /> Python3](./platforms/python) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino)
+
+
 ## Status
 
 `wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/master/test/core) and is able to run many `WASI` apps.
@@ -53,19 +68,6 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 ☐ Tail call optimization  
 ☐ Fixed-width SIMD  
 
-## Installation
-
-**Please follow the [installation instructions](./docs/Installation.md).**
-
-Wasm3 can also be used as a library for:
-
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/python.svg" width="18" height="18" /> Python3](./platforms/python) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino)
-
 ## Motivation
 
 **Why use a "slow interpreter" versus a "fast JIT"?**
@@ -76,6 +78,9 @@ In many situations, speed is not the main concern. Runtime executable size, code
 
 Wasm3 started as a research project and remains so by many means. Evaluating the engine in different environments is part of the research. Given that we have `Lua`, `JS`, `Python`, `Lisp`, `...` running on MCUs, `WebAssembly` is actually a promising alternative. It provides toolchain decoupling as well as a completely sandboxed, well-defined, predictable environment. Among practical use cases we can list `edge computing`, `scripting`, running `IoT rules`, `smart contracts`, etc.
 
+## Used by
+
+[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev/)
 
 ## Further Resources
 
