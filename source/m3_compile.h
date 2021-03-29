@@ -167,7 +167,7 @@ const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
 // TODO: This helper should be removed, when MultiValue is implemented
 static inline
 u8 GetSingleRetType(IM3FuncType ftype) {
-    return (ftype && ftype->numRets) ? ftype->types[0] : c_m3Type_none;
+    return (ftype && ftype->numRets) ? ftype->types[0] : (u8)c_m3Type_none;
 }
 
 #ifdef DEBUG

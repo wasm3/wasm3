@@ -642,13 +642,13 @@ _       (ReadLEB_u32 (& index, & bytes, end));
         {
             i32 offset;
 _           (EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end));
+            _throwif ("table underflow", offset < 0);
 
             u32 numElements;
 _           (ReadLEB_u32 (& numElements, & bytes, end));
 
-            u32 endElement = numElements + offset;
+            size_t endElement = numElements + offset;
 
-            _throwif ("table overflow", offset >= endElement); // TODO: check this, endElement depends on offset
             io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
             _throwifnull(io_module->table0);
             io_module->table0Size = endElement;
