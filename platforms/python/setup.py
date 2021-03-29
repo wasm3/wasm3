@@ -21,7 +21,9 @@ setup(
 
     ext_modules=[
         Extension('wasm3', sources=SOURCES, include_dirs=['m3'],
-        extra_compile_args=['-g0', '-O3', '-DDEBUG', '-DNASSERTS'])
+        extra_compile_args=['-g0', '-O3', '-march=native',
+                            '-fomit-frame-pointer', '-fno-stack-check', '-fno-stack-protector',
+                            '-DDEBUG', '-DNASSERTS'])
     ],
 
     classifiers  = [
