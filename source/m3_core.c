@@ -528,8 +528,7 @@ void  PushBacktraceFrame  (IM3Runtime io_runtime, pc_t i_pc)
     if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
-    M3BacktraceFrame * newFrame;
-    m3Alloc ((void **) & newFrame, M3BacktraceFrame, 1);
+    M3BacktraceFrame * newFrame = m3_AllocStruct(M3BacktraceFrame);
 
     if (!newFrame)
     {
@@ -567,7 +566,7 @@ void  ClearBacktrace  (IM3Runtime io_runtime)
     while (currentFrame)
     {
         M3BacktraceFrame * nextFrame = currentFrame->next;
-        m3Free (currentFrame);
+        m3_Free (currentFrame);
         currentFrame = nextFrame;
     }
 

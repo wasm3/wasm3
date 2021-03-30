@@ -17,7 +17,9 @@
 #include "m3_api_tracer.h"
 
 // Gas metering/limit only applies to pre-instrumented modules
-#define GAS_LIMIT   2000000000000
+#define GAS_LIMIT       2000000000000
+
+#define MAX_MODULES     16
 
 #define FATAL(msg, ...) { fprintf(stderr, "Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
@@ -27,6 +29,9 @@
 
 IM3Environment env;
 IM3Runtime runtime;
+
+u8* wasm_bins[MAX_MODULES];
+int wasm_bins_qty = 0;
 
 #if defined(GAS_LIMIT)
 
@@ -96,29 +101,44 @@ M3Result repl_load  (const char* fn)
     fseek (f, 0, SEEK_SET);
 
     if (fsize < 8) {
-        return "file is too small";
+        result = "file is too small";
+        goto on_error;
     } else if (fsize > 10*1024*1024) {
-        return "file is too big";
+        result = "file is too big";
+        goto on_error;
     }
 
     wasm = (u8*) malloc(fsize);
     if (!wasm) {
-        return "cannot allocate memory for wasm binary";
+        result = "cannot allocate memory for wasm binary";
+        goto on_error;
     }
 
     if (fread (wasm, 1, fsize, f) != fsize) {
-        return "cannot read file";
+        result = "cannot read file";
+        goto on_error;
     }
     fclose (f);
+    f = NULL;
 
     IM3Module module;
     result = m3_ParseModule (env, &module, wasm, fsize);
-    if (result) return result;
+    if (result) goto on_error;
 
     result = m3_LoadModule (runtime, module);
-    if (result) return result;
+    if (result) goto on_error;
 
     result = link_all (module);
+    if (result) goto on_error;
+
+    if (wasm_bins_qty < MAX_MODULES) {
+        wasm_bins[wasm_bins_qty++] = wasm;
+    }
+
+    return result;
+on_error:
+    if (wasm) free(wasm);
+    if (f) fclose(f);
 
     return result;
 }
@@ -355,6 +375,11 @@ void repl_free()
     if (runtime) {
         m3_FreeRuntime (runtime);
         runtime = NULL;
+    }
+
+    for (int i = 0; i < wasm_bins_qty; i++) {
+        free (wasm_bins[i]);
+        wasm_bins[i] = NULL;
     }
 }
 
