@@ -178,31 +178,31 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 
+	// Wasm currently only supports one memory region. i_memoryIndex should be zero.
     uint8_t *           m3_GetMemory                (IM3Runtime             i_runtime,
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
-    // Wasm currently only supports one memory region. i_memoryIndex should be zero.
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  modules
 //-------------------------------------------------------------------------------------------------------------------------------
 
+	// i_wasmBytes data must be persistent during the lifetime of the module
     M3Result            m3_ParseModule              (IM3Environment         i_environment,
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes);
-    // i_wasmBytes data must be persistent during the lifetime of the module
-
+    
+	//  Only unloaded modules need to be freed
     void                m3_FreeModule               (IM3Module i_module);
-    //  Only unloaded modules need to be freed
 
+	//  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
-    //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime
 
-    // Calling m3_RunStart is optional
+	// Calling m3_RunStart is optional
     M3Result            m3_RunStart                 (IM3Module i_module);
 
     typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem);
@@ -228,6 +228,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //-------------------------------------------------------------------------------------------------------------------------------
     M3Result            m3_Yield                    (void);
 
+	// o_function is valid during the lifetime of the originating runtime
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
@@ -246,7 +247,6 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
 
-    // IM3Functions are valid during the lifetime of the originating runtime
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
@@ -262,7 +262,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     void                m3_PrintM3Info              (void);
     void                m3_PrintProfilerInfo        (void);
 
-    // The runtime owns the backtrace, do not free the backtrace you obtain. Returns NULL if there's no backtrace.
+	// The runtime owns the backtrace, do not free the backtrace you obtain. Returns NULL if there's no backtrace.
     IM3BacktraceInfo    m3_GetBacktrace             (IM3Runtime i_runtime);
 
 #if defined(__cplusplus)

@@ -30,6 +30,7 @@ M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signatur
     M3Result result = m3Err_none;
 
     IM3FuncType funcType = NULL;
+	 
 _try {
     if (not o_functionType)
         _throw ("null function type");
@@ -43,7 +44,7 @@ _try {
     _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 0);
     _throwif ("insane argument count", maxNumArgs > d_m3MaxSaneFunctionArgCount);
 
-    const unsigned umaxNumArgs = (unsigned)maxNumArgs;
+    const u32 umaxNumArgs = (u32) maxNumArgs;
 
 _   (AllocFuncType (& funcType, umaxNumArgs));
 

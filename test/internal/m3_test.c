@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 
-//#include "m3_ext.h"
+#include "wasm3_ext.h"
 #include "m3_bind.h"
 
 #define Test(NAME) printf ("\n  test: %s\n", #NAME);
@@ -22,15 +22,16 @@ int  main  (int i_argc, const char  * i_argv [])
         IM3FuncType ftype = NULL;
         
         result = SignatureToFuncType (& ftype, "");                     expect (result == m3Err_malformedFunctionSignature)
-        m3Free (ftype);
+        m3_Free (ftype);
         
-        result = SignatureToFuncType (& ftype, "()");                   expect (result == m3Err_malformedFunctionSignature)
-        m3Free (ftype);
+          // implicit void return
+        result = SignatureToFuncType (& ftype, "()");                   expect (result == m3Err_none)
+        m3_Free (ftype);
 
         result = SignatureToFuncType (& ftype, " v () ");               expect (result == m3Err_none)
                                                                         expect (ftype->numRets == 0)
                                                                         expect (ftype->numArgs == 0)
-        m3Free (ftype);
+        m3_Free (ftype);
 
         result = SignatureToFuncType (& ftype, "f(IiF)");               expect (result == m3Err_none)
                                                                         expect (ftype->numRets == 1)
@@ -43,8 +44,8 @@ int  main  (int i_argc, const char  * i_argv [])
         IM3FuncType ftype2 = NULL;
         result = SignatureToFuncType (& ftype2, "f(I i F)");            expect (result == m3Err_none);
                                                                         expect (AreFuncTypesEqual (ftype, ftype2));
-        m3Free (ftype);
-        m3Free (ftype2);
+        m3_Free (ftype);
+        m3_Free (ftype2);
     }
     
     
@@ -71,6 +72,7 @@ int  main  (int i_argc, const char  * i_argv [])
         Runtime_Release (& runtime);                                    expect (CountCodePages (env.pagesReleased) == 2);
         Environment_Release (& env);                                    expect (CountCodePages (env.pagesReleased) == 0);
     }
+    
     
     Test (codepages.b)
     {
@@ -103,7 +105,7 @@ int  main  (int i_argc, const char  * i_argv [])
                 
             expect (runtime.numActiveCodePages == numActive);
         }
-        
+          
         printf ("num pages: %d\n", runtime.numCodePages);
         
         for (u32 i = 0; i < c_numPages; ++i)
@@ -119,6 +121,21 @@ int  main  (int i_argc, const char  * i_argv [])
         Runtime_Release (& runtime);
         Environment_Release (& env);
     }
+     
+     
+    Test (extensions)
+    {
+        IM3Environment env = m3_NewEnvironment ();
+
+        IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
+
+        IM3Module module = m3_NewModule (env);
+
+        M3Result result = m3_LoadModule (runtime, module);                    expect (result == m3Err_none)
+
+        m3_FreeRuntime (runtime);
+    }
+    
     
     return 0;
 }

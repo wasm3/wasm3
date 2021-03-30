@@ -193,9 +193,9 @@ typedef struct M3Environment
 {
 //    struct M3Runtime *      runtimes;
 
-    IM3FuncType             funcTypes;          // linked list
+    IM3FuncType             funcTypes;          				// linked list
 
-    IM3FuncType             retFuncTypes[5];    // the number of elements must match the basic types as per M3ValueType
+    IM3FuncType	            retFuncTypes [c_m3Type_unknown];	// the number of elements must match the basic types as per M3ValueType
 
     M3CodePage *            pagesReleased;
 }
