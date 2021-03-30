@@ -1534,18 +1534,17 @@ M3Result  PreserveArgsAndLocals  (IM3Compilation o)
 
         for (u32 i = 0; i < numArgsAndLocals; ++i)
         {
-            u16 localSlot = GetSlotForStackIndex (o, i);
             u16 preservedSlotIndex;
-_           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, localSlot));
+_           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, i));
 
-            if (preservedSlotIndex != localSlot)
+            if (preservedSlotIndex != i)
             {
                 u8 type = GetStackBottomType (o, i);
                 IM3Operation op = Is64BitType (type) ? op_CopySlot_64 : op_CopySlot_32;
 
                 EmitOp          (o, op);
                 EmitSlotOffset  (o, preservedSlotIndex);
-                EmitSlotOffset  (o, localSlot);
+                EmitSlotOffset  (o, i);
             }
         }
     }
