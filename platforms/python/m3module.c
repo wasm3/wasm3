@@ -238,6 +238,8 @@ m3ApiRawFunction(metering_usegas)
     m3ApiSuccess();
 }
 
+static const char* trapException = "function raised exception";
+
 m3ApiRawFunction(CallImport)
 {
     PyObject *pFunc = (PyObject *)(_ctx->userdata);
@@ -255,7 +257,7 @@ m3ApiRawFunction(CallImport)
     }
 
     PyObject * pRets = PyObject_CallObject(pFunc, pArgs);
-    if (!pRets) m3ApiTrap("python call: function raised exception");
+    if (!pRets) m3ApiTrap(trapException);
 
     if (PyTuple_Check(pRets)) {
         if (PyTuple_GET_SIZE(pRets) != nRets) {
@@ -382,7 +384,9 @@ M3_Function_call_argv(m3_function *func, PyObject *args)
         argv[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(args, i));
     }
     M3Result err = m3_CallArgv(func->f, size, argv);
-    if (err) {
+    if (err == trapException) {
+		return NULL;
+	} else if (err) {
         return formatError(PyExc_RuntimeError, func->r, err);
     }
 
@@ -414,7 +418,9 @@ M3_Function_call(m3_function *self, PyObject *args, PyObject *kwargs)
     }
 
     M3Result err = m3_Call (f, nArgs, valptrs);
-    if (err) {
+	if (err == trapException) {
+		return NULL;
+	} else if (err) {
         return formatError(PyExc_RuntimeError, self->r, err);
     }
 
