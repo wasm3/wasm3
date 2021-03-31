@@ -66,6 +66,7 @@ _try {
 M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo)
 {
     M3Result result = m3Err_none;
+	
 _try {
     u32 index = io_module->numFunctions++;
     io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
@@ -99,7 +100,10 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
     IM3Function func = NULL;
 
     if (i_functionIndex < i_module->numFunctions)
+	{
         func = & i_module->functions [i_functionIndex];
+		func->module = i_module;
+	}
 
     return func;
 }

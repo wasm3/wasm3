@@ -10,7 +10,8 @@
 #include "wasm3_ext.h"
 #include "m3_bind.h"
 
-#define Test(NAME) printf ("\n  test: %s\n", #NAME);
+#define Test(NAME) printf ("\n    test: %s\n", #NAME); if (true)
+#define DisabledTest(NAME) printf ("\ndisabled: %s\n", #NAME); if (false)
 #define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); }
 
 int  main  (int i_argc, const char  * i_argv [])
@@ -74,7 +75,7 @@ int  main  (int i_argc, const char  * i_argv [])
     }
     
     
-    Test (codepages.b)
+	DisabledTest (codepages.b)
     {
         const u32 c_numPages = 2000;
         IM3CodePage pages [2000] = { NULL };
@@ -125,13 +126,29 @@ int  main  (int i_argc, const char  * i_argv [])
      
     Test (extensions)
     {
+		M3Result result;
+		
         IM3Environment env = m3_NewEnvironment ();
 
         IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
 
-        IM3Module module = m3_NewModule (env);
+        IM3Module module = w3_NewModule (env);
 
-        M3Result result = m3_LoadModule (runtime, module);                    expect (result == m3Err_none)
+		
+		i32 functionIndex = -1;
+		
+		u8 wasm [2] = { 0x00, 0x0b };
+		
+		// will partially fail (compilation) because module isn't attached to a runtime yet.
+		result = w3_InjectFunction (module, & functionIndex, "f()", wasm, 2, true);		expect (result != m3Err_none)
+																						expect (functionIndex >= 0)
+		
+
+		result = m3_LoadModule (runtime, module);                    					expect (result == m3Err_none)
+
+		result = w3_InjectFunction (module, & functionIndex, "f()", wasm, 2, true);		expect (result == m3Err_none)
+
+		printf ("%s\n", result);
 
         m3_FreeRuntime (runtime);
     }

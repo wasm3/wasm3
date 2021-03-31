@@ -53,8 +53,8 @@ void  Function_Release  (IM3Function i_function)
 
     FreeImportInfo (& i_function->import);
 
-    //if (i_function->ownsWasmCode)
-    //    m3_Free (i_function->wasm);
+    if (i_function->ownsWasmCode)
+        m3_Free (i_function->wasm);
 
     // Function_FreeCompiledCode (func);
 

@@ -57,7 +57,7 @@ typedef struct M3Function
     void *                  constants;
     u16                     numConstantBytes;
 
-    //bool                    ownsWasmCode;
+    bool                    ownsWasmCode;
 }
 M3Function;
 
