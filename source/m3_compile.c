@@ -2341,9 +2341,9 @@ M3Result  Compile_Function  (IM3Function io_function)
 {
     IM3FuncType ft = io_function->funcType;
 
-    M3Result result = m3Err_none;                                  	m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
+    M3Result result = m3Err_none;                                   m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
                                                                            m3_GetFunctionName(io_function), (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function),
-																		   c_waTypes [GetSingleRetType(ft)]);
+                                                                           c_waTypes [GetSingleRetType(ft)]);
     IM3Runtime runtime = io_function->module->runtime;
 
     IM3Compilation o = & runtime->compilation;
@@ -2356,10 +2356,10 @@ M3Result  Compile_Function  (IM3Function io_function)
     o->wasmEnd  = io_function->wasmEnd;
 
 _try {
-	// skip over code size. the end was already calculated during parse phase
-	u32 size;
-_ 	(ReadLEB_u32 (& size, & o->wasm, o->wasmEnd));					d_m3Assert (size == (o->wasmEnd - o->wasm))
-	
+    // skip over code size. the end was already calculated during parse phase
+    u32 size;
+_   (ReadLEB_u32 (& size, & o->wasm, o->wasmEnd));                  d_m3Assert (size == (o->wasmEnd - o->wasm))
+    
 _   (AcquireCompilationCodePage (o, & o->page));
 
     pc_t pc = GetPagePC (o->page);

@@ -177,38 +177,38 @@ void FreeImportInfo (M3ImportInfo * i_info)
 
 IM3Environment  m3_NewEnvironment  ()
 {
-	M3Result result = m3Err_none;
-	
+    M3Result result = m3Err_none;
+    
     IM3Environment env = m3_AllocStruct (M3Environment);
 
-	if (env)
-	{
-		_try
-		{
-			// create FuncTypes for all simple block return ValueTypes
-			for (u8 t = c_m3Type_none; t <= c_m3Type_f64; t++)
-			{
-				IM3FuncType ftype;
-_				(AllocFuncType (& ftype, 1));
+    if (env)
+    {
+        _try
+        {
+            // create FuncTypes for all simple block return ValueTypes
+            for (u8 t = c_m3Type_none; t <= c_m3Type_f64; t++)
+            {
+                IM3FuncType ftype;
+_               (AllocFuncType (& ftype, 1));
 
-				ftype->numArgs = 0;
-				ftype->numRets = (t == c_m3Type_none) ? 0 : 1;
-				ftype->types [0] = t;
+                ftype->numArgs = 0;
+                ftype->numRets = (t == c_m3Type_none) ? 0 : 1;
+                ftype->types [0] = t;
 
-				Environment_AddFuncType (env, & ftype);
+                Environment_AddFuncType (env, & ftype);
 
-				d_m3Assert (t < 5);
-				env->retFuncTypes [t] = ftype;
-			}
-		}
-	
-		_catch:
-		if (result)
-		{
-			m3_FreeEnvironment (env);
-			env = NULL;
-		}
-	}
+                d_m3Assert (t < 5);
+                env->retFuncTypes [t] = ftype;
+            }
+        }
+    
+        _catch:
+        if (result)
+        {
+            m3_FreeEnvironment (env);
+            env = NULL;
+        }
+    }
 
     return env;
 }
@@ -224,7 +224,7 @@ void  Environment_Release  (IM3Environment i_environment)
         m3_Free (ftype);
         ftype = next;
     }
-	
+    
     m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
 }

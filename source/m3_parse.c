@@ -314,8 +314,8 @@ _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                           
 
     for (u32 f = 0; f < numFunctions; ++f)
     {
-		const u8 * start = i_bytes;
-		
+        const u8 * start = i_bytes;
+        
         u32 size;
 _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
@@ -348,7 +348,7 @@ _                   (NormalizeType (& normalType, wasmType));
 
                 func->module = io_module;
                 func->wasm = start;
-				func->wasmEnd = i_bytes;
+                func->wasmEnd = i_bytes;
                 //func->ownsWasmCode = io_module->hasWasmCodeCopy;
                 func->numLocals = numLocals;
             }

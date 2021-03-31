@@ -75,7 +75,7 @@ int  main  (int i_argc, const char  * i_argv [])
     }
     
     
-	DisabledTest (codepages.b)
+    DisabledTest (codepages.b)
     {
         const u32 c_numPages = 2000;
         IM3CodePage pages [2000] = { NULL };
@@ -126,41 +126,41 @@ int  main  (int i_argc, const char  * i_argv [])
      
     Test (extensions)
     {
-		M3Result result;
-		
+        M3Result result;
+        
         IM3Environment env = m3_NewEnvironment ();
 
         IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
 
         IM3Module module = m3_NewModule (env);
 
-		
-		i32 functionIndex = -1;
-		
-		u8 wasm [5] = { 0x04,		// size
-						0x00, 		// num local defs
-						0x41, 0x37,	// i32.const= 55
-						0x0b		// end block
-		};
-		
-		// will partially fail (compilation) because module isn't attached to a runtime yet.
-		result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);		expect (result != m3Err_none)
-																						expect (functionIndex >= 0)
+        
+        i32 functionIndex = -1;
+        
+        u8 wasm [5] = { 0x04,       // size
+                        0x00,       // num local defs
+                        0x41, 0x37, // i32.const= 55
+                        0x0b        // end block
+        };
+        
+        // will partially fail (compilation) because module isn't attached to a runtime yet.
+        result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);        expect (result != m3Err_none)
+                                                                                        expect (functionIndex >= 0)
 
-		result = m3_LoadModule (runtime, module);                    					expect (result == m3Err_none)
+        result = m3_LoadModule (runtime, module);                                       expect (result == m3Err_none)
 
-		// try again
-		result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);		expect (result == m3Err_none)
+        // try again
+        result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);        expect (result == m3Err_none)
 
-		IM3Function function = m3_GetFunctionByIndex (module, functionIndex);			expect (function)
-		
-		if (function)
-		{
-			result = m3_CallV (function);												expect (result == m3Err_none)
-			u32 ret = 0;
-			m3_GetResultsV (function, & ret);											expect (ret == 55);
-		}
-		
+        IM3Function function = m3_GetFunctionByIndex (module, functionIndex);           expect (function)
+        
+        if (function)
+        {
+            result = m3_CallV (function);                                               expect (result == m3Err_none)
+            u32 ret = 0;
+            m3_GetResultsV (function, & ret);                                           expect (ret == 55);
+        }
+        
         m3_FreeRuntime (runtime);
     }
     

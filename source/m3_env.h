@@ -149,10 +149,10 @@ typedef struct M3Module
     cstr_t                  name;
 
     u32                     numFuncTypes;
-    IM3FuncType *           funcTypes;         		// array of pointers to list of FuncTypes
+    IM3FuncType *           funcTypes;              // array of pointers to list of FuncTypes
 
     u32                     numImports;
-    //IM3Function *           imports;   b         	// notice: "I" prefix. imports are pointers to functions in another module.
+    //IM3Function *           imports;   b          // notice: "I" prefix. imports are pointers to functions in another module.
 
     u32                     numFunctions;
     M3Function *            functions;
@@ -193,10 +193,10 @@ typedef struct M3Environment
 {
 //    struct M3Runtime *      runtimes;
 
-    IM3FuncType             funcTypes;          				// linked list
+    IM3FuncType             funcTypes;                          // linked list
 
-    IM3FuncType	            retFuncTypes [c_m3Type_unknown];	// these 'point' to elements in the linked list above.
-																// the number of elements must match the basic types as per M3ValueType
+    IM3FuncType             retFuncTypes [c_m3Type_unknown];    // these 'point' to elements in the linked list above.
+                                                                // the number of elements must match the basic types as per M3ValueType
     M3CodePage *            pagesReleased;
 }
 M3Environment;

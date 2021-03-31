@@ -30,7 +30,7 @@ M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signatur
     M3Result result = m3Err_none;
 
     IM3FuncType funcType = NULL;
-	 
+     
 _try {
     if (not o_functionType)
         _throw ("null function type");
