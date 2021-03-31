@@ -102,3 +102,9 @@ _   (Compile_Function (function));
 	
 	return result;
 }
+
+
+IM3Function  m3_GetFunctionByIndex  (IM3Module i_module, uint32_t i_index)
+{
+	return Module_GetFunction (i_module, i_index);
+}
