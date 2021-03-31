@@ -632,7 +632,7 @@ d_m3Op  (CallRawFunction)
 
 #if d_m3EnableStrace
     if (UNLIKELY(possible_trap)) {
-        d_m3TracePrint("%s -> %s", outbuff, possible_trap);
+        d_m3TracePrint("%s -> %s", outbuff, (char*)possible_trap);
     } else {
         switch (GetSingleRetType(ftype)) {
         case c_m3Type_none: d_m3TracePrint("%s", outbuff); break;

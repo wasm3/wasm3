@@ -54,13 +54,13 @@ void  Function_Release  (IM3Function i_function)
     FreeImportInfo (& i_function->import);
 
     //if (i_function->ownsWasmCode)
-    //    m3Free (i_function->wasm);
+    //    m3_Free (i_function->wasm);
 
     // Function_FreeCompiledCode (func);
 
 #   if (d_m3EnableCodePageRefCounting)
     {
-        m3Free (i_function->codePageRefs);
+        m3_Free (i_function->codePageRefs);
         i_function->numCodePageRefs = 0;
     }
 #   endif
@@ -83,7 +83,7 @@ void  Function_FreeCompiledCode (IM3Function i_function)
             }
         }
 
-        m3Free (i_function->codePageRefs);
+        m3_Free (i_function->codePageRefs);
 
         Runtime_ReleaseCodePages (i_function->module->runtime);
     }
@@ -642,13 +642,13 @@ _       (ReadLEB_u32 (& index, & bytes, end));
         {
             i32 offset;
 _           (EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end));
+            _throwif ("table underflow", offset < 0);
 
             u32 numElements;
 _           (ReadLEB_u32 (& numElements, & bytes, end));
 
-            u32 endElement = numElements + offset;
+            size_t endElement = numElements + offset;
 
-            _throwif ("table overflow", offset >= endElement); // TODO: check this, endElement depends on offset
             io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
             _throwifnull(io_module->table0);
             io_module->table0Size = endElement;
