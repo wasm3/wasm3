@@ -12,7 +12,7 @@
 #include "m3_exception.h"
 
 
-IM3Module  w3_NewModule  (IM3Environment i_environment)
+IM3Module  m3_NewModule  (IM3Environment i_environment)
 {
 	IM3Module module = m3_AllocStruct (M3Module);
 	
@@ -31,22 +31,27 @@ IM3Module  w3_NewModule  (IM3Environment i_environment)
 
 
 
-M3Result  w3_InjectFunction  (IM3Module              	i_module,
+M3Result  m3_InjectFunction  (IM3Module              	i_module,
 							  int32_t *              	io_functionIndex,
 							  const char * const     	i_signature,
 							  const uint8_t * const  	i_wasmBytes,
-							  uint32_t              	i_numWasmBytes,
 							  bool						i_doCompilation)
 {
 	M3Result result = m3Err_none;                                       d_m3Assert (io_functionIndex);
 
+	IM3Function function = NULL;
+	IM3FuncType ftype = NULL;
+_   (SignatureToFuncType (& ftype, i_signature));
+
 	i32 index = * io_functionIndex;
 
-	IM3FuncType ftype;
-_   (SignatureToFuncType (& ftype, i_signature));
+	bytes_t bytes = i_wasmBytes;
+	bytes_t end = i_wasmBytes + 5;
 	
-	IM3Function function = NULL;
-	
+	u32 size;
+_  	(ReadLEB_u32 (& size, & bytes, end));
+	end = bytes + size;
+
 	if (index >= 0)
 	{
 		_throwif ("function index out of bounds", index >= i_module->numFunctions);
@@ -75,16 +80,17 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
 		* io_functionIndex = index;
 	}
 
+	function->compiled = NULL;
+
 	if (function->ownsWasmCode)
 		m3_Free (function->wasm);
 	
-    function->wasm = m3_CopyMem (i_wasmBytes, i_numWasmBytes);
+	size_t numBytes = end - i_wasmBytes;
+    function->wasm = m3_CopyMem (i_wasmBytes, numBytes);
 	_throwifnull (function->wasm);
-	
-	function->wasmEnd = function->wasm + i_numWasmBytes;
 
+	function->wasmEnd = function->wasm + numBytes;
 	function->ownsWasmCode = true;
-	function->compiled = NULL;
 	
 	if (i_doCompilation and not i_module->runtime)
 		_throw ("module must be loaded into runtime to compile function");

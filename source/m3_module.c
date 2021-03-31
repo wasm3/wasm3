@@ -87,8 +87,8 @@ _try {
         func->numNames = 1;
         func->names[0] = i_importInfo->fieldUtf8;
     }
-
-    //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
+	
+	m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
 
 } _catch:
     return result;

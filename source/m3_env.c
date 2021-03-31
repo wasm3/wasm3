@@ -16,7 +16,7 @@
 
 M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
 {
-    *o_functionType = (IM3FuncType)m3_Malloc (sizeof (M3FuncType) + i_numTypes);
+    *o_functionType = (IM3FuncType) m3_Malloc (sizeof (M3FuncType) + i_numTypes);
     return (*o_functionType) ? m3Err_none : m3Err_mallocFailed;
 }
 
@@ -186,7 +186,7 @@ IM3Environment  m3_NewEnvironment  ()
 		_try
 		{
 			// create FuncTypes for all simple block return ValueTypes
-			for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
+			for (u8 t = c_m3Type_none; t <= c_m3Type_f64; t++)
 			{
 				IM3FuncType ftype;
 _				(AllocFuncType (& ftype, 1));

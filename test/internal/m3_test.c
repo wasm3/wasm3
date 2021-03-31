@@ -132,24 +132,31 @@ int  main  (int i_argc, const char  * i_argv [])
 
         IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
 
-        IM3Module module = w3_NewModule (env);
+        IM3Module module = m3_NewModule (env);
 
 		
 		i32 functionIndex = -1;
 		
-		u8 wasm [2] = { 0x00, 0x0b };
+		u8 wasm [5] = { 0x04,		// size
+						0x00, 		// num local defs
+						0x41, 0x37,	// i32.const= 55
+						0x0b		// end block
+		};
 		
 		// will partially fail (compilation) because module isn't attached to a runtime yet.
-		result = w3_InjectFunction (module, & functionIndex, "f()", wasm, 2, true);		expect (result != m3Err_none)
+		result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);		expect (result != m3Err_none)
 																						expect (functionIndex >= 0)
 		
 
 		result = m3_LoadModule (runtime, module);                    					expect (result == m3Err_none)
 
-		result = w3_InjectFunction (module, & functionIndex, "f()", wasm, 2, true);		expect (result == m3Err_none)
+		result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);		expect (result == m3Err_none)
 
-		printf ("%s\n", result);
-
+//		IM3Function function = w3_GetFunctionByIndex (module, functionIndex);
+//		m3_FindFunction (<#IM3Function *o_function#>, IM3Runtime i_runtime, <#const char *const i_functionName#>)
+		
+//		printf ("%s\n", result);
+		
         m3_FreeRuntime (runtime);
     }
     
