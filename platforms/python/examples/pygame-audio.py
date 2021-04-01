@@ -72,7 +72,7 @@ if __name__ == '__main__':
         # buffer
         buff += data
         if len(buff) > buff_sz*1024:
-            #print('+', end='', flush=True)
+            print('+', end='', flush=True)
             q.put(buff)
             buff = b''
             buff_sz = 64
@@ -85,11 +85,12 @@ if __name__ == '__main__':
     wasm_start = rt.find_function("_start")
     try:
         wasm_start()
-        q.put(buff)
+        q.put(buff)         # play the leftover
     except:
         pass
     finally:
         q.put(None)
+        q.close()
         p.join()
 
     print()
