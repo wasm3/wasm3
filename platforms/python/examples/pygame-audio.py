@@ -7,17 +7,21 @@ import numpy
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "true"
 
-def consumer(conn):
+def player(q):
     import pygame
     pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
     pygame.init()
 
     channel = pygame.mixer.Channel(0)
     while True:
-        chunk = pygame.mixer.Sound(buffer=conn.recv())
+        buff = q.get()
+        if not len(buff):
+            break
+        chunk = pygame.mixer.Sound(buffer=buff)
 
         indicator = '|' if channel.get_queue() else '.'
         print(indicator, end='', flush=True)
+
         while channel.get_queue() != None:
             time.sleep(0.01)
 
@@ -27,12 +31,13 @@ def consumer(conn):
 
 
 if __name__ == '__main__':
+
     print("Hondarribia - Intro song WebAssembly Summit 2020 by Peter Salomonsen")
     print("Source:      https://petersalomonsen.com/webassemblymusic/livecodev2/?gist=5b795090ead4f192e7f5ee5dcdd17392")
     print("Synthesized: https://soundcloud.com/psalomo/hondarribia")
 
-    conn, child_conn = mp.Pipe()
-    p = mp.Process(target=consumer, args=(child_conn,))
+    q = mp.Queue()
+    p = mp.Process(target=player, args=(q,))
     p.start()
 
     scriptpath = os.path.dirname(os.path.realpath(__file__))
@@ -47,23 +52,27 @@ if __name__ == '__main__':
         rt.load(mod)
 
     buff = b''
-    buff_sz = 256
+    buff_sz = 512
     print("Pre-buffering...")
 
     def fd_write(fd, wasi_iovs, iows_len, nwritten):
         global buff, buff_sz
         mem = rt.get_memory(0)
 
-        # decode
+        # get data
         (off, size) = struct.unpack("<II", mem[wasi_iovs:wasi_iovs+8])
-        arr = numpy.frombuffer(mem[off:off+size], dtype=numpy.float32) * 32768
-        buff += arr.astype(numpy.int16).tobytes()
+        data = mem[off:off+size]
+
+        # decode
+        arr = numpy.frombuffer(data, dtype=numpy.float32) 
+        data = (arr * 32768).astype(numpy.int16).tobytes()
 
         # buffer
+        buff += data
         if len(buff) > buff_sz*1024:
-            conn.send(buff)
+            q.put(buff)
             buff = b''
-            buff_sz = 64
+            buff_sz = 128
 
         return size
 
@@ -72,4 +81,10 @@ if __name__ == '__main__':
     wasm_start = rt.find_function("_start")
     wasm_start()
 
+    q.put(b'')
+
     p.join()
+
+    print()
+    print("Finished")
+
