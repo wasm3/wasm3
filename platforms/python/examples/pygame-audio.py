@@ -9,7 +9,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "true"
 
 def player(q):
     import pygame
-    pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
+    pygame.mixer.pre_init(frequency=22050, size=-16, channels=2)
     pygame.init()
 
     channel = pygame.mixer.Channel(0)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     p.start()
 
     scriptpath = os.path.dirname(os.path.realpath(__file__))
-    wasm_fn = os.path.join(scriptpath, "./wasm/hondarribia.wasm")
+    wasm_fn = os.path.join(scriptpath, "./wasm/hondarribia_22050.wasm")
 
     # Prepare Wasm3 engine
 
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
         return size
 
-    mod.link_function("wasi_unstable", "fd_write", "i(i*i*)", fd_write)
+    mod.link_function("wasi_snapshot_preview1", "fd_write", "i(i*i*)", fd_write)
 
     wasm_start = rt.find_function("_start")
     wasm_start()
