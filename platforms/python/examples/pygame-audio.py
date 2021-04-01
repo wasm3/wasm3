@@ -22,7 +22,7 @@ def player(q):
         indicator = '|' if channel.get_queue() else '.'
         print(indicator, end='', flush=True)
 
-        while channel.get_queue() != None:
+        while channel.get_queue() is not None:
             time.sleep(0.01)
 
         channel.queue(chunk)
