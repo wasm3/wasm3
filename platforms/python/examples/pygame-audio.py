@@ -7,32 +7,34 @@ import numpy
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "true"
 
+sample_rate = 22050     # or 44100
+
 def player(q):
     import pygame
-    pygame.mixer.pre_init(frequency=22050, size=-16, channels=2)
+    pygame.mixer.pre_init(frequency=sample_rate, size=-16, channels=2)
     pygame.init()
 
     channel = pygame.mixer.Channel(0)
-    while True:
-        buff = q.get()
-        if not len(buff):
-            break
-        chunk = pygame.mixer.Sound(buffer=buff)
+    try:
+        while True:
+            chunk = pygame.mixer.Sound(buffer=q.get())
 
-        indicator = '|' if channel.get_queue() else '.'
-        print(indicator, end='', flush=True)
+            indicator = '|' if channel.get_queue() else '.'
+            print(indicator, end='', flush=True)
 
-        while channel.get_queue() is not None:
-            time.sleep(0.01)
+            while channel.get_queue() is not None:
+                time.sleep(0.01)
 
-        channel.queue(chunk)
-
-    pygame.quit()
+            channel.queue(chunk)
+    except:
+        pass
+    finally:
+        pygame.quit()
 
 
 if __name__ == '__main__':
 
-    print("Hondarribia - Intro song WebAssembly Summit 2020 by Peter Salomonsen")
+    print("Hondarribia - intro song for WebAssembly Summit 2020 by Peter Salomonsen")
     print("Source:      https://petersalomonsen.com/webassemblymusic/livecodev2/?gist=5b795090ead4f192e7f5ee5dcdd17392")
     print("Synthesized: https://soundcloud.com/psalomo/hondarribia")
 
@@ -41,7 +43,7 @@ if __name__ == '__main__':
     p.start()
 
     scriptpath = os.path.dirname(os.path.realpath(__file__))
-    wasm_fn = os.path.join(scriptpath, "./wasm/hondarribia_22050.wasm")
+    wasm_fn = os.path.join(scriptpath, f"./wasm/hondarribia-{sample_rate}.wasm")
 
     # Prepare Wasm3 engine
 
@@ -51,9 +53,9 @@ if __name__ == '__main__':
         mod = env.parse_module(f.read())
         rt.load(mod)
 
-    buff = b''
-    buff_sz = 512
     print("Pre-buffering...")
+    buff = b''
+    buff_sz = 1024
 
     def fd_write(fd, wasi_iovs, iows_len, nwritten):
         global buff, buff_sz
@@ -70,20 +72,25 @@ if __name__ == '__main__':
         # buffer
         buff += data
         if len(buff) > buff_sz*1024:
+            #print('+', end='', flush=True)
             q.put(buff)
             buff = b''
-            buff_sz = 128
+            buff_sz = 64
 
         return size
 
-    mod.link_function("wasi_snapshot_preview1", "fd_write", "i(i*i*)", fd_write)
+    for modname in ["wasi_unstable", "wasi_snapshot_preview1"]:
+        mod.link_function(modname, "fd_write", "i(i*i*)", fd_write)
 
     wasm_start = rt.find_function("_start")
-    wasm_start()
-
-    q.put(b'')
-
-    p.join()
+    try:
+        wasm_start()
+        q.put(buff)
+    except:
+        pass
+    finally:
+        q.put(None)
+        p.join()
 
     print()
     print("Finished")
