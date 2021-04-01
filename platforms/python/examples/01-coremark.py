@@ -17,7 +17,7 @@ rt = env.new_runtime(4096)
 with open(wasm_fn, "rb") as f:
     mod = env.parse_module(f.read())
     rt.load(mod)
-    mod.link_function("env", "clock_ms",    "i()",  clock_ms)
+    mod.link_function("env", "clock_ms",    "I()",  clock_ms)
 
 wasm_run = rt.find_function("run")
 
