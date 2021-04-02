@@ -21,7 +21,8 @@
  * You can generate a metered version from any wasm file automatically, using
  *   https://github.com/ewasm/wasm-metering
  */
-#define GAS_LIMIT       2000000000000
+#define GAS_LIMIT       500000000
+#define GAS_FACTOR      10000LL
 
 #define MAX_MODULES     16
 
@@ -39,7 +40,7 @@ int wasm_bins_qty = 0;
 
 #if defined(GAS_LIMIT)
 
-static int64_t current_gas = GAS_LIMIT;
+static int64_t current_gas = GAS_FACTOR * GAS_LIMIT;
 static bool is_gas_metered = false;
 
 m3ApiRawFunction(metering_usegas)
@@ -79,7 +80,7 @@ M3Result link_all  (IM3Module module)
 #if defined(GAS_LIMIT)
     res = m3_LinkRawFunction (module, "metering", "usegas", "v(i)", &metering_usegas);
     if (!res) {
-        fprintf(stderr, "Warning: Gas is limited to %0.4f\n", (double)(current_gas)/10000);
+        fprintf(stderr, "Warning: Gas is limited to %0.4f\n", (double)(current_gas) / GAS_FACTOR);
         is_gas_metered = true;
     }
     if (res == m3Err_functionLookupFailed) { res = NULL; }
@@ -259,7 +260,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 
 #if defined(GAS_LIMIT)
     if (is_gas_metered) {
-        fprintf(stderr, "Gas used: %0.4f\n", (double)(GAS_LIMIT - current_gas)/10000);
+        fprintf(stderr, "Gas used: %0.4f\n", (double)((GAS_FACTOR * GAS_LIMIT) - current_gas) / GAS_FACTOR);
     }
 #endif
 
