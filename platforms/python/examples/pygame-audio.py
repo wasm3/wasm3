@@ -9,6 +9,9 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "true"
 
 sample_rate = 22050     # or 44100
 
+def draw(c):
+    print(c, end='', flush=True)
+
 def player(q):
     import pygame
     pygame.mixer.pre_init(frequency=sample_rate, size=-16, channels=2)
@@ -19,14 +22,13 @@ def player(q):
         while True:
             chunk = pygame.mixer.Sound(buffer=q.get())
 
-            indicator = '|' if channel.get_queue() else '.'
-            print(indicator, end='', flush=True)
+            draw("|" if channel.get_queue() else ".")
 
             while channel.get_queue() is not None:
                 time.sleep(0.01)
 
             channel.queue(chunk)
-    except:
+    except (KeyboardInterrupt, SystemExit):
         pass
     finally:
         pygame.quit()
@@ -72,8 +74,9 @@ if __name__ == '__main__':
         # buffer
         buff += data
         if len(buff) > buff_sz*1024:
-            print('+', end='', flush=True)
+            #draw("+")
             q.put(buff)
+            time.sleep(0.01)
             buff = b''
             buff_sz = 64
 
@@ -86,7 +89,7 @@ if __name__ == '__main__':
     try:
         wasm_start()
         q.put(buff)         # play the leftover
-    except:
+    except (KeyboardInterrupt, SystemExit):
         pass
     finally:
         q.put(None)
@@ -95,4 +98,3 @@ if __name__ == '__main__':
 
     print()
     print("Finished")
-
