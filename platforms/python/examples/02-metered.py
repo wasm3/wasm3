@@ -3,6 +3,12 @@
 import wasm3
 import os, time
 
+"""
+  NOTE: Gas metering/limit only applies to pre-instrumented modules.
+  You can generate a metered version from any wasm file automatically, using
+    https://github.com/ewasm/wasm-metering
+"""
+
 scriptpath = os.path.dirname(os.path.realpath(__file__))
 wasm_fn = os.path.join(scriptpath, "./wasm/coremark-metered.wasm")
 

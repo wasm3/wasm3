@@ -16,7 +16,11 @@
 #include "m3_api_libc.h"
 #include "m3_api_tracer.h"
 
-// Gas metering/limit only applies to pre-instrumented modules
+/*
+ * NOTE: Gas metering/limit only applies to pre-instrumented modules.
+ * You can generate a metered version from any wasm file automatically, using
+ *   https://github.com/ewasm/wasm-metering
+ */
 #define GAS_LIMIT       2000000000000
 
 #define MAX_MODULES     16
