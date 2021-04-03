@@ -496,6 +496,21 @@ M3Result  Pop  (IM3Compilation o)
     return result;
 }
 
+M3Result  PopType  (IM3Compilation o, u8 i_type)
+{
+	M3Result result = m3Err_none;
+	
+	u8 topType = GetStackTopType (o);
+	
+	if (i_type == topType)
+	{
+		result = Pop (o);
+	}
+	else result = m3Err_typeMismatch;
+	
+	return result;
+}
+
 
 M3Result  UnwindBlockStack  (IM3Compilation o)
 {
@@ -995,8 +1010,10 @@ M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 
     if (GetFunctionNumReturns (o->function))
     {
+		u8 type = GetFunctionReturnType (o->function, 0);
+		
 _       (ReturnStackTop (o));
-_       (Pop (o));
+_       (PopType (o, type));
     }
 
 _   (EmitOp (o, op_Return));
@@ -1014,10 +1031,13 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     // function end:
     if (o->block.depth == 0)
     {
-        u8 valueType = GetSingleRetType(o->block.type);
+        u8 type = GetSingleRetType (o->block.type);
 
-        if (valueType)
+        if (type)
         {
+			if (type != GetStackTopType (o))
+				_throw (m3Err_typeMismatch);
+			
             // if there are branches to the function end, then their values are in a register
             // if the block happens to have its top in a register too, then we can patch the branch
             // to here. Otherwise, an ReturnStackTop is appended to the end of the function (at B) and
@@ -1034,11 +1054,11 @@ _       (EmitOp (o, op_Return));
 _       (UnwindBlockStack (o));
 
         // B: move register to return slot for branchehs
-        if (valueType)
+        if (type)
         {
             if (PatchBranches (o))
             {
-_               (PushRegister (o, valueType));
+_               (PushRegister (o, type));
                 ReturnStackTop (o);
 _               (EmitOp (o, op_Return));
             }
@@ -2179,7 +2199,7 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
 #endif
 
         IM3OpInfo opinfo = GetOpInfo(opcode);
-        _throwif(m3Err_unknownOpcode, opinfo == NULL);
+        _throwif (m3Err_unknownOpcode, opinfo == NULL);
 
         if (opinfo->compiler) {
             result = (* opinfo->compiler) (o, opcode);
@@ -2209,7 +2229,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
 
     * o_copyStackTopToRegister = false;
 
-    u8 valueType = GetSingleRetType(o->block.type);
+    u8 valueType = GetSingleRetType (o->block.type);
 
     if (valueType != c_m3Type_none)
     {

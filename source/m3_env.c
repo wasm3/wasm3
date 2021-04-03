@@ -159,6 +159,20 @@ u32  GetFunctionNumReturns  (IM3Function i_function)
     return numReturns;
 }
 
+
+u8  GetFunctionReturnType  (IM3Function i_function, u32 i_index)
+{
+	u8 type = c_m3Type_none;
+	
+	if (i_index < GetFunctionNumReturns (i_function))
+	{
+		type = i_function->funcType->types [i_index];
+	}
+	
+	return type;
+}
+
+
 u32  GetFunctionNumArgsAndLocals (IM3Function i_function)
 {
     if (i_function)
