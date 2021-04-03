@@ -68,7 +68,7 @@ cstr_t      GetFunctionImportModuleName (IM3Function i_function);
 cstr_t *    GetFunctionNames            (IM3Function i_function, u16 * o_numNames);
 u32         GetFunctionNumArgs          (IM3Function i_function);
 u32         GetFunctionNumReturns       (IM3Function i_function);
-u8 			GetFunctionReturnType		(IM3Function i_function, u32 i_index);
+u8          GetFunctionReturnType       (IM3Function i_function, u32 i_index);
 
 u32         GetFunctionNumArgsAndLocals (IM3Function i_function);
 

@@ -498,17 +498,17 @@ M3Result  Pop  (IM3Compilation o)
 
 M3Result  PopType  (IM3Compilation o, u8 i_type)
 {
-	M3Result result = m3Err_none;
-	
-	u8 topType = GetStackTopType (o);
-	
-	if (i_type == topType)
-	{
-		result = Pop (o);
-	}
-	else result = m3Err_typeMismatch;
-	
-	return result;
+    M3Result result = m3Err_none;
+    
+    u8 topType = GetStackTopType (o);
+    
+    if (i_type == topType or o->block.isPolymorphic)
+    {
+        result = Pop (o);
+    }
+    else result = m3Err_typeMismatch;
+    
+    return result;
 }
 
 
@@ -1010,8 +1010,8 @@ M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 
     if (GetFunctionNumReturns (o->function))
     {
-		u8 type = GetFunctionReturnType (o->function, 0);
-		
+        u8 type = GetFunctionReturnType (o->function, 0);
+        
 _       (ReturnStackTop (o));
 _       (PopType (o, type));
     }
@@ -1035,9 +1035,9 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
 
         if (type)
         {
-			if (type != GetStackTopType (o))
-				_throw (m3Err_typeMismatch);
-			
+            if (not o->block.isPolymorphic and type != GetStackTopType (o))
+                _throw (m3Err_typeMismatch);
+            
             // if there are branches to the function end, then their values are in a register
             // if the block happens to have its top in a register too, then we can patch the branch
             // to here. Otherwise, an ReturnStackTop is appended to the end of the function (at B) and

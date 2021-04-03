@@ -135,7 +135,7 @@ d_m3ErrorConst  (functionStackOverflow,         "compiling function overran its 
 d_m3ErrorConst  (functionStackUnderrun,         "compiling function underran the stack")
 d_m3ErrorConst  (mallocFailedCodePage,          "memory allocation failed when acquiring a new M3 code page")
 d_m3ErrorConst  (settingImmutableGlobal,        "attempting to set an immutable global")
-d_m3ErrorConst  (typeMismatch,  		      	"malformed Wasm: incorrect type on stack")
+d_m3ErrorConst  (typeMismatch,                  "malformed Wasm: incorrect type on stack")
 
 // runtime errors
 d_m3ErrorConst  (missingCompiledCode,           "function is missing compiled m3 code")
