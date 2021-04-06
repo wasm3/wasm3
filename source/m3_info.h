@@ -15,7 +15,7 @@ d_m3BeginExternC
 #ifdef DEBUG
 
 void            dump_type_stack         (IM3Compilation o);
-void            log_opcode              (IM3Compilation o, u8 i_opcode);
+void            log_opcode              (IM3Compilation o, m3opcode_t i_opcode);
 const char *    get_indention_string    (IM3Compilation o);
 void            emit_stack_dump         (IM3Compilation o);
 void            log_emit                (IM3Compilation o, IM3Operation i_operation);

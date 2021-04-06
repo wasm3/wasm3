@@ -163,12 +163,12 @@ u32  GetFunctionNumReturns  (IM3Function i_function)
 u8  GetFunctionReturnType  (IM3Function i_function, u32 i_index)
 {
     u8 type = c_m3Type_none;
-    
+
     if (i_index < GetFunctionNumReturns (i_function))
     {
         type = i_function->funcType->types [i_index];
     }
-    
+
     return type;
 }
 
@@ -192,7 +192,7 @@ void FreeImportInfo (M3ImportInfo * i_info)
 IM3Environment  m3_NewEnvironment  ()
 {
     M3Result result = m3Err_none;
-    
+
     IM3Environment env = m3_AllocStruct (M3Environment);
 
     if (env)
@@ -215,7 +215,7 @@ _               (AllocFuncType (& ftype, 1));
                 env->retFuncTypes [t] = ftype;
             }
         }
-    
+
         _catch:
         if (result)
         {
@@ -238,7 +238,7 @@ void  Environment_Release  (IM3Environment i_environment)
         m3_Free (ftype);
         ftype = next;
     }
-    
+
     m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
 }

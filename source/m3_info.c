@@ -280,8 +280,6 @@ void  DecodeOperation  (char * o_string, u8 i_opcode, IM3Operation i_operation, 
     d_m3Decode (Entry)
 }
 
-
-# ifdef DEBUG
 // WARNING/TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
 // and, if an operation happens to missing from the c_operations table it won't be recognized here
 void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
@@ -317,7 +315,6 @@ void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
 
         m3log (code, "free-lines: %d", i_codePage->info.numLines - i_codePage->info.lineIndex);
 }
-# endif
 
 
 void  dump_type_stack  (IM3Compilation o)
@@ -405,17 +402,13 @@ const char *  get_indention_string  (IM3Compilation o)
 }
 
 
-void  log_opcode  (IM3Compilation o, u8 i_opcode)
+void  log_opcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
     i32 depth = o->block.depth;
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
         depth--;
 
-#   ifdef DEBUG
-        m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (depth), c_operations [i_opcode].name);
-#   else
-        m3log (compile, "%4d | 0x%02x  %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (depth));
-#   endif
+    m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (depth), GetOpInfo(i_opcode)->name);
 }
 
 
@@ -437,7 +430,6 @@ void emit_stack_dump (IM3Compilation o)
 
 void  log_emit  (IM3Compilation o, IM3Operation i_operation)
 {
-# ifdef DEBUG
     OpInfo i = find_operation_info (i_operation);
 
     d_m3Log(emit, "");
@@ -446,7 +438,6 @@ void  log_emit  (IM3Compilation o, IM3Operation i_operation)
         printf ("%p: %s\n", GetPC (o),  i.info->name);
     }
     else printf ("not found: %p\n", i_operation);
-# endif
 }
 
 #endif // DEBUG

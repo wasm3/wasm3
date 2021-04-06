@@ -196,7 +196,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes);
-    
+
     //  Only unloaded modules need to be freed
     void                m3_FreeModule               (IM3Module i_module);
 

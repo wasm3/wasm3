@@ -66,7 +66,7 @@ _try {
 M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo)
 {
     M3Result result = m3Err_none;
-    
+
 _try {
     u32 index = io_module->numFunctions++;
     io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
@@ -87,7 +87,7 @@ _try {
         func->numNames = 1;
         func->names[0] = i_importInfo->fieldUtf8;
     }
-    
+
     m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
 
 } _catch:

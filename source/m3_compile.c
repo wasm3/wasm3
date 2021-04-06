@@ -2191,14 +2191,9 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
 
     while (o->wasm < o->wasmEnd)
     {                                                                   emit_stack_dump (o);
+        m3opcode_t opcode;
         o->lastOpcodeStart = o->wasm;
-        m3opcode_t opcode = * (o->wasm++);                              log_opcode (o, opcode);
-
-#ifndef d_m3CompileExtendedOpcode
-        if (UNLIKELY(opcode == 0xFC)) {
-            opcode = (opcode << 8) | (* (o->wasm++));
-        }
-#endif
+_       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opcode (o, opcode);
 
         IM3OpInfo opinfo = GetOpInfo(opcode);
         _throwif (m3Err_unknownOpcode, opinfo == NULL);
