@@ -76,7 +76,7 @@ _               (m3ReallocArray (& func->codePageRefs, IM3CodePage, func->numCod
                 func->codePageRefs [index] = page;
             }
         }
-#   endif
+#		endif
     }
     else _throw (m3Err_mallocFailedCodePage);
 
@@ -2132,7 +2132,8 @@ const M3OpInfo c_operations [] =
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
 
-    d_m3DebugOp (Entry),            d_m3DebugOp (Compile),      d_m3DebugOp (End),
+    d_m3DebugOp (Entry),		// 0xc5
+	d_m3DebugOp (Compile),      d_m3DebugOp (End),
 
     d_m3DebugOp (Unsupported),
     d_m3DebugOp (CallRawFunction),
