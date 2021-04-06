@@ -61,6 +61,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 ☑ Sign-extension operators  
 ☑ Non-trapping float-to-int conversions  
+☑ Mutable globals  
 ☑ Structured execution tracing  
 ☑ Self-hosting  
 ☑ Gas metering  
