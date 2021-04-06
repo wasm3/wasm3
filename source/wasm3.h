@@ -28,6 +28,7 @@ struct M3Environment;   typedef struct M3Environment *  IM3Environment;
 struct M3Runtime;       typedef struct M3Runtime *      IM3Runtime;
 struct M3Module;        typedef struct M3Module *       IM3Module;
 struct M3Function;      typedef struct M3Function *     IM3Function;
+struct M3Global;        typedef struct M3Global *       IM3Global;
 
 typedef struct M3ErrorInfo
 {
@@ -73,6 +74,18 @@ typedef enum M3ValueType
     c_m3Type_unknown
 } M3ValueType;
 
+typedef struct M3TaggedValue
+{
+    M3ValueType type;
+    union M3ValueUnion
+    {
+        uint32_t    i32;
+        uint64_t    i64;
+        float       f32;
+        double      f64;
+    } value;
+}
+M3TaggedValue, * IM3TaggedValue;
 
 typedef struct M3ImportInfo
 {
@@ -143,6 +156,10 @@ d_m3ErrorConst  (wasmMemoryOverflow,            "runtime ran out of memory")
 d_m3ErrorConst  (globalMemoryNotAllocated,      "global memory is missing from a module")
 d_m3ErrorConst  (globaIndexOutOfBounds,         "global index is too large")
 d_m3ErrorConst  (argumentCountMismatch,         "argument count mismatch")
+d_m3ErrorConst  (argumentTypeMismatch,          "argument type mismatch")
+d_m3ErrorConst  (globalLookupFailed,            "global lookup failed")
+d_m3ErrorConst  (globalTypeMismatch,            "global type mismatch")
+d_m3ErrorConst  (globalNotMutable,              "global is not mutable")
 
 // traps
 d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory access")
@@ -223,6 +240,20 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     const char*         m3_GetModuleName            (IM3Module i_module);
     IM3Runtime          m3_GetModuleRuntime         (IM3Module i_module);
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//  globals
+//-------------------------------------------------------------------------------------------------------------------------------
+    IM3Global           m3_FindGlobal               (IM3Module              io_module,
+                                                     const char * const     i_globalName);
+
+    M3Result            m3_GetGlobal                (IM3Global              i_global,
+                                                     IM3TaggedValue         o_value);
+
+    M3Result            m3_SetGlobal                (IM3Global              i_global,
+                                                     const IM3TaggedValue   i_value);
+
+    M3ValueType         m3_GetGlobalType            (IM3Global              i_global);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  functions

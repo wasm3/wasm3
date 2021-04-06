@@ -128,6 +128,7 @@ typedef struct M3Global
 #endif
     };
 
+    cstr_t                  name;
     bytes_t                 initExpr;       // wasm code
     u32                     initExprSize;
     u8                      type;
