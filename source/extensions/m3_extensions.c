@@ -15,7 +15,7 @@
 IM3Module  m3_NewModule  (IM3Environment i_environment)
 {
     IM3Module module = m3_AllocStruct (M3Module);
-    
+
     if (module)
     {
         module->name = ".unnamed";
@@ -25,7 +25,7 @@ IM3Module  m3_NewModule  (IM3Environment i_environment)
         module->wasmStart = NULL;
         module->wasmEnd = NULL;
     }
-    
+
     return module;
 }
 
@@ -47,7 +47,7 @@ _   (SignatureToFuncType (& ftype, i_signature));
 
     bytes_t bytes = i_wasmBytes;
     bytes_t end = i_wasmBytes + 5;
-    
+
     u32 size;
 _   (ReadLEB_u32 (& size, & bytes, end));
     end = bytes + size;
@@ -55,7 +55,7 @@ _   (ReadLEB_u32 (& size, & bytes, end));
     if (index >= 0)
     {
         _throwif ("function index out of bounds", index >= i_module->numFunctions);
-        
+
         function = & i_module->functions [index];
 
         if (not AreFuncTypesEqual (ftype, function->funcType))
@@ -72,11 +72,11 @@ _   (ReadLEB_u32 (& size, & bytes, end));
         Environment_AddFuncType (i_module->environment, & ftype);
         i_module->funcTypes [funcTypeIndex] = ftype;
         ftype = NULL; // prevent freeing below
-        
+
         index = (i32) i_module->numFunctions;
 _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
         function = Module_GetFunction (i_module, index);
-        
+
         * io_functionIndex = index;
     }
 
@@ -84,22 +84,22 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
 
     if (function->ownsWasmCode)
         m3_Free (function->wasm);
-    
+
     size_t numBytes = end - i_wasmBytes;
     function->wasm = m3_CopyMem (i_wasmBytes, numBytes);
     _throwifnull (function->wasm);
 
     function->wasmEnd = function->wasm + numBytes;
     function->ownsWasmCode = true;
-    
+
     if (i_doCompilation and not i_module->runtime)
         _throw ("module must be loaded into runtime to compile function");
-    
+
 _   (Compile_Function (function));
-    
+
     _catch:
     m3_Free (ftype);
-    
+
     return result;
 }
 
