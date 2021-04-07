@@ -237,6 +237,12 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
                 utf8 = NULL; // ownership transferred to M3Function
             }
         }
+        else if (exportKind == d_externalKind_global)
+        {
+            _throwif(m3Err_wasmMalformed, index >= io_module->numGlobals);
+            io_module->globals[index].name = utf8;
+            utf8 = NULL; // ownership transferred to M3Global
+        }
 
         m3_Free (utf8);
     }

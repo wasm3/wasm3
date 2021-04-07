@@ -16,6 +16,9 @@
 #include "m3_api_libc.h"
 #include "m3_api_tracer.h"
 
+// TODO: remove
+#include "m3_env.h"
+
 /*
  * NOTE: Gas metering/limit only applies to pre-instrumented modules.
  * You can generate a metered version from any wasm file automatically, using
@@ -358,6 +361,44 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
     return result;
 }
 
+M3Result repl_global_get  (const char* name)
+{
+    IM3Global g = m3_FindGlobal(runtime->modules, name);
+
+    M3TaggedValue tagged;
+    M3Result err = m3_GetGlobal (g, &tagged);
+    if (err) return err;
+
+    switch (tagged.type) {
+	case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32\n", tagged.value.i32);  break;
+	case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64\n", tagged.value.i64);  break;
+	case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32\n", tagged.value.f32);  break;
+	case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64\n", tagged.value.f64);  break;
+	default:            return m3Err_invalidTypeId;
+    }
+    return m3Err_none;
+}
+
+M3Result repl_global_set  (const char* name, const char* value)
+{
+    IM3Global g = m3_FindGlobal(runtime->modules, name);
+
+    M3TaggedValue tagged = {
+        .type      = m3_GetGlobalType(g)
+    };
+
+    switch (tagged.type) {
+	case c_m3Type_i32:  tagged.value.i32 = strtoul(value, NULL, 10);  	break;
+	case c_m3Type_i64:  tagged.value.i64 = strtoull(value, NULL, 10);  	break;
+	case c_m3Type_f32:  tagged.value.f32 = strtod(value, NULL); 		break;
+	case c_m3Type_f64:  tagged.value.f64 = strtod(value, NULL);			break;
+	default:            return m3Err_invalidTypeId;
+    }
+
+    return m3_SetGlobal (g, &tagged);
+}
+
+
 M3Result repl_dump()
 {
     uint32_t len;
@@ -581,6 +622,10 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_load(argv[1]);
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(atol(argv[1]));
+        } else if (!strcmp(":get-global", argv[0])) {
+            result = repl_global_get(argv[1]);
+        } else if (!strcmp(":set-global", argv[0])) {
+            result = repl_global_set(argv[1], argv[2]);
         } else if (!strcmp(":dump", argv[0])) {
             result = repl_dump();
         } else if (!strcmp(":invoke", argv[0])) {
