@@ -49,10 +49,6 @@
 #   define d_m3FixedHeapAlign                   16
 # endif
 
-# ifndef d_m3Use32BitSlots
-#   define d_m3Use32BitSlots                    1
-# endif
-
 # ifndef d_m3ProfilerSlotMask
 #   define d_m3ProfilerSlotMask                 0xFFFF
 # endif
@@ -60,6 +56,11 @@
 # ifndef d_m3RecordBacktraces
 #   define d_m3RecordBacktraces                 0
 # endif
+
+# ifndef d_m3EnableExceptionBreakpoint
+#   define d_m3EnableExceptionBreakpoint     	1		// see m3_exception.h
+# endif
+
 
 // profiling and tracing ------------------------------------------------------
 

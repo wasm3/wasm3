@@ -10,11 +10,25 @@
 #include "wasm3_ext.h"
 #include "m3_bind.h"
 
-#define Test(NAME) printf ("\n    test: %s\n", #NAME); if (true)
+#define Test(NAME) if (RunTest (argc, argv, #NAME) != 0)
 #define DisabledTest(NAME) printf ("\ndisabled: %s\n", #NAME); if (false)
 #define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); }
 
-int  main  (int i_argc, const char  * i_argv [])
+
+bool RunTest (int i_argc, const char * i_argv [], cstr_t i_name)
+{
+	cstr_t option = (i_argc == 2) ? i_argv [1] : NULL;
+	
+	bool runningTest = option ? strcmp (option, i_name) == 0 : true;
+	
+	if (runningTest)
+		printf ("\n    test: %s\n", i_name);
+	
+	return runningTest;
+}
+
+
+int  main  (int argc, const char  * argv [])
 {
     Test (signatures)
     {
@@ -75,7 +89,7 @@ int  main  (int i_argc, const char  * i_argv [])
     }
     
     
-    DisabledTest (codepages.b)
+	Test (codepages.b)
     {
         const u32 c_numPages = 2000;
         IM3CodePage pages [2000] = { NULL };
@@ -164,6 +178,55 @@ int  main  (int i_argc, const char  * i_argv [])
         m3_FreeRuntime (runtime);
     }
     
+	IM3Environment env = m3_NewEnvironment ();
+
+
+	Test (multireturn.a)
+	{
+		M3Result result;
+
+        IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
+
+        i32 functionIndex = -1;
+        
+#		if 0
+		(module
+			(func (result i32 f32)
+
+				i32.const 1234
+				f32.const 5678.9
+			)
+
+			(export "main" (func 0))
+		)
+#		endif
+		
+		u8 wasm [44] = {
+		  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7f, 0x7d, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04,
+		  0x6d, 0x61, 0x69, 0x6e, 0x00, 0x00, 0x0a, 0x0c, 0x01, 0x0a, 0x00, 0x41, 0xd2, 0x09, 0x43, 0x33, 0x77, 0xb1, 0x45, 0x0b
+		};
+		  
+		IM3Module module;
+		result = m3_ParseModule  (env, & module, wasm, 44);		     				    expect (result == m3Err_none)
+	
+		result = m3_LoadModule (runtime, module);                                       expect (result == m3Err_none)
+
+		IM3Function function = NULL;
+		result = m3_FindFunction (& function, runtime, "main");							expect (result == m3Err_none)
+																						expect (function)
+		printf ("\n%s\n", result);
+
+		if (function)
+		{
+			result = m3_CallV (function);                                               expect (result == m3Err_none)
+
+			i32 ret0 = 0;
+			f32 ret1 = 0.;
+			m3_GetResultsV (function, & ret0, & ret1);                               
+		}
+
+		
+	}
     
     return 0;
 }

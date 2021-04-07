@@ -6,6 +6,7 @@
 //
 
 #include <stdarg.h>
+#include <limits.h>
 
 #include "m3_env.h"
 #include "m3_compile.h"
@@ -676,7 +677,9 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
             _throwifnull(io_module->table0);
-            io_module->table0Size = endElement;
+			
+			_throwif ("table overflow", endElement > UINT_MAX)
+            io_module->table0Size = (u32) endElement;
 
             for (u32 e = 0; e < numElements; ++e)
             {
@@ -845,36 +848,40 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
-    M3Result result = m3Err_none;
+	M3Result result = m3Err_none;								d_m3Assert (o_function and i_runtime and i_functionName);
+	
+	IM3Function function = NULL;
 
-    if (!i_runtime->modules) {
-        return "no modules loaded";
+    if (not i_runtime->modules) {
+        _throw ("no modules loaded");
     }
 
-    IM3Function function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
+    function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
 
     if (function)
     {
         if (not function->compiled)
         {
-            result = Compile_Function (function);
-            if (result)
-                function = NULL;
+_			(Compile_Function (function))
         }
+		
+		// Check if start function needs to be called
+		if (function->module->startFunction)
+		{
+_			(m3_RunStart (function->module))
+		}
     }
-    else result = ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
+	else _throw (ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName));
 
-    // Check if start function needs to be called
-    if (function and function->module->startFunction) {
-        result = m3_RunStart (function->module);
-        if (result)
-            return result;
-    }
-
+	_catch:
+	if (result)
+		function = NULL;
+	
     * o_function = function;
 
-    return result;
+	return result;
 }
+
 
 uint32_t  m3_GetArgCount  (IM3Function i_function)
 {

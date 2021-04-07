@@ -105,12 +105,8 @@ i16     GetNumBlockValues   (IM3Compilation o)      { return o->stackIndex - o->
 
 u16 GetTypeNumSlots (u8 i_type)
 {
-#   if d_m3Use32BitSlots
-        u16 n =  Is64BitType (i_type) ? 2 : 1;
-        return n;
-#   else
-        return 1;
-#   endif
+	u16 n =  Is64BitType (i_type) ? 2 : 1;
+	return n;
 }
 
 i16  GetStackTopIndex  (IM3Compilation o)
@@ -241,9 +237,7 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 numSlots = GetTypeNumSlots (i_type);
     u16 searchOffset = numSlots - 1;
 
-    if (d_m3Use32BitSlots) {
-        AlignSlotIndexToType (& i_startSlot, i_type);
-    }
+	AlignSlotIndexToType (& i_startSlot, i_type);
 
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;
@@ -991,11 +985,9 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
     M3Compiler compiler = GetOpInfo(i_opcode)->compiler;
+	_throwifnull (m3Err_noCompiler, compiler);
 
-    if (compiler)
-        result = (* compiler) (o, i_opcode);
-    else
-        result = m3Err_noCompiler;
+	result = (* compiler) (o, i_opcode);
 
     o->previousOpcode = i_opcode;
 
@@ -1843,6 +1835,7 @@ _           (PushRegister (o, op->type));
 #       else
             result = ErrorCompile ("no operation found for opcode", o, "");
 #       endif
+		_throw (result);
     }
 
     _catch: return result;
@@ -2200,22 +2193,20 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
         _throwif (m3Err_unknownOpcode, opinfo == NULL);
 
         if (opinfo->compiler) {
-            result = (* opinfo->compiler) (o, opcode);
+_         	((* opinfo->compiler) (o, opcode))
         } else {
-            result = Compile_Operator(o, opcode);
+_ 			(Compile_Operator (o, opcode));
         }
 
         o->previousOpcode = opcode;                             //                      m3logif (stack, dump_type_stack (o))
 
         if (o->stackIndex > d_m3MaxFunctionStackHeight)         // TODO: is this only place to check?
-            result = m3Err_functionStackOverflow;
-
-        if (result)
-            break;
+            _throw (m3Err_functionStackOverflow);
 
         if (opcode == c_waOp_end or opcode == c_waOp_else)
             break;
     }
+	
 _catch:
     return result;
 }

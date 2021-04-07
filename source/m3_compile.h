@@ -75,9 +75,6 @@ M3CompilationScope;
 
 typedef M3CompilationScope *        IM3CompilationScope;
 
-// double the slot count when using 32-bit slots, since every wasm stack element could be a 64-bit type
-//static const u16 c_m3MaxFunctionSlots = d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1);
-
 typedef struct
 {
     IM3Runtime          runtime;
