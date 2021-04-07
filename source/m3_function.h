@@ -12,6 +12,7 @@
 
 d_m3BeginExternC
 
+//---------------------------------------------------------------------------------------------------------------------------------
 
 typedef struct M3FuncType
 {
@@ -29,6 +30,67 @@ typedef M3FuncType *        IM3FuncType;
 M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i_numTypes);
 bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 u32			GetFuncTypeNumReturns			(const IM3FuncType i_funcType);
+
+
+//---------------------------------------------------------------------------------------------------------------------------------
+
+typedef struct M3Function
+{
+    struct M3Module *       module;
+
+    M3ImportInfo            import;
+
+    bytes_t                 wasm;
+    bytes_t                 wasmEnd;
+
+    u16                     numNames;                               // maximum of d_m3MaxDuplicateFunctionImpl
+    cstr_t                  names[d_m3MaxDuplicateFunctionImpl];
+
+    IM3FuncType             funcType;
+
+    pc_t                    compiled;
+
+#if (d_m3EnableCodePageRefCounting)
+    IM3CodePage *           codePageRefs;                           // array of all pages used
+    u32                     numCodePageRefs;
+#endif
+
+#if defined(DEBUG)
+    u32                     hits;
+#endif
+
+#if d_m3EnableStrace >= 2
+    u16                     index;
+#endif
+    u16                     maxStackSlots;
+
+    u16                     numArgSlots;
+
+    u16                     numLocals;                              // not including args
+    u16                     numLocalBytes;
+
+    void *                  constants;
+    u16                     numConstantBytes;
+
+    bool                    ownsWasmCode;
+}
+M3Function;
+
+void        Function_Release            (IM3Function i_function);
+void        Function_FreeCompiledCode   (IM3Function i_function);
+
+cstr_t      GetFunctionImportModuleName (IM3Function i_function);
+cstr_t *    GetFunctionNames            (IM3Function i_function, u16 * o_numNames);
+u32         GetFunctionNumArgs          (IM3Function i_function);
+u32         GetFunctionNumReturns       (IM3Function i_function);
+u8          GetFunctionReturnType       (IM3Function i_function, u32 i_index);
+
+u32         GetFunctionNumArgsAndLocals (IM3Function i_function);
+
+cstr_t      SPrintFunctionArgList       (IM3Function i_function, m3stack_t i_sp);
+
+//---------------------------------------------------------------------------------------------------------------------------------
+
 
 d_m3EndExternC
 
