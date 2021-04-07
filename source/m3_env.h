@@ -14,10 +14,6 @@
 
 d_m3BeginExternC
 
-M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i_numTypes);
-bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
-
-
 
 //---------------------------------------------------------------------------------------------------------------------------------
 typedef struct M3Function

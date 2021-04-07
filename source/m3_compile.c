@@ -513,7 +513,7 @@ M3Result  UnwindBlockStack  (IM3Compilation o)
     i16 initStackIndex = o->block.initStackIndex;
 
     u32 popCount = 0;
-    while (o->stackIndex > initStackIndex )
+    while (o->stackIndex > initStackIndex)
     {
 _       (Pop (o));
         ++popCount;
@@ -1027,8 +1027,11 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     if (o->block.depth == 0)
     {
         u8 type = GetSingleRetType (o->block.type);
+		
+		u32 numReturns = GetFuncTypeNumReturns (o->block.type);
 
-        if (type)
+
+        if (numReturns)
         {
             if (not o->block.isPolymorphic and type != GetStackTopType (o))
                 _throw (m3Err_typeMismatch);
@@ -1378,7 +1381,7 @@ _       (Pop (o));
 
     u32 numArgs = i_type->numArgs;
 
-    u32 slotsPerArg = sizeof (u64) / sizeof (m3slot_t);
+    u32 slotsPerArg = 2;
 
     // args are 64-bit aligned
     u16 argTop = topSlot + numArgs * slotsPerArg;
@@ -1439,10 +1442,10 @@ _           (EmitOp     (o, op));
         }
         else
         {
-            result = ErrorCompile (m3Err_functionImportMissing, o, "'%s.%s'", GetFunctionImportModuleName (function), m3_GetFunctionName (function));
+            _throw (ErrorCompile (m3Err_functionImportMissing, o, "'%s.%s'", GetFunctionImportModuleName (function), m3_GetFunctionName (function)));
         }
     }
-    else result = m3Err_functionLookupFailed;
+    else _throw (m3Err_functionLookupFailed);
 
     } _catch: return result;
 }
@@ -2222,7 +2225,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
     * o_copyStackTopToRegister = false;
 
     u8 valueType = GetSingleRetType (o->block.type);
-
+	
     if (valueType != c_m3Type_none)
     {
         if (IsStackPolymorphic (o))
