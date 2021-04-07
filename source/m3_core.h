@@ -201,7 +201,6 @@ void *      m3_CopyMem              (const void * i_from, size_t i_size);
 #define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))
 #define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define     m3_Free(P)                              do { m3_FreeImpl ((void*)(P)); (P) = NULL; } while(0)
-#define     _throwifnull(PTR)                       _throwif (m3Err_mallocFailed, !(PTR))
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 

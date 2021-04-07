@@ -633,7 +633,7 @@ _               (EmitOp (o, op_Const64));
                 EmitWord64 (o->page, i_word);
             } else {
 _               (EmitOp (o, op_Const32));
-                EmitWord32 (o->page, i_word);
+                EmitWord32 (o->page, (u32) i_word);
             }
 
 _           (PushAllocatedSlotAndEmit (o, i_type));
@@ -650,7 +650,7 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
             else
             {
                 u32 * constant = (u32 *) & o->constants [constTableIndex];
-                * constant = i_word;
+                * constant = (u32) i_word;
             }
 
 _           (Push (o, i_type, slot));
@@ -849,11 +849,12 @@ M3Result  ReturnStackTop  (IM3Compilation o)
         const u16 returnSlot = 0;
 
         if (o->wasmStack [top] != returnSlot)
-            CopyTopSlot (o, returnSlot);
+_       	(CopyTopSlot (o, returnSlot))
     }
     else if (not IsStackPolymorphic (o))
-        result = m3Err_functionStackUnderrun;
+        _throw (m3Err_functionStackUnderrun);
 
+_catch:
     return result;
 }
 
@@ -902,18 +903,20 @@ _               (IncrementSlotUsageCount (o, * o_preservedSlotIndex));
 
 M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i_depth)
 {
+	M3Result result = m3Err_none;
+	
     IM3CompilationScope scope = & o->block;
 
     while (i_depth--)
     {
         scope = scope->outer;
-        if (not scope)
-            return "invalid block depth";
+		_throwif ("invalid block depth", not scope);
     }
 
     * o_scope = scope;
 
-    return m3Err_none;
+	_catch:
+    return result;
 }
 
 
@@ -987,7 +990,7 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
     M3Compiler compiler = GetOpInfo(i_opcode)->compiler;
 	_throwifnull (m3Err_noCompiler, compiler);
 
-	result = (* compiler) (o, i_opcode);
+_	((* compiler) (o, i_opcode));
 
     o->previousOpcode = i_opcode;
 
@@ -1147,7 +1150,7 @@ _      (EmitOp (o, op));
 
 _      (Pop (o));
     }
-    else result = m3Err_settingImmutableGlobal;
+    else _throw (m3Err_settingImmutableGlobal);
 
     _catch: return result;
 }
@@ -1165,12 +1168,12 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         if (o->module->globals)
         {
             M3Global * global = & o->module->globals [globalIndex];
-
-            result = (i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global);
+			
+_			((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
-        else result = ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name);
+        else _throw (ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name));
     }
-    else result = m3Err_globaIndexOutOfBounds;
+    else _throw (m3Err_globaIndexOutOfBounds);
 
     _catch: return result;
 }
@@ -2175,7 +2178,7 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
 
 # ifdef DEBUG
-    M3OP( "termination", 0, c_m3Type_unknown ) // for find_operation_info
+	M3OP_F( "termination", 0, c_m3Type_unknown ) // for find_operation_info
 # endif
 };
 
@@ -2248,7 +2251,7 @@ _       (UnwindBlockStack (o));
 }
 
 
-M3Result  CompileBlock  (IM3Compilation o, /*pc_t * o_startPC,*/ IM3FuncType i_blockType, u8 i_blockOpcode)
+M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i_blockOpcode)
 {
     M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 0));
                                                                                         d_m3Assert (not IsRegisterAllocated (o, 1));

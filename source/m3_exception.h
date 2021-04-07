@@ -33,4 +33,6 @@ static void ExceptionBreakpoint (cstr_t i_message)
 #define _throwif(ERROR, COND)             if (UNLIKELY(COND)) \
                                           { result = ERROR; EXCEPTION_PRINT; goto _catch; }
 
+#define _throwifnull(PTR)               	_throwif (m3Err_mallocFailed, !(PTR))
+
 #endif // m3_exception_h

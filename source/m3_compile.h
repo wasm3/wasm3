@@ -195,7 +195,7 @@ bool        IsIntRegisterLocation       (i16 i_location);
 
 bool        IsStackPolymorphic          (IM3Compilation o);
 
-M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, u8 i_blockOpcode);
+M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 
 M3Result    Compile_BlockStatements     (IM3Compilation io);
 M3Result    Compile_Function            (IM3Function io_function);
