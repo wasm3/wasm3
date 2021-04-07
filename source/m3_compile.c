@@ -2270,7 +2270,6 @@ M3Result  CompileBlock  (IM3Compilation o, /*pc_t * o_startPC,*/ IM3FuncType i_b
     block->type             = i_blockType;
     block->initStackIndex   = o->stackIndex;
     block->depth            ++;
-//    block->loopDepth        += (i_blockOpcode == c_waOp_loop);
     block->opcode           = i_blockOpcode;
 
 _   (Compile_BlockStatements (o));

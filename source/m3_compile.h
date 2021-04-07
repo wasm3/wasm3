@@ -66,7 +66,6 @@ typedef struct M3CompilationScope
     pc_t                            pc;                 // used by ContinueLoop's
     IM3BranchPatch                  patches;
     i32                             depth;
-//    i32                             loopDepth;
     i16                             initStackIndex;
     IM3FuncType                     type;
     m3opcode_t                      opcode;

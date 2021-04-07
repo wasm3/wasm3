@@ -18,6 +18,7 @@ M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i
 bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 
 
+
 //---------------------------------------------------------------------------------------------------------------------------------
 typedef struct M3Function
 {
@@ -194,7 +195,7 @@ typedef struct M3Environment
 {
 //    struct M3Runtime *      runtimes;
 
-    IM3FuncType             funcTypes;                          // linked list
+    IM3FuncType             funcTypes;                          // linked list of unique M3FuncType structs that can be compared using pointer-equivalence
 
     IM3FuncType             retFuncTypes [c_m3Type_unknown];    // these 'point' to elements in the linked list above.
                                                                 // the number of elements must match the basic types as per M3ValueType
