@@ -747,7 +747,7 @@ M3ValueType  m3_GetRetType  (IM3Function i_function, uint32_t index)
     if (i_function) {
         IM3FuncType ft = i_function->funcType;
         if (ft and index < ft->numRets) {
-            return (M3ValueType)d_FuncRetType(ft, index);
+            return (M3ValueType) d_FuncRetType (ft, index);
         }
     }
     return c_m3Type_none;
@@ -894,6 +894,7 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
     }
 
     u8* s = (u8*) runtime->stack;
+	
     for (u32 i = 0; i < ftype->numRets; ++i)
     {
         switch (d_FuncRetType(ftype, i)) {

@@ -58,7 +58,7 @@
 # endif
 
 # ifndef d_m3EnableExceptionBreakpoint
-#   define d_m3EnableExceptionBreakpoint     	1		// see m3_exception.h
+#   define d_m3EnableExceptionBreakpoint     	0		// see m3_exception.h
 # endif
 
 

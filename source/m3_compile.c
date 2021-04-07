@@ -490,6 +490,7 @@ M3Result  Pop  (IM3Compilation o)
     return result;
 }
 
+
 M3Result  PopType  (IM3Compilation o, u8 i_type)
 {
     M3Result result = m3Err_none;
@@ -498,10 +499,11 @@ M3Result  PopType  (IM3Compilation o, u8 i_type)
 
     if (i_type == topType or o->block.isPolymorphic)
     {
-        result = Pop (o);
+_		(Pop (o));
     }
-    else result = m3Err_typeMismatch;
+	else _throw (m3Err_typeMismatch);
 
+	_catch:
     return result;
 }
 
@@ -987,7 +989,7 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
 
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
-    M3Compiler compiler = GetOpInfo(i_opcode)->compiler;
+    M3Compiler compiler = GetOpInfo (i_opcode)->compiler;
 	_throwifnull (m3Err_noCompiler, compiler);
 
 _	((* compiler) (o, i_opcode));
@@ -1029,7 +1031,6 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
         u8 type = GetSingleRetType (o->block.type);
 		
 		u32 numReturns = GetFuncTypeNumReturns (o->block.type);
-
 
         if (numReturns)
         {

@@ -14,24 +14,24 @@
 # if d_m3EnableExceptionBreakpoint
 
 // a central function you can be breakpoint:
-static void ExceptionBreakpoint (cstr_t i_message)
+static void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
 {
-	puts (i_message);
+	printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
 	return;
 }
 
-#	define EXCEPTION_PRINT ExceptionBreakpoint ("exception @ " __FILE__ ":" M3_STR(__LINE__) "\n")
+#	define EXCEPTION_PRINT(ERROR) ExceptionBreakpoint (ERROR, (__FILE__ ":" M3_STR(__LINE__)))
 
 # else
-#	define EXCEPTION_PRINT
+#	define EXCEPTION_PRINT(...)
 # endif
 
 
 #define _try
-#define _(TRY)                            { result = TRY; if (result) { EXCEPTION_PRINT; goto _catch; } }
-#define _throw(ERROR)                     { result = ERROR; EXCEPTION_PRINT; goto _catch; }
+#define _(TRY)                            { result = TRY; if (result) { EXCEPTION_PRINT (result); goto _catch; } }
+#define _throw(ERROR)                     { result = ERROR; EXCEPTION_PRINT (result); goto _catch; }
 #define _throwif(ERROR, COND)             if (UNLIKELY(COND)) \
-                                          { result = ERROR; EXCEPTION_PRINT; goto _catch; }
+                                          { result = ERROR; EXCEPTION_PRINT (result); goto _catch; }
 
 #define _throwifnull(PTR)               	_throwif (m3Err_mallocFailed, !(PTR))
 
