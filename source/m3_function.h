@@ -64,7 +64,7 @@ typedef struct M3Function
 #endif
     u16                     maxStackSlots;
 
-    u16                     numArgSlots;
+    u16                     numRetAndArgSlots;
 
     u16                     numLocals;                              // not including args
     u16                     numLocalBytes;

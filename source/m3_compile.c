@@ -1384,11 +1384,11 @@ _try {
 _       (Pop (o));
 
     u32 numArgs = i_type->numArgs;
+	u32 numRets = i_type->numRets;
 
+	// args are 64-bit aligned
     u32 slotsPerArg = sizeof (u64) / sizeof (m3slot_t);
-
-    // args are 64-bit aligned
-    u16 argTop = topSlot + numArgs * slotsPerArg;
+    u16 argTop = topSlot + (numArgs + numRets * 1) * slotsPerArg;
 
     while (numArgs--)
     {
@@ -1399,7 +1399,7 @@ _       (Pop (o));
     if (i_type->numRets)
     {
         MarkSlotAllocated (o, topSlot);
-_       (Push (o, GetSingleRetType(i_type), topSlot));
+_       (Push (o, GetSingleRetType (i_type), topSlot));
     }
 
     } _catch: return result;
@@ -1421,8 +1421,6 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
                                                                                 get_indention_string (o), m3_GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
-            // OPTZ: could avoid arg copy when args are already sequential and at top
-
             u16 slotTop;
 _           (CompileCallArgsAndReturn (o, & slotTop, function->funcType, false));
 
@@ -2357,11 +2355,11 @@ void  SetupCompilation (IM3Compilation o)
 
 M3Result  Compile_Function  (IM3Function io_function)
 {
-    IM3FuncType ft = io_function->funcType;
+    IM3FuncType funcType = io_function->funcType;
 
     M3Result result = m3Err_none;                                   m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
                                                                            m3_GetFunctionName(io_function), (u32) (io_function->wasmEnd - io_function->wasm), GetFunctionNumArgs (io_function),
-                                                                           c_waTypes [GetSingleRetType(ft)]);
+                                                                           c_waTypes [GetSingleRetType(funcType)]);
     IM3Runtime runtime = io_function->module->runtime;
 
     IM3Compilation o = & runtime->compilation;						d_m3Assert (d_m3MaxFunctionSlots >= d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1))  // need twice as many slots in 32-bit mode
@@ -2372,6 +2370,7 @@ M3Result  Compile_Function  (IM3Function io_function)
     o->function = io_function;
     o->wasm     = io_function->wasm;
     o->wasmEnd  = io_function->wasmEnd;
+	o->block.type = funcType;
 
 _try {
     // skip over code size. the end was already calculated during parse phase
@@ -2382,23 +2381,28 @@ _   (AcquireCompilationCodePage (o, & o->page));
 
     pc_t pc = GetPagePC (o->page);
 
-    // push the arg types to the type stack
-    o->block.type = ft;
+    // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
+    const u32 ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
+	
+	u32 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
 
-    // all args are 64-bit aligned
-    const u32 argSlotCount = sizeof (u64) / sizeof (m3slot_t);
+	for (u32 i = 0; i < numRetSlots; ++i)
+		MarkSlotAllocated (o, i);
+
+	o->firstDynamicSlotIndex = numRetSlots;
+
     u32 numArgs = GetFunctionNumArgs (o->function);
-    u32 numRets = GetFunctionNumReturns(o->function);
 
+	// push the arg types to the type stack
     for (u32 i = 0; i < numArgs; ++i)
     {
-        u8 type = ft->types [numRets + i];
+		u8 type = GetFunctionArgType (o->function, i);
 _       (PushAllocatedSlot (o, type));
 
         if (i < numArgs - 1)
         {
             // prevent allocator fill-in
-            o->firstDynamicSlotIndex += argSlotCount;
+            o->firstDynamicSlotIndex += ioSlotCount;
         }
         else
         {
@@ -2407,7 +2411,9 @@ _       (PushAllocatedSlot (o, type));
         }
     }
 
-    o->function->numArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
+	//o->maxAllocatedSlotPlusOne =
+	o->function->numRetAndArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
+	
 _   (CompileLocals (o));
 
     u16 maxSlot = GetMaxUsedSlotPlusOne (o);

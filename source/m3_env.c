@@ -753,6 +753,20 @@ M3ValueType  m3_GetRetType  (IM3Function i_function, uint32_t index)
     return c_m3Type_none;
 }
 
+
+u8 *  GetStackPointerForArgs  (IM3Function i_function)
+{
+	u64 * stack = (u64 *) i_function->module->runtime->stack;
+	IM3FuncType ftype = i_function->funcType;
+
+	stack += ftype->numRets;
+	
+	printf ("stack: %p (args: %p)\n", i_function->module->runtime->stack, stack);
+	
+	return (u8 *) stack;
+}
+
+
 M3Result  m3_CallV  (IM3Function i_function, ...)
 {
     va_list ap;
@@ -775,7 +789,8 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     ClearBacktrace (runtime);
 # endif
 
-    u8* s = (u8*) runtime->stack;
+	u8* s = GetStackPointerForArgs (i_function);
+	
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -815,7 +830,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     ClearBacktrace (runtime);
 # endif
 
-    u8* s = (u8*) runtime->stack;
+	u8* s = GetStackPointerForArgs (i_function);
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -856,7 +871,8 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     ClearBacktrace (runtime);
 # endif
 
-    u8* s = (u8*) runtime->stack;
+	u8* s = GetStackPointerForArgs (i_function);
+
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {

@@ -732,7 +732,7 @@ d_m3Op  (Entry)
 #if defined(DEBUG)
         function->hits++;
 #endif
-        u8 * stack = (u8 *) ((m3slot_t *) _sp + function->numArgSlots);
+        u8 * stack = (u8 *) ((m3slot_t *) _sp + function->numRetAndArgSlots);
 
         memset (stack, 0x0, function->numLocalBytes);
         stack += function->numLocalBytes;
