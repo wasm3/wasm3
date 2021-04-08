@@ -1385,7 +1385,7 @@ _       (Pop (o));
 
     u32 numArgs = i_type->numArgs;
 
-    u32 slotsPerArg = 2;
+    u32 slotsPerArg = sizeof (u64) / sizeof (m3slot_t);
 
     // args are 64-bit aligned
     u16 argTop = topSlot + numArgs * slotsPerArg;
