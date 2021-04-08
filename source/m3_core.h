@@ -56,7 +56,12 @@ typedef const u8 * const        cbytes_t;
 typedef u16                     m3opcode_t;
 
 typedef i64                     m3reg_t;
+
+# if d_m3Use32BitSlots
 typedef u32                     m3slot_t;
+# else
+typedef u64                     m3slot_t;
+# endif
 
 typedef m3slot_t *              m3stack_t;
 

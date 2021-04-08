@@ -105,8 +105,12 @@ i16     GetNumBlockValues   (IM3Compilation o)      { return o->stackIndex - o->
 
 u16 GetTypeNumSlots (u8 i_type)
 {
-	u16 n =  Is64BitType (i_type) ? 2 : 1;
-	return n;
+#   if d_m3Use32BitSlots
+        u16 n =  Is64BitType (i_type) ? 2 : 1;
+        return n;
+#   else
+        return 1;
+#   endif
 }
 
 i16  GetStackTopIndex  (IM3Compilation o)
@@ -237,7 +241,8 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 numSlots = GetTypeNumSlots (i_type);
     u16 searchOffset = numSlots - 1;
 
-	AlignSlotIndexToType (& i_startSlot, i_type);
+	if (d_m3Use32BitSlots)
+		AlignSlotIndexToType (& i_startSlot, i_type);
 
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;
@@ -1342,9 +1347,7 @@ _           (AcquirePatch (o, & patch));
 
     }
 
-    _catch:
-
-    return result;
+    _catch: return result;
 }
 
 
@@ -2361,7 +2364,7 @@ M3Result  Compile_Function  (IM3Function io_function)
                                                                            c_waTypes [GetSingleRetType(ft)]);
     IM3Runtime runtime = io_function->module->runtime;
 
-    IM3Compilation o = & runtime->compilation;
+    IM3Compilation o = & runtime->compilation;						d_m3Assert (d_m3MaxFunctionSlots >= d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1))  // need twice as many slots in 32-bit mode
     SetupCompilation (o);
 
     o->runtime  = runtime;

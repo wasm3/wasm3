@@ -49,6 +49,10 @@
 #   define d_m3FixedHeapAlign                   16
 # endif
 
+# ifndef d_m3Use32BitSlots
+#   define d_m3Use32BitSlots                    1
+# endif
+
 # ifndef d_m3ProfilerSlotMask
 #   define d_m3ProfilerSlotMask                 0xFFFF
 # endif
