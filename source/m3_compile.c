@@ -2378,9 +2378,6 @@ M3Result  Compile_Function  (IM3Function io_function)
     o->block.type = funcType;
 
 _try {
-	
-	_throwif ("using 64bit slots", d_m3Use32BitSlots == 0);
-
     // skip over code size. the end was already calculated during parse phase
     u32 size;
 _   (ReadLEB_u32 (& size, & o->wasm, o->wasmEnd));                  d_m3Assert (size == (o->wasmEnd - o->wasm))
