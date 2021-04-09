@@ -338,7 +338,7 @@ void  dump_type_stack  (IM3Compilation o)
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
 
 //  printf ("%d", o->stackIndex -)
-    for (u32 i = o->firstDynamicStackIndex; i < o->stackIndex; ++i)
+    for (u32 i = o->stackFirstDynamicIndex; i < o->stackIndex; ++i)
     {
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
 
@@ -353,9 +353,9 @@ void  dump_type_stack  (IM3Compilation o)
         }
         else
         {
-            if (slot < o->firstDynamicSlotIndex)
+            if (slot < o->slotFirstDynamicIndex)
             {
-                if (slot >= o->firstConstSlotIndex)
+                if (slot >= o->slotFirstConstIndex)
                     printf ("c");
                 else if (slot >= o->function->numRetAndArgSlots)
                     printf ("L");
