@@ -298,9 +298,8 @@ M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot)
 
 void DeallocateSlot (IM3Compilation o, i16 i_slotIndex, u8 i_type)
 {                                                                                       d_m3Assert (i_slotIndex >= o->firstDynamicSlotIndex);
-                                                                                        d_m3Assert (o->m3Slots [i_slotIndex]);
     for (u16 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slotIndex)
-    {
+    {                                                                                   d_m3Assert (o->m3Slots [i_slotIndex]);
         -- o->m3Slots [i_slotIndex];
     }
 }
@@ -1403,8 +1402,13 @@ _       (Pop (o));
 
     if (i_type->numRets)
     {
-        MarkSlotAllocated (o, topSlot);
-_       (Push (o, GetSingleRetType (i_type), topSlot));
+        u8 type = GetSingleRetType (i_type);
+        
+_       (Push (o, type, topSlot));
+
+        u16 numSlots = GetTypeNumSlots (type);
+        while (numSlots--)
+            MarkSlotAllocated (o, topSlot++);
     }
 
     } _catch: return result;
@@ -2337,10 +2341,10 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
     // operations as needed. Compiled expressions (global inits) don't pass through this
     // ReserveConstants function and thus always produce inline constants.
-    u32 cappedConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);           m3log (compile, "estimated constant slots: %d; reserved: %d", numConstantSlots, cappedConstantSlots)
+    u16 cappedConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);
 
-//  cappedConstantSlots = 1;
-
+    AlignSlotIndexToType (& cappedConstantSlots, c_m3Type_i64);                                         m3log (compile, "estimated constant slots: %d; reserved: %d", numConstantSlots, (u32) cappedConstantSlots)
+    
     o->firstDynamicSlotIndex = o->firstConstSlotIndex + cappedConstantSlots;
     
     if (o->firstDynamicSlotIndex >= d_m3MaxFunctionSlots)
@@ -2404,20 +2408,11 @@ _   (AcquireCompilationCodePage (o, & o->page));
         u8 type = GetFunctionArgType (o->function, i);
 _       (PushAllocatedSlot (o, type));
 
-        if (i < numArgs - 1)
-        {
-            // prevent allocator fill-in
-            o->firstDynamicSlotIndex += ioSlotCount;
-        }
-        else
-        {
-            // final arg only allocates its natural width when using 32-bit slots
-            o->firstDynamicSlotIndex += GetTypeNumSlots (type);
-        }
+        // prevent allocator fill-in
+        o->firstDynamicSlotIndex += ioSlotCount;
     }
 
-    //o->maxAllocatedSlotPlusOne =
-    o->function->numRetAndArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
+    o->maxAllocatedSlotPlusOne = o->function->numRetAndArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
     
 _   (CompileLocals (o));
 
@@ -2448,7 +2443,7 @@ _   (Compile_BlockStatements (o));
 
     if (numConstantSlots)
     {
-        io_function->constants = m3_CopyMem(o->constants, io_function->numConstantBytes);
+        io_function->constants = m3_CopyMem (o->constants, io_function->numConstantBytes);
         _throwifnull(io_function->constants);
     }
 

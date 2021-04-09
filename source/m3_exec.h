@@ -606,13 +606,14 @@ d_m3Op  (CallRawFunction)
 
     const int nArgs = ftype->numArgs;
     const int nRets = ftype->numRets;
+    u64 * args = sp + nRets;
     for (int i=0; i<nArgs; i++) {
         const int type = ftype->types[nRets + i];
         switch (type) {
-        case c_m3Type_i32:  outp += snprintf(outp, oute-outp, "%" PRIi32, *(i32*)(sp+i)); break;
-        case c_m3Type_i64:  outp += snprintf(outp, oute-outp, "%" PRIi64, *(i64*)(sp+i)); break;
-        case c_m3Type_f32:  outp += snprintf(outp, oute-outp, "%" PRIf32, *(f32*)(sp+i)); break;
-        case c_m3Type_f64:  outp += snprintf(outp, oute-outp, "%" PRIf64, *(f64*)(sp+i)); break;
+        case c_m3Type_i32:  outp += snprintf(outp, oute-outp, "%" PRIi32, *(i32*)(args+i)); break;
+        case c_m3Type_i64:  outp += snprintf(outp, oute-outp, "%" PRIi64, *(i64*)(args+i)); break;
+        case c_m3Type_f32:  outp += snprintf(outp, oute-outp, "%" PRIf32, *(f32*)(args+i)); break;
+        case c_m3Type_f64:  outp += snprintf(outp, oute-outp, "%" PRIf64, *(f64*)(args+i)); break;
         default:            outp += snprintf(outp, oute-outp, "<type %d>", type);         break;
         }
         outp += snprintf(outp, oute-outp, (i < nArgs-1) ? ", " : ")");
