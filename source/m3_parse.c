@@ -62,8 +62,6 @@ _           (ReadLEB_i7 (& form, & i_bytes, i_end));
             u32 numArgs;
 _           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 
-            _throwif ("insane argument count", numArgs > d_m3MaxSaneFunctionArgCount);
-
 #if defined(M3_COMPILER_MSVC)
             u8 argTypes[d_m3MaxSaneFunctionArgCount];
 #else
@@ -82,7 +80,7 @@ _               (NormalizeType (& argType, wasmType));
             u32 numRets;
 _           (ReadLEB_u32 (& numRets, & i_bytes, i_end));
 
-            _throwif ("insane returns count", numRets > d_m3MaxSaneFunctionArgCount);
+            _throwif ("argument+returns count overflow", numRets + numArgs > d_m3MaxSaneFunctionArgRetCount);
 
 _           (AllocFuncType (& ftype, numRets + numArgs));
             ftype->numArgs = numArgs;
@@ -97,7 +95,7 @@ _               (NormalizeType (& retType, wasmType));
 
                 ftype->types[r] = retType;
             }
-            memcpy (ftype->types + numRets, argTypes, numArgs);                             	m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (ftype));
+            memcpy (ftype->types + numRets, argTypes, numArgs);                                 m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (ftype));
 
             Environment_AddFuncType (io_module->environment, & ftype);
             io_module->funcTypes [i] = ftype;

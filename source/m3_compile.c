@@ -76,7 +76,7 @@ _               (m3ReallocArray (& func->codePageRefs, IM3CodePage, func->numCod
                 func->codePageRefs [index] = page;
             }
         }
-#		endif
+#       endif
     }
     else _throw (m3Err_mallocFailedCodePage);
 
@@ -241,8 +241,8 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 numSlots = GetTypeNumSlots (i_type);
     u16 searchOffset = numSlots - 1;
 
-	if (d_m3Use32BitSlots)
-		AlignSlotIndexToType (& i_startSlot, i_type);
+    if (d_m3Use32BitSlots)
+        AlignSlotIndexToType (& i_startSlot, i_type);
 
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;
@@ -504,11 +504,11 @@ M3Result  PopType  (IM3Compilation o, u8 i_type)
 
     if (i_type == topType or o->block.isPolymorphic)
     {
-_		(Pop (o));
+_       (Pop (o));
     }
-	else _throw (m3Err_typeMismatch);
+    else _throw (m3Err_typeMismatch);
 
-	_catch:
+    _catch:
     return result;
 }
 
@@ -856,7 +856,7 @@ M3Result  ReturnStackTop  (IM3Compilation o)
         const u16 returnSlot = 0;
 
         if (o->wasmStack [top] != returnSlot)
-_       	(CopyTopSlot (o, returnSlot))
+_           (CopyTopSlot (o, returnSlot))
     }
     else if (not IsStackPolymorphic (o))
         _throw (m3Err_functionStackUnderrun);
@@ -910,19 +910,19 @@ _               (IncrementSlotUsageCount (o, * o_preservedSlotIndex));
 
 M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i_depth)
 {
-	M3Result result = m3Err_none;
-	
+    M3Result result = m3Err_none;
+    
     IM3CompilationScope scope = & o->block;
 
     while (i_depth--)
     {
         scope = scope->outer;
-		_throwif ("invalid block depth", not scope);
+        _throwif ("invalid block depth", not scope);
     }
 
     * o_scope = scope;
 
-	_catch:
+    _catch:
     return result;
 }
 
@@ -995,9 +995,9 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
     M3Compiler compiler = GetOpInfo (i_opcode)->compiler;
-	_throwifnull (m3Err_noCompiler, compiler);
+    _throwifnull (m3Err_noCompiler, compiler);
 
-_	((* compiler) (o, i_opcode));
+_   ((* compiler) (o, i_opcode));
 
     o->previousOpcode = i_opcode;
 
@@ -1034,8 +1034,8 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     if (o->block.depth == 0)
     {
         u8 type = GetSingleRetType (o->block.type);
-		
-		u32 numReturns = GetFuncTypeNumReturns (o->block.type);
+        
+        u32 numReturns = GetFuncTypeNumReturns (o->block.type);
 
         if (numReturns)
         {
@@ -1177,8 +1177,8 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         if (o->module->globals)
         {
             M3Global * global = & o->module->globals [globalIndex];
-			
-_			((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
+            
+_           ((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
         else _throw (ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name));
     }
@@ -1383,12 +1383,12 @@ _try {
     if (i_isIndirect)
 _       (Pop (o));
 
-    u32 numArgs = i_type->numArgs;
-	u32 numRets = i_type->numRets;
+    u16 numArgs = i_type->numArgs;
+    u16 numRets = i_type->numRets;
 
-	// args are 64-bit aligned
+    // args are 64-bit aligned
     u32 slotsPerArg = sizeof (u64) / sizeof (m3slot_t);
-    u16 argTop = topSlot + (numArgs + numRets * 1) * slotsPerArg;
+    u16 argTop = topSlot + (numArgs + numRets) * slotsPerArg;
 
     while (numArgs--)
     {
@@ -1843,7 +1843,7 @@ _           (PushRegister (o, op->type));
 #       else
             result = ErrorCompile ("no operation found for opcode", o, "");
 #       endif
-		_throw (result);
+        _throw (result);
     }
 
     _catch: return result;
@@ -2135,8 +2135,8 @@ const M3OpInfo c_operations [] =
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
 
-    d_m3DebugOp (Entry),		// 0xc5
-	d_m3DebugOp (Compile),      d_m3DebugOp (End),
+    d_m3DebugOp (Entry),        // 0xc5
+    d_m3DebugOp (Compile),      d_m3DebugOp (End),
 
     d_m3DebugOp (Unsupported),
     d_m3DebugOp (CallRawFunction),
@@ -2183,7 +2183,7 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
 
 # ifdef DEBUG
-	M3OP_F( "termination", 0, c_m3Type_unknown ) // for find_operation_info
+    M3OP_F( "termination", 0, c_m3Type_unknown ) // for find_operation_info
 # endif
 };
 
@@ -2201,9 +2201,9 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
         _throwif (m3Err_unknownOpcode, opinfo == NULL);
 
         if (opinfo->compiler) {
-_         	((* opinfo->compiler) (o, opcode))
+_           ((* opinfo->compiler) (o, opcode))
         } else {
-_ 			(Compile_Operator (o, opcode));
+_           (Compile_Operator (o, opcode));
         }
 
         o->previousOpcode = opcode;                             //                      m3logif (stack, dump_type_stack (o))
@@ -2214,7 +2214,7 @@ _ 			(Compile_Operator (o, opcode));
         if (opcode == c_waOp_end or opcode == c_waOp_else)
             break;
     }
-	
+    
 _catch:
     return result;
 }
@@ -2227,7 +2227,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
     * o_copyStackTopToRegister = false;
 
     u8 valueType = GetSingleRetType (o->block.type);
-	
+    
     if (valueType != c_m3Type_none)
     {
         if (IsStackPolymorphic (o))
@@ -2362,7 +2362,7 @@ M3Result  Compile_Function  (IM3Function io_function)
                                                                            c_waTypes [GetSingleRetType(funcType)]);
     IM3Runtime runtime = io_function->module->runtime;
 
-    IM3Compilation o = & runtime->compilation;						d_m3Assert (d_m3MaxFunctionSlots >= d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1))  // need twice as many slots in 32-bit mode
+    IM3Compilation o = & runtime->compilation;                      d_m3Assert (d_m3MaxFunctionSlots >= d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1))  // need twice as many slots in 32-bit mode
     SetupCompilation (o);
 
     o->runtime  = runtime;
@@ -2370,7 +2370,7 @@ M3Result  Compile_Function  (IM3Function io_function)
     o->function = io_function;
     o->wasm     = io_function->wasm;
     o->wasmEnd  = io_function->wasmEnd;
-	o->block.type = funcType;
+    o->block.type = funcType;
 
 _try {
     // skip over code size. the end was already calculated during parse phase
@@ -2383,20 +2383,20 @@ _   (AcquireCompilationCodePage (o, & o->page));
 
     // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
     const u32 ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
-	
-	u32 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
+    
+    u32 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
 
-	for (u32 i = 0; i < numRetSlots; ++i)
-		MarkSlotAllocated (o, i);
+    for (u32 i = 0; i < numRetSlots; ++i)
+        MarkSlotAllocated (o, i);
 
-	o->firstDynamicSlotIndex = numRetSlots;
+    o->firstDynamicSlotIndex = numRetSlots;
 
     u32 numArgs = GetFunctionNumArgs (o->function);
 
-	// push the arg types to the type stack
+    // push the arg types to the type stack
     for (u32 i = 0; i < numArgs; ++i)
     {
-		u8 type = GetFunctionArgType (o->function, i);
+        u8 type = GetFunctionArgType (o->function, i);
 _       (PushAllocatedSlot (o, type));
 
         if (i < numArgs - 1)
@@ -2411,9 +2411,9 @@ _       (PushAllocatedSlot (o, type));
         }
     }
 
-	//o->maxAllocatedSlotPlusOne =
-	o->function->numRetAndArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
-	
+    //o->maxAllocatedSlotPlusOne =
+    o->function->numRetAndArgSlots = o->firstLocalSlotIndex = o->firstDynamicSlotIndex;
+    
 _   (CompileLocals (o));
 
     u16 maxSlot = GetMaxUsedSlotPlusOne (o);

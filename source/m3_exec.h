@@ -1131,7 +1131,7 @@ d_m3BranchIf (i64, s, slot (i32))
 
 d_m3Op  (ContinueLoop)
 {
-	m3StackCheck();
+    m3StackCheck();
 
     // TODO: this is where execution can "escape" the M3 code and callback to the client / fiber switch
     // OR it can go in the Loop operation. I think it's best to do here. adding code to the loop operation

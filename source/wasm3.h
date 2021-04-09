@@ -215,8 +215,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      uint32_t               i_numWasmBytes);
 
     // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
-	// a. m3_LoadModule has not yet been called on that module. Or,
-	// b. m3_LoadModule returned a result.
+    // a. m3_LoadModule has not yet been called on that module. Or,
+    // b. m3_LoadModule returned a result.
     void                m3_FreeModule               (IM3Module i_module);
 
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully loaded into the runtime

@@ -4,7 +4,7 @@
 //  Created by Steven Massey on 7/5/19.
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
-// 	some macros to emulate try/catch
+//  some macros to emulate try/catch
 
 #ifndef m3_exception_h
 #define m3_exception_h
@@ -16,14 +16,14 @@
 // a central function you can be breakpoint:
 static void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
 {
-	printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
-	return;
+    printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
+    return;
 }
 
-#	define EXCEPTION_PRINT(ERROR) ExceptionBreakpoint (ERROR, (__FILE__ ":" M3_STR(__LINE__)))
+#   define EXCEPTION_PRINT(ERROR) ExceptionBreakpoint (ERROR, (__FILE__ ":" M3_STR(__LINE__)))
 
 # else
-#	define EXCEPTION_PRINT(...)
+#   define EXCEPTION_PRINT(...)
 # endif
 
 
@@ -33,6 +33,6 @@ static void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
 #define _throwif(ERROR, COND)             if (UNLIKELY(COND)) \
                                           { result = ERROR; EXCEPTION_PRINT (result); goto _catch; }
 
-#define _throwifnull(PTR)               	_throwif (m3Err_mallocFailed, !(PTR))
+#define _throwifnull(PTR)                   _throwif (m3Err_mallocFailed, !(PTR))
 
 #endif // m3_exception_h

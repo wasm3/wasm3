@@ -502,8 +502,8 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
             _throwifnull(io_module->table0);
-			
-			_throwif ("table overflow", endElement > UINT_MAX)
+            
+            _throwif ("table overflow", endElement > UINT_MAX)
             io_module->table0Size = (u32) endElement;
 
             for (u32 e = 0; e < numElements; ++e)
@@ -581,7 +581,7 @@ _       (InitElements (io_module));
 IM3Global  m3_FindGlobal  (IM3Module               io_module,
                            const char * const      i_globalName)
 {
-	// Search exports
+    // Search exports
     for (u32 i = 0; i < io_module->numGlobals; ++i)
     {
         IM3Global g = & io_module->globals [i];
@@ -591,7 +591,7 @@ IM3Global  m3_FindGlobal  (IM3Module               io_module,
         }
     }
 
-	// Search imports
+    // Search imports
     for (u32 i = 0; i < io_module->numGlobals; ++i)
     {
         IM3Global g = & io_module->globals [i];
@@ -645,7 +645,7 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
 
 M3ValueType  m3_GetGlobalType  (IM3Global          i_global)
 {
-	return (i_global) ? i_global->type : c_m3Type_none;
+    return (i_global) ? i_global->type : c_m3Type_none;
 }
 
 
@@ -673,9 +673,9 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
-	M3Result result = m3Err_none;								d_m3Assert (o_function and i_runtime and i_functionName);
-	
-	IM3Function function = NULL;
+    M3Result result = m3Err_none;                               d_m3Assert (o_function and i_runtime and i_functionName);
+    
+    IM3Function function = NULL;
 
     if (not i_runtime->modules) {
         _throw ("no modules loaded");
@@ -687,24 +687,24 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
     {
         if (not function->compiled)
         {
-_			(Compile_Function (function))
+_           (Compile_Function (function))
         }
-		
-		// Check if start function needs to be called
-		if (function->module->startFunction)
-		{
-_			(m3_RunStart (function->module))
-		}
+        
+        // Check if start function needs to be called
+        if (function->module->startFunction)
+        {
+_           (m3_RunStart (function->module))
+        }
     }
-	else _throw (ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName));
+    else _throw (ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName));
 
-	_catch:
-	if (result)
-		function = NULL;
-	
+    _catch:
+    if (result)
+        function = NULL;
+    
     * o_function = function;
 
-	return result;
+    return result;
 }
 
 
@@ -756,14 +756,14 @@ M3ValueType  m3_GetRetType  (IM3Function i_function, uint32_t index)
 
 u8 *  GetStackPointerForArgs  (IM3Function i_function)
 {
-	u64 * stack = (u64 *) i_function->module->runtime->stack;
-	IM3FuncType ftype = i_function->funcType;
+    u64 * stack = (u64 *) i_function->module->runtime->stack;
+    IM3FuncType ftype = i_function->funcType;
 
-	stack += ftype->numRets;
-	
-	printf ("stack: %p (args: %p)\n", i_function->module->runtime->stack, stack);
-	
-	return (u8 *) stack;
+    u16 numReturnSlots = ftype->numRets;
+    
+    stack += numReturnSlots;
+    
+    return (u8 *) stack;
 }
 
 
@@ -789,8 +789,8 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     ClearBacktrace (runtime);
 # endif
 
-	u8* s = GetStackPointerForArgs (i_function);
-	
+    u8* s = GetStackPointerForArgs (i_function);
+    
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -830,7 +830,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     ClearBacktrace (runtime);
 # endif
 
-	u8* s = GetStackPointerForArgs (i_function);
+    u8* s = GetStackPointerForArgs (i_function);
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -871,7 +871,7 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     ClearBacktrace (runtime);
 # endif
 
-	u8* s = GetStackPointerForArgs (i_function);
+    u8* s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
@@ -900,8 +900,8 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
 
 u8 * AlignStackPointerTo64Bits (const u8 * i_stack)
 {
-	uintptr_t ptr = (uintptr_t) i_stack;
-	return (u8 *) ((ptr + 7) & ~7);
+    uintptr_t ptr = (uintptr_t) i_stack;
+    return (u8 *) ((ptr + 7) & ~7);
 }
 
 
@@ -918,12 +918,12 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
     }
 
     u8* s = (u8*) runtime->stack;
-	
+    
     for (u32 i = 0; i < ftype->numRets; ++i)
     {
         switch (d_FuncRetType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 4; break;
-		case c_m3Type_i64:  s = AlignStackPointerTo64Bits (s); *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
+        case c_m3Type_i64:  s = AlignStackPointerTo64Bits (s); *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
         case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 4; break;
         case c_m3Type_f64:  s = AlignStackPointerTo64Bits (s); *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
         default: return "unknown return type";
