@@ -76,7 +76,7 @@ _   (AllocFuncType (& funcType, (u32) maxNumTypes));
 
         if (parsingRets)
         {
-            _throwif ("malformed signature; return count overflow", funcType->numRets + funcType->numArgs >= maxNumTypes);
+            _throwif ("malformed signature; return count overflow", funcType->numRets >= maxNumTypes);
             funcType->numRets++;
             *typelist++ = type;
         }
