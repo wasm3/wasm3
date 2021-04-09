@@ -298,6 +298,7 @@ M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot)
 
 void DeallocateSlot (IM3Compilation o, i16 i_slotIndex, u8 i_type)
 {                                                                                       d_m3Assert (i_slotIndex >= o->slotFirstDynamicIndex);
+                                                                                        d_m3Assert (i_slotIndex < o->slotMaxAllocatedIndexPlusOne);
     for (u16 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slotIndex)
     {                                                                                   d_m3Assert (o->m3Slots [i_slotIndex]);
         -- o->m3Slots [i_slotIndex];
@@ -578,7 +579,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
     bool is64BitType = Is64BitType (i_type);
 
     u16 numRequiredSlots = GetTypeNumSlots (i_type);
-    u32 numUsedConstSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;
+    u16 numUsedConstSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;
 
     // search for duplicate matching constant slot to reuse
     if (numRequiredSlots == 2 and numUsedConstSlots >= 2)
@@ -586,16 +587,11 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         u16 firstConstSlot = o->slotFirstConstIndex;
         AlignSlotIndexToType (& firstConstSlot, c_m3Type_i64);
 
-        for (int slot = firstConstSlot; slot < o->slotMaxConstIndex - 1; slot += 2)
+        for (u16 slot = firstConstSlot; slot < o->slotMaxConstIndex - 1; slot += 2)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 constant;
-                if (is64BitType) {
-                    constant = * (u64 *) & o->constants [slot - o->slotFirstConstIndex];
-                } else {
-                    constant = * (u32 *) & o->constants [slot - o->slotFirstConstIndex];
-                }
+                u64 constant = * (u64 *) & o->constants [slot - o->slotFirstConstIndex];
 
                 if (constant == i_word)
                 {
@@ -608,7 +604,7 @@ _                   (Push (o, i_type, slot));
     }
     else if (numRequiredSlots == 1)
     {
-        for (u32 i = 0; i < numUsedConstSlots; ++i)
+        for (u16 i = 0; i < numUsedConstSlots; ++i)
         {
             u16 slot = o->slotFirstConstIndex + i;
 
@@ -639,7 +635,7 @@ _                   (Push (o, i_type, slot));
         {
             result = m3Err_none;
 
-            if (Is64BitType (i_type)) {
+            if (is64BitType) {
 _               (EmitOp (o, op_Const64));
                 EmitWord64 (o->page, i_word);
             } else {
@@ -2197,14 +2193,14 @@ const M3OpInfo c_operationsFC [] =
 const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
     switch (opcode >> 8) {
     case 0x00:
-    	if (opcode < M3_COUNT_OF(c_operations)) {
-    		return &c_operations[opcode];
-    	}
+        if (opcode < M3_COUNT_OF(c_operations)) {
+            return &c_operations[opcode];
+        }
     case 0xFC:
-    	opcode &= 0xFF;
-    	if (opcode < M3_COUNT_OF(c_operationsFC)) {
-    		return &c_operationsFC[opcode];
-    	}
+        opcode &= 0xFF;
+        if (opcode < M3_COUNT_OF(c_operationsFC)) {
+            return &c_operationsFC[opcode];
+        }
     }
     return NULL;
 }
@@ -2407,19 +2403,19 @@ _   (AcquireCompilationCodePage (o, & o->page));
     pc_t pc = GetPagePC (o->page);
 
     // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
-    const u32 ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
+    const u16 ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
     
-    u32 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
+    u16 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
 
-    for (u32 i = 0; i < numRetSlots; ++i)
+    for (u16 i = 0; i < numRetSlots; ++i)
         MarkSlotAllocated (o, i);
 
     o->function->numRetSlots = o->slotFirstDynamicIndex = numRetSlots;
 
-    u32 numArgs = GetFunctionNumArgs (o->function);
+    u16 numArgs = GetFunctionNumArgs (o->function);
 
     // push the arg types to the type stack
-    for (u32 i = 0; i < numArgs; ++i)
+    for (u16 i = 0; i < numArgs; ++i)
     {
         u8 type = GetFunctionArgType (o->function, i);
 _       (PushAllocatedSlot (o, type));
@@ -2453,7 +2449,7 @@ _   (Compile_BlockStatements (o));
 
     io_function->compiled = pc;
 
-    u32 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;       m3log (compile, "unique constant slots: %d; unused slots: %d", numConstantSlots, o->slotFirstDynamicIndex - o->slotMaxConstIndex);
+    u16 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;       m3log (compile, "unique constant slots: %d; unused slots: %d", numConstantSlots, o->slotFirstDynamicIndex - o->slotMaxConstIndex);
 
     io_function->numConstantBytes = numConstantSlots * sizeof (m3slot_t);
 

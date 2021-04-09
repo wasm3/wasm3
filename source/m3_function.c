@@ -136,9 +136,9 @@ cstr_t  GetFunctionImportModuleName  (IM3Function i_function)
 }
 
 
-u32  GetFunctionNumArgs  (IM3Function i_function)
+u16  GetFunctionNumArgs  (IM3Function i_function)
 {
-    u32 numArgs = 0;
+    u16 numArgs = 0;
 
     if (i_function)
     {
@@ -164,9 +164,9 @@ u8  GetFunctionArgType  (IM3Function i_function, u32 i_index)
 }
 
 
-u32  GetFunctionNumReturns  (IM3Function i_function)
+u16  GetFunctionNumReturns  (IM3Function i_function)
 {
-    u32 numReturns = 0;
+    u16 numReturns = 0;
 
     if (i_function)
     {

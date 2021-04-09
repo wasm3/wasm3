@@ -89,7 +89,7 @@ typedef struct
     u16                 stackIndex;                 // current stack index
 
     u16                 slotFirstConstIndex;
-    u16                 slotMaxConstIndex;             // as const's are encountered during compilation this tracks their location in the "real" stack
+    u16                 slotMaxConstIndex;          // as const's are encountered during compilation this tracks their location in the "real" stack
 
     u16                 slotFirstLocalIndex;
     u16                 slotFirstDynamicIndex;      // numArgs + numLocals + numReservedConstants. the first mutable slot available to the compiler.
