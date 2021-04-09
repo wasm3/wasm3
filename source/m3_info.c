@@ -337,7 +337,7 @@ void  dump_type_stack  (IM3Compilation o)
     printf ("                                                        ");
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
 
-//	printf ("%d", o->stackIndex -)
+//  printf ("%d", o->stackIndex -)
     for (u32 i = o->firstDynamicStackIndex; i < o->stackIndex; ++i)
     {
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
