@@ -28,6 +28,7 @@
 		3D1ED51A23C8C8E70072E395 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D1ED51823C8C8E70072E395 /* LaunchScreen.storyboard */; };
 		3D1ED52423C8CB560072E395 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1ED52223C8CB560072E395 /* main.c */; };
 		3D3C322E23C9319A00DB9F7E /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 3D3C322D23C9319A00DB9F7E /* icon.png */; };
+		B5E985C8262018B700FBE0FC /* m3_function.c in Sources */ = {isa = PBXBuildFile; fileRef = B5E985C7262018B700FBE0FC /* m3_function.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,7 +36,6 @@
 		3D1B3AEF23C8E20C00142C16 /* fib32_tail.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib32_tail.wasm.h; sourceTree = "<group>"; };
 		3D1B3AF023C8E20C00142C16 /* fib64.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib64.wasm.h; sourceTree = "<group>"; };
 		3D1B3AF123C8E20C00142C16 /* wasi_core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasi_core.h; sourceTree = "<group>"; };
-		3D1B3AF223C8E20C00142C16 /* m3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3.h; sourceTree = "<group>"; };
 		3D1B3AF323C8E20C00142C16 /* m3_api_defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_api_defs.h; sourceTree = "<group>"; };
 		3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_api_libc.c; sourceTree = "<group>"; };
 		3D1B3AF523C8E20C00142C16 /* m3_api_libc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_api_libc.h; sourceTree = "<group>"; };
@@ -76,6 +76,8 @@
 		3D1ED52223C8CB560072E395 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		3D3C322D23C9319A00DB9F7E /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
 		3D3EC19D23D558D5008FD665 /* wasm3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasm3.h; sourceTree = "<group>"; };
+		B5E985C6262018B700FBE0FC /* m3_function.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_function.h; sourceTree = "<group>"; };
+		B5E985C7262018B700FBE0FC /* m3_function.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_function.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,9 +94,10 @@
 		3D1B3AEC23C8E20C00142C16 /* source */ = {
 			isa = PBXGroup;
 			children = (
+				B5E985C7262018B700FBE0FC /* m3_function.c */,
+				B5E985C6262018B700FBE0FC /* m3_function.h */,
 				3D1B3AED23C8E20C00142C16 /* extra */,
 				3D3EC19D23D558D5008FD665 /* wasm3.h */,
-				3D1B3AF223C8E20C00142C16 /* m3.h */,
 				3D1B3AF323C8E20C00142C16 /* m3_api_defs.h */,
 				3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */,
 				3D1B3AF523C8E20C00142C16 /* m3_api_libc.h */,
@@ -250,6 +253,7 @@
 				3D1B3B1323C8E20D00142C16 /* m3_api_wasi.c in Sources */,
 				3D1B3B1123C8E20D00142C16 /* m3_api_libc.c in Sources */,
 				3D1B3B1723C8E20D00142C16 /* m3_core.c in Sources */,
+				B5E985C8262018B700FBE0FC /* m3_function.c in Sources */,
 				3D1ED51223C8C8E70072E395 /* ViewController.swift in Sources */,
 				3D1B3B1A23C8E20D00142C16 /* m3_exec.c in Sources */,
 				3D1B3B1223C8E20D00142C16 /* m3_api_meta_wasi.c in Sources */,
