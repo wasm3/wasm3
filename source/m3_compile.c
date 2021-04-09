@@ -137,7 +137,7 @@ u8  GetStackTopType  (IM3Compilation o)
 }
 
 
-u8  GetStackBottomType  (IM3Compilation o, u16 i_offset)
+u8  GetStackTypeFromBottom  (IM3Compilation o, u16 i_offset)
 {
     u8 type = c_m3Type_none;
 
@@ -366,7 +366,7 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_registerType)
         u16 stackIndex = GetRegisterStackIndex (o, regSelect);
         DeallocateRegister (o, regSelect);
 
-        u8 type = GetStackBottomType (o, stackIndex);
+        u8 type = GetStackTypeFromBottom (o, stackIndex);
 
         // and point to a exec slot
         u16 slot = c_slotUnused;
@@ -478,6 +478,11 @@ M3Result  Pop  (IM3Compilation o)
 
         u16 slot = o->wasmStack [o->stackIndex];
         u8 type = o->typeStack [o->stackIndex];
+
+#		ifdef DEBUG
+		o->wasmStack [o->stackIndex] = 0;
+		o->typeStack [o->stackIndex] = 0;
+#		endif
 
         if (IsRegisterLocation (slot))
         {
@@ -757,7 +762,7 @@ M3Result CopyStackSlot (IM3Compilation o, u16 i_stackIndex, u16 i_destSlot)
 
     IM3Operation op;
 
-    u8 type = GetStackBottomType (o, i_stackIndex);
+    u8 type = GetStackTypeFromBottom (o, i_stackIndex);
     bool inRegister = IsStackIndexInRegister (o, i_stackIndex);
 
     if (inRegister)
@@ -892,9 +897,9 @@ M3Result  FindReferencedLocalWithinCurrentBlock  (IM3Compilation o, u16 * o_pres
         {
             if (* o_preservedSlotIndex == i_localSlot)
             {
-                u8 localType = GetStackBottomType (o, i_localSlot);
+                u8 type = GetStackTypeFromBottom (o, i);					d_m3Assert (type != c_m3Type_none)
 
-_               (AllocateSlots (o, o_preservedSlotIndex, localType));
+_               (AllocateSlots (o, o_preservedSlotIndex, type));
             }
             else
 _               (IncrementSlotUsageCount (o, * o_preservedSlotIndex));
@@ -1114,7 +1119,7 @@ _   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));
     if (localIndex >= GetFunctionNumArgsAndLocals (o->function))
         _throw ("local index out of bounds");
 
-    u8 type = GetStackBottomType (o, localIndex);
+    u8 type = GetStackTypeFromBottom (o, localIndex);
     u16 slot = GetSlotForStackIndex (o, localIndex);
 
 _   (Push (o, type, slot));
@@ -1542,31 +1547,29 @@ _       (NormalizeType (&valueType, type));                                m3log
 }
 
 
-// This preemptively preserves args and locals on the stack that might be written-to in the subsequent block
-// (versus the COW strategy that happens in SetLocal within a block).  Initially, I thought I'd have to be clever and
-// retroactively insert preservation code to avoid impacting general performance, but this compilation pattern doesn't
-// really occur in compiled Wasm code, so PreserveArgsAndLocals generally does nothing. Still waiting on a real-world case!
 M3Result  PreserveArgsAndLocals  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
-
+	
     if (o->stackIndex > o->firstDynamicStackIndex)
     {
         u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
 
         for (u32 i = 0; i < numArgsAndLocals; ++i)
         {
-            u16 preservedSlotIndex;
-_           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, i));
+			u16 slot = GetSlotForStackIndex (o, i);
 
-            if (preservedSlotIndex != i)
+			u16 preservedSlotIndex;
+_           (FindReferencedLocalWithinCurrentBlock (o, & preservedSlotIndex, slot));
+
+            if (preservedSlotIndex != slot)
             {
-                u8 type = GetStackBottomType (o, i);
+                u8 type = GetStackTypeFromBottom (o, i);					d_m3Assert (type != c_m3Type_none)
                 IM3Operation op = Is64BitType (type) ? op_CopySlot_64 : op_CopySlot_32;
 
                 EmitOp          (o, op);
                 EmitSlotOffset  (o, preservedSlotIndex);
-                EmitSlotOffset  (o, i);
+                EmitSlotOffset  (o, slot);
             }
         }
     }
@@ -2329,14 +2332,14 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
             numConstantSlots += 1;
         else if (code == 0x42 or code == 0x44)  // i64, f64
             numConstantSlots += GetTypeNumSlots (c_m3Type_i64);
-    }                                                                                           m3log (compile, "estimated constant slots: %d", numConstantSlots)
+    }
 
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
     // operations as needed. Compiled expressions (global inits) don't pass through this
     // ReserveConstants function and thus always produce inline constants.
-    numConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);
+    u32 cappedConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);			 m3log (compile, "estimated constant slots: %d; reserved: %d", numConstantSlots, cappedConstantSlots)
 
-    o->firstDynamicSlotIndex = o->firstConstSlotIndex + numConstantSlots;
+    o->firstDynamicSlotIndex = o->firstConstSlotIndex + cappedConstantSlots;
 
     if (o->firstDynamicSlotIndex >= d_m3MaxFunctionSlots)
         result = m3Err_functionStackOverflow;
@@ -2389,7 +2392,7 @@ _   (AcquireCompilationCodePage (o, & o->page));
     for (u32 i = 0; i < numRetSlots; ++i)
         MarkSlotAllocated (o, i);
 
-    o->firstDynamicSlotIndex = numRetSlots;
+	o->function->numRetSlots = o->firstDynamicSlotIndex = numRetSlots;
 
     u32 numArgs = GetFunctionNumArgs (o->function);
 
