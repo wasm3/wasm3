@@ -2194,6 +2194,21 @@ const M3OpInfo c_operationsFC [] =
 # endif
 };
 
+const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
+    switch (opcode >> 8) {
+    case 0x00:
+    	if (opcode < M3_COUNT_OF(c_operations)) {
+    		return &c_operations[opcode];
+    	}
+    case 0xFC:
+    	opcode &= 0xFF;
+    	if (opcode < M3_COUNT_OF(c_operationsFC)) {
+    		return &c_operationsFC[opcode];
+    	}
+    }
+    return NULL;
+}
+
 M3Result  Compile_BlockStatements  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
