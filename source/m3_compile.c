@@ -654,7 +654,16 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
         {
             u16 constTableIndex = slot - o->firstConstSlotIndex;
 
-            memcpy (& o->constants [constTableIndex], & i_word, SizeOfType (i_type));
+            if (is64BitType)
+            {
+                u64 * constant = (u64 *) & o->constants [constTableIndex];
+                * constant = i_word;
+            }
+            else
+            {
+                u32 * constant = (u32 *) & o->constants [constTableIndex];
+                * constant = (u32) i_word;
+            }
             
 _           (Push (o, i_type, slot));
 
