@@ -77,7 +77,7 @@ _try {
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
-#if d_m3EnableStrace >= 2
+#if d_m3EnableStrace >= 2 || d_m3LogCompile
     func->index = index;
 #endif
 

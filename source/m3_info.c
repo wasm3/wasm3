@@ -26,6 +26,7 @@ void  m3_PrintM3Info  ()
 //  printf (" sizeof M3CodePage    : %zu bytes  (%d slots) \n", sizeof (M3CodePage), c_m3CodePageNumSlots);
     printf (" sizeof M3MemPage     : %u bytes              \n", d_m3MemPageSize);
     printf (" sizeof M3Compilation : %zu bytes             \n", sizeof (M3Compilation));
+	printf (" sizeof M3Function    : %zu bytes             \n", sizeof (M3Function));
     printf ("----------------------------------------------------------------\n\n");
 }
 
