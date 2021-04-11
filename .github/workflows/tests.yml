@@ -340,17 +340,17 @@ jobs:
         pip install -U platformio
     - name: Build AVR ATmega1284
       run: |
-        cd platforms/arduino
+        cd platforms/embedded/arduino
         pio run -e mega1284
         ! nm .pio/build/mega1284/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
-        cd platforms/esp8266
+        cd platforms/embedded/esp8266
         pio run
     # TODO:
     #- name: Build ESP32
     #  run: |
-    #    cd platforms/esp32-pio
+    #    cd platforms/embedded/esp32-pio
     #    pio run
 
   platformio-arm:
@@ -369,19 +369,19 @@ jobs:
         pip install -U platformio
     - name: Build Arduino MKR1000
       run: |
-        cd platforms/arduino
+        cd platforms/embedded/arduino
         pio run -e mkr1000
     - name: Build Blue Pill (JeeH)
       run: |
-        cd platforms/bluepill
+        cd platforms/embedded/bluepill
         pio run
     - name: Build TinyBLE
       run: |
-        cd platforms/arduino
+        cd platforms/embedded/arduino
         pio run -e tinyBLE
     - name: Build MXChip AZ3166
       run: |
-        cd platforms/arduino
+        cd platforms/embedded/arduino
         pio run -e az3166
 
   platformio-riscv:
@@ -400,11 +400,11 @@ jobs:
         pip install -U platformio
     - name: Build HiFive1
       run: |
-        cd platforms/hifive1
+        cd platforms/embedded/hifive1
         pio run
     - name: Build Sipeed MAIX
       run: |
-        cd platforms/arduino
+        cd platforms/embedded/arduino
         pio run -e maix
 
   particle:
@@ -422,7 +422,7 @@ jobs:
       run: particle login --token $PARTICLE_TOKEN
     - name: Build Photon
       run: |
-        cd platforms/particle
+        cd platforms/embedded/particle
         particle compile --followSymlinks photon
 
   esp32-idf:
@@ -435,13 +435,13 @@ jobs:
     - name: Build for ESP32 (IDF v4.0)
       run: |
         . $IDF_PATH/export.sh
-        cd platforms/esp32-idf
+        cd platforms/embedded/esp32-idf
         export EXTRA_CFLAGS="-Werror"
         idf.py build
       shell: bash
     - name: Test for ESP32 in QEMU
       run: |
-        cd platforms/esp32-idf
+        cd platforms/embedded/esp32-idf
         make-flash-img.sh wasm3 flash_img.bin
         qemu-system-xtensa -machine esp32 -nographic -drive file=flash_img.bin,if=mtd,format=raw -no-reboot | tee out.txt
         grep "Result: 46368" out.txt
@@ -450,7 +450,7 @@ jobs:
         test $(($(grep "ets Jun  8 2016" out.txt | wc -l))) -eq 1
     - name: Check that IDF and PIO examples are in sync
       run: |
-        diff -q platforms/esp32-idf/main/main.cpp platforms/esp32-pio/src/main.cpp
+        diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
 
   cpp:
