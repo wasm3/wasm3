@@ -45,11 +45,11 @@ _try {
     // assume min signature is "()"
     _throwif (m3Err_malformedFunctionSignature, maxNumTypes < 2);
     maxNumTypes -= 2;
-    
+
     _throwif (m3Err_tooManyArgsRets, maxNumTypes > d_m3MaxSaneFunctionArgRetCount);
 
 _   (AllocFuncType (& funcType, (u32) maxNumTypes));
-    
+
     u8 * typelist = funcType->types;
 
     bool parsingRets = true;

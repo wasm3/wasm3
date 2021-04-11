@@ -50,9 +50,6 @@ typedef struct M3DataSegment
 }
 M3DataSegment;
 
-
-void FreeImportInfo (M3ImportInfo * i_info);
-
 //---------------------------------------------------------------------------------------------------------------------------------
 
 typedef struct M3Global
@@ -127,6 +124,8 @@ M3Result                    Module_AddGlobal            (IM3Module io_module, IM
 
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
+
+void                        FreeImportInfo              (M3ImportInfo * i_info);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 

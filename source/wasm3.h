@@ -226,9 +226,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     // Calling m3_RunStart is optional
     M3Result            m3_RunStart                 (IM3Module i_module);
 
-	// Arguments and return values are passed in and out through the stack pointer _sp.
-	// Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
-	// Return values should be written into _sp [0] to _sp [num_returns - 1]
+    // Arguments and return values are passed in and out through the stack pointer _sp.
+    // Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
+    // Return values should be written into _sp [0] to _sp [num_returns - 1]
     typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem);
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,

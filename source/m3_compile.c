@@ -659,7 +659,7 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
                 u32 * constant = (u32 *) & o->constants [constTableIndex];
                 * constant = (u32) i_word;
             }
-            
+
 _           (Push (o, i_type, slot));
 
             o->slotMaxConstIndex = M3_MAX (slot + numRequiredSlots, o->slotMaxConstIndex);
@@ -911,7 +911,7 @@ _               (IncrementSlotUsageCount (o, * o_preservedSlotIndex));
 M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i_depth)
 {
     M3Result result = m3Err_none;
-    
+
     IM3CompilationScope scope = & o->block;
 
     while (i_depth--)
@@ -1034,7 +1034,7 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     if (o->block.depth == 0)
     {
         u8 type = GetSingleRetType (o->block.type);
-        
+
         u32 numReturns = GetFuncTypeNumReturns (o->block.type);
 
         if (numReturns)
@@ -1177,7 +1177,7 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         if (o->module->globals)
         {
             M3Global * global = & o->module->globals [globalIndex];
-            
+
 _           ((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
         else _throw (ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name));
@@ -1399,7 +1399,7 @@ _       (Pop (o));
     if (i_type->numRets)
     {
         u8 type = GetSingleRetType (i_type);
-        
+
 _       (Push (o, type, topSlot));
 
         u16 numSlots = GetTypeNumSlots (type);
@@ -1550,7 +1550,7 @@ _       (NormalizeType (&valueType, type));                                m3log
 M3Result  PreserveArgsAndLocals  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
-    
+
     if (o->stackIndex > o->stackFirstDynamicIndex)
     {
         u32 numArgsAndLocals = GetFunctionNumArgsAndLocals (o->function);
@@ -2232,7 +2232,7 @@ _           (Compile_Operator (o, opcode));
         if (opcode == c_waOp_end or opcode == c_waOp_else)
             break;
     }
-    
+
 _catch:
     return result;
 }
@@ -2245,7 +2245,7 @@ M3Result  ValidateBlockEnd  (IM3Compilation o, bool * o_copyStackTopToRegister)
     * o_copyStackTopToRegister = false;
 
     u8 valueType = GetSingleRetType (o->block.type);
-    
+
     if (valueType != c_m3Type_none)
     {
         if (IsStackPolymorphic (o))
@@ -2355,9 +2355,9 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     u16 cappedConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);
 
     AlignSlotIndexToType (& cappedConstantSlots, c_m3Type_i64);                                         m3log (compile, "estimated constant slots: %d; reserved: %d", numConstantSlots, (u32) cappedConstantSlots)
-    
+
     o->slotFirstDynamicIndex = o->slotFirstConstIndex + cappedConstantSlots;
-    
+
     if (o->slotFirstDynamicIndex >= d_m3MaxFunctionSlots)
         _throw (m3Err_functionStackOverflow);
 
@@ -2404,7 +2404,7 @@ _   (AcquireCompilationCodePage (o, & o->page));
 
     // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
     const u16 ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
-    
+
     u16 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
 
     for (u16 i = 0; i < numRetSlots; ++i)
@@ -2425,7 +2425,7 @@ _       (PushAllocatedSlot (o, type));
     }
 
     o->slotMaxAllocatedIndexPlusOne = o->function->numRetAndArgSlots = o->slotFirstLocalIndex = o->slotFirstDynamicIndex;
-    
+
 _   (CompileLocals (o));
 
     u16 maxSlot = GetMaxUsedSlotPlusOne (o);

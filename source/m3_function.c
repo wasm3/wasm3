@@ -6,7 +6,7 @@
 //
 
 #include "m3_function.h"
-
+#include "m3_env.h"
 
 
 M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
@@ -34,17 +34,17 @@ u16  GetFuncTypeNumReturns  (const IM3FuncType i_funcType)
 
 u8  GetFuncTypeReturnType  (const IM3FuncType i_funcType, u16 i_index)
 {
-	u8 type = c_m3Type_unknown;
-	
-	if (i_funcType)
-	{
-		if (i_index < i_funcType->numRets)
-		{
-			type = i_funcType->types [i_index];
-		}
-	}
-	
-	return type;
+    u8 type = c_m3Type_unknown;
+
+    if (i_funcType)
+    {
+        if (i_index < i_funcType->numRets)
+        {
+            type = i_funcType->types [i_index];
+        }
+    }
+
+    return type;
 }
 
 
@@ -172,7 +172,7 @@ u8  GetFunctionArgType  (IM3Function i_function, u32 i_index)
     if (i_index < GetFunctionNumArgs (i_function))
     {
         u32 numReturns = i_function->funcType->numRets;
-        
+
         type = i_function->funcType->types [numReturns + i_index];
     }
 
@@ -196,7 +196,7 @@ u16  GetFunctionNumReturns  (IM3Function i_function)
 
 u8  GetFunctionReturnType  (const IM3Function i_function, u16 i_index)
 {
-	return i_function ? GetFuncTypeReturnType (i_function->funcType, i_index) : c_m3Type_unknown;
+    return i_function ? GetFuncTypeReturnType (i_function->funcType, i_index) : c_m3Type_unknown;
 }
 
 

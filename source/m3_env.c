@@ -502,7 +502,7 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
             _throwifnull(io_module->table0);
-            
+
             _throwif ("table overflow", endElement > UINT_MAX)
             io_module->table0Size = (u32) endElement;
 
@@ -674,7 +674,7 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
     M3Result result = m3Err_none;                               d_m3Assert (o_function and i_runtime and i_functionName);
-    
+
     IM3Function function = NULL;
 
     if (not i_runtime->modules) {
@@ -689,7 +689,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
         {
 _           (Compile_Function (function))
         }
-        
+
         // Check if start function needs to be called
         if (function->module->startFunction)
         {
@@ -701,7 +701,7 @@ _           (m3_RunStart (function->module))
     _catch:
     if (result)
         function = NULL;
-    
+
     * o_function = function;
 
     return result;
@@ -760,9 +760,9 @@ u8 *  GetStackPointerForArgs  (IM3Function i_function)
     IM3FuncType ftype = i_function->funcType;
 
     u16 numReturnSlots = ftype->numRets;
-    
+
     stack += numReturnSlots;
-    
+
     return (u8 *) stack;
 }
 
@@ -790,7 +790,7 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
 # endif
 
     u8* s = GetStackPointerForArgs (i_function);
-    
+
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -918,7 +918,7 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
     }
 
     u8* s = (u8*) runtime->stack;
-    
+
     for (u32 i = 0; i < ftype->numRets; ++i)
     {
         switch (d_FuncRetType(ftype, i)) {

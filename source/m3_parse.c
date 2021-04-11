@@ -46,6 +46,8 @@ _try {
     u32 numTypes;
 _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                                   m3log (parse, "** Type [%d]", numTypes);
 
+    _throwif("too many types", numTypes > d_m3MaxSaneTypesCount);
+
     if (numTypes)
     {
         // table of IM3FuncType (that point to the actual M3FuncType struct in the Environment)
@@ -123,6 +125,8 @@ M3Result  ParseSection_Function  (IM3Module io_module, bytes_t i_bytes, cbytes_t
     u32 numFunctions;
 _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                               m3log (parse, "** Function [%d]", numFunctions);
 
+    _throwif("too many functions", numFunctions > d_m3MaxSaneFunctionsCount);
+
     for (u32 i = 0; i < numFunctions; ++i)
     {
         u32 funcTypeIndex;
@@ -143,6 +147,8 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 
     u32 numImports;
 _   (ReadLEB_u32 (& numImports, & i_bytes, i_end));                                 m3log (parse, "** Import [%d]", numImports);
+
+    _throwif("too many imports", numImports > d_m3MaxSaneImportsCount);
 
     for (u32 i = 0; i < numImports; ++i)
     {
@@ -214,6 +220,8 @@ M3Result  ParseSection_Export  (IM3Module io_module, bytes_t i_bytes, cbytes_t  
 
     u32 numExports;
 _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                                 m3log (parse, "** Export [%d]", numExports);
+
+    _throwif("too many exports", numExports > d_m3MaxSaneExportsCount);
 
     for (u32 i = 0; i < numExports; ++i)
     {
@@ -377,6 +385,8 @@ M3Result  ParseSection_Data  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_
     u32 numDataSegments;
 _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                            m3log (parse, "** Data [%d]", numDataSegments);
 
+    _throwif("too many data segments", numDataSegments > d_m3MaxSaneDataSegments);
+
     io_module->dataSegments = m3_AllocArray (M3DataSegment, numDataSegments);
     _throwifnull(io_module->dataSegments);
     io_module->numDataSegments = numDataSegments;
@@ -429,6 +439,8 @@ M3Result  ParseSection_Global  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
     u32 numGlobals;
 _   (ReadLEB_u32 (& numGlobals, & i_bytes, i_end));                                 m3log (parse, "** Global [%d]", numGlobals);
 
+    _throwif("too many globals", numGlobals > d_m3MaxSaneGlobalsCount);
+
     for (u32 i = 0; i < numGlobals; ++i)
     {
         i8 waType;
@@ -477,6 +489,8 @@ _       (ReadLEB_u32 (& payloadLength, & i_bytes, i_end));
         {
             u32 numNames;
 _           (ReadLEB_u32 (& numNames, & i_bytes, i_end));
+
+            _throwif("too many names", numNames > d_m3MaxSaneFunctionsCount);
 
             for (u32 i = 0; i < numNames; ++i)
             {
