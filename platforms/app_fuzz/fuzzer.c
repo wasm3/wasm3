@@ -9,18 +9,12 @@
 #include <stddef.h>
 
 #include "wasm3.h"
-#include "m3_api_wasi.h"
-#include "m3_api_libc.h"
-#include "m3_env.h"
-
 
 #define FATAL(...) __builtin_trap()
-
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     M3Result result = m3Err_none;
-
 
     IM3Environment env = m3_NewEnvironment ();
     if (env) {
@@ -31,20 +25,14 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             if (module) {
                 result = m3_LoadModule (runtime, module);
                 if (result == 0) {
-                    /*
-                    result = m3_LinkWASI (runtime->modules);
-                    if (result) FATAL("m3_LinkWASI: %s", result);
-
-                    result = m3_LinkLibC (runtime->modules);
-                    if (result) FATAL("m3_LinkLibC: %s", result);
-                    */
                     IM3Function f = NULL;
                     result = m3_FindFunction (&f, runtime, "fib");
                     if (f) {
                         m3_CallV (f, 10);
                     }
+                } else {
+                    m3_FreeModule (module);
                 }
-
             }
 
             m3_FreeRuntime(runtime);
