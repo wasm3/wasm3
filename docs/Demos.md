@@ -1,7 +1,7 @@
 # Wasm3 demos
 
 - **In-browser Wasm3 (with MetaWASI support) on Webassembly.sh** │ [try it](https://webassembly.sh/?run-command=wasm3)
-- **A set of Pygame + pywasm3 demos** | [github](https://github.com/wasm3/wasm3/tree/main/platforms/python/examples)
+- **Pygame + pywasm3 demos** | [github](https://github.com/wasm3/pywasm3/tree/main/examples)
 - **Dino game**
   - on PyBadge/Arduino | [video](https://twitter.com/vshymanskyy/status/1345048053041029121), [github](https://github.com/wasm3/wasm3-arduino/tree/main/examples/Wasm_Dino_PyBadge)
   - on Raspberry Pi Pico | [github](https://github.com/vshymanskyy/wasm3_dino_rpi_pico)

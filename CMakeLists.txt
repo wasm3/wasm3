@@ -25,7 +25,7 @@ else()
 endif()
 set_property(CACHE BUILD_WASI PROPERTY STRINGS none simple uvwasi metawasi)
 
-set(BUILD_NATIVE "Build with machine-specific optimisations" ON)
+option(BUILD_NATIVE "Build with machine-specific optimisations" ON)
 
 set(OUT_FILE "wasm3")
 

@@ -30,6 +30,7 @@ M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signatur
     M3Result result = m3Err_none;
 
     IM3FuncType funcType = NULL;
+
 _try {
     if (not o_functionType)
         _throw ("null function type");
@@ -39,22 +40,26 @@ _try {
 
     cstr_t sig = i_signature;
 
-    int maxNumArgs = strlen (i_signature) - 2; // "()"
-    _throwif (m3Err_malformedFunctionSignature, maxNumArgs < 0);
-    _throwif ("insane argument count", maxNumArgs > d_m3MaxSaneFunctionArgCount);
+    size_t maxNumTypes = strlen (i_signature);
 
-    const unsigned umaxNumArgs = (unsigned)maxNumArgs;
+    // assume min signature is "()"
+    _throwif (m3Err_malformedFunctionSignature, maxNumTypes < 2);
+    maxNumTypes -= 2;
+    
+    _throwif ("insane argument count", maxNumTypes > d_m3MaxSaneFunctionArgRetCount);
 
-_   (AllocFuncType (& funcType, umaxNumArgs));
+_   (AllocFuncType (& funcType, (u32) maxNumTypes));
+    
+    u8 * typelist = funcType->types;
 
-    bool parsingArgs = false;
+    bool parsingRets = true;
     while (* sig)
     {
         char typeChar = * sig++;
 
         if (typeChar == '(')
         {
-            parsingArgs = true;
+            parsingRets = false;
             continue;
         }
         else if ( typeChar == ' ')
@@ -69,17 +74,17 @@ _   (AllocFuncType (& funcType, umaxNumArgs));
         if (type == c_m3Type_none)
             continue;
 
-        if (not parsingArgs)
+        if (parsingRets)
         {
-            _throwif ("malformed function signature; too many return types", funcType->numRets >= 1);
-
-            d_FuncRetType(funcType, funcType->numRets++) = type;
+            _throwif ("malformed signature; return count overflow", funcType->numRets >= maxNumTypes);
+            funcType->numRets++;
+            *typelist++ = type;
         }
         else
         {
-            _throwif (m3Err_malformedFunctionSignature, funcType->numArgs >= umaxNumArgs);  // forgot trailing ')' ?
-
-            d_FuncArgType(funcType, funcType->numArgs++) = type;
+            _throwif ("malformed signature; arg count overflow", funcType->numRets + funcType->numArgs >= maxNumTypes);
+            funcType->numArgs++;
+            *typelist++ = type;
         }
     }
 

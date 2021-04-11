@@ -542,36 +542,6 @@ jobs:
     - name: Test
       run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
-  python:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [ "3.6", "3.7", "3.8", "3.9" ]
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Build Python module
-      run: |
-        cd platforms/python
-        python setup.py sdist
-        pip install ./dist/pywasm3-*.tar.gz
-    - name: Install WABT
-      run: |
-        sudo apt install wabt
-    - name: Lint
-      run: |
-        pip install flake8
-        flake8 . --count --select=E7,E9,F63,F7,F82 --show-source --statistics
-    - name: Test
-      run: |
-        pip install pytest
-        pytest platforms/python
-
   spellcheck:
     runs-on: ubuntu-latest
     steps:

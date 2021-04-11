@@ -57,15 +57,13 @@ _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                               
         {
             i8 form;
 _           (ReadLEB_i7 (& form, & i_bytes, i_end));
-            _throwif (m3Err_wasmMalformed, form != -32); // for WA MVP
+            _throwif (m3Err_wasmMalformed, form != -32); // for Wasm MVP
 
             u32 numArgs;
 _           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 
-            _throwif ("insane argument count", numArgs > d_m3MaxSaneFunctionArgCount);
-
 #if defined(M3_COMPILER_MSVC)
-            u8 argTypes[d_m3MaxSaneFunctionArgCount];
+            u8 argTypes [d_m3MaxSaneFunctionArgRetCount];
 #else
             u8 argTypes[numArgs+1]; // make ubsan happy
 #endif
@@ -82,7 +80,7 @@ _               (NormalizeType (& argType, wasmType));
             u32 numRets;
 _           (ReadLEB_u32 (& numRets, & i_bytes, i_end));
 
-            _throwif ("insane returns count", numRets > d_m3MaxSaneFunctionArgCount);
+            _throwif ("argument+returns count overflow", numRets + numArgs > d_m3MaxSaneFunctionArgRetCount);
 
 _           (AllocFuncType (& ftype, numRets + numArgs));
             ftype->numArgs = numArgs;
@@ -97,7 +95,7 @@ _               (NormalizeType (& retType, wasmType));
 
                 ftype->types[r] = retType;
             }
-            memcpy(ftype->types + numRets, argTypes, numArgs);                                m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (ftype));
+            memcpy (ftype->types + numRets, argTypes, numArgs);                                 m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (ftype));
 
             Environment_AddFuncType (io_module->environment, & ftype);
             io_module->funcTypes [i] = ftype;
@@ -237,6 +235,12 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
                 utf8 = NULL; // ownership transferred to M3Function
             }
         }
+        else if (exportKind == d_externalKind_global)
+        {
+            _throwif(m3Err_wasmMalformed, index >= io_module->numGlobals);
+            io_module->globals[index].name = utf8;
+            utf8 = NULL; // ownership transferred to M3Global
+        }
 
         m3_Free (utf8);
     }
@@ -314,6 +318,8 @@ _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                           
 
     for (u32 f = 0; f < numFunctions; ++f)
     {
+        const u8 * start = i_bytes;
+
         u32 size;
 _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
@@ -324,8 +330,6 @@ _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
             if (i_bytes <= i_end)
             {
-                const u8 * start = ptr;
-
                 u32 numLocalBlocks;
 _               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "    code size: %-4d", size);
 
