@@ -620,7 +620,7 @@ M3Result  m3_GetGlobal  (IM3Global                 i_global,
     default: return m3Err_invalidTypeId;
     }
 
-    o_value->type = i_global->type;
+    o_value->type = (M3ValueType)(i_global->type);
     return m3Err_none;
 }
 
@@ -645,7 +645,7 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
 
 M3ValueType  m3_GetGlobalType  (IM3Global          i_global)
 {
-    return (i_global) ? i_global->type : c_m3Type_none;
+    return (i_global) ? (M3ValueType)(i_global->type) : c_m3Type_none;
 }
 
 

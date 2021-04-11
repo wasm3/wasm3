@@ -62,6 +62,7 @@ _           (ReadLEB_i7 (& form, & i_bytes, i_end));
             u32 numArgs;
 _           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 
+            _throwif (m3Err_tooManyArgsRets, numArgs > d_m3MaxSaneFunctionArgRetCount);
 #if defined(M3_COMPILER_MSVC)
             u8 argTypes [d_m3MaxSaneFunctionArgRetCount];
 #else
@@ -80,7 +81,7 @@ _               (NormalizeType (& argType, wasmType));
             u32 numRets;
 _           (ReadLEB_u32 (& numRets, & i_bytes, i_end));
 
-            _throwif ("argument+returns count overflow", numRets + numArgs > d_m3MaxSaneFunctionArgRetCount);
+            _throwif (m3Err_tooManyArgsRets, numRets + numArgs > d_m3MaxSaneFunctionArgRetCount);
 
 _           (AllocFuncType (& ftype, numRets + numArgs));
             ftype->numArgs = numArgs;

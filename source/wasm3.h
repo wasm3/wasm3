@@ -117,7 +117,6 @@ M3ImportContext, * IM3ImportContext;
 d_m3ErrorConst  (none,                          NULL)
 
 // general errors
-d_m3ErrorConst  (typeListOverflow,              "type list count exceeds 32 types")
 d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
 
 // parse errors
@@ -132,7 +131,8 @@ d_m3ErrorConst  (missingUTF8,                   "invalid length UTF-8 string")
 d_m3ErrorConst  (wasmSectionUnderrun,           "section underrun while parsing Wasm binary")
 d_m3ErrorConst  (wasmSectionOverrun,            "section overrun while parsing Wasm binary")
 d_m3ErrorConst  (invalidTypeId,                 "unknown value_type")
-d_m3ErrorConst  (tooManyMemorySections,         "Wasm MVP can only define one memory per module")
+d_m3ErrorConst  (tooManyMemorySections,         "only one memory per module is supported")
+d_m3ErrorConst  (tooManyArgsRets,               "too many arguments or return values")
 
 // link errors
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")

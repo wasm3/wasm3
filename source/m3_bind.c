@@ -46,7 +46,7 @@ _try {
     _throwif (m3Err_malformedFunctionSignature, maxNumTypes < 2);
     maxNumTypes -= 2;
     
-    _throwif ("insane argument count", maxNumTypes > d_m3MaxSaneFunctionArgRetCount);
+    _throwif (m3Err_tooManyArgsRets, maxNumTypes > d_m3MaxSaneFunctionArgRetCount);
 
 _   (AllocFuncType (& funcType, (u32) maxNumTypes));
     
