@@ -28,6 +28,13 @@ enum
     c_waOp_getLocal             = 0x20,
     c_waOp_setLocal             = 0x21,
     c_waOp_teeLocal             = 0x22,
+
+    c_waOp_getGlobal            = 0x23,
+
+    c_waOp_i32_const            = 0x41,
+    c_waOp_i64_const            = 0x42,
+    c_waOp_f32_const            = 0x43,
+    c_waOp_f64_const            = 0x44,
 };
 
 
@@ -82,8 +89,10 @@ typedef struct
 
     IM3BranchPatch      releasedPatches;
 
+#ifdef DEBUG
     u32                 numEmits;
     u32                 numOpcodes;
+#endif
 
     u16                 stackFirstDynamicIndex;
     u16                 stackIndex;                 // current stack index

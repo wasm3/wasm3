@@ -1495,7 +1495,7 @@ _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i32));
 
-_   (EmitOp     (o, op_MemCurrent));
+_   (EmitOp     (o, op_MemSize));
 
 _   (PushRegister (o, c_m3Type_i32));
 
@@ -1972,7 +1972,7 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.store16",        -2, none,   d_binOpList (i64, Store_i16),       Compile_Load_Store ),   // 0x3d
     M3OP( "i64.store32",        -2, none,   d_binOpList (i64, Store_i32),       Compile_Load_Store ),   // 0x3e
 
-    M3OP( "memory.size",        1,  i_32,   d_logOp (MemCurrent),               Compile_Memory_Size ),  // 0x3f
+    M3OP( "memory.size",        1,  i_32,   d_logOp (MemSize),                  Compile_Memory_Size ),  // 0x3f
     M3OP( "memory.grow",        1,  i_32,   d_logOp (MemGrow),                  Compile_Memory_Grow ),  // 0x40
 
     M3OP( "i32.const",          1,  i_32,   d_logOp (Const32),                  Compile_Const_i32 ),    // 0x41
@@ -2213,6 +2213,17 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
         o->lastOpcodeStart = o->wasm;
 _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opcode (o, opcode);
 
+        if (IsCompilingExpressions(o)) {
+            switch (opcode) {
+            case c_waOp_i32_const: case c_waOp_i64_const:
+            case c_waOp_f32_const: case c_waOp_f64_const:
+            case c_waOp_getGlobal: case c_waOp_end:
+                break;
+            default:
+                _throw(m3Err_restictedOpcode);
+            }
+        }
+
         IM3OpInfo opinfo = GetOpInfo(opcode);
         _throwif (m3Err_unknownOpcode, opinfo == NULL);
 
@@ -2341,9 +2352,9 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     {
         u8 code = * wa++;
 
-        if (code == 0x41 or code == 0x43)       // i32, f32
+        if (code == c_waOp_i32_const or code == c_waOp_f32_const)
             numConstantSlots += 1;
-        else if (code == 0x42 or code == 0x44)  // i64, f64
+        else if (code == c_waOp_i64_const or code == c_waOp_f64_const)
             numConstantSlots += GetTypeNumSlots (c_m3Type_i64);
     }
 
