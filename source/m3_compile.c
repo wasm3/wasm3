@@ -2213,7 +2213,8 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
         o->lastOpcodeStart = o->wasm;
 _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opcode (o, opcode);
 
-        if (IsCompilingExpressions(o)) {
+        // Restrict opcodes when evaluating expressions
+        if (not o->function) {
             switch (opcode) {
             case c_waOp_i32_const: case c_waOp_i64_const:
             case c_waOp_f32_const: case c_waOp_f64_const:

@@ -260,16 +260,11 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
     }
 }
 
-static char* c_compilingExprsFlag = "m3_exprs";
-
-bool  IsCompilingExpressions  (IM3Compilation i_compilation)
-{
-    return i_compilation->runtime && i_compilation->runtime->userdata == c_compilingExprsFlag;
-}
-
 M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
+
+    // OPTZ: use a simplified interpreter for expressions
 
     // create a temporary runtime context
 #if defined(d_m3PreferStaticAlloc)
@@ -282,7 +277,6 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     runtime.environment = i_module->runtime->environment;
     runtime.numStackSlots = i_module->runtime->numStackSlots;
     runtime.stack = i_module->runtime->stack;
-    runtime.userdata = c_compilingExprsFlag;
 
     m3stack_t stack = (m3stack_t)runtime.stack;
 
