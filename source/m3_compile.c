@@ -55,6 +55,8 @@ static const IM3Operation c_fpSelectOps [2] [2] [3] = { { { op_Select_f32_sss, o
 static const u16 c_m3RegisterUnallocated = 0;
 static const u16 c_slotUnused = 0xffff;
 
+// all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
+static const u16 c_ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
 
 M3Result  AcquireCompilationCodePage  (IM3Compilation o, IM3CodePage * o_codePage)
 {
@@ -478,11 +480,6 @@ M3Result  Pop  (IM3Compilation o)
 
         u16 slot = o->wasmStack [o->stackIndex];
         u8 type = o->typeStack [o->stackIndex];
-
-#       ifdef DEBUG
-        o->wasmStack [o->stackIndex] = 0;
-        o->typeStack [o->stackIndex] = 0;
-#       endif
 
         if (IsRegisterLocation (slot))
         {
@@ -1386,13 +1383,11 @@ _       (Pop (o));
     u16 numArgs = i_type->numArgs;
     u16 numRets = i_type->numRets;
 
-    // args are 64-bit aligned
-    u32 slotsPerArg = sizeof (u64) / sizeof (m3slot_t);
-    u16 argTop = topSlot + (numArgs + numRets) * slotsPerArg;
+    u16 argTop = topSlot + (numArgs + numRets) * c_ioSlotCount;
 
     while (numArgs--)
     {
-_       (CopyTopSlot (o, argTop -= slotsPerArg));
+_       (CopyTopSlot (o, argTop -= c_ioSlotCount));
 _       (Pop (o));
     }
 
@@ -2190,17 +2185,20 @@ const M3OpInfo c_operationsFC [] =
 # endif
 };
 
-const M3OpInfo* GetOpInfo(m3opcode_t opcode) {
+const M3OpInfo*  GetOpInfo  (m3opcode_t opcode)
+{
     switch (opcode >> 8) {
     case 0x00:
         if (opcode < M3_COUNT_OF(c_operations)) {
             return &c_operations[opcode];
         }
+        break;
     case 0xFC:
         opcode &= 0xFF;
         if (opcode < M3_COUNT_OF(c_operationsFC)) {
             return &c_operationsFC[opcode];
         }
+        break;
     }
     return NULL;
 }
@@ -2402,10 +2400,7 @@ _   (AcquireCompilationCodePage (o, & o->page));
 
     pc_t pc = GetPagePC (o->page);
 
-    // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
-    const u16 ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
-
-    u16 numRetSlots = GetFunctionNumReturns (o->function) * ioSlotCount;
+    u16 numRetSlots = GetFunctionNumReturns (o->function) * c_ioSlotCount;
 
     for (u16 i = 0; i < numRetSlots; ++i)
         MarkSlotAllocated (o, i);
@@ -2421,7 +2416,7 @@ _   (AcquireCompilationCodePage (o, & o->page));
 _       (PushAllocatedSlot (o, type));
 
         // prevent allocator fill-in
-        o->slotFirstDynamicIndex += ioSlotCount;
+        o->slotFirstDynamicIndex += c_ioSlotCount;
     }
 
     o->slotMaxAllocatedIndexPlusOne = o->function->numRetAndArgSlots = o->slotFirstLocalIndex = o->slotFirstDynamicIndex;
