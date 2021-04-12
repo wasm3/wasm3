@@ -61,6 +61,11 @@
 #   define d_m3RecordBacktraces                 0
 # endif
 
+# ifndef d_m3EnableExceptionBreakpoint
+#   define d_m3EnableExceptionBreakpoint        0       // see m3_exception.h
+# endif
+
+
 // profiling and tracing ------------------------------------------------------
 
 # ifndef d_m3EnableOpProfiling

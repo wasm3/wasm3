@@ -14,7 +14,7 @@
 #define m3ApiOffsetToPtr(offset)   (void*)((u8*)_mem + (u32)(offset))
 #define m3ApiPtrToOffset(ptr)      (u32)((u8*)ptr - (u8*)_mem)
 
-#define m3ApiReturnType(TYPE)      TYPE* raw_return = ((TYPE*) (_sp));
+#define m3ApiReturnType(TYPE)      TYPE* raw_return = ((TYPE*) (_sp++));
 #define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
 #define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((u32 *) (_sp++)));
 

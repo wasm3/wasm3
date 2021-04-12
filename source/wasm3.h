@@ -28,6 +28,7 @@ struct M3Environment;   typedef struct M3Environment *  IM3Environment;
 struct M3Runtime;       typedef struct M3Runtime *      IM3Runtime;
 struct M3Module;        typedef struct M3Module *       IM3Module;
 struct M3Function;      typedef struct M3Function *     IM3Function;
+struct M3Global;        typedef struct M3Global *       IM3Global;
 
 typedef struct M3ErrorInfo
 {
@@ -73,6 +74,18 @@ typedef enum M3ValueType
     c_m3Type_unknown
 } M3ValueType;
 
+typedef struct M3TaggedValue
+{
+    M3ValueType type;
+    union M3ValueUnion
+    {
+        uint32_t    i32;
+        uint64_t    i64;
+        float       f32;
+        double      f64;
+    } value;
+}
+M3TaggedValue, * IM3TaggedValue;
 
 typedef struct M3ImportInfo
 {
@@ -104,7 +117,6 @@ M3ImportContext, * IM3ImportContext;
 d_m3ErrorConst  (none,                          NULL)
 
 // general errors
-d_m3ErrorConst  (typeListOverflow,              "type list count exceeds 32 types")
 d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
 
 // parse errors
@@ -119,7 +131,8 @@ d_m3ErrorConst  (missingUTF8,                   "invalid length UTF-8 string")
 d_m3ErrorConst  (wasmSectionUnderrun,           "section underrun while parsing Wasm binary")
 d_m3ErrorConst  (wasmSectionOverrun,            "section overrun while parsing Wasm binary")
 d_m3ErrorConst  (invalidTypeId,                 "unknown value_type")
-d_m3ErrorConst  (tooManyMemorySections,         "Wasm MVP can only define one memory per module")
+d_m3ErrorConst  (tooManyMemorySections,         "only one memory per module is supported")
+d_m3ErrorConst  (tooManyArgsRets,               "too many arguments or return values")
 
 // link errors
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
@@ -135,6 +148,8 @@ d_m3ErrorConst  (functionStackOverflow,         "compiling function overran its 
 d_m3ErrorConst  (functionStackUnderrun,         "compiling function underran the stack")
 d_m3ErrorConst  (mallocFailedCodePage,          "memory allocation failed when acquiring a new M3 code page")
 d_m3ErrorConst  (settingImmutableGlobal,        "attempting to set an immutable global")
+d_m3ErrorConst  (typeMismatch,                  "incorrect type on stack")
+d_m3ErrorConst  (typeCountMismatch,             "incorrect value count on stack")
 
 // runtime errors
 d_m3ErrorConst  (missingCompiledCode,           "function is missing compiled m3 code")
@@ -142,6 +157,10 @@ d_m3ErrorConst  (wasmMemoryOverflow,            "runtime ran out of memory")
 d_m3ErrorConst  (globalMemoryNotAllocated,      "global memory is missing from a module")
 d_m3ErrorConst  (globaIndexOutOfBounds,         "global index is too large")
 d_m3ErrorConst  (argumentCountMismatch,         "argument count mismatch")
+d_m3ErrorConst  (argumentTypeMismatch,          "argument type mismatch")
+d_m3ErrorConst  (globalLookupFailed,            "global lookup failed")
+d_m3ErrorConst  (globalTypeMismatch,            "global type mismatch")
+d_m3ErrorConst  (globalNotMutable,              "global is not mutable")
 
 // traps
 d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory access")
@@ -178,33 +197,38 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 
+    // Wasm currently only supports one memory region. i_memoryIndex should be zero.
     uint8_t *           m3_GetMemory                (IM3Runtime             i_runtime,
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
-    // Wasm currently only supports one memory region. i_memoryIndex should be zero.
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  modules
 //-------------------------------------------------------------------------------------------------------------------------------
 
+    // i_wasmBytes data must be persistent during the lifetime of the module
     M3Result            m3_ParseModule              (IM3Environment         i_environment,
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes);
-    // i_wasmBytes data must be persistent during the lifetime of the module
 
+    // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
+    // a. m3_LoadModule has not yet been called on that module. Or,
+    // b. m3_LoadModule returned a result.
     void                m3_FreeModule               (IM3Module i_module);
-    //  Only unloaded modules need to be freed
 
+    //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully loaded into the runtime
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
-    //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully imported into the runtime
 
     // Calling m3_RunStart is optional
     M3Result            m3_RunStart                 (IM3Module i_module);
 
+    // Arguments and return values are passed in and out through the stack pointer _sp.
+    // Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
+    // Return values should be written into _sp [0] to _sp [num_returns - 1]
     typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem);
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
@@ -224,10 +248,25 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     IM3Runtime          m3_GetModuleRuntime         (IM3Module i_module);
 
 //-------------------------------------------------------------------------------------------------------------------------------
+//  globals
+//-------------------------------------------------------------------------------------------------------------------------------
+    IM3Global           m3_FindGlobal               (IM3Module              io_module,
+                                                     const char * const     i_globalName);
+
+    M3Result            m3_GetGlobal                (IM3Global              i_global,
+                                                     IM3TaggedValue         o_value);
+
+    M3Result            m3_SetGlobal                (IM3Global              i_global,
+                                                     const IM3TaggedValue   i_value);
+
+    M3ValueType         m3_GetGlobalType            (IM3Global              i_global);
+
+//-------------------------------------------------------------------------------------------------------------------------------
 //  functions
 //-------------------------------------------------------------------------------------------------------------------------------
     M3Result            m3_Yield                    (void);
 
+    // o_function is valid during the lifetime of the originating runtime
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
@@ -246,7 +285,6 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
 
-    // IM3Functions are valid during the lifetime of the originating runtime
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);

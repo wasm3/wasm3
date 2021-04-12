@@ -6,6 +6,7 @@
 //
 
 #include <stdarg.h>
+#include <limits.h>
 
 #include "m3_env.h"
 #include "m3_compile.h"
@@ -14,184 +15,39 @@
 #include "m3_info.h"
 
 
-M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
+IM3Environment  m3_NewEnvironment  ()
 {
-    *o_functionType = (IM3FuncType)m3_Malloc (sizeof (M3FuncType) + i_numTypes);
-    return (*o_functionType) ? m3Err_none : m3Err_mallocFailed;
-}
+    M3Result result = m3Err_none;
 
+    IM3Environment env = m3_AllocStruct (M3Environment);
 
-bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
-{
-    if (i_typeA->numRets == i_typeB->numRets && i_typeA->numArgs == i_typeB->numArgs)
+    if (env)
     {
-        return (memcmp (i_typeA->types, i_typeB->types, i_typeA->numRets + i_typeA->numArgs) == 0);
-    }
-
-    return false;
-}
-
-
-void Runtime_ReleaseCodePages (IM3Runtime i_runtime)
-{
-
-}
-
-
-void  Function_Release  (IM3Function i_function)
-{
-    m3_Free (i_function->constants);
-
-    for (int i = 0; i < i_function->numNames; i++)
-    {
-        // name can be an alias of fieldUtf8
-        if (i_function->names[i] != i_function->import.fieldUtf8)
+        _try
         {
-            m3_Free (i_function->names[i]);
-        }
-    }
-
-    FreeImportInfo (& i_function->import);
-
-    //if (i_function->ownsWasmCode)
-    //    m3_Free (i_function->wasm);
-
-    // Function_FreeCompiledCode (func);
-
-#   if (d_m3EnableCodePageRefCounting)
-    {
-        m3_Free (i_function->codePageRefs);
-        i_function->numCodePageRefs = 0;
-    }
-#   endif
-}
-
-
-void  Function_FreeCompiledCode (IM3Function i_function)
-{
-#   if (d_m3EnableCodePageRefCounting)
-    {
-        i_function->compiled = NULL;
-
-        while (i_function->numCodePageRefs--)
-        {
-            IM3CodePage page = i_function->codePageRefs [i_function->numCodePageRefs];
-
-            if (--(page->info.usageCount) == 0)
+            // create FuncTypes for all simple block return ValueTypes
+            for (u8 t = c_m3Type_none; t <= c_m3Type_f64; t++)
             {
-//                printf ("free %p\n", page);
+                IM3FuncType ftype;
+_               (AllocFuncType (& ftype, 1));
+
+                ftype->numArgs = 0;
+                ftype->numRets = (t == c_m3Type_none) ? 0 : 1;
+                ftype->types [0] = t;
+
+                Environment_AddFuncType (env, & ftype);
+
+                d_m3Assert (t < 5);
+                env->retFuncTypes [t] = ftype;
             }
         }
 
-        m3_Free (i_function->codePageRefs);
-
-        Runtime_ReleaseCodePages (i_function->module->runtime);
-    }
-#   endif
-}
-
-
-
-cstr_t  m3_GetFunctionName  (IM3Function i_function)
-{
-    u16 numNames = 0;
-    cstr_t *names = GetFunctionNames(i_function, &numNames);
-    if (numNames > 0)
-        return names[0];
-    else
-        return "<unnamed>";
-}
-
-IM3Module  m3_GetFunctionModule  (IM3Function i_function)
-{
-    return i_function ? i_function->module : NULL;
-}
-
-
-cstr_t *  GetFunctionNames  (IM3Function i_function, u16 * o_numNames)
-{
-    if (!i_function || !o_numNames)
-        return NULL;
-
-    if (i_function->import.fieldUtf8)
-    {
-        *o_numNames = 1;
-        return &i_function->import.fieldUtf8;
-    }
-    else
-    {
-        *o_numNames = i_function->numNames;
-        return i_function->names;
-    }
-}
-
-
-cstr_t  GetFunctionImportModuleName  (IM3Function i_function)
-{
-    return (i_function->import.moduleUtf8) ? i_function->import.moduleUtf8 : "";
-}
-
-
-u32  GetFunctionNumArgs  (IM3Function i_function)
-{
-    u32 numArgs = 0;
-
-    if (i_function)
-    {
-        if (i_function->funcType)
-            numArgs = i_function->funcType->numArgs;
-    }
-
-    return numArgs;
-}
-
-
-u32  GetFunctionNumReturns  (IM3Function i_function)
-{
-    u32 numReturns = 0;
-
-    if (i_function)
-    {
-        if (i_function->funcType)
-            numReturns = i_function->funcType->numRets;
-    }
-
-    return numReturns;
-}
-
-u32  GetFunctionNumArgsAndLocals (IM3Function i_function)
-{
-    if (i_function)
-        return i_function->numLocals + GetFunctionNumArgs (i_function);
-    else
-        return 0;
-}
-
-
-void FreeImportInfo (M3ImportInfo * i_info)
-{
-    m3_Free (i_info->moduleUtf8);
-    m3_Free (i_info->fieldUtf8);
-}
-
-
-IM3Environment  m3_NewEnvironment  ()
-{
-    IM3Environment env = m3_AllocStruct (M3Environment);
-    if (!env) return NULL;
-
-    // create FuncTypes for all simple block return ValueTypes
-    for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
-    {
-        d_m3Assert (t < 5);
-
-        IM3FuncType ftype;
-        AllocFuncType (& ftype, 1);
-        ftype->numArgs = 0;
-        ftype->numRets = (t == c_m3Type_none) ? 0 : 1;
-        ftype->types[0] = t;
-
-        env->retFuncTypes[t] = ftype;
+        _catch:
+        if (result)
+        {
+            m3_FreeEnvironment (env);
+            env = NULL;
+        }
     }
 
     return env;
@@ -208,13 +64,7 @@ void  Environment_Release  (IM3Environment i_environment)
         m3_Free (ftype);
         ftype = next;
     }
-    for (int t = c_m3Type_none; t <= c_m3Type_f64; t++)
-    {
-        d_m3Assert (t < 5);
-        ftype = i_environment->retFuncTypes[t];
-        d_m3Assert (ftype->next == NULL);
-        m3_Free (ftype);
-    }
+
     m3log (runtime, "freeing %d pages from environment", CountCodePages (i_environment->pagesReleased));
     FreeCodePages (& i_environment->pagesReleased);
 }
@@ -230,6 +80,7 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
 }
 
 
+// returns the same io_funcType or replaces it with an equivalent that's already in the type linked list
 void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_funcType)
 {
     IM3FuncType addType = * io_funcType;
@@ -651,7 +502,9 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
 
             io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
             _throwifnull(io_module->table0);
-            io_module->table0Size = endElement;
+
+            _throwif ("table overflow", endElement > UINT_MAX)
+            io_module->table0Size = (u32) endElement;
 
             for (u32 e = 0; e < numElements; ++e)
             {
@@ -725,6 +578,76 @@ _       (InitElements (io_module));
     _catch: return result;
 }
 
+IM3Global  m3_FindGlobal  (IM3Module               io_module,
+                           const char * const      i_globalName)
+{
+    // Search exports
+    for (u32 i = 0; i < io_module->numGlobals; ++i)
+    {
+        IM3Global g = & io_module->globals [i];
+        if (g->name and strcmp (g->name, i_globalName) == 0)
+        {
+            return g;
+        }
+    }
+
+    // Search imports
+    for (u32 i = 0; i < io_module->numGlobals; ++i)
+    {
+        IM3Global g = & io_module->globals [i];
+
+        if (g->import.moduleUtf8 and g->import.fieldUtf8)
+        {
+            if (strcmp (g->import.fieldUtf8, i_globalName) == 0)
+            {
+                return g;
+            }
+        }
+    }
+    return NULL;
+}
+
+M3Result  m3_GetGlobal  (IM3Global                 i_global,
+                         IM3TaggedValue            o_value)
+{
+    if (not i_global) return m3Err_globalLookupFailed;
+
+    switch (i_global->type) {
+    case c_m3Type_i32: o_value->value.i32 = i_global->intValue; break;
+    case c_m3Type_i64: o_value->value.i64 = i_global->intValue; break;
+    case c_m3Type_f32: o_value->value.f32 = i_global->f32Value; break;
+    case c_m3Type_f64: o_value->value.f64 = i_global->f64Value; break;
+    default: return m3Err_invalidTypeId;
+    }
+
+    o_value->type = (M3ValueType)(i_global->type);
+    return m3Err_none;
+}
+
+M3Result  m3_SetGlobal  (IM3Global                 i_global,
+                         const IM3TaggedValue      i_value)
+{
+    if (not i_global) return m3Err_globalLookupFailed;
+    // TODO: if (not g->isMutable) return m3Err_globalNotMutable;
+
+    if (i_global->type != i_value->type) return m3Err_globalTypeMismatch;
+
+    switch (i_value->type) {
+    case c_m3Type_i32: i_global->intValue = i_value->value.i32; break;
+    case c_m3Type_i64: i_global->intValue = i_value->value.i64; break;
+    case c_m3Type_f32: i_global->f32Value = i_value->value.f32; break;
+    case c_m3Type_f64: i_global->f64Value = i_value->value.f64; break;
+    default: return m3Err_invalidTypeId;
+    }
+
+    return m3Err_none;
+}
+
+M3ValueType  m3_GetGlobalType  (IM3Global          i_global)
+{
+    return (i_global) ? (M3ValueType)(i_global->type) : c_m3Type_none;
+}
+
 
 void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 {
@@ -750,36 +673,40 @@ void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
-    M3Result result = m3Err_none;
+    M3Result result = m3Err_none;                               d_m3Assert (o_function and i_runtime and i_functionName);
 
-    if (!i_runtime->modules) {
-        return "no modules loaded";
+    IM3Function function = NULL;
+
+    if (not i_runtime->modules) {
+        _throw ("no modules loaded");
     }
 
-    IM3Function function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
+    function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
 
     if (function)
     {
         if (not function->compiled)
         {
-            result = Compile_Function (function);
-            if (result)
-                function = NULL;
+_           (Compile_Function (function))
+        }
+
+        // Check if start function needs to be called
+        if (function->module->startFunction)
+        {
+_           (m3_RunStart (function->module))
         }
     }
-    else result = ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
+    else _throw (ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName));
 
-    // Check if start function needs to be called
-    if (function and function->module->startFunction) {
-        result = m3_RunStart (function->module);
-        if (result)
-            return result;
-    }
+    _catch:
+    if (result)
+        function = NULL;
 
     * o_function = function;
 
     return result;
 }
+
 
 uint32_t  m3_GetArgCount  (IM3Function i_function)
 {
@@ -820,11 +747,25 @@ M3ValueType  m3_GetRetType  (IM3Function i_function, uint32_t index)
     if (i_function) {
         IM3FuncType ft = i_function->funcType;
         if (ft and index < ft->numRets) {
-            return (M3ValueType)d_FuncRetType(ft, index);
+            return (M3ValueType) d_FuncRetType (ft, index);
         }
     }
     return c_m3Type_none;
 }
+
+
+u8 *  GetStackPointerForArgs  (IM3Function i_function)
+{
+    u64 * stack = (u64 *) i_function->module->runtime->stack;
+    IM3FuncType ftype = i_function->funcType;
+
+    u16 numReturnSlots = ftype->numRets;
+
+    stack += numReturnSlots;
+
+    return (u8 *) stack;
+}
+
 
 M3Result  m3_CallV  (IM3Function i_function, ...)
 {
@@ -848,7 +789,8 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     ClearBacktrace (runtime);
 # endif
 
-    u8* s = (u8*) runtime->stack;
+    u8* s = GetStackPointerForArgs (i_function);
+
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -888,7 +830,8 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     ClearBacktrace (runtime);
 # endif
 
-    u8* s = (u8*) runtime->stack;
+    u8* s = GetStackPointerForArgs (i_function);
+
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -929,7 +872,8 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     ClearBacktrace (runtime);
 # endif
 
-    u8* s = (u8*) runtime->stack;
+    u8* s = GetStackPointerForArgs (i_function);
+
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
         switch (d_FuncArgType(ftype, i)) {
@@ -954,6 +898,14 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     return r;
 }
 
+
+u8 * AlignStackPointerTo64Bits (const u8 * i_stack)
+{
+    uintptr_t ptr = (uintptr_t) i_stack;
+    return (u8 *) ((ptr + 7) & ~7);
+}
+
+
 M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[])
 {
     IM3FuncType ftype = i_function->funcType;
@@ -967,13 +919,14 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
     }
 
     u8* s = (u8*) runtime->stack;
+
     for (u32 i = 0; i < ftype->numRets; ++i)
     {
         switch (d_FuncRetType(ftype, i)) {
-        case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 8; break;
-        case c_m3Type_i64:  *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
-        case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
-        case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
+        case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 4; break;
+        case c_m3Type_i64:  s = AlignStackPointerTo64Bits (s); *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
+        case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 4; break;
+        case c_m3Type_f64:  s = AlignStackPointerTo64Bits (s); *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
         default: return "unknown return type";
         }
     }
@@ -1002,10 +955,10 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
     for (u32 i = 0; i < ftype->numRets; ++i)
     {
         switch (d_FuncRetType(ftype, i)) {
-        case c_m3Type_i32:  *va_arg(o_rets, i32*) = *(i32*)(s);  s += 8; break;
-        case c_m3Type_i64:  *va_arg(o_rets, i64*) = *(i64*)(s);  s += 8; break;
-        case c_m3Type_f32:  *va_arg(o_rets, f32*) = *(f32*)(s);  s += 8; break;
-        case c_m3Type_f64:  *va_arg(o_rets, f64*) = *(f64*)(s);  s += 8; break;
+        case c_m3Type_i32:  *va_arg(o_rets, i32*) = *(i32*)(s);  s += 4; break;
+        case c_m3Type_i64:  s = AlignStackPointerTo64Bits (s); *va_arg(o_rets, i64*) = *(i64*)(s);  s += 8; break;
+        case c_m3Type_f32:  *va_arg(o_rets, f32*) = *(f32*)(s);  s += 4; break;
+        case c_m3Type_f64:  s = AlignStackPointerTo64Bits (s); *va_arg(o_rets, f64*) = *(f64*)(s);  s += 8; break;
         default: return "unknown argument type";
         }
     }

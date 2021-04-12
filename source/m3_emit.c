@@ -55,8 +55,8 @@ M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
     {
 # if d_m3EnableOpTracing
         if (i_operation != op_DumpStack)
-# endif
             o->numEmits++;
+# endif
 
         result = BridgeToNewPageIfNecessary (o);
 

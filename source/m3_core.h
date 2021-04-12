@@ -84,12 +84,6 @@ const void * const  cvptr_t;
 #       define m3log_compile(...) {}
 #   endif
 
-#   if d_m3LogWasmStack
-#       define m3log_stack(CATEGORY, FMT, ...)          d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
-#   else
-#       define m3log_stack(...) {}
-#   endif
-
 #   if d_m3LogEmit
 #       define m3log_emit(CATEGORY, FMT, ...)           d_m3Log(CATEGORY, FMT, ##__VA_ARGS__)
 #   else
@@ -121,7 +115,7 @@ const void * const  cvptr_t;
 # endif
 
 
-# if (defined(DEBUG) && !defined(NASSERTS))
+# if defined(ASSERTS) || (defined(DEBUG) && !defined(NASSERTS))
 #   define d_m3Assert(ASS)  if (!(ASS)) { printf("Assertion failed at %s:%d : %s\n", __FILE__, __LINE__, #ASS); abort(); }
 # else
 #   define d_m3Assert(ASS)
@@ -164,8 +158,14 @@ M3CodePageHeader;
 #define d_m3Reg0SlotAlias                   30000
 #define d_m3Fp0SlotAlias                    30001
 
+#define d_m3MaxSaneTypesCount               100000
+#define d_m3MaxSaneFunctionsCount           100000
+#define d_m3MaxSaneImportsCount             10000
+#define d_m3MaxSaneExportsCount             10000
+#define d_m3MaxSaneGlobalsCount             100000
+#define d_m3MaxSaneDataSegments             100000
 #define d_m3MaxSaneUtf8Length               2000
-#define d_m3MaxSaneFunctionArgCount         1000    // still insane, but whatever
+#define d_m3MaxSaneFunctionArgRetCount      1000    // still insane, but whatever
 
 #define d_externalKind_function             0
 #define d_externalKind_table                1
@@ -212,7 +212,6 @@ void *      m3_CopyMem              (const void * i_from, size_t i_size);
 #define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))
 #define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define     m3_Free(P)                              do { m3_FreeImpl ((void*)(P)); (P) = NULL; } while(0)
-#define     _throwifnull(PTR)                       _throwif (m3Err_mallocFailed, !(PTR))
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 
@@ -228,6 +227,7 @@ M3Result    Read_f64                (f64 * o_value, bytes_t * io_bytes, cbytes_t
 M3Result    Read_f32                (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 #endif
 M3Result    Read_u8                 (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
+M3Result    Read_opcode             (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_end);
 
 M3Result    ReadLebUnsigned         (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLebSigned           (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);

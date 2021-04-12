@@ -66,6 +66,7 @@ _try {
 M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo)
 {
     M3Result result = m3Err_none;
+
 _try {
     u32 index = io_module->numFunctions++;
     io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
@@ -76,7 +77,7 @@ _try {
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
-#if d_m3EnableStrace >= 2
+#if d_m3EnableStrace >= 2 || d_m3LogCompile
     func->index = index;
 #endif
 
@@ -87,7 +88,7 @@ _try {
         func->names[0] = i_importInfo->fieldUtf8;
     }
 
-    //          m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
+    m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
 
 } _catch:
     return result;
@@ -99,7 +100,10 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
     IM3Function func = NULL;
 
     if (i_functionIndex < i_module->numFunctions)
+    {
         func = & i_module->functions [i_functionIndex];
+        func->module = i_module;
+    }
 
     return func;
 }

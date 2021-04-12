@@ -305,7 +305,32 @@ M3Result  Read_u8  (u8 * o_value, bytes_t  * io_bytes, cbytes_t i_end)
     if (ptr < i_end)
     {
         * o_value = * ptr;
-        ptr += sizeof (u8);
+        * io_bytes = ptr + 1;
+
+        return m3Err_none;
+    }
+    else return m3Err_wasmUnderrun;
+}
+
+M3Result  Read_opcode  (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_end)
+{
+    const u8 * ptr = * io_bytes;
+
+    if (ptr < i_end)
+    {
+        m3opcode_t opcode = * ptr++;
+
+#ifndef d_m3CompileExtendedOpcode
+        if (UNLIKELY(opcode == 0xFC))
+        {
+            if (ptr < i_end)
+            {
+                opcode = (opcode << 8) | (* ptr++);
+            }
+            else return m3Err_wasmUnderrun;
+        }
+#endif
+        * o_value = opcode;
         * io_bytes = ptr;
 
         return m3Err_none;
