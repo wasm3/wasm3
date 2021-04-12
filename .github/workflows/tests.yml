@@ -214,6 +214,7 @@ jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
     - uses: actions/checkout@v2
     - uses: seanmiddleditch/gha-setup-ninja@master
@@ -228,7 +229,37 @@ jobs:
       run: |
         cd platforms/android
         ./gradlew build
-        
+
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        path: wasm3
+    - name: Checkout pywasm3
+      uses: actions/checkout@v2
+      with:
+        repository: wasm3/pywasm3
+        path: pywasm3
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - name: Update and Build Python module
+      run: |
+        rm -rf ./pywasm3/wasm3
+        cp -r wasm3/source ./pywasm3/wasm3
+        pip install ./pywasm3
+    - name: Install WABT
+      run: |
+        sudo apt install wabt
+    - name: Test
+      run: |
+        pip install pytest
+        cd ./pywasm3
+        pytest
+
   cosmopolitan:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
