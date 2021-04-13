@@ -372,7 +372,11 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
     {
         size_t numPageBytes = numPagesToAlloc * d_m3MemPageSize;
 
-        // Limit the amount of memory that gets allocated
+#if d_m3MaxLinearMemoryPages > 0
+        _throwif("linear memory limitation exceeded", numPagesToAlloc > d_m3MaxLinearMemoryPages);
+#endif
+
+        // Limit the amount of memory that gets actually allocated
         if (io_runtime->memoryLimit) {
             numPageBytes = M3_MIN (numPageBytes, io_runtime->memoryLimit);
         }
