@@ -21,11 +21,13 @@
 
 #if __has_include("wasi/api.h")
 # include <wasi/api.h>
+
 #elif __has_include("wasi/core.h")
 # warning "Using legacy WASI headers"
 # include <wasi/core.h>
 # define __WASI_ERRNO_SUCCESS   __WASI_ESUCCESS
 # define __WASI_ERRNO_INVAL     __WASI_EINVAL
+
 #else
 # error "Missing WASI headers"
 #endif
@@ -279,7 +281,7 @@ m3ApiRawFunction(m3_wasi_generic_path_readlink)
     m3ApiCheckMem(buf, buf_len);
     m3ApiCheckMem(bufused, sizeof(__wasi_size_t));
 
-    __wasi_errno_t ret = __wasi_path_readlink(&uvwasi, fd, path, path_len, buf, buf_len, bufused);
+    __wasi_errno_t ret = __wasi_path_readlink(fd, path, path_len, buf, buf_len, bufused);
 
     m3ApiReturn(ret);
 }
