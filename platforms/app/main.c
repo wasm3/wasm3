@@ -111,7 +111,7 @@ M3Result repl_load  (const char* fn)
     if (fsize < 8) {
         result = "file is too small";
         goto on_error;
-    } else if (fsize > 10*1024*1024) {
+    } else if (fsize > 64*1024*1024) {
         result = "file is too big";
         goto on_error;
     }

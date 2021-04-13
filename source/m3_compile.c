@@ -1433,7 +1433,7 @@ _           (CompileCallArgsAndReturn (o, & slotTop, function->funcType, false))
                 operand = function->compiled;
             }
             else
-            {                                                           d_m3Assert (function->module);  // not linked
+            {
                 op = op_Compile;
                 operand = function;
             }

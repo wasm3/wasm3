@@ -16,6 +16,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     M3Result result = m3Err_none;
 
+    if (size < 8 || size > 256*1024) {
+        return 0;
+    }
+
     IM3Environment env = m3_NewEnvironment ();
     if (env) {
         IM3Runtime runtime = m3_NewRuntime (env, 64*1024, NULL);
