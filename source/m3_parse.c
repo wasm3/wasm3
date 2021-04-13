@@ -308,7 +308,7 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
 
     _throwif ("error parsing Element section", result);
 
-    _throwif("too many element segments", numSegments > d_m3MaxSaneElementSegments);
+    _throwif ("too many element segments", numSegments > d_m3MaxSaneElementSegments);
 
     io_module->elementSection = i_bytes;
     io_module->elementSectionEnd = i_end;
