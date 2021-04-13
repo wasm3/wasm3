@@ -63,6 +63,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 ☑ Non-trapping float-to-int conversions  
 ☑ Import/Export of Mutable Globals  
 ☑ Structured execution tracing  
+☑ Big-Endian systems support  
 ☑ Self-hosting  
 ☑ Gas metering  
 ☐ Multi-value  
