@@ -2207,6 +2207,8 @@ M3Result  Compile_BlockStatements  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
 
+    _throwif("block code underrun", o->wasm >= o->wasmEnd);
+
     while (o->wasm < o->wasmEnd)
     {                                                                   emit_stack_dump (o);
         m3opcode_t opcode;

@@ -102,6 +102,7 @@ _               (NormalizeType (& retType, wasmType));
 
             Environment_AddFuncType (io_module->environment, & ftype);
             io_module->funcTypes [i] = ftype;
+            ftype = NULL; // ownership transfered to environment
         }
     }
 
@@ -217,6 +218,7 @@ _               (Module_AddGlobal (io_module, & global, type, isMutable, true /*
 M3Result  ParseSection_Export  (IM3Module io_module, bytes_t i_bytes, cbytes_t  i_end)
 {
     M3Result result = m3Err_none;
+    const char * utf8 = NULL;
 
     u32 numExports;
 _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                                 m3log (parse, "** Export [%d]", numExports);
@@ -225,7 +227,6 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
 
     for (u32 i = 0; i < numExports; ++i)
     {
-        const char * utf8;
         u8 exportKind;
         u32 index;
 
@@ -254,7 +255,9 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         m3_Free (utf8);
     }
 
-    _catch: return result;
+_catch:
+    m3_Free (utf8);
+    return result;
 }
 
 
@@ -304,6 +307,8 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
     result = ReadLEB_u32 (& numSegments, & i_bytes, i_end);                         m3log (parse, "** Element [%d]", numSegments);
 
     _throwif ("error parsing Element section", result);
+
+    _throwif("too many element segments", numSegments > d_m3MaxSaneElementSegments);
 
     io_module->elementSection = i_bytes;
     io_module->elementSectionEnd = i_end;
