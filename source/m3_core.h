@@ -165,6 +165,7 @@ M3CodePageHeader;
 #define d_m3MaxSaneGlobalsCount             100000
 #define d_m3MaxSaneElementSegments          100000
 #define d_m3MaxSaneDataSegments             100000
+#define d_m3MaxSaneTableSize                100000
 #define d_m3MaxSaneUtf8Length               10000
 #define d_m3MaxSaneFunctionArgRetCount      1000    // still insane, but whatever
 

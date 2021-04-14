@@ -2206,8 +2206,7 @@ const M3OpInfo*  GetOpInfo  (m3opcode_t opcode)
 M3Result  Compile_BlockStatements  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
-
-    _throwif ("block code underrun", o->wasm >= o->wasmEnd);
+    bool ended = false;
 
     while (o->wasm < o->wasmEnd)
     {                                                                   emit_stack_dump (o);
@@ -2241,9 +2240,12 @@ _           (Compile_Operator (o, opcode));
         if (o->stackIndex > d_m3MaxFunctionStackHeight)         // TODO: is this only place to check?
             _throw (m3Err_functionStackOverflow);
 
-        if (opcode == c_waOp_end or opcode == c_waOp_else)
+        if (opcode == c_waOp_end or opcode == c_waOp_else) {
+            ended = true;
             break;
+        }
     }
+    _throwif(m3Err_wasmMalformed, !(ended));
 
 _catch:
     return result;

@@ -82,8 +82,7 @@ _               (NormalizeType (& argType, wasmType));
 
             u32 numRets;
 _           (ReadLEB_u32 (& numRets, & i_bytes, i_end));
-
-            _throwif (m3Err_tooManyArgsRets, numRets + numArgs > d_m3MaxSaneFunctionArgRetCount);
+            _throwif (m3Err_tooManyArgsRets, (u64)(numRets) + numArgs > d_m3MaxSaneFunctionArgRetCount);
 
 _           (AllocFuncType (& ftype, numRets + numArgs));
             ftype->numArgs = numArgs;

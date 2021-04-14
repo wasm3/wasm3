@@ -82,7 +82,7 @@ _   (AllocFuncType (& funcType, (u32) maxNumTypes));
         }
         else
         {
-            _throwif ("malformed signature; arg count overflow", funcType->numRets + funcType->numArgs >= maxNumTypes);
+            _throwif ("malformed signature; arg count overflow", (u32)(funcType->numRets) + funcType->numArgs >= maxNumTypes);
             funcType->numArgs++;
             *typelist++ = type;
         }
