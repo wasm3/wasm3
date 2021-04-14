@@ -175,7 +175,7 @@ u8 GetSingleRetType(IM3FuncType ftype) {
 //-----------------------------------------------------------------------------------------------------------------------------------
 
 u16         GetTypeNumSlots             (u8 i_type);
-void        AlignSlotIndexToType        (u16 * io_slotIndex, u8 i_type);
+void        AlignSlotNumberToType     	(u16 * io_slotIndex, u8 i_type);
 
 bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
 bool        IsRegisterLocation          (i16 i_location);
