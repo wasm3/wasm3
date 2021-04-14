@@ -89,6 +89,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [<img src="/extra/scailable.png" height="32" />](https://scailable.net/)　
 [<img src="/extra/blynk.png" height="32" />](https://blynk.io/)　
 [<img src="/extra/iden3.svg" height="32" />](https://www.iden3.io/)　
+[<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
 [<img src="https://www.balena.io/blog/content/images/2018/10/balena_logo.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
 [<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
 [<img src="/extra/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup/)　
