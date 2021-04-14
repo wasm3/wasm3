@@ -34,7 +34,10 @@ void  m3_FreeModule  (IM3Module i_module)
         m3_Free (i_module->dataSegments);
         m3_Free (i_module->table0);
 
-        // TODO: free importinfo
+        for (u32 i = 0; i < i_module->numGlobals; ++i)
+        {
+            FreeImportInfo(&(i_module->globals[i].import));
+        }
         m3_Free (i_module->globals);
 
         m3_Free (i_module);
