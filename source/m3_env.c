@@ -468,7 +468,7 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         _throwif ("unallocated linear memory", !(io_memory->mallocated));
 
-        if (segmentOffset > 0 && (size_t) segmentOffset + segment->size <= io_memory->mallocated->length)
+        if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
         {
             u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
             memcpy (dest, segment->data, segment->size);
