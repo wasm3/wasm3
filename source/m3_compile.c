@@ -2469,6 +2469,9 @@ _   (EmitOp (o, op_Entry));
 
 _   (Compile_BlockStatements (o));
 
+    // TODO: validate opcode sequences
+    _throwif(m3Err_wasmMalformed, o->previousOpcode != c_waOp_end);
+
     io_function->compiled = pc;
 
     u16 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;       m3log (compile, "unique constant slots: %d; unused slots: %d", numConstantSlots, o->slotFirstDynamicIndex - o->slotMaxConstIndex);
