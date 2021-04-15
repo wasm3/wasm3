@@ -943,8 +943,9 @@ _		(CopyStackTopToSlot (o, i_slot));
 		if (i_doPushPop)
 		{
 _			(Pop (o));
-			MarkSlotAllocated (o, i_slot);
-_			(Push (o, type, i_slot));
+_			(PushAllocatedSlot (o, type))
+//			MarkSlotAllocated (o, i_slot);
+//_			(Push (o, type, i_slot));
 		}
 	}
 
@@ -1094,9 +1095,7 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
             // to here. Otherwise, an ReturnStackTop is appended to the end of the function (at B) and
             // branches patched there.
 //            if (IsStackTopInRegister (o))
-                PatchBranches (o);
-
-			
+			bool patched = PatchBranches (o);
 
 _           (ReturnStackTop (o));
         }
@@ -2299,9 +2298,10 @@ M3Result  ValidateBlockEnd  (IM3Compilation o)
         {
 _           (UnwindBlockStack (o));
 			
-			PushAllocatedSlot (o, stackType);
-			
-//_           (PushRegister (o, stackType));
+			if (IsFpType (stackType))
+_				(PushRegister (o, stackType))
+			else
+_				(PushAllocatedSlot (o, stackType))
         }
         else
         {

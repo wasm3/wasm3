@@ -1085,11 +1085,11 @@ d_m3Op  (BranchIf_r)
     i32 condition   = (i32) _r0;
     pc_t branch     = immediate (pc_t);
 
-    if (not condition)
+    if (condition)
     {
-        jumpOp (branch);
+		nextOp ();
     }
-    else nextOp ();
+	else jumpOp (branch);
 }
 
 
@@ -1098,11 +1098,11 @@ d_m3Op  (BranchIf_s)
     i32 condition   = slot (i32);
     pc_t branch     = immediate (pc_t);
 
-    if (not condition)
+    if (condition)
     {
-        jumpOp (branch);
+		nextOp ();
     }
-    else nextOp ();
+	else jumpOp (branch);
 }
 
 
