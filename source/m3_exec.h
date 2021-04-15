@@ -1087,9 +1087,9 @@ d_m3Op  (BranchIf_r)
 
     if (condition)
     {
-		nextOp ();
+        jumpOp (branch);
     }
-	else jumpOp (branch);
+    else nextOp ();
 }
 
 
@@ -1100,9 +1100,37 @@ d_m3Op  (BranchIf_s)
 
     if (condition)
     {
-		nextOp ();
+        jumpOp (branch);
     }
-	else jumpOp (branch);
+    else nextOp ();
+}
+
+
+d_m3Op  (BranchIfPrologue_r)
+{
+    i32 condition   = (i32) _r0;
+    pc_t branch     = immediate (pc_t);
+
+    if (condition)
+    {
+        // this is the "prologue" that ends with
+        // a plain branch to the actual target
+        nextOp ();
+    }
+    else jumpOp (branch); // jump over the prologue
+}
+
+
+d_m3Op  (BranchIfPrologue_s)
+{
+    i32 condition   = slot (i32);
+    pc_t branch     = immediate (pc_t);
+
+    if (condition)
+    {
+        nextOp ();
+    }
+    else jumpOp (branch);
 }
 
 
