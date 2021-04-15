@@ -221,28 +221,12 @@ void *  _FreeModule  (IM3Module i_module, void * i_info)
 }
 
 
-
-void  FreeCompilationPatches  (IM3Compilation o)
-{
-    IM3BranchPatch patches = o->releasedPatches;
-
-    while (patches)
-    {
-        IM3BranchPatch next = patches->next;
-        m3_Free (patches);
-        patches = next;
-    }
-}
-
-
 void  Runtime_Release  (IM3Runtime i_runtime)
 {
     ForEachModule (i_runtime, _FreeModule, NULL);                   d_m3Assert (i_runtime->numActiveCodePages == 0);
 
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
-
-    FreeCompilationPatches (& i_runtime->compilation);
 
     m3_Free (i_runtime->stack);
     m3_Free (i_runtime->memory.mallocated);
@@ -307,8 +291,8 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
             m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
 
             if (r == 0)
-            {
-                if (SizeOfType (i_type) == sizeof (u32))
+			{																				m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
+				if (SizeOfType (i_type) == sizeof (u32))
                 {
                     * (u32 *) o_expressed = * ((u32 *) stack);
                 }
@@ -535,7 +519,7 @@ M3Result  m3_RunStart  (IM3Module io_module)
 
         if (not function->compiled)
         {
-_           (Compile_Function (function));
+_           (CompileFunction (function));
         }
 
         IM3FuncType ftype = function->funcType;
@@ -691,7 +675,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
     {
         if (not function->compiled)
         {
-_           (Compile_Function (function))
+_           (CompileFunction (function))
         }
 
         // Check if start function needs to be called

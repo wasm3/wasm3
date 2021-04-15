@@ -13,6 +13,14 @@
 
 #ifdef DEBUG
 
+// a central function you can be breakpoint:
+void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
+{
+	printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
+	return;
+}
+
+
 typedef struct OpInfo
 {
     IM3OpInfo   info;
@@ -89,26 +97,34 @@ cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
 }
 
 
-size_t  SPrintArg  (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type)
+size_t  SPrintArg  (char * o_string, size_t i_stringBufferSize, m3stack_t i_sp, u8 i_type)
 {
     int len = 0;
 
     * o_string = 0;
 
     if      (i_type == c_m3Type_i32)
-        len = snprintf (o_string, i_n, "%" PRIi32, * (i32 *) i_sp);
+        len = snprintf (o_string, i_stringBufferSize, "%" PRIi32, * (i32 *) i_sp);
     else if (i_type == c_m3Type_i64)
-        len = snprintf (o_string, i_n, "%" PRIi64, * (i64 *) i_sp);
+        len = snprintf (o_string, i_stringBufferSize, "%" PRIi64, * (i64 *) i_sp);
 #if d_m3HasFloat
     else if (i_type == c_m3Type_f32)
-        len = snprintf (o_string, i_n, "%" PRIf32, * (f32 *) i_sp);
+        len = snprintf (o_string, i_stringBufferSize, "%" PRIf32, * (f32 *) i_sp);
     else if (i_type == c_m3Type_f64)
-        len = snprintf (o_string, i_n, "%" PRIf64, * (f64 *) i_sp);
+        len = snprintf (o_string, i_stringBufferSize, "%" PRIf64, * (f64 *) i_sp);
 #endif
 
     len = M3_MAX (0, len);
 
     return len;
+}
+
+
+cstr_t  SPrintValue  (void * i_value, u8 i_type)
+{
+	static char string [100];
+	SPrintArg (string, 100, (m3stack_t) i_value, i_type);
+	return string;
 }
 
 
@@ -345,9 +361,9 @@ void  dump_type_stack  (IM3Compilation o)
 
         u16 slot = o->wasmStack [i];
 
-        if (IsRegisterLocation (slot))
+        if (IsRegisterSlotAlias (slot))
         {
-            bool isFp = IsFpRegisterLocation (slot);
+            bool isFp = IsFpRegisterSlotAlias (slot);
             printf ("%s", isFp ? "f0" : "r0");
 
             regAllocated [isFp]--;

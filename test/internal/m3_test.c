@@ -222,10 +222,42 @@ int  main  (int argc, const char  * argv [])
 
 			i32 ret0 = 0;
 			f32 ret1 = 0.;
-			m3_GetResultsV (function, & ret0, & ret1);                               
+			m3_GetResultsV (function, & ret0, & ret1);
+			
+			printf ("%d %f\n", ret0, ret1);
 		}
+	}
 
 		
+	Test (multireturn.branch)
+	{
+#			if 0
+			(module
+			  (func (param i32) (result i32 i32)
+
+				i32.const 123
+				i32.const 456
+				i32.const 789
+
+				block (param i32 i32) (result i32 i32 i32)
+
+					local.get 0
+					local.get 0
+
+					local.get 0
+					br_if 0
+
+					drop
+
+				end
+
+				drop
+				drop
+			  )
+
+			(export "main" (func 0))
+			)
+#			endif
 	}
     
     return 0;

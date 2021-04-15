@@ -46,10 +46,11 @@ enum
 // since the end location of a block is unknown when a branch is compiled, writing
 // the actual address must deferred. A linked-list of patch locations is kept in
 // M3CompilationScope. When the block compilation exits, it patches these addresses.
+// this data structure is embedded into the code pages themselves
 typedef struct M3BranchPatch
 {
+    pc_t                            location;
     struct M3BranchPatch *          next;
-    pc_t *                          location;
 }
 M3BranchPatch;
 
@@ -64,6 +65,7 @@ typedef struct M3CompilationScope
     IM3BranchPatch                  patches;
     i32                             depth;
     i16                             initStackIndex;
+    u16                             topSlot;
     IM3FuncType                     type;
     m3opcode_t                      opcode;
     bool                            isPolymorphic;
@@ -86,8 +88,6 @@ typedef struct
     IM3Function         function;
 
     IM3CodePage         page;
-
-    IM3BranchPatch      releasedPatches;
 
 #ifdef DEBUG
     u32                 numEmits;
@@ -175,19 +175,19 @@ u8 GetSingleRetType(IM3FuncType ftype) {
 //-----------------------------------------------------------------------------------------------------------------------------------
 
 u16         GetTypeNumSlots             (u8 i_type);
-void        AlignSlotIndexToType        (u16 * io_slotIndex, u8 i_type);
+void        AlignSlotToType             (u16 * io_slotIndex, u8 i_type);
 
 bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
-bool        IsRegisterLocation          (i16 i_location);
-bool        IsFpRegisterLocation        (i16 i_location);
-bool        IsIntRegisterLocation       (i16 i_location);
+bool        IsRegisterSlotAlias         (i16 i_slot);
+bool        IsFpRegisterSlotAlias       (i16 i_slot);
+bool        IsIntRegisterSlotAlias      (i16 i_slot);
 
 bool        IsStackPolymorphic          (IM3Compilation o);
 
 M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 
-M3Result    Compile_BlockStatements     (IM3Compilation io);
-M3Result    Compile_Function            (IM3Function io_function);
+M3Result    CompileBlockStatements      (IM3Compilation io);
+M3Result    CompileFunction             (IM3Function io_function);
 
 u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
