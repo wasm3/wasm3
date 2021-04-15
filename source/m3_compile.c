@@ -110,6 +110,10 @@ i16  GetStackTopIndex  (IM3Compilation o)
     return o->stackIndex - 1;
 }
 
+u16  GetStackHeight (IM3Compilation o)
+{
+	return o->stackIndex - o->stackFirstDynamicIndex;
+}
 
 u8  GetStackTopTypeAtOffset  (IM3Compilation o, u16 i_offset)
 {
@@ -2177,8 +2181,8 @@ const M3OpInfo c_operations [] =
 
     d_m3DebugOp (GetGlobal_s32),    d_m3DebugOp (GetGlobal_s64),    d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
 
-    d_m3DebugOp (CopySlot_32),      d_m3DebugOp (PreserveCopySlot_32),                              d_m3DebugOp (BranchIfPrologue_s),
-    d_m3DebugOp (CopySlot_64),      d_m3DebugOp (PreserveCopySlot_64),                              d_m3DebugOp (BranchIfPrologue_r),
+    d_m3DebugOp (CopySlot_32),      d_m3DebugOp (PreserveCopySlot_32), d_m3DebugOp (If_s),          d_m3DebugOp (BranchIfPrologue_s),
+    d_m3DebugOp (CopySlot_64),      d_m3DebugOp (PreserveCopySlot_64), d_m3DebugOp (If_r),          d_m3DebugOp (BranchIfPrologue_r),
     
     d_m3DebugOp (Select_i32_rss),   d_m3DebugOp (Select_i32_srs),   d_m3DebugOp (Select_i32_ssr),   d_m3DebugOp (Select_i32_sss),
     d_m3DebugOp (Select_i64_rss),   d_m3DebugOp (Select_i64_srs),   d_m3DebugOp (Select_i64_ssr),   d_m3DebugOp (Select_i64_sss),

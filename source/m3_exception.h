@@ -13,12 +13,8 @@
 
 # if d_m3EnableExceptionBreakpoint
 
-// a central function you can be breakpoint:
-static void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
-{
-    printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
-    return;
-}
+// declared in m3_info.c
+void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message);
 
 #   define EXCEPTION_PRINT(ERROR) ExceptionBreakpoint (ERROR, (__FILE__ ":" M3_STR(__LINE__)))
 
