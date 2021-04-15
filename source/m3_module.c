@@ -105,7 +105,7 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
     if (i_functionIndex < i_module->numFunctions)
     {
         func = & i_module->functions [i_functionIndex];
-        func->module = i_module;
+        //func->module = i_module;
     }
 
     return func;
