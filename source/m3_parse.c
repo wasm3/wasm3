@@ -168,7 +168,7 @@ _               (ReadLEB_u32 (& typeIndex, & i_bytes, i_end))
 _               (Module_AddFunction (io_module, typeIndex, & import))
                 import = clearImport;
 
-                io_module->numImports++;
+                io_module->numFuncImports++;
             }
             break;
 
@@ -324,7 +324,7 @@ M3Result  ParseSection_Code  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_
     u32 numFunctions;
 _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                               m3log (parse, "** Code [%d]", numFunctions);
 
-    if (numFunctions != io_module->numFunctions - io_module->numImports)
+    if (numFunctions != io_module->numFunctions - io_module->numFuncImports)
     {
         _throw ("mismatched function count in code section");
     }
@@ -361,7 +361,7 @@ _                   (NormalizeType (& normalType, wasmType));
                     numLocals += varCount;                                                      m3log (parse, "      %2d locals; type: '%s'", varCount, c_waTypes [normalType]);
                 }
 
-                IM3Function func = Module_GetFunction (io_module, f + io_module->numImports);
+                IM3Function func = Module_GetFunction (io_module, f + io_module->numFuncImports);
 
                 func->module = io_module;
                 func->wasm = start;
@@ -411,6 +411,8 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
                                                                                        i, segment->memoryRegion, segment->initExprSize, segment->size);
         i_bytes += segment->size;
+
+		_throwif("data segment underflow", i_bytes > i_end);
     }
 
     _catch:
@@ -591,33 +593,32 @@ _   (Read_u32 (& version, & pos, end));
 
     _throwif (m3Err_wasmMalformed, magic != 0x6d736100);
     _throwif (m3Err_incompatibleWasmVersion, version != 1);
-                                                                                    m3log (parse,  "found magic + version");
-    u8 previousSection = 0;
+
+    static const u8 sectionsOrder[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11, 0 }; // 0 is a placeholder
+    u8 expectedSection = 0;
 
     while (pos < end)
     {
         u8 section;
 _       (ReadLEB_u7 (& section, & pos, end));
 
-        if (section > previousSection or                    // from the spec: sections must appear in order
-            section == 0 or                                 // custom section
-            (section == 12 and previousSection == 9) or     // if present, DataCount goes after Element
-            (section == 10 and previousSection == 12))      // and before Code
-        {
-            u32 sectionLength;
-_           (ReadLEB_u32 (& sectionLength, & pos, end));
-            _throwif(m3Err_wasmMalformed, pos + sectionLength > end);
-_           (ParseModuleSection (module, section, pos, sectionLength));
-
-            pos += sectionLength;
-
-            if (section)
-                previousSection = section;
+        if (section != 0) {
+            // Ensure sections appear only once and in order
+            while (sectionsOrder[expectedSection++] != section) {
+                _throwif(m3Err_misorderedWasmSection, expectedSection >= 12);
+            }
         }
-        else _throw (m3Err_misorderedWasmSection);
+
+        u32 sectionLength;
+_       (ReadLEB_u32 (& sectionLength, & pos, end));
+        _throwif(m3Err_wasmMalformed, pos + sectionLength > end);
+
+_       (ParseModuleSection (module, section, pos, sectionLength));
+
+        pos += sectionLength;
     }
 
-    } _catch:
+} _catch:
 
     if (result)
     {

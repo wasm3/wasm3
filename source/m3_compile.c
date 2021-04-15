@@ -329,6 +329,15 @@ u16  GetMaxUsedSlotPlusOne  (IM3Compilation o)
 
         o->slotMaxAllocatedIndexPlusOne--;
     }
+    
+#   ifdef DEBUG
+        u16 maxSlot = o->slotMaxAllocatedIndexPlusOne;
+        while (maxSlot < d_m3MaxFunctionSlots)
+        {
+            d_m3Assert (o->m3Slots [maxSlot] == 0);
+            maxSlot++;
+        }
+#   endif
 
     return o->slotMaxAllocatedIndexPlusOne;
 }
@@ -2374,6 +2383,8 @@ void  SetupCompilation (IM3Compilation o)
 
 M3Result  CompileFunction  (IM3Function io_function)
 {
+    if (!io_function->wasm) return "function body is missing";
+
     IM3FuncType funcType = io_function->funcType;
 
     M3Result result = m3Err_none;                                   m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",

@@ -18,14 +18,17 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: wasm3-win-x64,   platform: "-A x64",     toolset: "-T ClangCL"   }
-        - {target: wasm3-win-x86,   platform: "-A Win32",   toolset: "-T ClangCL"   }
+        - {target: wasm3-win-x64,           platform: "-A x64",     toolset: "-T ClangCL"   }
+        - {target: wasm3-win-x86,           platform: "-A Win32",   toolset: "-T ClangCL"   }
+        - {target: wasm3-strace-win-x64,    platform: "-A x64",     toolset: "-T ClangCL",  cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     env:
       LDFLAGS: -s
     steps:
     - uses: actions/checkout@v2
     - name: Configure
+      env:
+        CFLAGS: ${{ matrix.config.cflags }}
       run: |
         mkdir build
         cd build

@@ -36,6 +36,10 @@ void  m3_FreeModule  (IM3Module i_module)
 
         for (u32 i = 0; i < i_module->numGlobals; ++i)
         {
+        	m3_Free (i_module->globals[i].name);
+        }
+        for (u32 i = 0; i < i_module->numGlobals; ++i)
+        {
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free (i_module->globals);
@@ -105,7 +109,7 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
     if (i_functionIndex < i_module->numFunctions)
     {
         func = & i_module->functions [i_functionIndex];
-        func->module = i_module;
+        //func->module = i_module;
     }
 
     return func;
