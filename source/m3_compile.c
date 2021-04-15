@@ -90,11 +90,6 @@ void  ReleaseCompilationCodePage  (IM3Compilation o)
     ReleaseCodePage (o->runtime, o->page);
 }
 
-bool  IsStackPolymorphic  (IM3Compilation o)
-{
-    return o->block.isPolymorphic;
-}
-
 bool  IsRegisterSlotAlias        (i16 i_slot)    { return (i_slot >= d_m3Reg0SlotAlias); }
 bool  IsFpRegisterSlotAlias      (i16 i_slot)    { return (i_slot == d_m3Fp0SlotAlias);  }
 bool  IsIntRegisterSlotAlias     (i16 i_slot)    { return (i_slot == d_m3Reg0SlotAlias); }
@@ -109,9 +104,22 @@ u16 GetTypeNumSlots (u8 i_type)
 #   endif
 }
 
+
+bool  IsStackPolymorphic  (IM3Compilation o)
+{
+	return o->block.isPolymorphic;
+}
+
+
 i16  GetStackTopIndex  (IM3Compilation o)
 {                                                           d_m3Assert (o->stackIndex > 0 or IsStackPolymorphic (o));
     return o->stackIndex - 1;
+}
+
+void  SetStackPolymorphic  (IM3Compilation o)
+{
+	o->block.isPolymorphic = true;
+//	o->block.polymorphicIndex = GetStackTopIndex (o);
 }
 
 
@@ -671,57 +679,19 @@ M3Result  AddTrapRecord  (IM3Compilation o)
 }
 
 
-M3Result  AcquirePatch  (IM3Compilation o, IM3BranchPatch * o_patch)
-{
-    M3Result result = m3Err_none;
-
-    IM3BranchPatch patch = o->releasedPatches;
-
-    if (patch)
-    {
-        o->releasedPatches = patch->next;
-        patch->next = NULL;
-    }
-    else {
-        patch = m3_AllocStruct(M3BranchPatch);
-        _throwifnull(patch);
-    }
-
-    * o_patch = patch;
-
-    _catch: return result;
-}
-
-
 bool  PatchBranches  (IM3Compilation o)
 {
-    bool didPatch = false;
-
-    M3CompilationScope * block = & o->block;
     pc_t pc = GetPC (o);
 
-    IM3BranchPatch patches = block->patches;
-    IM3BranchPatch endPatch = patches;
-
+    IM3BranchPatch patches = o->block.patches;
+	o->block.patches = NULL;
+	
+	bool didPatch = patches;
+	
     while (patches)
-    {                                                           m3log (compile, "patching location: %p to pc: %p", patches->location, pc);
-        if (not patches->location)
-            break;
-
-        * (patches->location) = pc;
-
-        endPatch = patches;
+    {                                                           m3log (compile, "patching location: %p to pc: %p", patches, pc);
+        patches->location = pc;
         patches = patches->next;
-    }
-
-    if (block->patches)
-    {                                                           d_m3Assert (endPatch->next == NULL);
-        // return patches to pool
-        endPatch->next = o->releasedPatches;
-        o->releasedPatches = block->patches;
-        block->patches = NULL;
-
-        didPatch = true;
     }
 
     return didPatch;
@@ -1089,15 +1059,15 @@ _       (EmitOp (o, op_Return));
 _       (UnwindBlockStack (o));
 
         // B: move register to return slot for branchehs
-        if (type)
-        {
-            if (PatchBranches (o))
-            {
-_               (PushRegister (o, type));
-                ReturnStackTop (o);
-_               (EmitOp (o, op_Return));
-            }
-        }
+//        if (type)
+//        {
+//            if (PatchBranches (o))
+//            {
+//_               (PushRegister (o, type));
+//                ReturnStackTop (o);
+//_               (EmitOp (o, op_Return));
+//            }
+//        }
     }
 
     _catch: return result;
@@ -1219,6 +1189,23 @@ _           ((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlo
 }
 
 
+M3Result  EmitPatchingBranch  (IM3Compilation o, IM3CompilationScope i_scope)
+{
+	M3Result result;
+
+_ 	(EmitOp (o, op_Branch));
+	
+	// IM3BranchPatch is two word struct; reserve two words
+	IM3BranchPatch patch = (IM3BranchPatch) ReservePointer (o);						m3log (compile, "branch patch required at: %p", patch);
+											ReservePointer (o);
+	patch->next = i_scope->patches;
+	i_scope->patches = patch;
+
+	_catch:
+	return result;
+}
+
+
 M3Result  Compile_Branch  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
@@ -1261,29 +1248,23 @@ _       (EmitOp (o, op));
 			IM3Operation op = conditionInRegister ? op_BranchIf_r : op_BranchIf_s;
 
 	_       (EmitOp (o, op));
-			EmitSlotNumOfStackTopAndPop (o);
+			EmitSlotNumOfStackTopAndPop (o); // condition
 
 			// this is continuation point, if the branch isn't taken
 			jumpTo = (pc_t *) ReservePointer (o);
         }
 
-	if (not IsStackPolymorphic (o))
-_ 		(ResolveBlockResults (o, scope, false));
+		if (not IsStackPolymorphic (o))
+_ 			(ResolveBlockResults (o, scope, false));
 
-_       (EmitOp (o, op_Branch));
-
-        IM3BranchPatch patch = NULL;
-_       (AcquirePatch (o, & patch));
-
-        patch->location = (pc_t *) ReservePointer (o);
-        patch->next = scope->patches;
-        scope->patches = patch;
+_		(EmitPatchingBranch (o, scope));
 		
 		if (jumpTo)
 		{
 			* jumpTo = GetPC (o);
 		}
-		else  o->block.isPolymorphic = true;
+		else SetStackPolymorphic (o);
+//			o->block.isPolymorphic = true;
     }
 
     _catch: return result;
@@ -1341,14 +1322,7 @@ _           (EmitOp (o, op_ContinueLoop));
 			// TODO: this could be fused with equivalent targets
 _ 			(ResolveBlockResults (o, scope, false));
 
-_           (EmitOp (o, op_Branch));
-
-            IM3BranchPatch patch = NULL;
-_           (AcquirePatch (o, & patch));
-
-            patch->location = (pc_t *) ReservePointer (o);
-            patch->next = scope->patches;
-            scope->patches = patch;
+_			(EmitPatchingBranch (o, scope));
         }
 		
 		ReleaseCompilationCodePage (o);     // FIX: continueOpPage can get lost if thrown
@@ -1481,7 +1455,7 @@ _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
     i8 reserved;
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
-    _throwif ("function type index out of range", typeIndex >= o->module->numFuncTypes);
+    _throwif ("function call type index out of range", typeIndex >= o->module->numFuncTypes);
 
     if (IsStackTopInRegister (o))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));
@@ -2395,9 +2369,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
 
 void  SetupCompilation (IM3Compilation o)
 {
-    IM3BranchPatch patches = o->releasedPatches;
     memset (o, 0x0, sizeof (M3Compilation));
-    o->releasedPatches = patches;
 }
 
 

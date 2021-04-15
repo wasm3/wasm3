@@ -46,10 +46,11 @@ enum
 // since the end location of a block is unknown when a branch is compiled, writing
 // the actual address must deferred. A linked-list of patch locations is kept in
 // M3CompilationScope. When the block compilation exits, it patches these addresses.
+// this data structure is embedded into the code pages themselves
 typedef struct M3BranchPatch
 {
-    struct M3BranchPatch *          next;
-    pc_t *                          location;
+    pc_t 	                        location;
+	struct M3BranchPatch *          next;
 }
 M3BranchPatch;
 
@@ -65,6 +66,7 @@ typedef struct M3CompilationScope
     i32                             depth;
     i16                             initStackIndex;
 	u16								topSlot;
+	u16								polymorphicIndex;
     IM3FuncType                     type;
     m3opcode_t                      opcode;
     bool                            isPolymorphic;
@@ -87,8 +89,6 @@ typedef struct
     IM3Function         function;
 
     IM3CodePage         page;
-
-    IM3BranchPatch      releasedPatches;
 
 #ifdef DEBUG
     u32                 numEmits;

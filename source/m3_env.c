@@ -221,28 +221,12 @@ void *  _FreeModule  (IM3Module i_module, void * i_info)
 }
 
 
-
-void  FreeCompilationPatches  (IM3Compilation o)
-{
-    IM3BranchPatch patches = o->releasedPatches;
-
-    while (patches)
-    {
-        IM3BranchPatch next = patches->next;
-        m3_Free (patches);
-        patches = next;
-    }
-}
-
-
 void  Runtime_Release  (IM3Runtime i_runtime)
 {
     ForEachModule (i_runtime, _FreeModule, NULL);                   d_m3Assert (i_runtime->numActiveCodePages == 0);
 
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
-
-    FreeCompilationPatches (& i_runtime->compilation);
 
     m3_Free (i_runtime->stack);
     m3_Free (i_runtime->memory.mallocated);
