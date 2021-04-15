@@ -105,21 +105,9 @@ u16 GetTypeNumSlots (u8 i_type)
 }
 
 
-bool  IsStackPolymorphic  (IM3Compilation o)
-{
-	return o->block.isPolymorphic;
-}
-
-
 i16  GetStackTopIndex  (IM3Compilation o)
 {                                                           d_m3Assert (o->stackIndex > 0 or IsStackPolymorphic (o));
     return o->stackIndex - 1;
-}
-
-void  SetStackPolymorphic  (IM3Compilation o)
-{
-	o->block.isPolymorphic = true;
-//	o->block.polymorphicIndex = GetStackTopIndex (o);
 }
 
 
@@ -505,25 +493,6 @@ _       (Pop (o));
 }
 
 
-M3Result  UnwindBlockStack  (IM3Compilation o)
-{
-    M3Result result = m3Err_none;
-
-    i16 initStackIndex = o->block.initStackIndex;
-
-    u32 popCount = 0;
-    while (o->stackIndex > initStackIndex)
-    {
-_       (Pop (o));
-        ++popCount;
-    }
-
-    if (popCount)
-        m3log (compile, "unwound stack top: %d", popCount);
-
-    _catch: return result;
-}
-
 
 M3Result  _PushAllocatedSlotAndEmit  (IM3Compilation o, u8 i_type, bool i_doEmit)
 {
@@ -676,6 +645,38 @@ M3Result  AddTrapRecord  (IM3Compilation o)
     }
 
     return result;
+}
+
+M3Result  UnwindBlockStack  (IM3Compilation o)
+{
+	M3Result result = m3Err_none;
+
+	i16 initStackIndex = o->block.initStackIndex;
+
+	u32 popCount = 0;
+	while (o->stackIndex > initStackIndex)
+	{
+_       (Pop (o));
+		++popCount;
+	}
+
+	if (popCount)
+		m3log (compile, "unwound stack top: %d", popCount);
+
+	_catch: return result;
+}
+
+
+bool  IsStackPolymorphic  (IM3Compilation o)
+{
+	return o->block.isPolymorphic;
+}
+
+
+void  SetStackPolymorphic  (IM3Compilation o)
+{
+	UnwindBlockStack (o);										m3log (compile, "stack set polymorphic");
+	o->block.isPolymorphic = true;
 }
 
 
@@ -910,7 +911,7 @@ _			(PushAllocatedSlot (o, type))
 // TODO: MV loop: all results in slots
 M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_doPushPop)
 {
-	M3Result result = m3Err_none;
+	M3Result result = m3Err_none;									if (d_m3LogWasmStack) dump_type_stack (o);
 
 	u8 stackType = GetSingleRetType (i_targetBlock->type);
 
@@ -1025,6 +1026,44 @@ _   (EmitOp (o, op_Return));
 }
 
 
+M3Result  ValidateBlockEnd  (IM3Compilation o)
+{
+	M3Result result = m3Err_none;
+
+	u8 stackType = GetSingleRetType (o->block.type);
+
+	if (stackType != c_m3Type_none)
+	{
+		if (IsStackPolymorphic (o))
+		{
+_           (UnwindBlockStack (o));
+			
+			if (IsFpType (stackType))
+_				(PushRegister (o, stackType))
+			else
+_				(PushAllocatedSlot (o, stackType))
+		}
+		else
+		{
+			i16 initStackIndex = o->block.initStackIndex;
+
+			if (o->block.depth > 0 and initStackIndex != o->stackIndex)
+			{
+				if (o->stackIndex == initStackIndex + 1)
+				{
+_					(ResolveBlockResults (o, & o->block, true));
+				}
+				else _throw ("unexpected block stack offset");
+			}
+		}
+	}
+	else
+_       (UnwindBlockStack (o));
+
+	_catch: return result;
+}
+
+
 M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
@@ -1032,6 +1071,8 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     // function end:
     if (o->block.depth == 0)
     {
+		ValidateBlockEnd (o);
+		
         u8 type = GetSingleRetType (o->block.type);
 
         u32 numReturns = GetFuncTypeNumReturns (o->block.type);
@@ -1041,14 +1082,14 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
             if (not o->block.isPolymorphic and type != GetStackTopType (o))
                 _throw (m3Err_typeMismatch);
 
-			ResolveBlockResults (o, & o->block, true);
-			
+			if (not o->block.isPolymorphic)
+				ResolveBlockResults (o, & o->block, true);
+		
             // if there are branches to the function end, then their values are in a register
             // if the block happens to have its top in a register too, then we can patch the branch
             // to here. Otherwise, an ReturnStackTop is appended to the end of the function (at B) and
             // branches patched there.
-//            if (IsStackTopInRegister (o))
-			bool patched = PatchBranches (o);
+			PatchBranches (o);
 
 _           (ReturnStackTop (o));
         }
@@ -1057,17 +1098,6 @@ _           (ReturnStackTop (o));
 _       (EmitOp (o, op_Return));
 
 _       (UnwindBlockStack (o));
-
-        // B: move register to return slot for branchehs
-//        if (type)
-//        {
-//            if (PatchBranches (o))
-//            {
-//_               (PushRegister (o, type));
-//                ReturnStackTop (o);
-//_               (EmitOp (o, op_Return));
-//            }
-//        }
     }
 
     _catch: return result;
@@ -1226,7 +1256,7 @@ _   (GetBlockScope (o, & scope, depth));
 			op = op_ContinueLoopIf;
 			// move the condition to a register
 _           (CopyStackTopToRegister (o, false));
-_           (Pop (o));
+_           (PopType (o, c_m3Type_i32));
         }
         else // is c_waOp_branch
         {
@@ -1243,20 +1273,21 @@ _       (EmitOp (o, op));
 		
         if (i_opcode == c_waOp_branchIf)
         {
-            bool conditionInRegister = IsStackTopInRegister (o);
-
-			IM3Operation op = conditionInRegister ? op_BranchIf_r : op_BranchIf_s;
+			// OPTZ: need a flipped BranchIf without ResolveBlockResults prologue
+			// when no stack results
+			
+			IM3Operation op = IsStackTopInRegister (o) ? op_BranchIf_r : op_BranchIf_s;
 
 	_       (EmitOp (o, op));
 			EmitSlotNumOfStackTopAndPop (o); // condition
-
+			
 			// this is continuation point, if the branch isn't taken
 			jumpTo = (pc_t *) ReservePointer (o);
         }
 
 		if (not IsStackPolymorphic (o))
 _ 			(ResolveBlockResults (o, scope, false));
-
+		
 _		(EmitPatchingBranch (o, scope));
 		
 		if (jumpTo)
@@ -1264,7 +1295,6 @@ _		(EmitPatchingBranch (o, scope));
 			* jumpTo = GetPC (o);
 		}
 		else SetStackPolymorphic (o);
-//			o->block.isPolymorphic = true;
     }
 
     _catch: return result;
@@ -1331,7 +1361,7 @@ _			(EmitPatchingBranch (o, scope));
 		EmitPointer (o, startPC);
     }
 
-    o->block.isPolymorphic = true;
+	SetStackPolymorphic (o);
 
     }
 
@@ -1748,7 +1778,7 @@ M3Result  Compile_Unreachable  (IM3Compilation o, m3opcode_t i_opcode)
 _   (AddTrapRecord (o));
 
 _   (EmitOp (o, op_Unreachable));
-    o->block.isPolymorphic = true;
+	SetStackPolymorphic (o);
 
     _catch:
     return result;
@@ -2235,46 +2265,6 @@ _           (Compile_Operator (o, opcode));
 
 _catch:
     return result;
-}
-
-
-
-
-M3Result  ValidateBlockEnd  (IM3Compilation o)
-{
-    M3Result result = m3Err_none;
-
-    u8 stackType = GetSingleRetType (o->block.type);
-
-    if (stackType != c_m3Type_none)
-    {
-        if (IsStackPolymorphic (o))
-        {
-_           (UnwindBlockStack (o));
-			
-			if (IsFpType (stackType))
-_				(PushRegister (o, stackType))
-			else
-_				(PushAllocatedSlot (o, stackType))
-        }
-        else
-        {
-            i16 initStackIndex = o->block.initStackIndex;
-
-            if (o->block.depth > 0 and initStackIndex != o->stackIndex)
-            {
-                if (o->stackIndex == initStackIndex + 1)
-                {
-_					(ResolveBlockResults (o, & o->block, true));
-                }
-                else _throw ("unexpected block stack offset");
-            }
-        }
-    }
-    else
-_       (UnwindBlockStack (o));
-
-    _catch: return result;
 }
 
 

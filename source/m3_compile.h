@@ -66,7 +66,6 @@ typedef struct M3CompilationScope
     i32                             depth;
     i16                             initStackIndex;
 	u16								topSlot;
-	u16								polymorphicIndex;
     IM3FuncType                     type;
     m3opcode_t                      opcode;
     bool                            isPolymorphic;
