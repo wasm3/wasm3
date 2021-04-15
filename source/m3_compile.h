@@ -64,6 +64,7 @@ typedef struct M3CompilationScope
     IM3BranchPatch                  patches;
     i32                             depth;
     i16                             initStackIndex;
+	u16								topSlot;
     IM3FuncType                     type;
     m3opcode_t                      opcode;
     bool                            isPolymorphic;
