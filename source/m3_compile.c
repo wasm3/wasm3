@@ -818,9 +818,7 @@ _   (EmitOp (o, op));
 }
 
 
-// This doesn't modify the stack because all usages immediately pop.
-// More importlantly, ResolveBlockResults requires not mucking with the stack state.
-M3Result  CopyStackTopToRegister  (IM3Compilation o)  NoPushPop
+M3Result  CopyStackTopToRegister  (IM3Compilation o, bool i_updateStack)
 {
     M3Result result = m3Err_none;
 
@@ -828,6 +826,7 @@ M3Result  CopyStackTopToRegister  (IM3Compilation o)  NoPushPop
     {
         u8 type = GetStackTopType (o);
 
+		if (i_updateStack)
 _       (PreserveRegisterIfOccupied (o, type));
 
         IM3Operation op = c_setRegisterOps [type];
@@ -835,8 +834,11 @@ _       (PreserveRegisterIfOccupied (o, type));
 _       (EmitOp (o, op));
 		EmitSlotOffset (o, GetStackTopSlotNumber (o));
 
-//_       (EmitSlotNumOfStackTopAndPop (o));
-//_       (PushRegister (o, type));
+		if (i_updateStack)
+		{
+_			(PopType (o, type));
+_			(PushRegister (o, type));
+		}
     }
 
     _catch: return result;
@@ -928,7 +930,7 @@ M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i
 
 
 
-M3Result  MoveStackTopToSlot  (IM3Compilation o, u16 i_slot, bool i_noPushPop)
+M3Result  MoveStackTopToSlot  (IM3Compilation o, u16 i_slot, bool i_doPushPop)
 {
 	M3Result result = m3Err_none;
 
@@ -938,7 +940,7 @@ M3Result  MoveStackTopToSlot  (IM3Compilation o, u16 i_slot, bool i_noPushPop)
 
 _		(CopyStackTopToSlot (o, i_slot));
 		
-		if (not i_noPushPop)
+		if (i_doPushPop)
 		{
 _			(Pop (o));
 			MarkSlotAllocated (o, i_slot);
@@ -952,7 +954,7 @@ _			(Push (o, type, i_slot));
 
 
 // TODO: MV loop: all results in slots
-M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_noPushPop)
+M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_doPushPop)
 {
 	M3Result result = m3Err_none;
 
@@ -961,9 +963,9 @@ M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBl
 	if (stackType != c_m3Type_none)
 	{
 		if (IsFpType (stackType))
-_			(CopyStackTopToRegister (o))
+_			(CopyStackTopToRegister (o, i_doPushPop))
 		else
-_			(MoveStackTopToSlot (o, i_targetBlock->topSlot, i_noPushPop))
+_			(MoveStackTopToSlot (o, i_targetBlock->topSlot, i_doPushPop))
 	}
 	
 	_catch:	return result;
@@ -1085,12 +1087,16 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
             if (not o->block.isPolymorphic and type != GetStackTopType (o))
                 _throw (m3Err_typeMismatch);
 
+			ResolveBlockResults (o, & o->block, true);
+			
             // if there are branches to the function end, then their values are in a register
             // if the block happens to have its top in a register too, then we can patch the branch
             // to here. Otherwise, an ReturnStackTop is appended to the end of the function (at B) and
             // branches patched there.
 //            if (IsStackTopInRegister (o))
                 PatchBranches (o);
+
+			
 
 _           (ReturnStackTop (o));
         }
@@ -1250,7 +1256,7 @@ _   (GetBlockScope (o, & scope, depth));
         {
 			op = op_ContinueLoopIf;
 			// move the condition to a register
-_           (CopyStackTopToRegister (o));
+_           (CopyStackTopToRegister (o, false));
 _           (Pop (o));
         }
         else // is c_waOp_branch
@@ -1280,7 +1286,7 @@ _       (EmitOp (o, op));
         }
 
 	if (not IsStackPolymorphic (o))
-_ 		(ResolveBlockResults (o, scope, true));
+_ 		(ResolveBlockResults (o, scope, false));
 
 _       (EmitOp (o, op_Branch));
 
@@ -1351,7 +1357,7 @@ _           (EmitOp (o, op_ContinueLoop));
         else
         {
 			// TODO: this could be fused with equivalent targets
-_ 			(ResolveBlockResults (o, scope, true));
+_ 			(ResolveBlockResults (o, scope, false));
 
 _           (EmitOp (o, op_Branch));
 
@@ -1539,7 +1545,7 @@ M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
     i8 reserved;
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
-_   (CopyStackTopToRegister (o));
+_   (CopyStackTopToRegister (o, false));
 _   (Pop (o));
 
 _   (EmitOp     (o, op_MemGrow));
@@ -2305,7 +2311,7 @@ _           (UnwindBlockStack (o));
             {
                 if (o->stackIndex == initStackIndex + 1)
                 {
-_					(ResolveBlockResults (o, & o->block, false));
+_					(ResolveBlockResults (o, & o->block, true));
                 }
                 else _throw ("unexpected block stack offset");
             }
