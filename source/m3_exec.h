@@ -552,7 +552,7 @@ d_m3Op  (CallIndirect)
             if (LIKELY(type == function->funcType))
             {
                 if (UNLIKELY(not function->compiled))
-                    r = Compile_Function (function);
+                    r = CompileFunction (function);
 
                 if (LIKELY(not r))
                 {
@@ -700,7 +700,7 @@ d_m3Op  (Compile)
     m3ret_t result = m3Err_none;
 
     if (UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
-        result = Compile_Function (function);
+        result = CompileFunction (function);
 
     if (not result)
     {

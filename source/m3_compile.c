@@ -99,8 +99,6 @@ bool  IsRegisterSlotAlias        (i16 i_slot)    { return (i_slot >= d_m3Reg0Slo
 bool  IsFpRegisterSlotAlias      (i16 i_slot)    { return (i_slot == d_m3Fp0SlotAlias);  }
 bool  IsIntRegisterSlotAlias     (i16 i_slot)    { return (i_slot == d_m3Reg0SlotAlias); }
 
-i16     GetNumBlockValues   (IM3Compilation o)      { return o->stackIndex - o->block.initStackIndex; }
-
 u16 GetTypeNumSlots (u8 i_type)
 {
 #   if d_m3Use32BitSlots
@@ -2148,15 +2146,12 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.extend16_s",      0,  i_64,   d_unaryOpList (i64, Extend16_s),       NULL    ),          // 0xc3
     M3OP( "i64.extend32_s",      0,  i_64,   d_unaryOpList (i64, Extend32_s),       NULL    ),          // 0xc4
 
-# ifdef DEBUG // for codepage logging:
+# ifdef DEBUG // for codepage logging. the order doesn't matter:
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
 
-    d_m3DebugOp (Entry),        // 0xc5
-    d_m3DebugOp (Compile),      d_m3DebugOp (End),
-
-    d_m3DebugOp (Unsupported),
-    d_m3DebugOp (CallRawFunction),
+	d_m3DebugOp (Compile),   		d_m3DebugOp (Entry),			d_m3DebugOp (End),
+    d_m3DebugOp (Unsupported),		d_m3DebugOp (CallRawFunction),
 
     d_m3DebugOp (GetGlobal_s32),    d_m3DebugOp (GetGlobal_s64),    d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
 
@@ -2220,7 +2215,7 @@ const M3OpInfo*  GetOpInfo  (m3opcode_t opcode)
     return NULL;
 }
 
-M3Result  Compile_BlockStatements  (IM3Compilation o)
+M3Result  CompileBlockStatements  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
     bool ended = false;
@@ -2325,7 +2320,7 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
     block->depth            ++;
     block->opcode           = i_blockOpcode;
 
-_   (Compile_BlockStatements (o));
+_   (CompileBlockStatements (o));
 
 _   (ValidateBlockEnd (o));
 
@@ -2406,7 +2401,7 @@ void  SetupCompilation (IM3Compilation o)
 }
 
 
-M3Result  Compile_Function  (IM3Function io_function)
+M3Result  CompileFunction  (IM3Function io_function)
 {
     IM3FuncType funcType = io_function->funcType;
 
@@ -2475,7 +2470,7 @@ _   (Compile_ReserveConstants (o));
 _   (EmitOp (o, op_Entry));
     EmitPointer (o, io_function);
 
-_   (Compile_BlockStatements (o));
+_   (CompileBlockStatements (o));
 
     io_function->compiled = pc;
 

@@ -535,7 +535,7 @@ M3Result  m3_RunStart  (IM3Module io_module)
 
         if (not function->compiled)
         {
-_           (Compile_Function (function));
+_           (CompileFunction (function));
         }
 
         IM3FuncType ftype = function->funcType;
@@ -691,7 +691,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
     {
         if (not function->compiled)
         {
-_           (Compile_Function (function))
+_           (CompileFunction (function))
         }
 
         // Check if start function needs to be called

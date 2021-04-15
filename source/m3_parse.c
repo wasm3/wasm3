@@ -290,7 +290,7 @@ M3Result  Parse_InitExpr  (M3Module * io_module, bytes_t * io_bytes, cbytes_t i_
 #endif
     compilation = (M3Compilation){ NULL, io_module, * io_bytes, i_end };
 
-    result = Compile_BlockStatements (& compilation);
+    result = CompileBlockStatements (& compilation);
 
     * io_bytes = compilation.wasm;
 
