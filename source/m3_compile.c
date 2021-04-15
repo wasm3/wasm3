@@ -352,6 +352,15 @@ u16  GetMaxUsedSlotPlusOne  (IM3Compilation o)
 
         o->slotMaxAllocatedIndexPlusOne--;
     }
+    
+#   ifdef DEBUG
+        u16 maxSlot = o->slotMaxAllocatedIndexPlusOne;
+        while (maxSlot < d_m3MaxFunctionSlots)
+        {
+            d_m3Assert (o->m3Slots [maxSlot] == 0);
+            maxSlot++;
+        }
+#   endif
 
     return o->slotMaxAllocatedIndexPlusOne;
 }
