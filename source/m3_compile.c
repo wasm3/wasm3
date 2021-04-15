@@ -24,8 +24,6 @@
 #define none    c_m3Type_none
 #define any     (u8)-1
 
-#define NoPushPop
-
 #if d_m3HasFloat
 #define FPOP(x) x
 #else
@@ -97,9 +95,9 @@ bool  IsStackPolymorphic  (IM3Compilation o)
     return o->block.isPolymorphic;
 }
 
-bool  IsRegisterLocation        (i16 i_location)    { return (i_location >= d_m3Reg0SlotAlias); }
-bool  IsFpRegisterLocation      (i16 i_location)    { return (i_location == d_m3Fp0SlotAlias);  }
-bool  IsIntRegisterLocation     (i16 i_location)    { return (i_location == d_m3Reg0SlotAlias); }
+bool  IsRegisterSlotAlias        (i16 i_slot)    { return (i_slot >= d_m3Reg0SlotAlias); }
+bool  IsFpRegisterSlotAlias      (i16 i_slot)    { return (i_slot == d_m3Fp0SlotAlias);  }
+bool  IsIntRegisterSlotAlias     (i16 i_slot)    { return (i_slot == d_m3Reg0SlotAlias); }
 
 i16     GetNumBlockValues   (IM3Compilation o)      { return o->stackIndex - o->block.initStackIndex; }
 
@@ -166,22 +164,9 @@ bool  IsStackTopIndexInRegister  (IM3Compilation o, i16 i_stackTopOffset)
 }
 
 
-bool  IsStackTopInRegister  (IM3Compilation o)
-{
-    return IsStackTopIndexInRegister (o, GetStackTopIndex (o));
-}
-
-
-bool  IsStackTopMinus1InRegister  (IM3Compilation o)
-{
-    return IsStackTopIndexInRegister (o, GetStackTopIndex (o) - 1);
-}
-
-
-bool  IsStackTopMinus2InRegister  (IM3Compilation o)
-{
-    return IsStackTopIndexInRegister (o, GetStackTopIndex (o) - 2);
-}
+bool  IsStackTopInRegister  		(IM3Compilation o)	{ return IsStackTopIndexInRegister (o, GetStackTopIndex (o)); 		}
+bool  IsStackTopMinus1InRegister  	(IM3Compilation o)	{ return IsStackTopIndexInRegister (o, GetStackTopIndex (o) - 1);	}
+bool  IsStackTopMinus2InRegister	(IM3Compilation o)	{ return IsStackTopIndexInRegister (o, GetStackTopIndex (o) - 2);	}
 
 
 bool  IsStackTopInSlot  (IM3Compilation o)
@@ -242,7 +227,7 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 searchOffset = numSlots - 1;
 
     if (d_m3Use32BitSlots)
-        AlignSlotNumberToType (& i_startSlot, i_type);
+        AlignSlotToType (& i_startSlot, i_type);
 
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;
@@ -422,7 +407,7 @@ _               (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 //----------------------------------------------------------------------------------------------------------------------
 
 
-M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_location)
+M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_slot)
 {
     M3Result result = m3Err_none;
 
@@ -436,12 +421,12 @@ M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_location)
 
     if (stackIndex < d_m3MaxFunctionStackHeight)
     {
-        o->wasmStack        [stackIndex] = i_location;
+        o->wasmStack        [stackIndex] = i_slot;
         o->typeStack        [stackIndex] = i_type;
 
-        if (IsRegisterLocation (i_location))
+        if (IsRegisterSlotAlias (i_slot))
         {
-            u32 regSelect = IsFpRegisterLocation (i_location);
+            u32 regSelect = IsFpRegisterSlotAlias (i_slot);
             AllocateRegister (o, regSelect, stackIndex);
         }
         else
@@ -449,7 +434,7 @@ M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_location)
             if (o->function)
             {
                 // op_Entry uses this value to track and detect stack overflow
-                o->function->maxStackSlots = M3_MAX (o->function->maxStackSlots, i_location + 1);
+                o->function->maxStackSlots = M3_MAX (o->function->maxStackSlots, i_slot + 1);
             }
         }
 
@@ -480,9 +465,9 @@ M3Result  Pop  (IM3Compilation o)
         u16 slot = o->wasmStack [o->stackIndex];
         u8 type = o->typeStack [o->stackIndex];
 
-        if (IsRegisterLocation (slot))
+        if (IsRegisterSlotAlias (slot))
         {
-            u32 regSelect = IsFpRegisterLocation (slot);
+            u32 regSelect = IsFpRegisterSlotAlias (slot);
             DeallocateRegister (o, regSelect);
         }
         else if (slot >= o->slotFirstDynamicIndex)
@@ -581,7 +566,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
     if (numRequiredSlots == 2 and numUsedConstSlots >= 2)
     {
         u16 firstConstSlot = o->slotFirstConstIndex;
-        AlignSlotNumberToType (& firstConstSlot, c_m3Type_i64);
+        AlignSlotToType (& firstConstSlot, c_m3Type_i64);
 
         for (u16 slot = firstConstSlot; slot < o->slotMaxConstIndex - 1; slot += 2)
         {
@@ -747,7 +732,7 @@ bool  PatchBranches  (IM3Compilation o)
 //-------------------------------------------------------------------------------------------------------------------------
 
 
-M3Result CopyStackIndexToSlot (IM3Compilation o, u16 i_stackIndex, u16 i_destSlot)	NoPushPop
+M3Result CopyStackIndexToSlot (IM3Compilation o, u16 i_stackIndex, u16 i_destSlot)	// NoPushPop
 {
 	M3Result result = m3Err_none;
 
@@ -775,7 +760,7 @@ _   (EmitOp (o, op));
 }
 
 
-M3Result CopyStackTopToSlot (IM3Compilation o, u16 i_destSlot)  NoPushPop
+M3Result CopyStackTopToSlot (IM3Compilation o, u16 i_destSlot)  // NoPushPop
 {
     M3Result result;
 
@@ -846,7 +831,7 @@ _			(PushRegister (o, type));
 
 
 
-M3Result  ReturnStackTop  (IM3Compilation o)  NoPushPop
+M3Result  ReturnStackTop  (IM3Compilation o)  // NoPushPop
 {
     M3Result result = m3Err_none;
 
@@ -1382,7 +1367,7 @@ _           (AcquirePatch (o, & patch));
 }
 
 
-void  AlignSlotNumberToType  (u16 * io_slot, u8 i_type)
+void  AlignSlotToType  (u16 * io_slot, u8 i_type)
 {
     // align 64-bit words to even slots
     u16 numSlots = GetTypeNumSlots (i_type);
@@ -1406,7 +1391,7 @@ _try {
     topSlot = M3_MAX (1, topSlot);
 
     // stack frame is 64-bit aligned
-    AlignSlotNumberToType (& topSlot, c_m3Type_i64);
+    AlignSlotToType (& topSlot, c_m3Type_i64);
 
     * o_stackOffset = topSlot;
 
@@ -2401,7 +2386,7 @@ M3Result  Compile_ReserveConstants  (IM3Compilation o)
     // ReserveConstants function and thus always produce inline constants.
     u16 cappedConstantSlots = M3_MIN (numConstantSlots, d_m3MaxConstantTableSize);
 
-    AlignSlotNumberToType (& cappedConstantSlots, c_m3Type_i64);                                         m3log (compile, "estimated constant slots: %d; reserved: %d", numConstantSlots, (u32) cappedConstantSlots)
+    AlignSlotToType (& cappedConstantSlots, c_m3Type_i64);                                         m3log (compile, "estimated constant slots: %d; reserved: %d", numConstantSlots, (u32) cappedConstantSlots)
 
     o->slotFirstDynamicIndex = o->slotFirstConstIndex + cappedConstantSlots;
 
