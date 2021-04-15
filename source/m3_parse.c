@@ -168,7 +168,7 @@ _               (ReadLEB_u32 (& typeIndex, & i_bytes, i_end))
 _               (Module_AddFunction (io_module, typeIndex, & import))
                 import = clearImport;
 
-                io_module->numImports++;
+                io_module->numFuncImports++;
             }
             break;
 
@@ -324,7 +324,7 @@ M3Result  ParseSection_Code  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_
     u32 numFunctions;
 _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                               m3log (parse, "** Code [%d]", numFunctions);
 
-    if (numFunctions != io_module->numFunctions - io_module->numImports)
+    if (numFunctions != io_module->numFunctions - io_module->numFuncImports)
     {
         _throw ("mismatched function count in code section");
     }
@@ -361,7 +361,7 @@ _                   (NormalizeType (& normalType, wasmType));
                     numLocals += varCount;                                                      m3log (parse, "      %2d locals; type: '%s'", varCount, c_waTypes [normalType]);
                 }
 
-                IM3Function func = Module_GetFunction (io_module, f + io_module->numImports);
+                IM3Function func = Module_GetFunction (io_module, f + io_module->numFuncImports);
 
                 func->module = io_module;
                 func->wasm = start;
@@ -411,6 +411,8 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
                                                                                        i, segment->memoryRegion, segment->initExprSize, segment->size);
         i_bytes += segment->size;
+
+		_throwif("data segment underflow", i_bytes > i_end);
     }
 
     _catch:

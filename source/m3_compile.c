@@ -2399,6 +2399,8 @@ void  SetupCompilation (IM3Compilation o)
 
 M3Result  Compile_Function  (IM3Function io_function)
 {
+    if (!io_function->wasm) return "function body is missing";
+
     IM3FuncType funcType = io_function->funcType;
 
     M3Result result = m3Err_none;                                   m3log (compile, "compiling: '%s'; wasm-size: %d; numArgs: %d; return: %s",
