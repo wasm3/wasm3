@@ -176,9 +176,9 @@ for cmd in commands:
         stats.timeout += 1
         fail("Timeout")
         continue
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
         stats.crashed += 1
-        fail("Crashed")
+        fail(f"Exited with error code {e.returncode}")
         continue
 
     if "expect_sha1" in cmd:
