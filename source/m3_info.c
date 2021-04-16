@@ -16,8 +16,8 @@
 // a central function you can be breakpoint:
 void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
 {
-	printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
-	return;
+    printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
+    return;
 }
 
 
@@ -122,9 +122,9 @@ size_t  SPrintArg  (char * o_string, size_t i_stringBufferSize, m3stack_t i_sp, 
 
 cstr_t  SPrintValue  (void * i_value, u8 i_type)
 {
-	static char string [100];
-	SPrintArg (string, 100, (m3stack_t) i_value, i_type);
-	return string;
+    static char string [100];
+    SPrintArg (string, 100, (m3stack_t) i_value, i_type);
+    return string;
 }
 
 

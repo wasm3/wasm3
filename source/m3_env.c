@@ -291,8 +291,8 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
             m3ret_t r = Call (m3code, stack, NULL, d_m3OpDefaultArgs);
 
             if (r == 0)
-			{																				m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
-				if (SizeOfType (i_type) == sizeof (u32))
+            {                                                                               m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
+                if (SizeOfType (i_type) == sizeof (u32))
                 {
                     * (u32 *) o_expressed = * ((u32 *) stack);
                 }

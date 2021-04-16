@@ -412,7 +412,7 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
                                                                                        i, segment->memoryRegion, segment->initExprSize, segment->size);
         i_bytes += segment->size;
 
-		_throwif("data segment underflow", i_bytes > i_end);
+        _throwif("data segment underflow", i_bytes > i_end);
     }
 
     _catch:
