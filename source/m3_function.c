@@ -26,13 +26,13 @@ bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
     return false;
 }
 
-u16  GetFuncTypeNumReturns  (const IM3FuncType i_funcType)
+u16  GetFuncTypeNumResults  (const IM3FuncType i_funcType)
 {
     return i_funcType ? i_funcType->numRets : 0;
 }
 
 
-u8  GetFuncTypeReturnType  (const IM3FuncType i_funcType, u16 i_index)
+u8  GetFuncTypeResultType  (const IM3FuncType i_funcType, u16 i_index)
 {
     u8 type = c_m3Type_unknown;
 
@@ -196,7 +196,7 @@ u16  GetFunctionNumReturns  (IM3Function i_function)
 
 u8  GetFunctionReturnType  (const IM3Function i_function, u16 i_index)
 {
-    return i_function ? GetFuncTypeReturnType (i_function->funcType, i_index) : c_m3Type_unknown;
+    return i_function ? GetFuncTypeResultType (i_function->funcType, i_index) : c_m3Type_unknown;
 }
 
 

@@ -187,8 +187,6 @@ int  main  (int argc, const char  * argv [])
 
         IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
 
-        i32 functionIndex = -1;
-        
 #		if 0
 		(module
 			(func (result i32 f32)

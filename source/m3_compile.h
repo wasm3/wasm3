@@ -95,7 +95,7 @@ typedef struct
 #endif
 
     u16                 stackFirstDynamicIndex;
-    u16                 stackIndex;                 // current stack index
+    u16                 stackIndex;                 // current stack top
 
     u16                 slotFirstConstIndex;
     u16                 slotMaxConstIndex;          // as const's are encountered during compilation this tracks their location in the "real" stack
@@ -178,9 +178,9 @@ u16         GetTypeNumSlots             (u8 i_type);
 void        AlignSlotToType             (u16 * io_slotIndex, u8 i_type);
 
 bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
-bool        IsRegisterSlotAlias         (i16 i_slot);
-bool        IsFpRegisterSlotAlias       (i16 i_slot);
-bool        IsIntRegisterSlotAlias      (i16 i_slot);
+bool        IsRegisterSlotAlias         (u16 i_slot);
+bool        IsFpRegisterSlotAlias       (u16 i_slot);
+bool        IsIntRegisterSlotAlias      (u16 i_slot);
 
 bool        IsStackPolymorphic          (IM3Compilation o);
 
