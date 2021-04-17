@@ -59,10 +59,6 @@ typedef struct M3Function
     u32                     hits;
 #endif
 
-# if d_m3EnableStrace >= 2 || d_m3LogCompile
-    u32                     index;
-# endif
-
     u16                     maxStackSlots;
 
     u16                     numRetSlots;

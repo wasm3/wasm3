@@ -561,6 +561,10 @@ _   (InitElements (io_module));
     // Start func might use imported functions, which are not liked here yet,
     // so it will be called before a function call is attempted (in m3_FindFunction)
 
+#ifdef DEBUG
+    Module_GenerateNames(io_module);
+#endif
+
     io_module->next = io_runtime->modules;
     io_runtime->modules = io_module;
     return result; // ok

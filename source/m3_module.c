@@ -81,15 +81,12 @@ _try {
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
-#if d_m3EnableStrace >= 2 || d_m3LogCompile
-    func->index = index;
-#endif
 
     if (i_importInfo and func->numNames == 0)
     {
         func->import = * i_importInfo;
-        func->numNames = 1;
         func->names[0] = i_importInfo->fieldUtf8;
+        func->numNames = 1;
     }
 
     m3log (module, "   added function: %3d; sig: %d", index, i_typeIndex);
@@ -98,6 +95,32 @@ _try {
     return result;
 }
 
+void  Module_GenerateNames  (IM3Module i_module)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function func = & i_module->functions [i];
+
+        if (func->numNames == 0)
+        {
+            char* buff = m3_AllocArray(char, 16);
+            snprintf(buff, 16, "$func%d", i);
+            func->names[0] = buff;
+            func->numNames = 1;
+        }
+    }
+    for (u32 i = 0; i < i_module->numGlobals; ++i)
+    {
+        IM3Global global = & i_module->globals [i];
+
+        if (global->name == NULL)
+        {
+            char* buff = m3_AllocArray(char, 16);
+            snprintf(buff, 16, "$global%d", i);
+            global->name = buff;
+        }
+    }
+}
 
 IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 {

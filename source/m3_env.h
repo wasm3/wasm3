@@ -123,6 +123,8 @@ M3Result                    Module_AddGlobal            (IM3Module io_module, IM
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
 
+void                        Module_GenerateNames        (IM3Module i_module);
+
 void                        FreeImportInfo              (M3ImportInfo * i_info);
 
 //---------------------------------------------------------------------------------------------------------------------------------

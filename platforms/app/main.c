@@ -92,6 +92,14 @@ M3Result link_all  (IM3Module module)
     return res;
 }
 
+const char* moduleNameFromFn(const char* fn)
+{
+	const char* off = strrchr(fn, '/');
+	if (off) return off+1;
+	off = strrchr(fn, '\\');
+	if (off) return off+1;
+	return fn;
+}
 
 M3Result repl_load  (const char* fn)
 {
@@ -135,6 +143,8 @@ M3Result repl_load  (const char* fn)
 
     result = m3_LoadModule (runtime, module);
     if (result) goto on_error;
+
+    m3_SetModuleName(module, moduleNameFromFn(fn));
 
     result = link_all (module);
     if (result) goto on_error;
