@@ -231,8 +231,7 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 numSlots = GetTypeNumSlots (i_type);
     u16 searchOffset = numSlots - 1;
 
-//    if (d_m3Use32BitSlots)
-        AlignSlotToType (& i_startSlot, i_type);
+	AlignSlotToType (& i_startSlot, i_type);
 
     // search for 1 or 2 consecutive slots in the execution stack
     u16 i = i_startSlot;
@@ -270,6 +269,8 @@ M3Result  AllocateConstantSlots  (IM3Compilation o, u16 * o_slot, u8 i_type)
 }
 
 
+// TOQUE: this usage count system could be eliminated. real world code doesn't frequently trigger it.  just copy to multiple
+// unique slots.
 M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot)
 {                                                                                       d_m3Assert (i_slot < d_m3MaxFunctionSlots);
     M3Result result = m3Err_none;                                                       d_m3Assert (o->m3Slots [i_slot] > 0);
@@ -688,10 +689,10 @@ bool  IsStackPolymorphic  (IM3Compilation o)
 }
 
 
-void  SetStackPolymorphic  (IM3Compilation o)
+M3Result  SetStackPolymorphic  (IM3Compilation o)
 {
-    UnwindBlockStack (o);                                       m3log (compile, "stack set polymorphic");
-    o->block.isPolymorphic = true;
+	o->block.isPolymorphic = true;								m3log (compile, "stack set polymorphic");
+	return UnwindBlockStack (o);
 }
 
 
@@ -1018,7 +1019,7 @@ _           (CopyStackTopToRegister (o, false));
 		u16 tempSlot = GetMaxUsedSlotPlusOne (o);
 		AlignSlotToType (& tempSlot, c_m3Type_i64);
 		
-		MoveStackSlotsR (o, i_targetBlock->topSlot, stackTop - (numResults - 1), endIndex, c_slotUnused, tempSlot);
+_		(MoveStackSlotsR (o, i_targetBlock->topSlot, stackTop - (numResults - 1), endIndex, c_slotUnused, tempSlot));
 		
 		if (d_m3LogWasmStack) dump_type_stack (o);
 	}
@@ -1150,7 +1151,7 @@ _	(ReturnValues (o, NULL));
 
 _   (EmitOp (o, op_Return));
 
-	SetStackPolymorphic (o);
+_	(SetStackPolymorphic (o));
 
     _catch: return result;
 }
@@ -1435,8 +1436,8 @@ _       (EmitOp (o, op));
             
             IM3Operation op = IsStackTopInRegister (o) ? op_BranchIfPrologue_r : op_BranchIfPrologue_s;
 
-    _       (EmitOp (o, op));
-            EmitSlotNumOfStackTopAndPop (o); // condition
+_			(EmitOp (o, op));
+_           (EmitSlotNumOfStackTopAndPop (o)); // condition
             
             // this is continuation point, if the branch isn't taken
             jumpTo = (pc_t *) ReservePointer (o);
@@ -1457,7 +1458,8 @@ _				(EmitPatchingBranch (o, scope));
         {
             * jumpTo = GetPC (o);
         }
-        else SetStackPolymorphic (o);
+        else
+_			(SetStackPolymorphic (o));
     }
 
     _catch: return result;
@@ -1524,7 +1526,7 @@ _           (EmitPatchingBranch (o, scope));
         EmitPointer (o, startPC);
     }
 
-    SetStackPolymorphic (o);
+_  	(SetStackPolymorphic (o));
 
     }
 
@@ -1942,7 +1944,7 @@ M3Result  Compile_Unreachable  (IM3Compilation o, m3opcode_t i_opcode)
 _   (AddTrapRecord (o));
 
 _   (EmitOp (o, op_Unreachable));
-    SetStackPolymorphic (o);
+_   (SetStackPolymorphic (o));
 
     _catch:
     return result;
