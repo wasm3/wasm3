@@ -117,7 +117,7 @@ void *  m3_Malloc  (size_t i_size)
 void  m3_FreeImpl  (void * io_ptr)
 {
 //    if (io_ptr) printf("== free %p\n", io_ptr);
-    free ((void*)io_ptr);
+    free (io_ptr);
 }
 
 void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)

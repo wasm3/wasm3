@@ -385,9 +385,9 @@ void  dump_type_stack  (IM3Compilation o)
 
     for (u32 r = 0; r < 2; ++r)
         d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
-    
+
     u16 maxSlot = GetMaxUsedSlotPlusOne (o);
-    
+
     if (maxSlot > o->slotFirstDynamicIndex)
     {
         d_m3Log (stack, "                      -");
@@ -408,7 +408,7 @@ void  dump_type_stack  (IM3Compilation o)
         {
             printf ("%3d|", o->m3Slots [i]);
         }
-        
+
         printf ("\n");
     }
     d_m3Log(stack, "\n");

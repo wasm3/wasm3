@@ -37,9 +37,6 @@ void  m3_FreeModule  (IM3Module i_module)
         for (u32 i = 0; i < i_module->numGlobals; ++i)
         {
             m3_Free (i_module->globals[i].name);
-        }
-        for (u32 i = 0; i < i_module->numGlobals; ++i)
-        {
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free (i_module->globals);
@@ -119,9 +116,14 @@ IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 const char*  m3_GetModuleName  (IM3Module i_module)
 {
     if (!i_module || !i_module->name)
-        return "<unknown>";
+        return ".unnamed";
 
     return i_module->name;
+}
+
+void  m3_SetModuleName  (IM3Module i_module, const char* name)
+{
+    if (i_module) i_module->name = name;
 }
 
 IM3Runtime  m3_GetModuleRuntime  (IM3Module i_module)
