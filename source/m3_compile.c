@@ -110,10 +110,6 @@ i16  GetStackTopIndex  (IM3Compilation o)
     return o->stackIndex - 1;
 }
 
-//u16  GetStackHeight (IM3Compilation o)
-//{
-//    return o->stackIndex - o->stackFirstDynamicIndex;
-//}
 
 u16  GetNumBlockValuesOnStack  (IM3Compilation o)
 {
@@ -156,15 +152,6 @@ bool IsStackIndexInRegister  (IM3Compilation o, i32 i_stackIndex)
     else
         return false;
 }
-
-
-//bool  IsStackTopIndexInRegister  (IM3Compilation o, i16 i_stackTopOffset)
-//{                                                                           d_m3Assert (i_stackTopOffset >= 0 or IsStackPolymorphic (o));
-//    if (i_stackTopOffset >= 0)
-//        return IsStackIndexInRegister (o, (u16) i_stackTopOffset);
-//    else
-//        return false;
-//}
 
 
 bool  IsStackTopInRegister          (IM3Compilation o)  { return IsStackIndexInRegister (o, (i32) GetStackTopIndex (o));       }
@@ -321,25 +308,19 @@ bool  IsRegisterTypeAllocated  (IM3Compilation o, u8 i_type)
 }
 
 void  AllocateRegister  (IM3Compilation o, u32 i_register, u16 i_stackIndex)
-{
-    d_m3Assert (not IsRegisterAllocated (o, i_register));
-
+{																						d_m3Assert (not IsRegisterAllocated (o, i_register));
     o->regStackIndexPlusOne [i_register] = i_stackIndex + 1;
 }
 
 
 void  DeallocateRegister  (IM3Compilation o, u32 i_register)
-{
-    d_m3Assert (IsRegisterAllocated (o, i_register));
-
+{																						d_m3Assert (IsRegisterAllocated (o, i_register));
     o->regStackIndexPlusOne [i_register] = c_m3RegisterUnallocated;
 }
 
 
 u16  GetRegisterStackIndex  (IM3Compilation o, u32 i_register)
-{
-    d_m3Assert (IsRegisterAllocated (o, i_register));
-
+{																						d_m3Assert (IsRegisterAllocated (o, i_register));
     return o->regStackIndexPlusOne [i_register] - 1;
 }
 
@@ -833,27 +814,6 @@ _           (PushRegister (o, type));
 }
 
 
-
-//M3Result  ReturnStackTop  (IM3Compilation o)  // NoPushPop
-//{
-//    M3Result result = m3Err_none;
-//
-//    i16 top = GetStackTopIndex (o);
-//
-//    if (top >= 0)
-//    {
-//        const u16 returnSlot = 0;
-//
-//        if (o->wasmStack [top] != returnSlot)
-//_           (CopyStackTopToSlot (o, returnSlot))
-//    }
-//    else if (not IsStackPolymorphic (o))
-//        _throw (m3Err_functionStackUnderrun);
-//
-//_catch:
-//    return result;
-//}
-
 M3Result  ReturnStackTop  (IM3Compilation o, u16 i_returnSlot, u8 i_type)
 {
 	M3Result result = m3Err_none;
@@ -871,7 +831,6 @@ _		(PopType (o, i_type))
 _catch:
 	return result;
 }
-
 
 
 // if local is unreferenced, o_preservedSlotNumber will be equal to localIndex on return
@@ -1063,16 +1022,6 @@ _           (CopyStackTopToRegister (o, false));
 		
 		if (d_m3LogWasmStack) dump_type_stack (o);
 	}
-	
-//    if (numResults)
-//    {
-//		u8 type = GetFuncTypeResultType (i_targetBlock->type, 0);
-//
-//        if (IsFpType (type))
-//_           (CopyStackTopToRegister (o, i_doPushPop))
-//        else
-//_           (MoveStackTopToSlot (o, slot, i_doPushPop))
-//    }
     
     _catch: return result;
 }
@@ -1759,6 +1708,7 @@ static
 M3Result  ReadBlockType  (IM3Compilation o, IM3FuncType * o_blockType)
 {
     M3Result result;
+	
     i64 type;
 _   (ReadLebSigned (& type, 33, & o->wasm, o->wasmEnd));
 
@@ -1999,7 +1949,7 @@ _   (EmitOp (o, op_Unreachable));
 }
 
 
-// TODO OPTZ: currently all stack slot indices take up a full word, but
+// OPTZ: currently all stack slot indices take up a full word, but
 // dual stack source operands could be packed together
 M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -2580,12 +2530,12 @@ void  SetupCompilation (IM3Compilation o)
 
 M3Result  CompileFunction  (IM3Function io_function)
 {
+	M3Result result = m3Err_none;
+	
     if (!io_function->wasm) return "function body is missing";
 
-    IM3FuncType funcType = io_function->funcType;
-
-    M3Result result = m3Err_none;                                   m3log (compile, "compiling: [%d] %s %s; wasm-size: %d",
-                                                                           io_function->index, m3_GetFunctionName (io_function), SPrintFuncTypeSignature (io_function->funcType), (u32) (io_function->wasmEnd - io_function->wasm));
+    IM3FuncType funcType = io_function->funcType;					m3log (compile, "compiling: [%d] %s %s; wasm-size: %d",
+																		io_function->index, m3_GetFunctionName (io_function), SPrintFuncTypeSignature (funcType), (u32) (io_function->wasmEnd - io_function->wasm));
     IM3Runtime runtime = io_function->module->runtime;
 
     IM3Compilation o = & runtime->compilation;                      d_m3Assert (d_m3MaxFunctionSlots >= d_m3MaxFunctionStackHeight * (d_m3Use32BitSlots + 1))  // need twice as many slots in 32-bit mode

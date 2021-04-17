@@ -69,6 +69,9 @@ cstr_t  GetTypeName  (u8 i_m3Type)
 }
 
 
+// TODO: these 'static char string []' aren't thread-friendly.  though these functions are
+// mainly for simple diagnostics during development, it'd be nice if they were fully reliable.
+
 cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
 {
     static char string [256];
