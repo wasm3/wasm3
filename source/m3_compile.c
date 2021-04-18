@@ -680,7 +680,6 @@ _       (Pop (o));
     if (popCount)
 	{
         m3log (compile, "unwound stack top: %d", popCount);
-		dump_type_stack (o);
 	}
 
     _catch: return result;
@@ -983,9 +982,7 @@ _					(CopyStackIndexToSlot (o, checkIndex, i_tempSlot));
 				
 				++checkIndex;
 			}
-
-			printf ("******** copying stack: %d to slot: %d\n", i_stackIndex, i_targetSlot);
-_			(CopyStackIndexToSlot (o, i_stackIndex, i_targetSlot));
+_			(CopyStackIndexToSlot (o, i_stackIndex, i_targetSlot));												m3log (compile, " copying stack: %d to slot: %d\n", i_stackIndex, i_targetSlot);
 		}
 		
 _		(MoveStackSlotsR (o, i_targetSlot + numSlots, i_stackIndex + 1, i_endStackIndex, i_fillInSlot, i_tempSlot, i_commitToStack));
@@ -1004,14 +1001,14 @@ _		(MoveStackSlotsR (o, i_targetSlot + numSlots, i_stackIndex + 1, i_endStackInd
 
 
 // TODO: MV loop: all results in slots
-M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_commitToStack)
+M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_isBranch)
 {
     M3Result result = m3Err_none;                                   if (d_m3LogWasmStack) dump_type_stack (o);
 
 	u16 numResults = GetFuncTypeNumResults (i_targetBlock->type);
 	u16 blockHeight = GetNumBlockValuesOnStack (o);
 	
-	_throwif (m3Err_typeCountMismatch, IsStackPolymorphic (o) ? (blockHeight < numResults) : (blockHeight != numResults));
+	_throwif (m3Err_typeCountMismatch, i_isBranch ? (blockHeight < numResults) : (blockHeight != numResults));
 
 	if (numResults)
 	{
@@ -1020,14 +1017,14 @@ M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBl
 	
 		if (IsFpType (GetStackTopType (o)))
 		{
-_           (CopyStackTopToRegister (o, i_commitToStack));
+_           (CopyStackTopToRegister (o, false));
 			--endIndex;
 		}
 		
 		u16 tempSlot = GetMaxUsedSlotPlusOne (o);
 		AlignSlotToType (& tempSlot, c_m3Type_i64);
 		
-_		(MoveStackSlotsR (o, i_targetBlock->topSlot, stackTop - (numResults - 1), endIndex, c_slotUnused, tempSlot, i_commitToStack));
+_		(MoveStackSlotsR (o, i_targetBlock->topSlot, stackTop - (numResults - 1), endIndex, c_slotUnused, tempSlot, false));
 		
 //		if (d_m3LogWasmStack) dump_type_stack (o);
 	}
@@ -1061,10 +1058,10 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock)
 {
 	M3Result result = m3Err_none;                                 				if (d_m3LogWasmStack) dump_type_stack (o);
 
-	IM3CompilationScope body;
-_	(GetBlockScope (o, & body, o->block.depth));
+//	IM3CompilationScope body;
+//_	(GetBlockScope (o, & body, o->block.depth));
 	
-	i_targetBlock = body;
+//	i_targetBlock = body;
 	
 	u16 numReturns = GetFuncTypeNumResults (i_targetBlock->type);
 	u16 blockHeight = GetNumBlockValuesOnStack (o);
@@ -1072,12 +1069,11 @@ _	(GetBlockScope (o, & body, o->block.depth));
 	_throwif (m3Err_typeCountMismatch, IsStackPolymorphic (o) ? (blockHeight < numReturns) : (blockHeight != numReturns));
 
 	// return slots like args are 64-bit aligned
-	u16 slotsPerResult = GetTypeNumSlots (c_m3Type_i64);
-	u16 returnSlotIndex = numReturns * slotsPerResult;
+	u16 returnSlotIndex = numReturns * c_ioSlotCount;
 
 	for (u16 i = 0; i < numReturns; ++i)
 	{
-		returnSlotIndex -= slotsPerResult;
+		returnSlotIndex -= c_ioSlotCount;
 		u8 returnType = GetFuncTypeResultType (i_targetBlock->type, numReturns - 1 - i);
 _		(ReturnStackTop (o, returnSlotIndex, returnType));
 	}
@@ -1161,14 +1157,17 @@ _   ((* compiler) (o, i_opcode));
 
     _catch: return result;
 }
-
 #endif
+
 
 M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-_	(ReturnValues (o, NULL));
+	IM3CompilationScope functionScope;
+_	(GetBlockScope (o, & functionScope, o->block.depth));
+		
+_	(ReturnValues (o, functionScope));
 	
 //    if (GetFunctionNumReturns (o->function))
 //    {
@@ -1190,23 +1189,17 @@ M3Result  ValidateBlockEnd  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
 
+	u16 numResults = GetFuncTypeNumResults (o->block.type);
+	u16 blockHeight = GetNumBlockValuesOnStack (o);
 	
-//    u8 stackType = GetSingleRetType (o->block.type);
-//
-    u16 numResults = GetFuncTypeNumResults (o->block.type);
-//
+//	_throwif (m3Err_typeCountMismatch, IsStackPolymorphic (o) ? (blockHeight < numResults) : (blockHeight != numResults));
+
+	
 //    if (numResults)
 //    {
         if (IsStackPolymorphic (o))
         {
-            /*
-             according to reference implementations: the type stack should still be validated
-             here, which is totally senseless in practice.
-            
-             the spec behavior which I had to deduce from the ocaml and wat2wasm tools is:
-             a polymorphic stack can pop any type requested, but if values have been pushed
-             since going polymorphic, those type are not polymorphic.
-            */
+			/*
             
 _           (UnwindBlockStack (o));
 
@@ -1223,6 +1216,7 @@ _	               (PushRegister (o, type))
 					
 _               (PushAllocatedSlot (o, type));
 			}
+			 */
         }
         else
         {
@@ -1232,9 +1226,6 @@ _               (PushAllocatedSlot (o, type));
 //_			(ResolveBlockResults (o, & o->block, true));
 
         }
-//    }
-//    else
-//_       (UnwindBlockStack (o));
 
     _catch: return result;
 }
@@ -1248,14 +1239,20 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     if (o->block.depth == 0)
     {
         ValidateBlockEnd (o);
-		
-		if (o->function)
-		{
-_			(ReturnValues (o, & o->block));
-		}
-		
-_ 		(EmitOp (o, op_Return));
 
+#if 1
+		if (not IsStackPolymorphic (o))
+		{
+			if (o->function)
+			{
+_				(ReturnValues (o, & o->block));
+			}
+			
+_	 		(EmitOp (o, op_Return));
+		}
+
+#endif
+		
 #if 0
 		if (o->function)
 		{
@@ -1478,9 +1475,12 @@ _           (EmitSlotNumOfStackTopAndPop (o)); // condition
 _				(ReturnValues (o, scope))
 			else
 			{
-_          		(ResolveBlockResults (o, scope, false));
+				if (not IsStackPolymorphic (o))
+				{
+_	          		(ResolveBlockResults (o, scope, true));
         
-_				(EmitPatchingBranch (o, scope));
+_					(EmitPatchingBranch (o, scope));
+				}
 			}
 		
         if (jumpTo)
@@ -1544,7 +1544,7 @@ _           (EmitOp (o, op_ContinueLoop));
         else
         {
             // TODO: this could be fused with equivalent targets
-_           (ResolveBlockResults (o, scope, false));
+_           (ResolveBlockResults (o, scope, true));
 
 _           (EmitPatchingBranch (o, scope));
         }
@@ -2490,10 +2490,14 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
 
 _   (CompileBlockStatements (o));
 
+_   (ValidateBlockEnd (o));
+
 	if (o->function)	// skip for expressions
 	{
-_   	(ValidateBlockEnd (o));
-_		(ResolveBlockResults (o, & o->block, false));
+		if (IsStackPolymorphic (o))
+_			(UnwindBlockStack (o))
+		else
+_			(ResolveBlockResults (o, & o->block, false));
 		
 		if (o->previousOpcode == c_waOp_else)
 _			(UnwindBlockStack (o))

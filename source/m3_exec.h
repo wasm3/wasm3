@@ -801,7 +801,7 @@ d_m3Op  (Loop)
         d_m3TracePrint("iter {");
         trace_rt->callDepth++;
 #endif
-        r = nextOpImpl ();                     // printf ("loop: %p\n", r);
+        r = nextOpImpl ();
 
 #if d_m3EnableStrace >= 3
         trace_rt->callDepth--;

@@ -48,7 +48,7 @@ M3Result  BridgeToNewPageIfNecessary  (IM3Compilation o)
 
 M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 {
-    M3Result result = m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic(o));
+    M3Result result = m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic (o));
 
     // it's OK for page to be null; when compile-walking the bytecode without emitting
     if (o->page)
