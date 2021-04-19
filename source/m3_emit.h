@@ -18,7 +18,7 @@ M3Result    EnsureCodePageNumLines      (IM3Compilation o, u32 i_numLines);
 M3Result    EmitOp                      (IM3Compilation o, IM3Operation i_operation);
 void        EmitConstant32              (IM3Compilation o, const u32 i_immediate);
 void        EmitSlotOffset              (IM3Compilation o, const i32 i_offset);
-void        EmitPointer                 (IM3Compilation o, const void * const i_pointer);
+pc_t        EmitPointer                 (IM3Compilation o, const void * const i_pointer);
 void *      ReservePointer              (IM3Compilation o);
 
 pc_t        GetPC                       (IM3Compilation o);

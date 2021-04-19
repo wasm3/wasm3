@@ -106,7 +106,7 @@ u16 GetTypeNumSlots (u8 i_type)
 
 
 i16  GetStackTopIndex  (IM3Compilation o)
-{                                                           d_m3Assert (o->stackIndex > 0 or IsStackPolymorphic (o));
+{                                                           d_m3Assert (o->stackIndex > o->slotFirstDynamicIndex or IsStackPolymorphic (o));
     return o->stackIndex - 1;
 }
 
@@ -704,22 +704,19 @@ M3Result  SetStackPolymorphic  (IM3Compilation o)
 }
 
 
-bool  PatchBranches  (IM3Compilation o)
+void  PatchBranches  (IM3Compilation o)
 {
     pc_t pc = GetPC (o);
 
-    IM3BranchPatch patches = o->block.patches;
+    pc_t patches = o->block.patches;
     o->block.patches = NULL;
-    
-    bool didPatch = patches;
     
     while (patches)
     {                                                           m3log (compile, "patching location: %p to pc: %p", patches, pc);
-        patches->location = pc;
-        patches = patches->next;
+		pc_t next = * (pc_t *) patches;
+		* (pc_t *) patches = pc;
+        patches = next;
     }
-
-    return didPatch;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------
@@ -923,7 +920,7 @@ _           (PushAllocatedSlot (o, type))
 
 // TODO:  update o->function->maxStackSlots 
 M3Result  MoveStackSlotsR  (IM3Compilation o, u16 i_targetSlot, u16 i_stackIndex, u16 i_endStackIndex,
-							u16 i_fillInSlot, u16 i_tempSlot, bool i_commitToStack)
+							u16 i_fillInSlot, u16 i_tempSlot)
 {
 	M3Result result = m3Err_none;
 	
@@ -990,14 +987,11 @@ _					(CopyStackIndexToSlot (o, checkIndex, i_tempSlot));
 _			(CopyStackIndexToSlot (o, i_stackIndex, i_targetSlot));												m3log (compile, " copying stack: %d to slot: %d\n", i_stackIndex, i_targetSlot);
 		}
 		
-_		(MoveStackSlotsR (o, i_targetSlot + numSlots, i_stackIndex + 1, i_endStackIndex, i_fillInSlot, i_tempSlot, i_commitToStack));
+_		(MoveStackSlotsR (o, i_targetSlot + numSlots, i_stackIndex + 1, i_endStackIndex, i_fillInSlot, i_tempSlot));
 		
-		if (not i_commitToStack)
-		{
-			// restore the stack state
-			o->wasmStack [i_stackIndex] = srcSlot;
-			o->wasmStack [preserveIndex] = collisionSlot;
-		}
+		// restore the stack state
+		o->wasmStack [i_stackIndex] = srcSlot;
+		o->wasmStack [preserveIndex] = collisionSlot;
 	}
 		
 	_catch:
@@ -1029,7 +1023,7 @@ _           (CopyStackTopToRegister (o, false));
 		u16 tempSlot = GetMaxUsedSlotPlusOne (o);
 		AlignSlotToType (& tempSlot, c_m3Type_i64);
 		
-_		(MoveStackSlotsR (o, i_targetBlock->topSlot, stackTop - (numResults - 1), endIndex, c_slotUnused, tempSlot, false));
+_		(MoveStackSlotsR (o, i_targetBlock->topSlot, stackTop - (numResults - 1), endIndex, c_slotUnused, tempSlot));
 		
 //		if (d_m3LogWasmStack) dump_type_stack (o);
 	}
@@ -1069,29 +1063,30 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock, bo
 	if (not IsStackPolymorphic (o))
 		_throwif (m3Err_typeCountMismatch, i_isBranch ? (blockHeight < numReturns) : (blockHeight != numReturns));
 
-	// return slots like args are 64-bit aligned
-	u16 returnSlot = numReturns * c_ioSlotCount;
-	u16 stackIndex = GetStackTopIndex (o);
-
-	for (u16 i = 0; i < numReturns; ++i)
+	if (numReturns)
 	{
-		u8 returnType = GetFuncTypeResultType (i_targetBlock->type, numReturns - 1 - i);
-		
-		u8 stackType = GetStackTopTypeAtOffset (o, i);
-		
-		if (IsStackPolymorphic (o) and stackType == c_m3Type_none)
-			stackType = returnType;
-		
-		_throwif (m3Err_typeMismatch, returnType != stackType);
+		// return slots like args are 64-bit aligned
+		u16 returnSlot = numReturns * c_ioSlotCount;
+		u16 stackIndex = GetStackTopIndex (o);
 
-		returnSlot -= c_ioSlotCount;
-		
-_   	(CopyStackIndexToSlot (o, stackIndex--, returnSlot));
+		for (u16 i = 0; i < numReturns; ++i)
+		{
+			u8 returnType = GetFuncTypeResultType (i_targetBlock->type, numReturns - 1 - i);
+			
+			u8 stackType = GetStackTopTypeAtOffset (o, i);
+			
+			if (IsStackPolymorphic (o) and stackType == c_m3Type_none)
+				stackType = returnType;
+			
+			_throwif (m3Err_typeMismatch, returnType != stackType);
 
-		if (not i_isBranch)
-			Pop (o);
+			returnSlot -= c_ioSlotCount;
+_	   		(CopyStackIndexToSlot (o, stackIndex--, returnSlot));
+
+			if (not i_isBranch)
+_				(Pop (o));
+		}
 	}
-	
 	_catch: return result;
 }
 
@@ -1381,20 +1376,14 @@ _           ((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlo
 
 M3Result  EmitPatchingBranch  (IM3Compilation o, IM3CompilationScope i_scope)
 {
-    M3Result result ;
+    M3Result result = m3Err_none;
 
-_try {
-    
 _   (EmitOp (o, op_Branch));
     
-    // IM3BranchPatch is two word struct; reserve two words
-    IM3BranchPatch patch = (IM3BranchPatch) ReservePointer (o);                     m3log (compile, "branch patch required at: %p", patch);
-                                            ReservePointer (o);
-    patch->next = i_scope->patches;
-    i_scope->patches = patch;
+    pc_t patch = EmitPointer (o, i_scope->patches);                     m3log (compile, "branch patch required at: %p", patch);
+	i_scope->patches = patch;
 
-}   _catch:
-    return result;
+	_catch: return result;
 }
 
 
@@ -1850,8 +1839,6 @@ _   (PreserveArgsAndLocals (o));
 
 _   (EmitOp (o, op));
 _   (EmitSlotNumOfStackTopAndPop (o));
-
-    i32 stackIndex = o->stackIndex;
 
     pc_t * pc = (pc_t *) ReservePointer (o);
 

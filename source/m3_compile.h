@@ -43,26 +43,12 @@ enum
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
-// since the end location of a block is unknown when a branch is compiled, writing
-// the actual address must deferred. A linked-list of patch locations is kept in
-// M3CompilationScope. When the block compilation exits, it patches these addresses.
-// this data structure is embedded into the code pages themselves
-typedef struct M3BranchPatch
-{
-    pc_t                            location;
-    struct M3BranchPatch *          next;
-}
-M3BranchPatch;
-
-typedef M3BranchPatch *             IM3BranchPatch;
-
-
 typedef struct M3CompilationScope
 {
     struct M3CompilationScope *     outer;
 
     pc_t                            pc;                 // used by ContinueLoop's
-    IM3BranchPatch                  patches;
+	pc_t							patches;
     i32                             depth;
     i16                             initStackIndex;
     u16                             topSlot;
