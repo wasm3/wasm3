@@ -94,7 +94,8 @@ typedef struct
     u32                 numOpcodes;
 #endif
 
-    u16                 stackFirstDynamicIndex;
+    u16                 stackFirstDynamicIndex;		// args and locals are pushed to the stack so that their slot locations can be tracked. the wasm model itself doesn't
+													// treat these values as being on the stack, so stackFirstDynamicIndex marks the start of the real Wasm stack
     u16                 stackIndex;                 // current stack top
 
     u16                 slotFirstConstIndex;

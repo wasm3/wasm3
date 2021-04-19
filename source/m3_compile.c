@@ -829,7 +829,7 @@ M3Result  ReturnStackTop  (IM3Compilation o, u16 i_returnSlot, u8 i_type)
 
 	i16 top = GetStackTopIndex (o);
 
-	if (top >= o->stackFirstDynamicIndex)
+	if (top > o->stackFirstDynamicIndex)
 	{
 _  		(CopyStackTopToSlot (o, i_returnSlot))
 _		(PopType (o, i_type))
@@ -1071,6 +1071,7 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock, bo
 
 	// return slots like args are 64-bit aligned
 	u16 returnSlot = numReturns * c_ioSlotCount;
+	u16 stackIndex = GetStackTopIndex (o);
 
 	for (u16 i = 0; i < numReturns; ++i)
 	{
@@ -1085,24 +1086,10 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock, bo
 
 		returnSlot -= c_ioSlotCount;
 		
-_   	(CopyStackIndexToSlot (o, i, returnSlot));
+_   	(CopyStackIndexToSlot (o, stackIndex--, returnSlot));
 
 		if (not i_isBranch)
 			Pop (o);
-//
-//#if 0
-//	  i16 top = GetStackTopIndex (o);
-//
-//	  if (top >= o->stackFirstDynamicIndex)
-//	  {
-//  _  		(CopyStackTopToSlot (o, i_returnSlot))
-//  _		(PopType (o, i_type))
-//	  }
-//	  else // if (not IsStackPolymorphic (o))
-//		  _throw (m3Err_functionStackUnderrun);
-//#endif
-//
-//_		(ReturnStackTop (o, returnSlotIndex, returnType));
 	}
 	
 	_catch: return result;
