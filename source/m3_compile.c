@@ -106,7 +106,7 @@ u16 GetTypeNumSlots (u8 i_type)
 
 
 i16  GetStackTopIndex  (IM3Compilation o)
-{                                                           d_m3Assert (o->stackIndex > o->slotFirstDynamicIndex or IsStackPolymorphic (o));
+{                                                           d_m3Assert (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic (o));
     return o->stackIndex - 1;
 }
 
@@ -1073,7 +1073,7 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock, bo
 		{
 			u8 returnType = GetFuncTypeResultType (i_targetBlock->type, numReturns - 1 - i);
 			
-			u8 stackType = GetStackTopTypeAtOffset (o, i);
+			u8 stackType = GetStackTypeFromBottom (o, stackIndex);
 			
 			if (IsStackPolymorphic (o) and stackType == c_m3Type_none)
 				stackType = returnType;
@@ -2626,8 +2626,8 @@ _   (ReserveConstants (o));
     o->function->maxStackSlots = o->slotMaxAllocatedIndexPlusOne = o->slotFirstDynamicIndex;
 
     o->block.topSlot = o->slotFirstDynamicIndex;
-    o->block.initStackIndex = o->stackFirstDynamicIndex = o->stackIndex;                           m3log (compile, "start stack index: %d;  top slot num: %d", (u32) o->stackFirstDynamicIndex, (u32) o->block.topSlot);
-    
+    o->block.initStackIndex = o->stackFirstDynamicIndex = o->stackIndex;                           m3log (compile, "start stack index: %d;  top slot num: %d",
+																										  (u32) o->stackFirstDynamicIndex, (u32) o->block.topSlot);
 _   (EmitOp (o, op_Entry));
     EmitPointer (o, io_function);
 
@@ -2638,8 +2638,8 @@ _   (CompileBlockStatements (o));
 
     io_function->compiled = pc;
 
-    u16 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;       m3log (compile, "unique constant slots: %d; unused slots: %d", numConstantSlots, o->slotFirstDynamicIndex - o->slotMaxConstIndex);
-
+    u16 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;       					m3log (compile, "unique constant slots: %d; unused slots: %d",
+																										   numConstantSlots, o->slotFirstDynamicIndex - o->slotMaxConstIndex);
     io_function->numConstantBytes = numConstantSlots * sizeof (m3slot_t);
 
     if (numConstantSlots)
