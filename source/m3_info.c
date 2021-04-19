@@ -360,6 +360,9 @@ void  dump_type_stack  (IM3Compilation o)
 //  printf ("%d", o->stackIndex -)
     for (u32 i = o->stackFirstDynamicIndex; i < o->stackIndex; ++i)
     {
+		if (i == o->block.initStackIndex)
+			printf (" |");
+		
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
 
         u16 slot = o->wasmStack [i];
