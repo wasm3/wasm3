@@ -484,6 +484,11 @@ M3Result  Pop  (IM3Compilation o)
         {
             DeallocateSlot (o, slot, type);
         }
+		
+#		ifdef DEBUG
+			o->wasmStack [o->stackIndex] = c_slotUnused;
+			o->typeStack [o->stackIndex] = 0;
+#		endif
     }
     else if (not IsStackPolymorphic (o))
         result = m3Err_functionStackUnderrun;
@@ -1054,28 +1059,50 @@ _	(UnwindBlockStack (o));
 }
 
 
-M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock)
+M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_isBranch)
 {
 	M3Result result = m3Err_none;                                 				if (d_m3LogWasmStack) dump_type_stack (o);
 
-//	IM3CompilationScope body;
-//_	(GetBlockScope (o, & body, o->block.depth));
-	
-//	i_targetBlock = body;
-	
 	u16 numReturns = GetFuncTypeNumResults (i_targetBlock->type);
 	u16 blockHeight = GetNumBlockValuesOnStack (o);
 
-	_throwif (m3Err_typeCountMismatch, IsStackPolymorphic (o) ? (blockHeight < numReturns) : (blockHeight != numReturns));
+	if (not IsStackPolymorphic (o))
+		_throwif (m3Err_typeCountMismatch, i_isBranch ? (blockHeight < numReturns) : (blockHeight != numReturns));
 
 	// return slots like args are 64-bit aligned
-	u16 returnSlotIndex = numReturns * c_ioSlotCount;
+	u16 returnSlot = numReturns * c_ioSlotCount;
 
 	for (u16 i = 0; i < numReturns; ++i)
 	{
-		returnSlotIndex -= c_ioSlotCount;
 		u8 returnType = GetFuncTypeResultType (i_targetBlock->type, numReturns - 1 - i);
-_		(ReturnStackTop (o, returnSlotIndex, returnType));
+		
+		u8 stackType = GetStackTopTypeAtOffset (o, i);
+		
+		if (IsStackPolymorphic (o) and stackType == c_m3Type_none)
+			stackType = returnType;
+		
+		_throwif (m3Err_typeMismatch, returnType != stackType);
+
+		returnSlot -= c_ioSlotCount;
+		
+_   	(CopyStackIndexToSlot (o, i, returnSlot));
+
+		if (not i_isBranch)
+			Pop (o);
+//
+//#if 0
+//	  i16 top = GetStackTopIndex (o);
+//
+//	  if (top >= o->stackFirstDynamicIndex)
+//	  {
+//  _  		(CopyStackTopToSlot (o, i_returnSlot))
+//  _		(PopType (o, i_type))
+//	  }
+//	  else // if (not IsStackPolymorphic (o))
+//		  _throw (m3Err_functionStackUnderrun);
+//#endif
+//
+//_		(ReturnStackTop (o, returnSlotIndex, returnType));
 	}
 	
 	_catch: return result;
@@ -1162,24 +1189,19 @@ _   ((* compiler) (o, i_opcode));
 
 M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
-	IM3CompilationScope functionScope;
-_	(GetBlockScope (o, & functionScope, o->block.depth));
+	if (not IsStackPolymorphic (o))
+	{
+		IM3CompilationScope functionScope;
+_		(GetBlockScope (o, & functionScope, o->block.depth));
 		
-_	(ReturnValues (o, functionScope));
+_		(ReturnValues (o, functionScope, true));
 	
-//    if (GetFunctionNumReturns (o->function))
-//    {
-//        u8 type = GetFunctionReturnType (o->function, 0);
-//
-////_       (ReturnStackTop (o));
-//_       (PopType (o, type));
-//    }
-
-_   (EmitOp (o, op_Return));
-
-_	(SetStackPolymorphic (o));
+_   	(EmitOp (o, op_Return));
+	
+_		(SetStackPolymorphic (o));
+	}
 
     _catch: return result;
 }
@@ -1240,46 +1262,15 @@ M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
     {
         ValidateBlockEnd (o);
 
-#if 1
-		if (not IsStackPolymorphic (o))
+//		if (not IsStackPolymorphic (o))
 		{
 			if (o->function)
 			{
-_				(ReturnValues (o, & o->block));
+_				(ReturnValues (o, & o->block, false));
 			}
 			
 _	 		(EmitOp (o, op_Return));
 		}
-
-#endif
-		
-#if 0
-		if (o->function)
-		{
-			u8 type = GetSingleRetType (o->block.type);
-
-			u32 numReturns = GetFuncTypeNumResults (o->block.type);
-
-			if (numReturns)
-			{
-				if (not o->block.isPolymorphic and type != GetStackTopType (o))
-					_throw (m3Err_typeMismatch);
-
-				if (not o->block.isPolymorphic)
-					ResolveBlockResults (o, & o->block, true);
-
-				// TODO: get rid of this. just have branches return
-				PatchBranches (o);
-
-_				(ReturnValues (o, & o->block));
-			}
-			else PatchBranches (o);  // for no return type, branch to op_End
-		}
-		
-_       (EmitOp (o, op_Return));
-
-_       (UnwindBlockStack (o));
-#endif
     }
 
     _catch: return result;
@@ -1469,19 +1460,20 @@ _           (EmitSlotNumOfStackTopAndPop (o)); // condition
             jumpTo = (pc_t *) ReservePointer (o);
         }
 		
-//		if (not IsStackPolymorphic (o))
-		
+		if (not IsStackPolymorphic (o))
+		{
 			if (scope->depth == 0)
-_				(ReturnValues (o, scope))
+			{
+_				(ReturnValues (o, scope, true));
+_				(EmitOp (o, op_Return));
+			}
 			else
 			{
-				if (not IsStackPolymorphic (o))
-				{
-_	          		(ResolveBlockResults (o, scope, true));
+_	          	(ResolveBlockResults (o, scope, true));
         
-_					(EmitPatchingBranch (o, scope));
-				}
+_				(EmitPatchingBranch (o, scope));
 			}
+		}
 		
         if (jumpTo)
         {
@@ -1536,6 +1528,8 @@ _       (AcquireCompilationCodePage (o, & continueOpPage));
         IM3CodePage savedPage = o->page;
         o->page = continueOpPage;
 
+		// TODO: validate stack with target
+		
         if (scope->opcode == c_waOp_loop)
         {
 _           (EmitOp (o, op_ContinueLoop));
@@ -1544,9 +1538,20 @@ _           (EmitOp (o, op_ContinueLoop));
         else
         {
             // TODO: this could be fused with equivalent targets
-_           (ResolveBlockResults (o, scope, true));
+			if (not IsStackPolymorphic (o))
+			{
+				if (scope->depth == 0)
+				{
+_					(ReturnValues (o, scope, true));
+_					(EmitOp (o, op_Return));
+				}
+				else
+				{
+_	          		(ResolveBlockResults (o, scope, true));
 
-_           (EmitPatchingBranch (o, scope));
+_    		       	(EmitPatchingBranch (o, scope));
+				}
+			}
         }
         
         ReleaseCompilationCodePage (o);     // FIX: continueOpPage can get lost if thrown
@@ -2538,7 +2543,7 @@ _           (PushAllocatedSlot (o, localType));
 }
 
 
-M3Result  Compile_ReserveConstants  (IM3Compilation o)
+M3Result  ReserveConstants  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
 
@@ -2641,7 +2646,7 @@ _   (CompileLocals (o));
     o->slotFirstConstIndex = o->slotMaxConstIndex = maxSlot;
 
     // ReserveConstants initializes o->firstDynamicSlotNumber
-_   (Compile_ReserveConstants (o));
+_   (ReserveConstants (o));
 
     // start tracking the max stack used (Push() also updates this value) so that op_Entry can precisely detect stack overflow
     o->function->maxStackSlots = o->slotMaxAllocatedIndexPlusOne = o->slotFirstDynamicIndex;
