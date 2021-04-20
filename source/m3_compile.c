@@ -939,7 +939,7 @@ M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i
 //}
 
 
-M3Result  MoveStackSlotsR  (IM3Compilation o, u16 i_targetSlotStackIndex, u16 i_stackIndex, u16 i_endStackIndex, u16 i_tempSlot, bool i_modifyStack)
+M3Result  MoveStackSlotsR  (IM3Compilation o, u16 i_targetSlotStackIndex, u16 i_stackIndex, u16 i_endStackIndex, u16 i_tempSlot)
 {
 	M3Result result = m3Err_none;
 	
@@ -985,17 +985,17 @@ _					(CopyStackIndexToSlot (o, i_tempSlot, checkIndex));
 				
 				++checkIndex;
 			}
-_			(CopyStackIndexToSlot (o, targetSlot, i_stackIndex));												m3log (compile, " copying stack: %d to slot: %d", i_stackIndex, targetSlot);
+			
+_			(CopyStackIndexToSlot (o, targetSlot, i_stackIndex));												m3log (compile, " copying slot: %d to slot: %d", srcSlot, targetSlot);
+			o->wasmStack [i_stackIndex] = targetSlot;
+
 		}
 		
-_		(MoveStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStackIndex, i_tempSlot, i_modifyStack));
+_		(MoveStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStackIndex, i_tempSlot));
 		
-		if (not i_modifyStack)
-		{
-			// restore the stack state
-			o->wasmStack [i_stackIndex] = srcSlot;
-			o->wasmStack [preserveIndex] = collisionSlot;
-		}
+		// restore the stack state
+		o->wasmStack [i_stackIndex] = srcSlot;
+		o->wasmStack [preserveIndex] = collisionSlot;
 	}
 		
 	_catch:
@@ -1003,7 +1003,7 @@ _		(MoveStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStack
 }
 
 
-M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_isBranch, bool i_modifyStack)
+M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBlock, bool i_isBranch)
 {
     M3Result result = m3Err_none;                                   if (d_m3LogWasmStack) dump_type_stack (o);
 
@@ -1029,8 +1029,7 @@ M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBl
 
 	if (numValues)
 	{
-		u16 stackTop = GetStackTopIndex (o);
-		u16 endIndex = stackTop + 1;
+		u16 endIndex = GetStackTopIndex (o) + 1;
 	
 		if (not isLoop and IsFpType (GetStackTopType (o)))
 		{
@@ -1038,10 +1037,11 @@ _           (CopyStackTopToRegister (o, false));
 			--endIndex;
 		}
 		
-		u16 tempSlot = GetMaxUsedSlotPlusOne (o);
+		// TODO: tempslot affects maxStackSlots, so can grow unnecess each time.
+		u16 tempSlot = o->function->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
 		AlignSlotToType (& tempSlot, c_m3Type_i64);
 		
-_		(MoveStackSlotsR (o, slotRecords, stackTop - (numValues - 1), endIndex, tempSlot, i_modifyStack));
+_		(MoveStackSlotsR (o, slotRecords, endIndex - numValues, endIndex, tempSlot));
 		
 		if (d_m3LogWasmStack) dump_type_stack (o);
 	}
@@ -1078,8 +1078,11 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_functionBlock, 
 			
 			_throwif (m3Err_typeMismatch, returnType != stackType);
 
-			returnSlot -= c_ioSlotCount;
-_	   		(CopyStackIndexToSlot (o, returnSlot, stackIndex--));
+			if (not IsStackPolymorphic (o))
+			{
+				returnSlot -= c_ioSlotCount;
+_	 	  		(CopyStackIndexToSlot (o, returnSlot, stackIndex--));
+			}
 
 			if (not i_isBranch)
 _				(Pop (o));
@@ -1399,29 +1402,47 @@ _   (GetBlockScope (o, & scope, depth));
     // branch target is a loop (continue)
     if (scope->opcode == c_waOp_loop)
     {
-        IM3Operation op;
+//        IM3Operation op;
 
         if (i_opcode == c_waOp_branchIf)
         {
-            op = op_ContinueLoopIf;
-            // move the condition to a register
-_           (CopyStackTopToRegister (o, false));
-_           (PopType (o, c_m3Type_i32));
-			
-_			(PreserveRegisterIfOccupied (o, c_m3Type_f64));
+			if (GetFuncTypeNumParams (scope->type))
+			{
+				IM3Operation op = IsStackTopInRegister (o) ? op_BranchIfPrologue_r : op_BranchIfPrologue_s;
+
+_				(EmitOp (o, op));
+_				(EmitSlotNumOfStackTopAndPop (o));
+				
+				pc_t * jumpTo = (pc_t *) ReservePointer (o);
+				
+_				(ResolveBlockResults (o, scope, /* isBranch: */ true));
+
+				_       (EmitOp (o, op_ContinueLoop));
+						EmitPointer (o, scope->pc);
+
+				* jumpTo = GetPC (o);
+			}
+			else
+			{
+				// move the condition to a register
+_	          	(CopyStackTopToRegister (o, false));
+_           	(PopType (o, c_m3Type_i32));
+				
+		_       (EmitOp (o, op_ContinueLoopIf));
+				EmitPointer (o, scope->pc);
+
+			}
 			
 			dump_type_stack(o);
 			
-_			(ResolveBlockResults (o, scope, /* isBranch: */ true, /* modifyStack: */ true));
         }
         else // is c_waOp_branch
         {
-            op = op_ContinueLoop;
-            o->block.isPolymorphic = true;
+	_       (EmitOp (o, op_ContinueLoop));
+			EmitPointer (o, scope->pc);
+			o->block.isPolymorphic = true;
         }
-
-_       (EmitOp (o, op));
-        EmitPointer (o, scope->pc);
+		
     }
     else // forward branch
     {
@@ -1450,7 +1471,7 @@ _				(EmitOp (o, op_Return));
 			}
 			else
 			{
-_	          	(ResolveBlockResults (o, scope, true, false));
+_	          	(ResolveBlockResults (o, scope, true));
         
 _				(EmitPatchingBranch (o, scope));
 			}
@@ -1513,6 +1534,8 @@ _       (AcquireCompilationCodePage (o, & continueOpPage));
 		
         if (scope->opcode == c_waOp_loop)
         {
+_	       	(ResolveBlockResults (o, scope, true));
+
 _           (EmitOp (o, op_ContinueLoop));
             EmitPointer (o, scope->pc);
         }
@@ -1528,7 +1551,7 @@ _					(EmitOp (o, op_Return));
 				}
 				else
 				{
-_	          		(ResolveBlockResults (o, scope, true, false));
+_	          		(ResolveBlockResults (o, scope, true));
 
 _    		       	(EmitPatchingBranch (o, scope));
 				}
@@ -2599,7 +2622,7 @@ _   (ValidateBlockEnd (o));
 		if (IsStackPolymorphic (o))
 _			(UnwindBlockStack (o))
 		else
-_			(ResolveBlockResults (o, & o->block, false, false));
+_			(ResolveBlockResults (o, & o->block, false));
 		
 		if (o->previousOpcode == c_waOp_else)
 		{
