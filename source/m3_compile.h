@@ -50,8 +50,9 @@ typedef struct M3CompilationScope
     pc_t                            pc;                 // used by ContinueLoop's
 	pc_t							patches;
     i32                             depth;
-    i16                             initStackIndex;
-    u16                             topSlot;
+	u16								initStackIndex;
+    i16                             blockStackIndex;
+//    u16                             topSlot;
     IM3FuncType                     type;
     m3opcode_t                      opcode;
     bool                            isPolymorphic;

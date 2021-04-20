@@ -360,7 +360,7 @@ void  dump_type_stack  (IM3Compilation o)
 //  printf ("%d", o->stackIndex -)
     for (u32 i = o->stackFirstDynamicIndex; i < o->stackIndex; ++i)
     {
-		if (i == o->block.initStackIndex)
+		if (i == o->block.blockStackIndex)
 			printf (" |");
 		
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
