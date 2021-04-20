@@ -939,7 +939,6 @@ M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i
 //}
 
 
-// TODO:  i_tempSlot TouchSlot ()
 M3Result  MoveStackSlotsR  (IM3Compilation o, u16 i_targetSlotStackIndex, u16 i_stackIndex, u16 i_endStackIndex, u16 i_tempSlot, bool i_modifyStack)
 {
 	M3Result result = m3Err_none;
@@ -975,6 +974,7 @@ M3Result  MoveStackSlotsR  (IM3Compilation o, u16 i_targetSlotStackIndex, u16 i_
 _					(CopyStackIndexToSlot (o, i_tempSlot, checkIndex));
 					o->wasmStack [checkIndex] = i_tempSlot;
 					i_tempSlot += GetTypeNumSlots (c_m3Type_i64);
+					TouchSlot (o, i_tempSlot - 1);
 
 					// restore this on the way back down
 					preserveIndex = checkIndex;
@@ -1884,49 +1884,14 @@ _   (EmitSlotNumOfStackTopAndPop (o));
     IM3FuncType blockType;
 _   (ReadBlockType (o, & blockType));
 	
-	u16 numParams = GetFuncTypeNumParams (blockType);
-	
-	u16 stackTop = o->stackIndex;
-	u16 stackIndex = stackTop - numParams;
-	
-	// make a copy of params for the potential else block
-	for (u16 i = 0; i < numParams; ++i)
-	{
-		u8 type = GetStackTypeFromBottom (o, stackIndex + i);
-		u8 slot = GetSlotForStackIndex (o, stackIndex + i);
-
-		// duplicate params on stack; slot allocation is untouched
-		// but, Push allocates registers, so de-alloc first
-		if (IsRegisterSlotAlias (slot))
-			DeallocateRegister (o, IsFpRegisterSlotAlias (slot));
-	
-		Push (o, type, slot);
-	}
-
 _   (CompileBlock (o, blockType, i_opcode));
 
     if (o->previousOpcode == c_waOp_else)
     {
-		for (u16 i = 0; i < numParams; ++i)
-		{
-			u8 slot = GetSlotForStackIndex (o, stackIndex);
-			u8 type = GetStackTypeFromBottom (o, stackIndex);
-
-			if (IsRegisterSlotAlias (slot))
-				AllocateRegister (o, IsFpRegisterSlotAlias (slot), stackIndex);
-			else if (slot >= o->slotFirstDynamicIndex)
-				MarkSlotsAllocatedByType (o, slot, type);
-			
-			++stackIndex;
-		}
-
 _       (CompileElseBlock (o, pc, blockType));
     }
     else
 	{
-		// unroll the unrequired param copies
-		o->stackIndex = stackTop;
-		
 		* pc = GetPC (o);
 	}
 
@@ -2528,7 +2493,7 @@ _catch:
 }
 
 
-M3Result  PushBlockResults  (IM3Compilation o)
+M3Result  PushBlockResults  (IM3Compilation o, bool i_pushFpReg)
 {
 	M3Result result = m3Err_none;
 	
@@ -2539,9 +2504,12 @@ M3Result  PushBlockResults  (IM3Compilation o)
 		u8 type = GetFuncTypeResultType (o->block.type, i);
 		
 		if (i == numResults - 1 and IsFpType (type))
-			break;
-		
-_		(PushAllocatedSlot (o, type));
+		{
+			if (i_pushFpReg)
+_				(PushRegister (o, type));
+		}
+		else
+_			(PushAllocatedSlot (o, type));
 	}
 
 	_catch: return result;
@@ -2555,7 +2523,7 @@ M3Result  CommitBlockResults  (IM3Compilation o)
 	// pop the param/result slot records
 	o->stackIndex = o->block.initStackIndex;
 	
-_	(PushBlockResults (o));
+_	(PushBlockResults (o, true));
 	
 	_catch: return result;
 }
@@ -2582,11 +2550,15 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
 	
 	u16 numParams = GetFuncTypeNumParams (i_blockType);
 	
-	for (u16 i = 0; i <numParams; ++i)
+	if (i_blockOpcode != c_waOp_else)
 	{
-		u8 type = GetFuncTypeParamType (i_blockType, i);
-_		(PopType (o, type));
+		for (u16 i = 0; i < numParams; ++i)
+		{
+			u8 type = GetFuncTypeParamType (i_blockType, i);
+_			(PopType (o, type));
+		}
 	}
+	else stackIndex += numParams;
 
 	u16 paramIndex = o->stackIndex;
 	block->initStackIndex = paramIndex; // consume the params at block exit
@@ -2595,7 +2567,7 @@ _		(PopType (o, type));
 	o->stackIndex = stackIndex;
 
 	// find slots for the results ----------------------------
-	PushBlockResults (o);
+	PushBlockResults (o, false);
 
 	stackIndex = o->stackIndex;
 
@@ -2630,7 +2602,10 @@ _			(UnwindBlockStack (o))
 _			(ResolveBlockResults (o, & o->block, false, false));
 		
 		if (o->previousOpcode == c_waOp_else)
+		{
 _			(UnwindBlockStack (o))
+			o->stackIndex = o->block.initStackIndex;
+		}
 		else
 		{
 _			(UnwindBlockStack (o));
