@@ -1239,7 +1239,7 @@ _               (PushAllocatedSlot (o, type));
 
 M3Result  Compile_End  (IM3Compilation o, m3opcode_t i_opcode)
 {
-	M3Result result = m3Err_none;					dump_type_stack (o);
+	M3Result result = m3Err_none;					//dump_type_stack (o);
 
     // function end:
     if (o->block.depth == 0)
@@ -1402,8 +1402,6 @@ _   (GetBlockScope (o, & scope, depth));
     // branch target is a loop (continue)
     if (scope->opcode == c_waOp_loop)
     {
-//        IM3Operation op;
-
         if (i_opcode == c_waOp_branchIf)
         {
 			if (GetFuncTypeNumParams (scope->type))
@@ -1417,24 +1415,22 @@ _				(EmitSlotNumOfStackTopAndPop (o));
 				
 _				(ResolveBlockResults (o, scope, /* isBranch: */ true));
 
-				_       (EmitOp (o, op_ContinueLoop));
-						EmitPointer (o, scope->pc);
+_			   	(EmitOp (o, op_ContinueLoop));
+				EmitPointer (o, scope->pc);
 
 				* jumpTo = GetPC (o);
 			}
 			else
 			{
 				// move the condition to a register
-_	          	(CopyStackTopToRegister (o, false));
+_	         	(CopyStackTopToRegister (o, false));
 _           	(PopType (o, c_m3Type_i32));
 				
-		_       (EmitOp (o, op_ContinueLoopIf));
+_		       	(EmitOp (o, op_ContinueLoopIf));
 				EmitPointer (o, scope->pc);
-
 			}
 			
-			dump_type_stack(o);
-			
+//			dump_type_stack(o);
         }
         else // is c_waOp_branch
         {
@@ -1442,7 +1438,6 @@ _           	(PopType (o, c_m3Type_i32));
 			EmitPointer (o, scope->pc);
 			o->block.isPolymorphic = true;
         }
-		
     }
     else // forward branch
     {
