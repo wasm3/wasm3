@@ -120,13 +120,21 @@ i16  GetStackTopIndex  (IM3Compilation o)
 }
 
 
+// Items in the static portion of the stack (args/locals) are hidden from GetStackTypeFromTop ()
+// In other words, only "real" Wasm stack items can be inspected.  This is important when
+// returning values, etc. and you need an accurate wasm-view of the stack.
 u8  GetStackTypeFromTop  (IM3Compilation o, u16 i_offset)
 {
     u8 type = c_m3Type_none;
 
     ++i_offset;
     if (o->stackIndex >= i_offset)
-        type = o->typeStack [o->stackIndex - i_offset];
+    {
+        u16 index = o->stackIndex - i_offset;
+        
+        if (index >= o->stackFirstDynamicIndex)
+            type = o->typeStack [index];
+    }
 
     return type;
 }
@@ -1028,13 +1036,13 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_functionBlock, 
     {
         // return slots like args are 64-bit aligned
         u16 returnSlot = numReturns * c_ioSlotCount;
-        u16 stackIndex = GetStackTopIndex (o);
+        u16 stackTop = GetStackTopIndex (o);
 
         for (u16 i = 0; i < numReturns; ++i)
         {
             u8 returnType = GetFuncTypeResultType (i_functionBlock->type, numReturns - 1 - i);
             
-            u8 stackType = GetStackTypeFromBottom (o, stackIndex);
+            u8 stackType = GetStackTypeFromTop (o, i);  // using FromTop so that only dynamic items are checked
             
             if (IsStackPolymorphic (o) and stackType == c_m3Type_none)
                 stackType = returnType;
@@ -1044,7 +1052,7 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_functionBlock, 
             if (not IsStackPolymorphic (o))
             {
                 returnSlot -= c_ioSlotCount;
-_               (CopyStackIndexToSlot (o, returnSlot, stackIndex--));
+_               (CopyStackIndexToSlot (o, returnSlot, stackTop--));
             }
 
             if (not i_isBranch)
@@ -1559,8 +1567,8 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
     IM3Function function = Module_GetFunction (o->module, functionIndex);
 
     if (function)
-    {                                                                   m3log (compile, d_indent " (func= '%s'; args= %d)",
-                                                                                get_indention_string (o), m3_GetFunctionName (function), function->funcType->numArgs);
+    {                                                                   m3log (compile, d_indent " (func= [%d] '%s'; args= %d)",
+                                                                                get_indention_string (o), functionIndex, m3_GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
             u16 slotTop;

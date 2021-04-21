@@ -356,45 +356,69 @@ void  dump_type_stack  (IM3Compilation o)
     d_m3Log(stack, "\n");
     d_m3Log(stack, "        ");
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
+    printf("\n");
 
-//  printf ("%d", o->stackIndex -)
-    for (u32 i = 0; i < o->stackIndex; ++i)
+    for (u32 p = 1; p <= 2; ++p)
     {
-        if (i > 0 and i == o->stackFirstDynamicIndex)
-            printf ("]");
+        d_m3Log(stack, "        ");
         
-        if (i == o->block.blockStackIndex)
-            printf (" |");
-        
-        printf (" %s", c_waCompactTypes [o->typeStack [i]]);
-
-        u16 slot = o->wasmStack [i];
-
-        if (IsRegisterSlotAlias (slot))
+        for (u32 i = 0; i < o->stackIndex; ++i)
         {
-            bool isFp = IsFpRegisterSlotAlias (slot);
-            printf ("%s", isFp ? "f0" : "r0");
+            if (i > 0 and i == o->stackFirstDynamicIndex)
+                printf ("#");
+            
+            if (i == o->block.blockStackIndex)
+                printf (">");
+            
+            const char * type = c_waCompactTypes [o->typeStack [i]];
+            
+            char * location = "";
 
-            regAllocated [isFp]--;
-        }
-        else
-        {
-            if (slot < o->slotFirstDynamicIndex)
+            i32 slot = o->wasmStack [i];
+
+            if (IsRegisterSlotAlias (slot))
             {
-                if (slot >= o->slotFirstConstIndex)
-                    printf ("c");
-                else if (slot >= o->function->numRetAndArgSlots)
-                    printf ("L");
-                else
-                    printf ("a");
+                bool isFp = IsFpRegisterSlotAlias (slot);
+                location = isFp ? "/f" : "/r";
+
+                regAllocated [isFp]--;
+                slot = -1;
+            }
+            else
+            {
+                if (slot < o->slotFirstDynamicIndex)
+                {
+                    if (slot >= o->slotFirstConstIndex)
+                        location = "c";
+                    else if (slot >= o->function->numRetAndArgSlots)
+                        location = "L";
+                    else
+                        location = "a";
+                }
             }
 
-            printf ("%d", (i32) slot);  // slot
-        }
+            char item [100];
+            
+            if (slot >= 0)
+                sprintf (item, "%s%s%d", type, location, slot);
+            else
+                sprintf (item, "%s%s", type, location);
 
-        printf (" ");
+            if (p == 1)
+            {
+                size_t s = strlen (item);
+                
+                sprintf (item, "%d", i);
+                
+                while (strlen (item) < s)
+                    strcat (item, " ");
+            }
+            
+            printf ("|%s ", item);
+            
+        }
+        printf ("\n");
     }
-    printf ("\n");
 
 //    for (u32 r = 0; r < 2; ++r)
 //        d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
