@@ -1320,14 +1320,19 @@ _           ((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlo
 }
 
 
+void  EmitPatchingBranchPointer  (IM3Compilation o, IM3CompilationScope i_scope)
+{
+    pc_t patch = EmitPointer (o, i_scope->patches);                     m3log (compile, "branch patch required at: %p", patch);
+    i_scope->patches = patch;
+}
+
+
 M3Result  EmitPatchingBranch  (IM3Compilation o, IM3CompilationScope i_scope)
 {
     M3Result result = m3Err_none;
 
 _   (EmitOp (o, op_Branch));
-    
-    pc_t patch = EmitPointer (o, i_scope->patches);                     m3log (compile, "branch patch required at: %p", patch);
-    i_scope->patches = patch;
+    EmitPatchingBranchPointer (o, i_scope);
 
     _catch: return result;
 }
@@ -1387,23 +1392,36 @@ _               (EmitOp (o, op_ContinueLoopIf));
     {
         pc_t * jumpTo = NULL;
         
+        bool isReturn = (scope->depth == 0);
+        bool targetHasResults = GetFuncTypeNumResults (scope->type);
+
         if (i_opcode == c_waOp_branchIf)
         {
-            // OPTZ: need a flipped BranchIf without ResolveBlockResults prologue
-            // when no stack results
-            
-            IM3Operation op = IsStackTopInRegister (o) ? op_BranchIfPrologue_r : op_BranchIfPrologue_s;
+            if (targetHasResults or isReturn)
+            {
+                IM3Operation op = IsStackTopInRegister (o) ? op_BranchIfPrologue_r : op_BranchIfPrologue_s;
 
-_           (EmitOp (o, op));
-_           (EmitSlotNumOfStackTopAndPop (o)); // condition
-            
-            // this is continuation point, if the branch isn't taken
-            jumpTo = (pc_t *) ReservePointer (o);
+    _           (EmitOp (o, op));
+    _           (EmitSlotNumOfStackTopAndPop (o)); // condition
+                
+                // this is continuation point, if the branch isn't taken
+                jumpTo = (pc_t *) ReservePointer (o);
+            }
+            else
+            {
+                IM3Operation op = IsStackTopInRegister (o) ? op_BranchIf_r : op_BranchIf_s;
+
+    _           (EmitOp (o, op));
+    _           (EmitSlotNumOfStackTopAndPop (o)); // condition
+                
+                EmitPatchingBranchPointer (o, scope);
+                goto _catch;
+            }
         }
         
         if (not IsStackPolymorphic (o))
         {
-            if (scope->depth == 0)
+            if (isReturn)
             {
 _               (ReturnValues (o, scope, true));
 _               (EmitOp (o, op_Return));
@@ -1411,7 +1429,6 @@ _               (EmitOp (o, op_Return));
             else
             {
 _               (ResolveBlockResults (o, scope, true));
-        
 _               (EmitPatchingBranch (o, scope));
             }
         }
@@ -1420,7 +1437,8 @@ _               (EmitPatchingBranch (o, scope));
         {
             * jumpTo = GetPC (o);
         }
-        else
+        
+        if (i_opcode == c_waOp_branch)
 _           (SetStackPolymorphic (o));
     }
 
