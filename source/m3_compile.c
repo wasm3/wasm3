@@ -225,7 +225,7 @@ void  TouchSlot  (IM3Compilation o, u16 i_slot)
     if (o->function)
     {
         // op_Entry uses this value to track and detect stack overflow
-        o->function->maxStackSlots = M3_MAX (o->function->maxStackSlots, i_slot + 1);
+        o->maxStackSlots = M3_MAX (o->maxStackSlots, i_slot + 1);
     }
 }
 
@@ -1009,7 +1009,7 @@ _           (CopyStackTopToRegister (o, false));
         }
         
         // TODO: tempslot affects maxStackSlots, so can grow unnecess each time.
-        u16 tempSlot = o->function->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
+        u16 tempSlot = o->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
         AlignSlotToType (& tempSlot, c_m3Type_i64);
         
 _       (MoveStackSlotsR (o, slotRecords, endIndex - numValues, endIndex, tempSlot));
