@@ -28,23 +28,23 @@ bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
 
 u16  GetFuncTypeNumParams  (const IM3FuncType i_funcType)
 {
-	return i_funcType ? i_funcType->numArgs : 0;
+    return i_funcType ? i_funcType->numArgs : 0;
 }
 
 
 u8  GetFuncTypeParamType  (const IM3FuncType i_funcType, u16 i_index)
 {
-	u8 type = c_m3Type_unknown;
+    u8 type = c_m3Type_unknown;
 
-	if (i_funcType)
-	{
-		if (i_index < i_funcType->numArgs)
-		{
-			type = i_funcType->types [i_funcType->numRets + i_index];
-		}
-	}
+    if (i_funcType)
+    {
+        if (i_index < i_funcType->numArgs)
+        {
+            type = i_funcType->types [i_funcType->numRets + i_index];
+        }
+    }
 
-	return type;
+    return type;
 }
 
 

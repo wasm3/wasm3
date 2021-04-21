@@ -747,9 +747,7 @@ u8 *  GetStackPointerForArgs  (IM3Function i_function)
     u64 * stack = (u64 *) i_function->module->runtime->stack;
     IM3FuncType ftype = i_function->funcType;
 
-    u16 numReturnSlots = ftype->numRets;
-
-    stack += numReturnSlots;
+    stack += ftype->numRets;
 
     return (u8 *) stack;
 }
@@ -913,7 +911,7 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
         switch (d_FuncRetType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 8; break;
         case c_m3Type_i64:  *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
-        case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 4; break;
+        case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
         case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
         default: return "unknown return type";
         }

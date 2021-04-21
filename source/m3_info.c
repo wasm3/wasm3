@@ -358,11 +358,14 @@ void  dump_type_stack  (IM3Compilation o)
     printf ("%s %s    ", regAllocated [0] ? "(r0)" : "    ", regAllocated [1] ? "(fp0)" : "     ");
 
 //  printf ("%d", o->stackIndex -)
-    for (u32 i = o->stackFirstDynamicIndex; i < o->stackIndex; ++i)
+    for (u32 i = 0; i < o->stackIndex; ++i)
     {
-		if (i == o->block.blockStackIndex)
-			printf (" |");
-		
+        if (i > 0 and i == o->stackFirstDynamicIndex)
+            printf ("]");
+        
+        if (i == o->block.blockStackIndex)
+            printf (" |");
+        
         printf (" %s", c_waCompactTypes [o->typeStack [i]]);
 
         u16 slot = o->wasmStack [i];
