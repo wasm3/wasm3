@@ -2482,18 +2482,6 @@ _           (PushAllocatedSlot (o, type));
 }
 
 
-M3Result  CommitBlockResults  (IM3Compilation o)
-{
-    M3Result result = m3Err_none;
-    
-    // pop the param/result slot records
-    o->stackIndex = o->block.exitStackIndex;
-    
-_   (PushBlockResults (o));
-    
-    _catch: return result;
-}
-
 
 M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i_blockOpcode)
 {
@@ -2511,11 +2499,11 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
 
     /*
      The block stack frame is a little strange but for good reasons.  Because blocks need to be restarted to
-     compile different pathways (if/else), the incoming params must be saved.  The natural incoming
-     stack parameters are popped and validated.  But, then the stack top is readjusted so they aren't overwritten.
-     Next, the result are preallocated to find destination slots.  But, again these are immediately popped
-     (deallocated) and the stack top is readjusted to keep these records around so that branch instructions
-     can find their result landing pads.  Finally, the params are copied from the "dead" records and pushed back
+     compile different pathways (if/else), the incoming params must be saved.  The parameters are popped
+     and validated.  But, then the stack top is readjusted so they aren't subsequently overwritten.
+     Next, the result are preallocated to find destination slots.  But again these are immediately popped
+     (deallocated) and the stack top is readjusted to keep these records in pace. This allows branch instructions
+     to find their result landing pads.  Finally, the params are copied from the "dead" records and pushed back
      onto the stack as active stack items for the CompileBlockStatements () call.
      
     [     block      ]
@@ -2590,7 +2578,10 @@ _           (ResolveBlockResults (o, & o->block, /* isBranch: */ false));
 _       (UnwindBlockStack (o))
 
         if (not ((i_blockOpcode == c_waOp_if and numResults) or o->previousOpcode == c_waOp_else))
-_           (CommitBlockResults (o));
+        {
+            o->stackIndex = o->block.exitStackIndex;
+_           (PushBlockResults (o));
+        }
     }
 
     PatchBranches (o);
