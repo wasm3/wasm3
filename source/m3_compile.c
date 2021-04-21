@@ -1054,8 +1054,11 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_functionBlock, 
                 returnSlot -= c_ioSlotCount;
 _               (CopyStackIndexToSlot (o, returnSlot, stackTop--));
             }
-
-            if (not i_isBranch)
+        }
+        
+        if (not i_isBranch)
+        {
+            while (numReturns--)
 _               (Pop (o));
         }
     }
