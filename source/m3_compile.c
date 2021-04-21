@@ -1012,7 +1012,7 @@ M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBl
 	u16 numParams = GetFuncTypeNumParams (i_targetBlock->type);
 	u16 numResults = GetFuncTypeNumResults (i_targetBlock->type);
 	
-	u16 slotRecords = i_targetBlock->initStackIndex;
+	u16 slotRecords = i_targetBlock->exitStackIndex;
 
 	u16 numValues;
 
@@ -1902,15 +1902,31 @@ _   (EmitSlotNumOfStackTopAndPop (o));
     IM3FuncType blockType;
 _   (ReadBlockType (o, & blockType));
 	
+	dump_type_stack (o);
+	
+	u16 stackIndex = o->stackIndex;
+	
 _   (CompileBlock (o, blockType, i_opcode));
 
     if (o->previousOpcode == c_waOp_else)
     {
+		o->stackIndex = stackIndex;
 _       (CompileElseBlock (o, pc, blockType));
     }
     else
 	{
-		* pc = GetPC (o);
+		if (GetFuncTypeNumResults (blockType))
+		{
+			// rewind to the if's end to create a fake else block
+			o->wasm--;
+
+			o->stackIndex = stackIndex;
+
+			dump_type_stack (o);
+
+_       	(CompileElseBlock (o, pc, blockType));
+		}
+		else * pc = GetPC (o);
 	}
 
     } _catch: return result;
@@ -2511,7 +2527,7 @@ _catch:
 }
 
 
-M3Result  PushBlockResults  (IM3Compilation o, bool i_pushFpReg)
+M3Result  PushBlockResults  (IM3Compilation o)
 {
 	M3Result result = m3Err_none;
 	
@@ -2523,8 +2539,7 @@ M3Result  PushBlockResults  (IM3Compilation o, bool i_pushFpReg)
 		
 		if (i == numResults - 1 and IsFpType (type))
 		{
-			if (i_pushFpReg)
-_				(PushRegister (o, type));
+_			(PushRegister (o, type));
 		}
 		else
 _			(PushAllocatedSlot (o, type));
@@ -2539,9 +2554,9 @@ M3Result  CommitBlockResults  (IM3Compilation o)
 	M3Result result = m3Err_none;
 	
 	// pop the param/result slot records
-	o->stackIndex = o->block.initStackIndex;
+	o->stackIndex = o->block.exitStackIndex;
 	
-_	(PushBlockResults (o, true));
+_	(PushBlockResults (o));
 	
 	_catch: return result;
 }
@@ -2558,7 +2573,6 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
     block->pc               = GetPagePC (o->page);
     block->patches          = NULL;
     block->type             = i_blockType;
-//    block->initStackIndex   = o->stackIndex;
     block->depth            ++;
     block->opcode           = i_blockOpcode;
 
@@ -2576,16 +2590,18 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
 _			(PopType (o, type));
 		}
 	}
-	else stackIndex += numParams;
+	else o->stackIndex -= numParams;
+	
+	printf ("STACK: %d\n", o->stackIndex);
 
 	u16 paramIndex = o->stackIndex;
-	block->initStackIndex = paramIndex; // consume the params at block exit
+	block->exitStackIndex = paramIndex; // consume the params at block exit
 
-	// keep a copy of param slots in the stack
+	// keep copies of param slots in the stack
 	o->stackIndex = stackIndex;
 
 	// find slots for the results ----------------------------
-	PushBlockResults (o, false);
+	PushBlockResults (o);
 
 	stackIndex = o->stackIndex;
 
@@ -2596,6 +2612,8 @@ _			(PopType (o, type));
 	
 	block->blockStackIndex = o->stackIndex = stackIndex;
 
+	dump_type_stack (o);
+	
 	// push the params back onto the stack -------------------
 	for (u16 i = 0; i < numParams; ++i)
 	{
@@ -2603,9 +2621,13 @@ _			(PopType (o, type));
 
 		u16 slot = GetSlotForStackIndex (o, paramIndex + i);//  o->wasmStack [paramIndex + i]
 		Push (o, type, slot);
-		MarkSlotsAllocatedByType (o, slot, type);
+		
+		if (slot >= o->slotFirstDynamicIndex)
+			MarkSlotsAllocatedByType (o, slot, type);
 	}
 	
+	dump_type_stack (o);
+
 	//--------------------------------------------------------
 	
 _   (CompileBlockStatements (o));
@@ -2617,17 +2639,24 @@ _   (ValidateBlockEnd (o));
 		if (IsStackPolymorphic (o))
 _			(UnwindBlockStack (o))
 		else
-_			(ResolveBlockResults (o, & o->block, false));
+_			(ResolveBlockResults (o, & o->block, /* isBranch: */ false));
 		
 		if (o->previousOpcode == c_waOp_else)
 		{
 _			(UnwindBlockStack (o))
-			o->stackIndex = o->block.initStackIndex;
+//			o->stackIndex = o->block.exitStackIndex;
 		}
 		else
 		{
 _			(UnwindBlockStack (o));
-_			(CommitBlockResults (o));
+			
+			if (i_blockOpcode == c_waOp_if and numResults)
+			{
+//_				(UnwindBlockStack (o))
+//				o->stackIndex = o->block.exitStackIndex;
+			}
+			else
+_				(CommitBlockResults (o));
 		}
 	}
 
