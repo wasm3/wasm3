@@ -833,24 +833,6 @@ _           (PushRegister (o, type));
 }
 
 
-M3Result  ReturnStackTop  (IM3Compilation o, u16 i_returnSlot, u8 i_type)
-{
-    M3Result result = m3Err_none;
-
-    i16 top = GetStackTopIndex (o);
-
-    if (top > o->stackFirstDynamicIndex)
-    {
-_       (CopyStackTopToSlot (o, i_returnSlot))
-_       (PopType (o, i_type))
-    }
-    else // if (not IsStackPolymorphic (o))
-        _throw (m3Err_functionStackUnderrun);
-
-    _catch: return result;
-}
-
-
 // if local is unreferenced, o_preservedSlotNumber will be equal to localIndex on return
 M3Result  FindReferencedLocalWithinCurrentBlock  (IM3Compilation o, u16 * o_preservedSlotNumber, u32 i_localSlot)
 {
@@ -2527,6 +2509,26 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
     block->depth            ++;
     block->opcode           = i_blockOpcode;
 
+    /*
+     The block stack frame is a little strange but for good reasons.  Because blocks need to be restarted to
+     compile different pathways (if/else), the incoming params must be saved.  The natural incoming
+     stack parameters are popped and validated.  But, then the stack top is readjusted so they aren't overwritten.
+     Next, the result are preallocated to find destination slots.  But, again these are immediately popped
+     (deallocated) and the stack top is readjusted to keep these records around so that branch instructions
+     can find their result landing pads.  Finally, the params are copied from the "dead" records and pushed back
+     onto the stack as active stack items for the CompileBlockStatements () call.
+     
+    [     block      ]
+    [     params     ]
+    ------------------
+    [     result     ]  <---- blockStackIndex
+    [      slots     ]
+    ------------------
+    [   saved param  ]
+    [     records    ]
+                        <----- exitStackIndex
+    */
+    
 _try {
     // validate and dealloc params ----------------------------
     
@@ -2543,8 +2545,6 @@ _           (PopType (o, type));
         }
     }
     else o->stackIndex -= numParams;
-    
-//  printf ("STACK: %d\n", o->stackIndex);
 
     u16 paramIndex = o->stackIndex;
     block->exitStackIndex = paramIndex; // consume the params at block exit
@@ -2563,22 +2563,18 @@ _           (PopType (o, type));
         Pop (o);
     
     block->blockStackIndex = o->stackIndex = stackIndex;
-
-//  dump_type_stack (o);
     
     // push the params back onto the stack -------------------
     for (u16 i = 0; i < numParams; ++i)
     {
         u8 type = GetFuncTypeParamType (i_blockType, i);
 
-        u16 slot = GetSlotForStackIndex (o, paramIndex + i);//  o->wasmStack [paramIndex + i]
+        u16 slot = GetSlotForStackIndex (o, paramIndex + i);
         Push (o, type, slot);
         
         if (slot >= o->slotFirstDynamicIndex)
             MarkSlotsAllocatedByType (o, slot, type);
     }
-    
-//  dump_type_stack (o);
 
     //--------------------------------------------------------
     

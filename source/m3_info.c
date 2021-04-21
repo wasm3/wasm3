@@ -368,7 +368,7 @@ void  dump_type_stack  (IM3Compilation o)
             
             const char * type = c_waCompactTypes [o->typeStack [i]];
             
-            char * location = "";
+            const char * location = "";
 
             i32 slot = o->wasmStack [i];
 
