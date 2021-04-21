@@ -466,7 +466,7 @@ M3Result  Push  (IM3Compilation o, u8 i_type, u16 i_slot)
             AllocateRegister (o, regSelect, stackIndex);
         }
 
-		if (d_m3LogWasmStack) dump_type_stack (o);
+        if (d_m3LogWasmStack) dump_type_stack (o);
     }
     else result = m3Err_functionStackOverflow;
 
@@ -1063,7 +1063,7 @@ _               (Pop (o));
         }
     }
 
-	_catch: return result;
+    _catch: return result;
 }
 
 
@@ -1751,8 +1751,7 @@ M3Result  Compile_LoopOrBlock  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    // TODO: don't think these shouldn't be necessary for non-loop block
-
+    // TODO: these shouldn't be necessary for non-loop blocks?
 _   (PreserveRegisters (o));
 _   (PreserveArgsAndLocals (o));
 
@@ -2516,7 +2515,7 @@ _   (PushBlockResults (o));
 
 M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i_blockOpcode)
 {
-    M3Result result;                                                                    d_m3Assert (not IsRegisterAllocated (o, 0));
+    M3Result result = m3Err_none;                                                       d_m3Assert (not IsRegisterAllocated (o, 0));
                                                                                         d_m3Assert (not IsRegisterAllocated (o, 1));
     M3CompilationScope outerScope = o->block;
     M3CompilationScope * block = & o->block;
@@ -2528,6 +2527,7 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
     block->depth            ++;
     block->opcode           = i_blockOpcode;
 
+_try {
     // validate and dealloc params ----------------------------
     
     u16 stackIndex = o->stackIndex;
@@ -2588,35 +2588,20 @@ _   (ValidateBlockEnd (o));
 
     if (o->function)    // skip for expressions
     {
-        if (IsStackPolymorphic (o))
-_           (UnwindBlockStack (o))
-        else
+        if (not IsStackPolymorphic (o))
 _           (ResolveBlockResults (o, & o->block, /* isBranch: */ false));
         
-        if (o->previousOpcode == c_waOp_else)
-        {
-_           (UnwindBlockStack (o))
-//          o->stackIndex = o->block.exitStackIndex;
-        }
-        else
-        {
-_           (UnwindBlockStack (o));
-            
-            if (i_blockOpcode == c_waOp_if and numResults)
-            {
-//_             (UnwindBlockStack (o))
-//              o->stackIndex = o->block.exitStackIndex;
-            }
-            else
-_               (CommitBlockResults (o));
-        }
+_       (UnwindBlockStack (o))
+
+        if (not ((i_blockOpcode == c_waOp_if and numResults) or o->previousOpcode == c_waOp_else))
+_           (CommitBlockResults (o));
     }
 
     PatchBranches (o);
 
     o->block = outerScope;
 
-    _catch: return result;
+}   _catch: return result;
 }
 
 

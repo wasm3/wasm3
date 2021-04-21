@@ -81,9 +81,9 @@ _try {
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
-#	if d_m3LogCompile
+#   ifdef DEBUG
     func->index = index;
-#	endif
+#   endif
 
     if (i_importInfo and func->numNames == 0)
     {
