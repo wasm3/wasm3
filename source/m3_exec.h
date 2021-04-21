@@ -744,13 +744,7 @@ d_m3Op  (Entry)
         }
 
 #if d_m3EnableStrace >= 2
-        u16 numNames = 0;
-        cstr_t *names = GetFunctionNames(function, &numNames);
-        if (numNames) {
-            d_m3TracePrint("%s %s {", names[0], SPrintFunctionArgList (function, _sp));
-        } else {
-            d_m3TracePrint("$%d %s {", function->index, SPrintFunctionArgList (function, _sp));
-        }
+        d_m3TracePrint("%s %s {", m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp));
         trace_rt->callDepth++;
 #endif
 

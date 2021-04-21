@@ -92,10 +92,19 @@ M3Result link_all  (IM3Module module)
     return res;
 }
 
+const char* modname_from_fn(const char* fn)
+{
+	const char* off = strrchr(fn, '/');
+	if (off) return off+1;
+	off = strrchr(fn, '\\');
+	if (off) return off+1;
+	return fn;
+}
 
 M3Result repl_load  (const char* fn)
 {
     M3Result result = m3Err_none;
+    IM3Module module = NULL;
 
     u8* wasm = NULL;
     u32 fsize = 0;
@@ -129,12 +138,13 @@ M3Result repl_load  (const char* fn)
     fclose (f);
     f = NULL;
 
-    IM3Module module;
     result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) goto on_error;
 
     result = m3_LoadModule (runtime, module);
     if (result) goto on_error;
+
+    m3_SetModuleName(module, modname_from_fn(fn));
 
     result = link_all (module);
     if (result) goto on_error;
@@ -144,7 +154,9 @@ M3Result repl_load  (const char* fn)
     }
 
     return result;
+
 on_error:
+    m3_FreeModule(module);
     if (wasm) free(wasm);
     if (f) fclose(f);
 

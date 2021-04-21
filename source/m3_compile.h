@@ -91,6 +91,8 @@ typedef struct
     u16                 slotFirstLocalIndex;
     u16                 slotFirstDynamicIndex;      // numArgs + numLocals + numReservedConstants. the first mutable slot available to the compiler.
 
+    u16                 maxStackSlots;
+
     m3slot_t            constants                   [d_m3MaxConstantTableSize];
 
     // 'wasmStack' holds slot locations

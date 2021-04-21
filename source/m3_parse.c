@@ -127,6 +127,8 @@ _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                           
 
     _throwif("too many functions", numFunctions > d_m3MaxSaneFunctionsCount);
 
+    // TODO: prealloc functions
+
     for (u32 i = 0; i < numFunctions; ++i)
     {
         u32 funcTypeIndex;
@@ -236,18 +238,19 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         if (exportKind == d_externalKind_function)
         {
             _throwif(m3Err_wasmMalformed, index >= io_module->numFunctions);
-            u16 numNames = io_module->functions [index].numNames;
-            if (numNames < d_m3MaxDuplicateFunctionImpl)
+            IM3Function func = &(io_module->functions [index]);
+            if (func->numNames < d_m3MaxDuplicateFunctionImpl)
             {
-                io_module->functions [index].numNames++;
-                io_module->functions [index].names[numNames] = utf8;
+                func->names[func->numNames++] = utf8;
                 utf8 = NULL; // ownership transferred to M3Function
             }
         }
         else if (exportKind == d_externalKind_global)
         {
             _throwif(m3Err_wasmMalformed, index >= io_module->numGlobals);
-            io_module->globals[index].name = utf8;
+            IM3Global global = &(io_module->globals [index]);
+            m3_Free (global->name);
+            global->name = utf8;
             utf8 = NULL; // ownership transferred to M3Global
         }
 
@@ -506,10 +509,11 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
 
                 if (index < io_module->numFunctions)
                 {
-                    if (io_module->functions [index].numNames == 0)
+                    IM3Function func = &(io_module->functions [index]);
+                    if (func->numNames == 0)
                     {
-                        io_module->functions [index].numNames = 1;
-                        io_module->functions [index].names[0] = name;        m3log (parse, "    naming function%5d:  %s", index, name);
+                        func->names[0] = name;        m3log (parse, "    naming function%5d:  %s", index, name);
+                        func->numNames = 1;
                         name = NULL; // transfer ownership
                     }
 //                          else m3log (parse, "prenamed: %s", io_module->functions [index].name);
