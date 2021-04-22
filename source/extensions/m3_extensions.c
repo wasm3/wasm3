@@ -92,6 +92,8 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
     function->wasmEnd = function->wasm + numBytes;
     function->ownsWasmCode = true;
 
+	function->module = i_module;
+	
     if (i_doCompilation and not i_module->runtime)
         _throw ("module must be loaded into runtime to compile function");
 

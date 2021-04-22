@@ -892,7 +892,7 @@ M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i
 }
 
 
-M3Result  MoveStackSlotsR  (IM3Compilation o, u16 i_targetSlotStackIndex, u16 i_stackIndex, u16 i_endStackIndex, u16 i_tempSlot)
+M3Result  CopyStackSlotsR  (IM3Compilation o, u16 i_targetSlotStackIndex, u16 i_stackIndex, u16 i_endStackIndex, u16 i_tempSlot)
 {
     M3Result result = m3Err_none;
     
@@ -944,7 +944,7 @@ _           (CopyStackIndexToSlot (o, targetSlot, i_stackIndex));               
 
         }
         
-_       (MoveStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStackIndex, i_tempSlot));
+_       (CopyStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStackIndex, i_tempSlot));
         
         // restore the stack state
         o->wasmStack [i_stackIndex] = srcSlot;
@@ -994,7 +994,7 @@ _           (CopyStackTopToRegister (o, false));
         u16 tempSlot = o->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
         AlignSlotToType (& tempSlot, c_m3Type_i64);
         
-_       (MoveStackSlotsR (o, slotRecords, endIndex - numValues, endIndex, tempSlot));
+_       (CopyStackSlotsR (o, slotRecords, endIndex - numValues, endIndex, tempSlot));
         
         if (d_m3LogWasmStack) dump_type_stack (o);
     }
@@ -1463,15 +1463,15 @@ _       (ReadLEB_u32 (& target, & o->wasm, o->wasmEnd));
         IM3CompilationScope scope;
 _       (GetBlockScope (o, & scope, target));
 
-        // create a ContinueLoop operation on a fresh page
+		// TODO: don't need codepage rigmarole for
+		// no-param forward-branch targets
+		
 _       (AcquireCompilationCodePage (o, & continueOpPage));
 
         pc_t startPC = GetPagePC (continueOpPage);
         IM3CodePage savedPage = o->page;
         o->page = continueOpPage;
 
-        // TODO: validate stack with target
-        
         if (scope->opcode == c_waOp_loop)
         {
 _           (ResolveBlockResults (o, scope, true));
