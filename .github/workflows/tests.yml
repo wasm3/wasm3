@@ -48,6 +48,10 @@ jobs:
         cmake --build build
     - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
+    - name: Test previous WebAssembly specs
+      run: |
+        cd test
+        python3 run-spec-test.py --spec=v1.1
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
@@ -95,6 +99,10 @@ jobs:
         cmake --build build
     - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
+    - name: Test previous WebAssembly specs
+      run: |
+        cd test
+        python3 run-spec-test.py --spec=v1.1
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
@@ -136,6 +144,10 @@ jobs:
       run: |
         cd test
         python run-spec-test.py
+    - name: Test previous WebAssembly specs
+      run: |
+        cd test
+        python run-spec-test.py --spec=v1.1
     - name: Test WASI apps
       run: |
         cd test

@@ -67,7 +67,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 ☑ Big-Endian systems support  
 ☑ Self-hosting  
 ☑ Gas metering  
-☐ Multi-value  
+☑ Multi-value  
 ☐ Reference types  
 ☐ Bulk memory operations  
 ☐ Tail call optimization  
