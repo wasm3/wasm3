@@ -357,17 +357,17 @@ void  dump_type_stack  (IM3Compilation o)
     for (u32 p = 1; p <= 2; ++p)
     {
         d_m3Log(stack, "        ");
-        
+
         for (u32 i = 0; i < o->stackIndex; ++i)
         {
             if (i > 0 and i == o->stackFirstDynamicIndex)
                 printf ("#");
-            
+
             if (i == o->block.blockStackIndex)
                 printf (">");
-            
+
             const char * type = c_waCompactTypes [o->typeStack [i]];
-            
+
             const char * location = "";
 
             i32 slot = o->wasmStack [i];
@@ -394,7 +394,7 @@ void  dump_type_stack  (IM3Compilation o)
             }
 
             char item [100];
-            
+
             if (slot >= 0)
                 sprintf (item, "%s%s%d", type, location, slot);
             else
@@ -403,22 +403,22 @@ void  dump_type_stack  (IM3Compilation o)
             if (p == 1)
             {
                 size_t s = strlen (item);
-                
+
                 sprintf (item, "%d", i);
-                
+
                 while (strlen (item) < s)
                     strcat (item, " ");
             }
-            
+
             printf ("|%s ", item);
-            
+
         }
         printf ("\n");
     }
 
 //    for (u32 r = 0; r < 2; ++r)
 //        d_m3Assert (regAllocated [r] == 0);         // reg allocation & stack out of sync
-    
+
     u16 maxSlot = GetMaxUsedSlotPlusOne (o);
 
     if (maxSlot > o->slotFirstDynamicIndex)

@@ -90,10 +90,10 @@ void  EmitSlotOffset  (IM3Compilation o, const i32 i_offset)
 pc_t  EmitPointer  (IM3Compilation o, const void * const i_pointer)
 {
     pc_t ptr = GetPagePC (o->page);
-    
+
     if (o->page)
         EmitWord (o->page, i_pointer);
-    
+
     return ptr;
 }
 
