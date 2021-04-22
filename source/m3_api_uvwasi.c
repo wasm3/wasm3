@@ -40,6 +40,97 @@ typedef struct wasi_iovec_t
  * WASI API implementation
  */
 
+#if d_m3EnableWasiTracing
+
+const char* wasi_errno2str(uvwasi_errno_t err)
+{
+    switch (err) {
+    case  0: return "ESUCCESS";
+    case  1: return "E2BIG";
+    case  2: return "EACCES";
+    case  3: return "EADDRINUSE";
+    case  4: return "EADDRNOTAVAIL";
+    case  5: return "EAFNOSUPPORT";
+    case  6: return "EAGAIN";
+    case  7: return "EALREADY";
+    case  8: return "EBADF";
+    case  9: return "EBADMSG";
+    case 10: return "EBUSY";
+    case 11: return "ECANCELED";
+    case 12: return "ECHILD";
+    case 13: return "ECONNABORTED";
+    case 14: return "ECONNREFUSED";
+    case 15: return "ECONNRESET";
+    case 16: return "EDEADLK";
+    case 17: return "EDESTADDRREQ";
+    case 18: return "EDOM";
+    case 19: return "EDQUOT";
+    case 20: return "EEXIST";
+    case 21: return "EFAULT";
+    case 22: return "EFBIG";
+    case 23: return "EHOSTUNREACH";
+    case 24: return "EIDRM";
+    case 25: return "EILSEQ";
+    case 26: return "EINPROGRESS";
+    case 27: return "EINTR";
+    case 28: return "EINVAL";
+    case 29: return "EIO";
+    case 30: return "EISCONN";
+    case 31: return "EISDIR";
+    case 32: return "ELOOP";
+    case 33: return "EMFILE";
+    case 34: return "EMLINK";
+    case 35: return "EMSGSIZE";
+    case 36: return "EMULTIHOP";
+    case 37: return "ENAMETOOLONG";
+    case 38: return "ENETDOWN";
+    case 39: return "ENETRESET";
+    case 40: return "ENETUNREACH";
+    case 41: return "ENFILE";
+    case 42: return "ENOBUFS";
+    case 43: return "ENODEV";
+    case 44: return "ENOENT";
+    case 45: return "ENOEXEC";
+    case 46: return "ENOLCK";
+    case 47: return "ENOLINK";
+    case 48: return "ENOMEM";
+    case 49: return "ENOMSG";
+    case 50: return "ENOPROTOOPT";
+    case 51: return "ENOSPC";
+    case 52: return "ENOSYS";
+    case 53: return "ENOTCONN";
+    case 54: return "ENOTDIR";
+    case 55: return "ENOTEMPTY";
+    case 56: return "ENOTRECOVERABLE";
+    case 57: return "ENOTSOCK";
+    case 58: return "ENOTSUP";
+    case 59: return "ENOTTY";
+    case 60: return "ENXIO";
+    case 61: return "EOVERFLOW";
+    case 62: return "EOWNERDEAD";
+    case 63: return "EPERM";
+    case 64: return "EPIPE";
+    case 65: return "EPROTO";
+    case 66: return "EPROTONOSUPPORT";
+    case 67: return "EPROTOTYPE";
+    case 68: return "ERANGE";
+    case 69: return "EROFS";
+    case 70: return "ESPIPE";
+    case 71: return "ESRCH";
+    case 72: return "ESTALE";
+    case 73: return "ETIMEDOUT";
+    case 74: return "ETXTBSY";
+    case 75: return "EXDEV";
+    case 76: return "ENOTCAPABLE";
+    default: return "<unknown>";
+    }
+}
+
+#  define WASI_TRACE(fmt, ...)    { fprintf(stderr, "%s " fmt, __FUNCTION__+16, ##__VA_ARGS__); fprintf(stderr, " => %s\n", wasi_errno2str(ret)); }
+#else
+#  define WASI_TRACE(fmt, ...)
+#endif
+
 m3ApiRawFunction(m3_wasi_generic_args_get)
 {
     m3ApiReturnType  (uint32_t)
@@ -165,6 +256,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 
     uvwasi_errno_t ret = uvwasi_fd_prestat_dir_name(&uvwasi, fd, path, path_len);
 
+    WASI_TRACE("fd:%d, path:%s", fd, path);
+
     m3ApiReturn(ret);
 }
 
@@ -174,17 +267,19 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArgMem   (uint8_t *            , buf)
 
-    m3ApiCheckMem(buf, 2*sizeof(uint32_t));
+    m3ApiCheckMem(buf, 8);
 
     uvwasi_prestat_t prestat;
-    uvwasi_errno_t ret;
 
-    ret = uvwasi_fd_prestat_get(&uvwasi, fd, &prestat);
+    uvwasi_errno_t ret = uvwasi_fd_prestat_get(&uvwasi, fd, &prestat);
+
+    WASI_TRACE("fd:%d", fd);
+
     if (ret != UVWASI_ESUCCESS) {
         m3ApiReturn(ret);
     }
 
-    m3ApiWriteMem32(buf, prestat.pr_type);
+    m3ApiWriteMem32(buf+0, prestat.pr_type);
     m3ApiWriteMem32(buf+4, prestat.u.dir.pr_name_len);
     m3ApiReturn(UVWASI_ESUCCESS);
 }
@@ -200,11 +295,14 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
     uvwasi_fdstat_t stat;
     uvwasi_errno_t ret = uvwasi_fd_fdstat_get(&uvwasi, fd, &stat);
 
+    WASI_TRACE("fd:%d", fd);
+
     if (ret != UVWASI_ESUCCESS) {
         m3ApiReturn(ret);
     }
 
-    m3ApiWriteMem16(fdstat, stat.fs_filetype);
+    memset(fdstat, 0, 24);
+    m3ApiWriteMem8 (fdstat+0, stat.fs_filetype);
     m3ApiWriteMem16(fdstat+2, stat.fs_flags);
     m3ApiWriteMem64(fdstat+8, stat.fs_rights_base);
     m3ApiWriteMem64(fdstat+16, stat.fs_rights_inheriting);
@@ -219,22 +317,71 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
 
     uvwasi_errno_t ret = uvwasi_fd_fdstat_set_flags(&uvwasi, fd, flags);
 
+    WASI_TRACE("fd:%d, flags:0x%x", fd, flags);
+
     m3ApiReturn(ret);
 }
 
-m3ApiRawFunction(m3_wasi_generic_fd_filestat_get)
+m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
-    m3ApiGetArgMem   (uvwasi_filestat_t *  , buff)
+    m3ApiGetArgMem   (uint8_t *            , buf)
 
-    //TODO: m3ApiCheckMem
+    m3ApiCheckMem(buf, 56); // wasi_filestat_t
 
-    uvwasi_errno_t ret = uvwasi_fd_filestat_get(&uvwasi, fd, buff);
+    uvwasi_filestat_t stat;
 
-    //TODO: m3ApiWriteMem
+    uvwasi_errno_t ret = uvwasi_fd_filestat_get(&uvwasi, fd, &stat);
 
-    m3ApiReturn(ret);
+    WASI_TRACE("fd:%d | fs.size:%d", fd, stat.st_size);
+
+    if (ret != UVWASI_ESUCCESS) {
+        m3ApiReturn(ret);
+    }
+
+    memset(buf, 0, 56);
+    m3ApiWriteMem64(buf+0,  stat.st_dev);
+    m3ApiWriteMem64(buf+8,  stat.st_ino);
+    m3ApiWriteMem8 (buf+16, stat.st_filetype);
+    m3ApiWriteMem64(buf+20, stat.st_nlink);
+    m3ApiWriteMem64(buf+24, stat.st_size);
+    m3ApiWriteMem64(buf+32, stat.st_atim);
+    m3ApiWriteMem64(buf+40, stat.st_mtim);
+    m3ApiWriteMem64(buf+48, stat.st_ctim);
+
+    m3ApiReturn(UVWASI_ESUCCESS);
+}
+
+m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_filestat_get)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArgMem   (uint8_t *            , buf)
+
+    m3ApiCheckMem(buf, 64); // wasi_filestat_t
+
+    uvwasi_filestat_t stat;
+
+    uvwasi_errno_t ret = uvwasi_fd_filestat_get(&uvwasi, fd, &stat);
+
+    WASI_TRACE("fd:%d | fs.size:%d", fd, stat.st_size);
+
+    if (ret != UVWASI_ESUCCESS) {
+        m3ApiReturn(ret);
+    }
+
+    memset(buf, 0, 64);
+    m3ApiWriteMem64(buf+0,  stat.st_dev);
+    m3ApiWriteMem64(buf+8,  stat.st_ino);
+    m3ApiWriteMem8 (buf+16, stat.st_filetype);
+    m3ApiWriteMem64(buf+24, stat.st_nlink);
+    m3ApiWriteMem64(buf+32, stat.st_size);
+    m3ApiWriteMem64(buf+40, stat.st_atim);
+    m3ApiWriteMem64(buf+48, stat.st_mtim);
+    m3ApiWriteMem64(buf+56, stat.st_ctim);
+
+    m3ApiReturn(UVWASI_ESUCCESS);
 }
 
 m3ApiRawFunction(m3_wasi_unstable_fd_seek)
@@ -247,16 +394,18 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
 
     m3ApiCheckMem(result, sizeof(uvwasi_filesize_t));
 
-    uvwasi_whence_t whence;
+    uvwasi_whence_t whence = -1;
+    const char* whstr = "???";
 
     switch (wasi_whence) {
-    case 0: whence = UVWASI_WHENCE_CUR; break;
-    case 1: whence = UVWASI_WHENCE_END; break;
-    case 2: whence = UVWASI_WHENCE_SET; break;
-    default:                m3ApiReturn(UVWASI_EINVAL);
+    case 0: whence = UVWASI_WHENCE_CUR; whstr = "CUR"; break;
+    case 1: whence = UVWASI_WHENCE_END; whstr = "END"; break;
+    case 2: whence = UVWASI_WHENCE_SET; whstr = "SET"; break;
     }
 
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, result);
+
+    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
 
     //TODO: m3ApiWriteMem
 
@@ -273,16 +422,18 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
 
     m3ApiCheckMem(result, sizeof(uvwasi_filesize_t));
 
-    uvwasi_whence_t whence;
+    uvwasi_whence_t whence = -1;
+    const char* whstr = "???";
 
     switch (wasi_whence) {
-    case 0: whence = UVWASI_WHENCE_SET; break;
-    case 1: whence = UVWASI_WHENCE_CUR; break;
-    case 2: whence = UVWASI_WHENCE_END; break;
-    default:                m3ApiReturn(UVWASI_EINVAL);
+    case 0: whence = UVWASI_WHENCE_SET; whstr = "SET"; break;
+    case 1: whence = UVWASI_WHENCE_CUR; whstr = "CUR"; break;
+    case 2: whence = UVWASI_WHENCE_END; whstr = "END"; break;
     }
 
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, result);
+
+    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
 
     //TODO: m3ApiWriteMem
 
@@ -299,6 +450,8 @@ m3ApiRawFunction(m3_wasi_generic_path_create_directory)
     m3ApiCheckMem(path, path_len);
 
     uvwasi_errno_t ret = uvwasi_path_create_directory(&uvwasi, fd, path, path_len);
+
+    WASI_TRACE("fd:%d, path:%s", fd, path);
 
     m3ApiReturn(ret);
 }
@@ -321,6 +474,8 @@ m3ApiRawFunction(m3_wasi_generic_path_readlink)
 
     uvwasi_errno_t ret = uvwasi_path_readlink(&uvwasi, fd, path, path_len, buf, buf_len, &uvbufused);
 
+    WASI_TRACE("fd:%d, path:%s | buf:%s, bufused:%d", fd, path, buf, uvbufused);
+
     m3ApiWriteMem32(bufused, uvbufused);
 
     m3ApiReturn(ret);
@@ -336,6 +491,8 @@ m3ApiRawFunction(m3_wasi_generic_path_remove_directory)
     m3ApiCheckMem(path, path_len);
 
     uvwasi_errno_t ret = uvwasi_path_remove_directory(&uvwasi, fd, path, path_len);
+
+    WASI_TRACE("fd:%d, path:%s", fd, path);
 
     m3ApiReturn(ret);
 }
@@ -356,6 +513,8 @@ m3ApiRawFunction(m3_wasi_generic_path_rename)
     uvwasi_errno_t ret = uvwasi_path_rename(&uvwasi, old_fd, old_path, old_path_len,
                                                      new_fd, new_path, new_path_len);
 
+    WASI_TRACE("old_fd:%d, old_path:%s, new_fd:%d, new_path:%s", old_fd, old_path, new_fd, new_path);
+
     m3ApiReturn(ret);
 }
 
@@ -369,6 +528,8 @@ m3ApiRawFunction(m3_wasi_generic_path_unlink_file)
     m3ApiCheckMem(path, path_len);
 
     uvwasi_errno_t ret = uvwasi_path_unlink_file(&uvwasi, fd, path, path_len);
+
+    WASI_TRACE("fd:%d, path:%s", fd, path);
 
     m3ApiReturn(ret);
 }
@@ -402,28 +563,81 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
                                  fs_flags,
                                  &uvfd);
 
+    WASI_TRACE("dirfd:%d, dirflags:0x%x, path:%s, oflags:0x%x, fs_flags:0x%x | fd:%d", dirfd, dirflags, path, oflags, fs_flags, uvfd);
+
     m3ApiWriteMem32(fd, uvfd);
 
     m3ApiReturn(ret);
 }
 
-m3ApiRawFunction(m3_wasi_generic_path_filestat_get)
+m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
     m3ApiGetArg      (uvwasi_lookupflags_t , flags)
     m3ApiGetArgMem   (const char *         , path)
     m3ApiGetArg      (uint32_t             , path_len)
-    m3ApiGetArgMem   (uvwasi_filestat_t *  , buf)
+    m3ApiGetArgMem   (uint8_t *            , buf)
 
     m3ApiCheckMem(path, path_len);
-    m3ApiCheckMem(buf,  sizeof(uvwasi_filestat_t));
+    m3ApiCheckMem(buf,  56); // wasi_filestat_t
 
-    uvwasi_errno_t ret = uvwasi_path_filestat_get(&uvwasi, fd, flags, path, path_len, buf);
+    uvwasi_filestat_t stat;
 
-    //TODO: m3ApiWriteMem
+    uvwasi_errno_t ret = uvwasi_path_filestat_get(&uvwasi, fd, flags, path, path_len, &stat);
 
-    m3ApiReturn(ret);
+    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%d", fd, flags, path, stat.st_size);
+
+    if (ret != UVWASI_ESUCCESS) {
+        m3ApiReturn(ret);
+    }
+
+    memset(buf, 0, 56);
+    m3ApiWriteMem64(buf+0,  stat.st_dev);
+    m3ApiWriteMem64(buf+8,  stat.st_ino);
+    m3ApiWriteMem8 (buf+16, stat.st_filetype);
+    m3ApiWriteMem64(buf+20, stat.st_nlink);
+    m3ApiWriteMem64(buf+24, stat.st_size);
+    m3ApiWriteMem64(buf+32, stat.st_atim);
+    m3ApiWriteMem64(buf+40, stat.st_mtim);
+    m3ApiWriteMem64(buf+48, stat.st_ctim);
+
+    m3ApiReturn(UVWASI_ESUCCESS);
+}
+
+m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArg      (uvwasi_lookupflags_t , flags)
+    m3ApiGetArgMem   (const char *         , path)
+    m3ApiGetArg      (uint32_t             , path_len)
+    m3ApiGetArgMem   (uint8_t *            , buf)
+
+    m3ApiCheckMem(path, path_len);
+    m3ApiCheckMem(buf,  64); // wasi_filestat_t
+
+    uvwasi_filestat_t stat;
+
+    uvwasi_errno_t ret = uvwasi_path_filestat_get(&uvwasi, fd, flags, path, path_len, &stat);
+
+    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%d", fd, flags, path, stat.st_size);
+
+    if (ret != UVWASI_ESUCCESS) {
+        m3ApiReturn(ret);
+    }
+
+    memset(buf, 0, 64);
+    m3ApiWriteMem64(buf+0,  stat.st_dev);
+    m3ApiWriteMem64(buf+8,  stat.st_ino);
+    m3ApiWriteMem8 (buf+16, stat.st_filetype);
+    m3ApiWriteMem64(buf+24, stat.st_nlink);
+    m3ApiWriteMem64(buf+32, stat.st_size);
+    m3ApiWriteMem64(buf+40, stat.st_atim);
+    m3ApiWriteMem64(buf+48, stat.st_mtim);
+    m3ApiWriteMem64(buf+56, stat.st_ctim);
+
+    m3ApiReturn(UVWASI_ESUCCESS);
 }
 
 m3ApiRawFunction(m3_wasi_generic_fd_pread)
@@ -445,15 +659,20 @@ m3ApiRawFunction(m3_wasi_generic_fd_pread)
     if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
     uvwasi_ciovec_t  iovs[iovs_len];
 #endif
-    uvwasi_size_t num_read;
-    uvwasi_errno_t ret;
 
     for (uvwasi_size_t i = 0; i < iovs_len; ++i) {
         iovs[i].buf = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
         iovs[i].buf_len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
+
+        //fprintf(stderr, "> fd_pread fd:%d iov%d.len:%d\n", fd, i, iovs[i].buf_len);
     }
 
-    ret = uvwasi_fd_pread(&uvwasi, fd, (const uvwasi_iovec_t *) iovs, iovs_len, offset, &num_read);
+    uvwasi_size_t num_read;
+
+    uvwasi_errno_t ret = uvwasi_fd_pread(&uvwasi, fd, (const uvwasi_iovec_t *) iovs, iovs_len, offset, &num_read);
+
+    WASI_TRACE("fd:%d | nread:%d", fd, num_read);
+
     m3ApiWriteMem32(nread, num_read);
     m3ApiReturn(ret);
 }
@@ -482,9 +701,14 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
     for (uvwasi_size_t i = 0; i < iovs_len; ++i) {
         iovs[i].buf = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
         iovs[i].buf_len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
+
+        //fprintf(stderr, "> fd_read fd:%d iov%d.len:%d\n", fd, i, iovs[i].buf_len);
     }
 
     ret = uvwasi_fd_read(&uvwasi, fd, (const uvwasi_iovec_t *) iovs, iovs_len, &num_read);
+
+    WASI_TRACE("fd:%d | nread:%d", fd, num_read);
+
     m3ApiWriteMem32(nread, num_read);
     m3ApiReturn(ret);
 }
@@ -516,6 +740,9 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
     }
 
     ret = uvwasi_fd_write(&uvwasi, fd, iovs, iovs_len, &num_written);
+
+    WASI_TRACE("fd:%d | nwritten:%d", fd, num_written);
+
     m3ApiWriteMem32(nwritten, num_written);
     m3ApiReturn(ret);
 }
@@ -535,6 +762,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_readdir)
     uvwasi_size_t uvbufused;
     uvwasi_errno_t ret = uvwasi_fd_readdir(&uvwasi, fd, buf, buf_len, cookie, &uvbufused);
 
+    WASI_TRACE("fd:%d | bufused:%d", fd, uvbufused);
+
     m3ApiWriteMem32(bufused, uvbufused);
 
     m3ApiReturn(ret);
@@ -547,6 +776,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_close)
 
     uvwasi_errno_t ret = uvwasi_fd_close(&uvwasi, fd);
 
+    WASI_TRACE("fd:%d", fd);
+
     m3ApiReturn(ret);
 }
 
@@ -556,6 +787,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_datasync)
     m3ApiGetArg      (uvwasi_fd_t, fd)
 
     uvwasi_errno_t ret = uvwasi_fd_datasync(&uvwasi, fd);
+
+    WASI_TRACE("fd:%d", fd);
 
     m3ApiReturn(ret);
 }
@@ -570,6 +803,8 @@ m3ApiRawFunction(m3_wasi_generic_random_get)
 
     uvwasi_errno_t ret = uvwasi_random_get(&uvwasi, buf, buf_len);
 
+    WASI_TRACE("len:%d", buf_len);
+
     m3ApiReturn(ret);
 }
 
@@ -582,6 +817,8 @@ m3ApiRawFunction(m3_wasi_generic_clock_res_get)
     m3ApiCheckMem(resolution, sizeof(uvwasi_timestamp_t));
 
     uvwasi_errno_t ret = uvwasi_clock_res_get(&uvwasi, wasi_clk_id, resolution);
+
+    WASI_TRACE("clk_id:%d", wasi_clk_id);
 
     //TODO: m3ApiWriteMem64
 
@@ -598,6 +835,8 @@ m3ApiRawFunction(m3_wasi_generic_clock_time_get)
     m3ApiCheckMem(time, sizeof(uvwasi_timestamp_t));
 
     uvwasi_errno_t ret = uvwasi_clock_time_get(&uvwasi, wasi_clk_id, precision, time);
+
+    WASI_TRACE("clk_id:%d", wasi_clk_id);
 
     //TODO: m3ApiWriteMem64
 
@@ -616,7 +855,11 @@ m3ApiRawFunction(m3_wasi_generic_poll_oneoff)
     m3ApiCheckMem(out,      nsubscriptions * sizeof(uvwasi_event_t));
     m3ApiCheckMem(nevents,  sizeof(uvwasi_size_t));
 
+    // TODO: unstable/snapshot_preview1 compatibility
+
     uvwasi_errno_t ret = uvwasi_poll_oneoff(&uvwasi, in, out, nsubscriptions, nevents);
+
+    WASI_TRACE("nsubscriptions:%d | nevents:%d", nsubscriptions, *nevents);
 
     //TODO: m3ApiWriteMem
 
@@ -632,6 +875,8 @@ m3ApiRawFunction(m3_wasi_generic_proc_exit)
     if (context) {
         context->exit_code = code;
     }
+
+    //TODO: fprintf(stderr, "proc_exit code:%d\n", code);
 
     m3ApiTrap(m3Err_trapExit);
 }
@@ -700,8 +945,12 @@ M3Result  m3_LinkWASI  (IM3Module module)
     static const char* namespaces[2] = { "wasi_unstable", "wasi_snapshot_preview1" };
 
     // fd_seek is incompatible
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "fd_seek",     "i(iIi*)", &m3_wasi_unstable_fd_seek)));
-_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "fd_seek",     "i(iIi*)", &m3_wasi_snapshot_preview1_fd_seek)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "fd_seek",           "i(iIi*)",   &m3_wasi_unstable_fd_seek)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "fd_seek",           "i(iIi*)",   &m3_wasi_snapshot_preview1_fd_seek)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "fd_filestat_get",   "i(i*)",     &m3_wasi_unstable_fd_filestat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "fd_filestat_get",   "i(i*)",     &m3_wasi_snapshot_preview1_fd_filestat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "path_filestat_get", "i(ii*i*)",  &m3_wasi_unstable_path_filestat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "path_filestat_get", "i(ii*i*)",  &m3_wasi_snapshot_preview1_path_filestat_get)));
 
     for (int i=0; i<2; i++)
     {
@@ -721,7 +970,6 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_datasync",
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_generic_fd_fdstat_get)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_flags",  "i(ii)",   &m3_wasi_generic_fd_fdstat_set_flags)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_rights", "i(iII)",  )));
-_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_get",      "i(i*)",   &m3_wasi_generic_fd_filestat_get)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_set_size", "i(iI)",   )));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_set_times","i(iIIi)", )));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_pread",             "i(i*iI*)",&m3_wasi_generic_fd_pread)));
@@ -736,7 +984,6 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_readdir", 
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(i*i*)", &m3_wasi_generic_fd_write)));
 
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_create_directory",    "i(i*i)",       &m3_wasi_generic_path_create_directory)));
-_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_filestat_get",        "i(ii*i*)",     &m3_wasi_generic_path_filestat_get)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_filestat_set_times",  "i(ii*iIIi)",   )));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_link",                "i(ii*ii*i)",   )));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",                "i(ii*iiIIi*)", &m3_wasi_generic_path_open)));
