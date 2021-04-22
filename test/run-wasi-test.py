@@ -65,7 +65,11 @@ commands_full = [
     "args":           ["16", "64"],
     "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
   }, {
-    "skip":           True,  # TODO
+    "name":           "smallpt (explicit light sampling, multi-value)",
+    "wasm":           "./wasi/smallpt/smallpt-ex-mv.wasm",
+    "args":           ["16", "64"],
+    "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
+  }, {
     "name":           "mal",
     "wasm":           "./wasi/mal/mal.wasm",
     "args":           ["./wasi/mal/test-fib.mal", "16"],
@@ -127,7 +131,11 @@ commands_fast = [
     "args":           ["4", "32"],
     "expect_sha1":    "ea05d85998b2f453b588ef76a1256215bf9b851c"
   }, {
-    "skip":           True,  # TODO
+    "name":           "smallpt (explicit light sampling, multi-value)",
+    "wasm":           "./wasi/smallpt/smallpt-ex-mv.wasm",
+    "args":           ["4", "32"],
+    "expect_sha1":    "ea05d85998b2f453b588ef76a1256215bf9b851c"
+  }, {
     "name":           "mal",
     "wasm":           "./wasi/mal/mal.wasm",
     "args":           ["./wasi/mal/test-fib.mal", "16"],
