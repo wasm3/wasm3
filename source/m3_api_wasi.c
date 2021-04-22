@@ -83,8 +83,8 @@ Preopen preopen[PREOPEN_CNT] = {
     {  0, "<stdin>" , "" },
     {  1, "<stdout>", "" },
     {  2, "<stderr>", "" },
-    { -1, "./"      , "." },
     { -1, "/"       , "." },
+    { -1, "./"      , "." },
 };
 
 #if defined(APE)
@@ -293,7 +293,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
     m3ApiCheckMem(path, path_len);
 
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_ERRNO_BADF); }
-    size_t slen = strlen(preopen[fd].path);
+    size_t slen = strlen(preopen[fd].path) + 1;
     memcpy(path, preopen[fd].path, M3_MIN(slen, path_len));
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
@@ -302,13 +302,14 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
-    m3ApiGetArgMem   (uint32_t *           , buf)  // TODO: use actual struct
+    m3ApiGetArgMem   (uint8_t *            , buf)
 
-    m3ApiCheckMem(buf, 2*sizeof(uint32_t));
+    m3ApiCheckMem(buf, 8);
 
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_ERRNO_BADF); }
-    m3ApiWriteMem32(buf,    __WASI_PREOPENTYPE_DIR);
-    m3ApiWriteMem32(buf+1,  strlen(preopen[fd].path));
+
+    m3ApiWriteMem32(buf+0, __WASI_PREOPENTYPE_DIR);
+    m3ApiWriteMem32(buf+4, strlen(preopen[fd].path) + 1);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
 
@@ -499,7 +500,8 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
     int flags = ((oflags & __WASI_OFLAGS_CREAT)             ? _O_CREAT     : 0) |
                 ((oflags & __WASI_OFLAGS_EXCL)              ? _O_EXCL      : 0) |
                 ((oflags & __WASI_OFLAGS_TRUNC)             ? _O_TRUNC     : 0) |
-                ((fs_flags & __WASI_FDFLAGS_APPEND)     ? _O_APPEND    : 0);
+                ((fs_flags & __WASI_FDFLAGS_APPEND)         ? _O_APPEND    : 0) |
+                _O_BINARY;
 
     if ((fs_rights_base & __WASI_RIGHTS_FD_READ) &&
         (fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {

@@ -36,10 +36,6 @@ typedef struct wasi_iovec_t
     uvwasi_size_t buf_len;
 } wasi_iovec_t;
 
-/*
- * WASI API implementation
- */
-
 #if d_m3EnableWasiTracing
 
 const char* wasi_errno2str(uvwasi_errno_t err)
@@ -130,6 +126,10 @@ const char* wasi_errno2str(uvwasi_errno_t err)
 #else
 #  define WASI_TRACE(fmt, ...)
 #endif
+
+/*
+ * WASI API implementation
+ */
 
 m3ApiRawFunction(m3_wasi_generic_args_get)
 {
@@ -256,7 +256,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 
     uvwasi_errno_t ret = uvwasi_fd_prestat_dir_name(&uvwasi, fd, path, path_len);
 
-    WASI_TRACE("fd:%d, path:%s", fd, path);
+    WASI_TRACE("fd:%d, len:%d | path:%s", fd, path_len, path);
 
     m3ApiReturn(ret);
 }
@@ -273,7 +273,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
 
     uvwasi_errno_t ret = uvwasi_fd_prestat_get(&uvwasi, fd, &prestat);
 
-    WASI_TRACE("fd:%d", fd);
+    WASI_TRACE("fd:%d | type:%d, name_len:%d", fd, prestat.pr_type, prestat.u.dir.pr_name_len);
 
     if (ret != UVWASI_ESUCCESS) {
         m3ApiReturn(ret);
@@ -281,16 +281,16 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
 
     m3ApiWriteMem32(buf+0, prestat.pr_type);
     m3ApiWriteMem32(buf+4, prestat.u.dir.pr_name_len);
-    m3ApiReturn(UVWASI_ESUCCESS);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_fd_t          , fd)
-    m3ApiGetArgMem   (uint8_t *            , fdstat)
+    m3ApiGetArgMem   (uint8_t *            , buf)
 
-    m3ApiCheckMem(fdstat, 24);
+    m3ApiCheckMem(buf, 24);
 
     uvwasi_fdstat_t stat;
     uvwasi_errno_t ret = uvwasi_fd_fdstat_get(&uvwasi, fd, &stat);
@@ -301,12 +301,12 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
         m3ApiReturn(ret);
     }
 
-    memset(fdstat, 0, 24);
-    m3ApiWriteMem8 (fdstat+0, stat.fs_filetype);
-    m3ApiWriteMem16(fdstat+2, stat.fs_flags);
-    m3ApiWriteMem64(fdstat+8, stat.fs_rights_base);
-    m3ApiWriteMem64(fdstat+16, stat.fs_rights_inheriting);
-    m3ApiReturn(UVWASI_ESUCCESS);
+    memset(buf, 0, 24);
+    m3ApiWriteMem8 (buf+0, stat.fs_filetype);
+    m3ApiWriteMem16(buf+2, stat.fs_flags);
+    m3ApiWriteMem64(buf+8, stat.fs_rights_base);
+    m3ApiWriteMem64(buf+16, stat.fs_rights_inheriting);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
@@ -919,7 +919,7 @@ M3Result  m3_LinkWASI  (IM3Module module)
     uvwasi_preopen_t preopens[PREOPENS_COUNT];
     preopens[0].mapped_path = "/";
     preopens[0].real_path = ".";
-    preopens[1].mapped_path = ".";
+    preopens[1].mapped_path = "./";
     preopens[1].real_path = ".";
 
     uvwasi_options_t init_options;

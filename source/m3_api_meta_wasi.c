@@ -423,7 +423,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
 
     __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
 
-    if (ret != __WASI_ERRNO_ESUCCESS) {
+    if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
@@ -456,7 +456,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
 
     __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
 
-    if (ret != __WASI_ERRNO_ESUCCESS) {
+    if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
