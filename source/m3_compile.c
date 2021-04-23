@@ -1463,9 +1463,9 @@ _       (ReadLEB_u32 (& target, & o->wasm, o->wasmEnd));
         IM3CompilationScope scope;
 _       (GetBlockScope (o, & scope, target));
 
-		// TODO: don't need codepage rigmarole for
-		// no-param forward-branch targets
-		
+        // TODO: don't need codepage rigmarole for
+        // no-param forward-branch targets
+        
 _       (AcquireCompilationCodePage (o, & continueOpPage));
 
         pc_t startPC = GetPagePC (continueOpPage);
@@ -2431,7 +2431,9 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
         }
 
         IM3OpInfo opinfo = GetOpInfo(opcode);
-        _throwif (m3Err_unknownOpcode, opinfo == NULL);
+		
+		if (opinfo == NULL)
+			_throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
 
         if (opinfo->compiler) {
 _           ((* opinfo->compiler) (o, opcode))

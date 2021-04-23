@@ -1406,29 +1406,6 @@ d_m3Store_i (i64, i64)
 
 #undef m3MemCheck
 
-//---------------------------------------------------------------------------------------------------------------------
-# if 0 //d_m3EnableOptimizations
-//---------------------------------------------------------------------------------------------------------------------
-
-    #define d_m3BinaryOpWith1_i(TYPE, NAME, OPERATION)  \
-    d_m3Op(TYPE##_##NAME)                               \
-    {                                                   \
-        _r0 = _r0 OPERATION 1;                          \
-        nextOp ();                                      \
-    }
-
-    d_m3BinaryOpWith1_i (u64, Increment,    +)
-    d_m3BinaryOpWith1_i (u32, Decrement,    -)
-
-    d_m3BinaryOpWith1_i (u32, ShiftLeft1,   <<)
-    d_m3BinaryOpWith1_i (u64, ShiftLeft1,   <<)
-
-    d_m3BinaryOpWith1_i (u32, ShiftRight1,  >>)
-    d_m3BinaryOpWith1_i (u64, ShiftRight1,  >>)
-
-//---------------------------------------------------------------------------------------------------------------------
-# endif
-
 
 //---------------------------------------------------------------------------------------------------------------------
 // debug/profiling

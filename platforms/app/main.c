@@ -138,7 +138,7 @@ M3Result repl_load  (const char* fn)
     fclose (f);
     f = NULL;
 
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) goto on_error;
 
     result = m3_LoadModule (runtime, module);
@@ -197,7 +197,7 @@ M3Result repl_load_hex  (u32 fsize)
     }
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) return result;
 
     result = m3_LoadModule (runtime, module);

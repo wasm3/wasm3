@@ -112,7 +112,7 @@ typedef struct M3Module
     M3MemoryInfo            memoryInfo;
     bool                    memoryImported;
 
-    //bool                    hasWasmCodeCopy;
+    bool                    hasWasmCodeCopy;
 
     struct M3Module *       next;
 }
