@@ -40,8 +40,8 @@
 #   define d_m3MaxDuplicateFunctionImpl         3
 # endif
 
-# ifndef d_m3VerboseLogs
-#   define d_m3VerboseLogs                      1
+# ifndef d_m3VerboseErrorMessages
+#   define d_m3VerboseErrorMessages             1
 # endif
 
 # ifndef d_m3FixedHeap

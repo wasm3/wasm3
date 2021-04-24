@@ -177,7 +177,7 @@ typedef struct M3Runtime
 #endif
 
     M3ErrorInfo             error;
-#if d_m3VerboseLogs
+#if d_m3VerboseErrorMessages
     char                    error_message[256]; // the actual buffer. M3ErrorInfo can point to this
 #endif
 

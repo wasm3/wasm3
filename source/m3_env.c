@@ -1029,7 +1029,7 @@ void  ReleaseCodePage  (IM3Runtime i_runtime, IM3CodePage i_codePage)
 }
 
 
-#if d_m3VerboseLogs
+#if d_m3VerboseErrorMessages
 M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
                     const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...)
 {
