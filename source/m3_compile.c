@@ -1104,8 +1104,9 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 
 M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
+_try {
     u8 opcode;
 _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
 
@@ -1120,7 +1121,7 @@ _   ((* compiler) (o, i_opcode));
 
     o->previousOpcode = i_opcode;
 
-    _catch: return result;
+	} _catch: return result;
 }
 #endif
 
