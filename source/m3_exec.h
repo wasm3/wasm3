@@ -704,9 +704,9 @@ d_m3Op  (MemGrow)
 
 d_m3Op  (MemCopy)
 {
-    u64 destination = (u32) _r0;
-    u64 source = immediate (u32);
-    u32 size = immediate (u32);
+    u32 size = (u32) _r0;
+    u64 source = slot (u32);
+    u64 destination = slot (u32);
     
     if (destination + size <= _mem->length)
     {
@@ -726,9 +726,9 @@ d_m3Op  (MemCopy)
 
 d_m3Op  (MemFill)
 {
-    u64 destination = (u32) _r0;
-    u32 byte = immediate (u32);
-    u32 size = immediate (u32);
+    u32 size = (u32) _r0;
+    u32 byte = slot (u32);
+    u64 destination = slot (u32);
     
     if (destination + size <= _mem->length)
     {

@@ -814,7 +814,6 @@ M3Result  CopyStackTopToRegister  (IM3Compilation o, bool i_updateStack)
     {
         u8 type = GetStackTopType (o);
 
-        if (i_updateStack)
 _       (PreserveRegisterIfOccupied (o, type));
 
         IM3Operation op = c_setRegisterOps [type];
@@ -1691,11 +1690,11 @@ _       (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
     else op = op_MemFill;
 
 _   (CopyStackTopToRegister (o, false));
-_   (PopType (o, c_m3Type_i32));
-_   (PopType (o, c_m3Type_i32));
-_   (PopType (o, c_m3Type_i32));
-
+    
 _   (EmitOp  (o, op));
+_   (PopType (o, c_m3Type_i32));
+_   (EmitSlotNumOfStackTopAndPop (o));
+_   (EmitSlotNumOfStackTopAndPop (o));
     
     _catch: return result;
 }
@@ -2392,6 +2391,11 @@ const M3OpInfo c_operations [] =
 # endif
 
 # ifdef d_m3EnableExtendedOpcodes
+# ifdef DEBUG
+    d_m3DebugOp (MemFill),
+    d_m3DebugOp (MemCopy),
+#endif
+    
     [0xFC] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 
