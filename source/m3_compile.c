@@ -1101,7 +1101,7 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 }
 #endif
 
-#ifdef d_m3CompileExtendedOpcode
+#ifdef d_m3EnableExtendedOpcodes
 
 M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -2391,7 +2391,7 @@ const M3OpInfo c_operations [] =
     d_m3DebugTypedOp (SetRegister), d_m3DebugTypedOp (SetSlot),     d_m3DebugTypedOp (PreserveSetSlot),
 # endif
 
-# ifdef d_m3CompileExtendedOpcode
+# ifdef d_m3EnableExtendedOpcodes
     [0xFC] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 

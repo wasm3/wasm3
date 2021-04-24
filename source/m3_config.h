@@ -40,6 +40,10 @@
 #   define d_m3MaxDuplicateFunctionImpl         3
 # endif
 
+# ifndef d_m3EnableExtendedOpcodes
+#   define d_m3EnableExtendedOpcodes            1
+# endif
+
 # ifndef d_m3VerboseErrorMessages
 #   define d_m3VerboseErrorMessages             1
 # endif

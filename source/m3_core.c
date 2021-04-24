@@ -320,7 +320,7 @@ M3Result  Read_opcode  (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_en
     {
         m3opcode_t opcode = * ptr++;
 
-#ifndef d_m3CompileExtendedOpcode
+#ifndef d_m3EnableExtendedOpcodes
         if (UNLIKELY(opcode == 0xFC))
         {
             if (ptr < i_end)
