@@ -528,7 +528,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        g++ -xc++ -Dd_m3HasWASI \
+        clang -xc++ -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
@@ -546,7 +546,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        g++ -xc++ -Dd_m3HasWASI -DDEBUG \
+        clang -xc++ -Dd_m3HasWASI -DDEBUG \
             -Dd_m3EnableOpTracing=1     \
             -Dd_m3EnableStrace=1        \
             -Dd_m3LogParse=1            \
