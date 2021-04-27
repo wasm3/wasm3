@@ -110,3 +110,15 @@ IM3Function  m3_GetFunctionByIndex  (IM3Module i_module, uint32_t i_index)
 {
     return Module_GetFunction (i_module, i_index);
 }
+
+M3Result  m3_GetFunctionIndex  (IM3Function			i_function,
+								uint32_t * 	        o_index)
+{
+	if (i_function and o_index)
+	{
+		* o_index = i_function->index;
+		
+		return m3Err_none;
+	}
+	else return m3Err_functionLookupFailed;
+}

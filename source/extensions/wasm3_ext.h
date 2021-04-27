@@ -30,8 +30,9 @@ extern "C" {
     // To overwrite an existing function, set io_functionIndex to the desired element. i_signature must match the existing
     // function signature.
     // ** InjectFunction invalidates any existing IM3Function pointers
-    M3Result            m3_InjectFunction           (IM3Module              i_module,
+    M3Result            m3_InjectFunction           (IM3Module              io_module,
                                                      int32_t *              io_functionIndex,
+//													 const char * const     i_name,
                                                      const char * const     i_signature,
                                                      const uint8_t * const  i_wasmBytes,            // i_wasmBytes is copied
                                                      bool                   i_doCompilation);
@@ -39,6 +40,9 @@ extern "C" {
 
     IM3Function         m3_GetFunctionByIndex       (IM3Module              i_module,
                                                      uint32_t               i_index);
+
+	M3Result 		    m3_GetFunctionIndex        	(IM3Function			i_function,
+													 uint32_t * 	        o_index);
 
 #if defined(__cplusplus)
 }
