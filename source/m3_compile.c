@@ -2601,6 +2601,8 @@ M3Result  CompileLocals  (IM3Compilation o)
     u32 numLocalBlocks;
 _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 
+	u32 numLocals = 0;
+	
     for (u32 l = 0; l < numLocalBlocks; ++l)
     {
         u32 varCount;
@@ -2610,10 +2612,13 @@ _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 _       (ReadLEB_u32 (& varCount, & o->wasm, o->wasmEnd));
 _       (ReadLEB_i7 (& waType, & o->wasm, o->wasmEnd));
 _       (NormalizeType (& localType, waType));
-                                                                                                m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
+        numLocals += varCount;                                                         	m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
         while (varCount--)
 _           (PushAllocatedSlot (o, localType));
     }
+	
+	if (o->function)
+		o->function->numLocals = numLocals;
 
     _catch: return result;
 }

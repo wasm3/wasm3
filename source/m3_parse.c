@@ -346,6 +346,7 @@ _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
             if (i_bytes <= i_end)
             {
+				/*
                 u32 numLocalBlocks;
 _               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "    code size: %-4d", size);
 
@@ -363,14 +364,15 @@ _                   (NormalizeType (& normalType, wasmType));
 
                     numLocals += varCount;                                                      m3log (parse, "      %2d locals; type: '%s'", varCount, c_waTypes [normalType]);
                 }
-
+				 */
+				
                 IM3Function func = Module_GetFunction (io_module, f + io_module->numFuncImports);
 
                 func->module = io_module;
                 func->wasm = start;
                 func->wasmEnd = i_bytes;
                 //func->ownsWasmCode = io_module->hasWasmCodeCopy;
-                func->numLocals = numLocals;
+//                func->numLocals = numLocals;
             }
             else _throw (m3Err_wasmSectionOverrun);
         }
