@@ -43,6 +43,7 @@ int wasm_bins_qty = 0;
 
 #if defined(GAS_LIMIT)
 
+static int64_t initial_gas = GAS_FACTOR * GAS_LIMIT;
 static int64_t current_gas = GAS_FACTOR * GAS_LIMIT;
 static bool is_gas_metered = false;
 
@@ -208,6 +209,15 @@ M3Result repl_load_hex  (u32 fsize)
     return result;
 }
 
+void print_gas_used()
+{
+#if defined(GAS_LIMIT)
+    if (is_gas_metered) {
+        fprintf(stderr, "Gas used: %0.4f\n", (double)(initial_gas - current_gas) / GAS_FACTOR);
+    }
+#endif
+}
+
 void print_backtrace()
 {
     IM3BacktraceInfo info = m3_GetBacktrace(runtime);
@@ -253,6 +263,8 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 
         result = m3_CallArgv(func, 0, NULL);
 
+        print_gas_used();
+
         if (result == m3Err_trapExit) {
             exit(wasi_ctx->exit_code);
         }
@@ -273,11 +285,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 
     result = m3_CallArgv (func, argc, argv);
 
-#if defined(GAS_LIMIT)
-    if (is_gas_metered) {
-        fprintf(stderr, "Gas used: %0.4f\n", (double)((GAS_FACTOR * GAS_LIMIT) - current_gas) / GAS_FACTOR);
-    }
-#endif
+    print_gas_used();
 
     if (result) return result;
 
@@ -566,6 +574,10 @@ int  main  (int i_argc, const char* i_argv[])
             const char* tmp = "65536";
             ARGV_SET(tmp);
             argStackSize = atol(tmp);
+        } else if (!strcmp("--gas-limit", arg)) {
+            const char* tmp = "0";
+            ARGV_SET(tmp);
+            initial_gas = current_gas = GAS_FACTOR * atol(tmp);
         } else if (!strcmp("--dir", arg)) {
             const char* argDir;
             ARGV_SET(argDir);
