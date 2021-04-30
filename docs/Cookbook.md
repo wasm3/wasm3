@@ -1,6 +1,4 @@
-# Wasm3 Cookbook
-
-## WASM module examples
+# WASM module examples
 
 ### Rust WASI app
 
@@ -210,9 +208,7 @@ wasm3> :invoke swap 123 456
 Result: 456:i32, 123:i32
 ```
 
-___
-
-## WASM/WASI tracing
+# Tracing
 
 Drag'n'drop any of the WASI apps to [`WebAssembly.sh`](https://webassembly.sh/) and run:
 ```sh
@@ -373,7 +369,8 @@ Hello, world!
 ```
 </details>
 
-## Gas Metering
+# Gas Metering
+
 ```sh
 $ npm install -g wasm-metering
 
@@ -390,7 +387,7 @@ Gas used: 10.0309
 Error: [trap] Out of gas
 ```
 
-## Other resources
+# Other resources
 
 - [WebAssembly by examples](https://wasmbyexample.dev/home.en-us.html) by Aaron Turner
 - [Writing WebAssembly](https://docs.wasmtime.dev/wasm.html) in Wasmtime docs
