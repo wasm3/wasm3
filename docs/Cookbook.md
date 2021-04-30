@@ -2,11 +2,48 @@
 
 ### Rust WASI app
 
-TODO
+Create a new project:
+```sh
+$ cargo new --bin hello
+$ cd hello
+$ rustup target add wasm32-wasi
+```
+
+Build and run:
+```sh
+$ cargo build --release --target wasm32-wasi
+
+$ wasm3 ./target/wasm32-wasi/release/hello.wasm
+Hello, world!
+```
 
 ### AssemblyScript WASI app
 
-TODO
+Create `package.json`:
+```json
+{
+  "name": "hello",
+  "version": "1.0.0",
+  "description": "Hello world with AssemblyScript and as-wasi",
+  "main": "hello.ts",
+  "scripts": {
+    "build": "asc hello.ts -b hello.wasm"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.10.0",
+    "as-wasi": "^0.1.1"
+  }
+}
+```
+
+Build and run:
+```sh
+$ npm install
+$ npm run build
+
+$ wasm3 hello.wasm
+Hello World!
+```
 
 ### TinyGo WASI app
 
@@ -24,6 +61,7 @@ pub fn main() !void {
 }
 ```
 
+Build and run:
 ```sh
 $ zig build-exe -O ReleaseSmall -target wasm32-wasi hello.zig
 
@@ -40,6 +78,7 @@ export fn add(a: i32, b: i32) i64 {
 }
 ```
 
+Build and run:
 ```sh
 $ zig build-lib add.zig -O ReleaseSmall -target wasm32-freestanding
 
@@ -48,11 +87,9 @@ wasm3> add 1 2
 Result: 3
 ```
 
-### C WASI app
+### C/C++ WASI app
 
 The easiest way to start is to use [Wasienv](https://github.com/wasienv/wasienv).
-
-### C/C++ WASI app
 
 Create `hello.cpp`:
 ```cpp
@@ -72,6 +109,7 @@ int main() {
 }
 ```
 
+Build and run:
 ```sh
 $ wasic++ -O3 hello.cpp -o hello.wasm
 $ wasicc -O3 hello.c -o hello.wasm
