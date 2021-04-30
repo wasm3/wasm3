@@ -22,24 +22,23 @@ Hello, world!
 Create `hello.ts`:
 ```ts
 import "wasi"
-
 import {Console} from "as-wasi"
+
 Console.log('Hello World!');
 ```
 
 Create `package.json`:
 ```json
 {
-  "name": "hello",
-  "version": "1.0.0",
-  "description": "Hello world with AssemblyScript and as-wasi",
-  "main": "hello.ts",
   "scripts": {
-    "build": "asc hello.ts -b hello.wasm"
+    "asbuild:debug":        "asc hello.ts -b hello.wasm --debug",
+    "asbuild:optimized":    "asc hello.ts -b hello.wasm -O3s --noAssert",
+    "asbuild:tiny":         "asc hello.ts -b hello.wasm -O3z --noAssert --runtime stub --use abort=",
+    "build":                "npm run asbuild:optimized"
   },
   "devDependencies": {
-    "assemblyscript": "^0.18.30",
-    "as-wasi": "^0.4.4"
+    "assemblyscript": "*",
+    "as-wasi": "*"
   }
 }
 ```
@@ -68,7 +67,7 @@ func main() {
 
 Build and run:
 ```sh
-$ tinygo build -o hello.wasm -target wasi ./hello.go
+$ tinygo build -o hello.wasm -target wasi -no-debug hello.go
 
 $ wasm3 hello.wasm
 Hello, world!
@@ -119,6 +118,7 @@ The easiest way to start is to use [Wasienv](https://github.com/wasienv/wasienv)
 Create `hello.cpp`:
 ```cpp
 #include <iostream>
+
 int main() {
     std::cout << "Hello, world!" << std::endl;
     return 0;
@@ -128,6 +128,7 @@ int main() {
 Or `hello.c`:
 ```c
 #include <stdio.h>
+
 int main() {
    printf("Hello, %s!\n", "world");
    return 0;
