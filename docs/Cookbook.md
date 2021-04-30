@@ -372,3 +372,9 @@ Hello, world!
 }
 ```
 </details>
+
+
+## Other resources
+
+- [WebAssembly by examples](https://wasmbyexample.dev/home.en-us.html) by Aaron Turner
+- [Writing WebAssembly](https://docs.wasmtime.dev/wasm.html) in Wasmtime docs
