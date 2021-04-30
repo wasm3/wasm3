@@ -36,6 +36,14 @@ Create `package.json`:
 }
 ```
 
+Create `hello.ts`:
+```ts
+import "wasi"
+
+import {Console} from "as-wasi"
+Console.log('Hello World!\n');
+```
+
 Build and run:
 ```sh
 $ npm install
