@@ -1,5 +1,7 @@
 # Wasm3 Cookbook
 
+## WASM module examples
+
 ### Rust WASI app
 
 Create a new project:
@@ -147,3 +149,24 @@ Limitations:
 - `setjmp/longjmp` and `C++ exceptions` are not available
 - no support for `threads` and `atomics`
 - no support for `dynamic libraries`
+
+### WAT library
+
+Create `swap.wat`:
+```wat
+(module
+  (func (export "swap") (param i32 i32) (result i32 i32)
+    (get_local 1)
+    (get_local 0)
+  )
+)
+```
+
+Build and run:
+```sh
+$ wat2wasm swap.wat -o swap.wasm
+
+$ wasm3 --repl swap.wasm
+wasm3> :invoke swap 123 456
+Result: 456:i32, 123:i32
+```
