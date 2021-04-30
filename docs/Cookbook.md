@@ -383,6 +383,11 @@ $ wasm3 hello-metered.wasm
 Warning: Gas is limited to 500000000.0000
 Hello, world!
 Gas used: 20.8950
+
+$ wasm3 --gas-limit 10 hello-metered.wasm
+Warning: Gas is limited to 10.0000
+Gas used: 10.0309
+Error: [trap] Out of gas
 ```
 
 ## Other resources
