@@ -209,3 +209,166 @@ $ wasm3 --repl swap.wasm
 wasm3> :invoke swap 123 456
 Result: 456:i32, 123:i32
 ```
+
+___
+
+## WASM/WASI tracing
+
+Drag'n'drop any of the WASI apps to [`WebAssembly.sh`](https://webassembly.sh/) and run:
+```sh
+$ wasm3-strace /tmp/hello.wasm
+```
+
+The execution trace will be produced:
+```js
+_start () {
+  __wasilibc_init_preopen () {
+    malloc (i32: 16) {
+      dlmalloc (i32: 16) {
+        sbrk (i32: 0) {
+        } = 131072
+        sbrk (i32: 65536) {
+```
+<details>
+  <summary>Click to expand!</summary>
+
+```js
+        } = 131072
+      } = 131088
+    } = 131088
+    calloc (i32: 24, i32: 0) {
+      dlmalloc (i32: 96) {
+      } = 131120
+      memset (i32: 131120, i32: 65504, i32: 0) {
+      } = 131120
+    } = 131120
+    po_map_assertvalid (i32: 131088) {
+    }
+    po_map_assertvalid (i32: 131088) {
+    }
+  }
+  wasi_unstable!fd_prestat_get(3, 65528) { <native> } = 0
+  malloc (i32: 2) {
+    dlmalloc (i32: 2) {
+    } = 131232
+  } = 131232
+  wasi_unstable!fd_prestat_dir_name(3, 131232, 1) { <native> } = 0
+  __wasilibc_register_preopened_fd (i32: 3, i32: 131120) {
+    po_map_assertvalid (i32: 131088) {
+    }
+    po_map_assertvalid (i32: 131088) {
+    }
+    strdup (i32: 131232) {
+      strlen (i32: 131232) {
+      } = 1
+      malloc (i32: 2) {
+        dlmalloc (i32: 2) {
+        } = 131248
+      } = 131248
+      memcpy (i32: 131248, i32: 131233, i32: 131232) {
+      } = 131248
+    } = 131248
+    wasi_unstable!fd_fdstat_get(3, 65496) { <native> } = 0
+    po_map_assertvalid (i32: 131088) {
+    }
+    po_map_assertvalid (i32: 131088) {
+    }
+  } = 0
+  free (i32: 131232) {
+    dlfree (i32: 131232) {
+    }
+  }
+  wasi_unstable!fd_prestat_get(4, 65528) { <native> } = 0
+  malloc (i32: 2) {
+    dlmalloc (i32: 2) {
+    } = 131232
+  } = 131232
+  wasi_unstable!fd_prestat_dir_name(4, 131232, 1) { <native> } = 0
+  __wasilibc_register_preopened_fd (i32: 4, i32: 131120) {
+    po_map_assertvalid (i32: 131088) {
+    }
+    po_map_assertvalid (i32: 131088) {
+    }
+    strdup (i32: 131232) {
+      strlen (i32: 131232) {
+      } = 1
+      malloc (i32: 2) {
+        dlmalloc (i32: 2) {
+        } = 131264
+      } = 131264
+      memcpy (i32: 131264, i32: 131233, i32: 131232) {
+      } = 131264
+    } = 131264
+    wasi_unstable!fd_fdstat_get(4, 65496) { <native> } = 0
+    po_map_assertvalid (i32: 131088) {
+    }
+    po_map_assertvalid (i32: 131088) {
+    }
+  } = 0
+  free (i32: 131232) {
+    dlfree (i32: 131232) {
+    }
+  }
+  wasi_unstable!fd_prestat_get(5, 65528) { <native> } = 8
+  __wasm_call_ctors () {
+  }
+  __original_main () {
+    printf (i32: 65536, i32: 0) {
+      vfprintf (i32: 69512, i32: 0, i32: 65536) {
+        printf_core (i32: 0, i32: -1, i32: 65536, i32: -16, i32: 65480) {
+        } = 0
+        __towrite (i32: 69512) {
+        } = 0
+        printf_core (i32: 69512, i32: 8, i32: 65536, i32: -1, i32: 65480) {
+          __fwritex (i32: 65536, i32: 0, i32: 7) {
+            memcpy (i32: 68472, i32: 0, i32: 65536) {
+            } = 68472
+          } = 7
+          __fwritex (i32: 65543, i32: 0, i32: 0) {
+            memcpy (i32: 68479, i32: 0, i32: 65543) {
+            } = 68479
+          } = 0
+          pop_arg (i32: 64456, i32: 0, i32: 9) {
+          }
+          strnlen (i32: 65548, i32: 0) {
+            memchr (i32: 65548, i32: 4, i32: 0) {
+            } = 65553
+          } = 5
+          __fwritex (i32: 67222, i32: 65553, i32: 0) {
+            memcpy (i32: 68479, i32: 0, i32: 67222) {
+            } = 68479
+          } = 0
+          __fwritex (i32: 65548, i32: 65553, i32: 5) {
+            memcpy (i32: 68479, i32: 0, i32: 65548) {
+            } = 68479
+          } = 5
+          __fwritex (i32: 65545, i32: 0, i32: 2) {
+            __stdout_write (i32: 69512, i32: 0, i32: 65545) {
+              __isatty (i32: 1) {
+                wasi_unstable!fd_fdstat_get(1, 64376) { <native> } = 0
+              } = 1
+              __stdio_write (i32: 69512, i32: 64368, i32: 65545) {
+                writev (i32: 1, i32: -16, i32: 64384) {
+Hello, world!
+                  wasi_unstable!fd_write(1, 64384, 2, 64380) { <native> } = 0
+                } = 14
+              } = 2
+            } = 2
+            memcpy (i32: 68472, i32: -1, i32: 65547) {
+            } = 68472
+          } = 2
+        } = 14
+      } = 14
+    } = 14
+  } = 0
+  __prepare_for_exit () {
+    dummy () {
+    }
+    __stdio_exit () {
+      __ofl_lock () {
+      } = 69504
+    }
+  }
+}
+```
+</details>
