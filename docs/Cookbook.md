@@ -153,7 +153,7 @@ Limitations:
 ### WAT WASI app
 
 Create `hello.wat`:
-```
+```wat
 (module
     ;; wasi_unstable!fd_write(file_descriptor, *iovs, iovs_len, nwritten) -> status_code
     (import "wasi_unstable" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
