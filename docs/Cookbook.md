@@ -24,7 +24,7 @@ Create `hello.ts`:
 import "wasi"
 
 import {Console} from "as-wasi"
-Console.log('Hello World!\n');
+Console.log('Hello World!');
 ```
 
 Create `package.json`:
@@ -38,8 +38,8 @@ Create `package.json`:
     "build": "asc hello.ts -b hello.wasm"
   },
   "devDependencies": {
-    "assemblyscript": "^0.10.0",
-    "as-wasi": "^0.1.1"
+    "assemblyscript": "^0.18.30",
+    "as-wasi": "^0.4.4"
   }
 }
 ```
