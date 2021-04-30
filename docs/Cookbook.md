@@ -52,40 +52,35 @@ Result: 3
 
 The easiest way to start is to use [Wasienv](https://github.com/wasienv/wasienv).
 
-Create `hello.c`:
+### C/C++ WASI app
+
+Create `hello.cpp`:
+```cpp
+#include <iostream>
+int main() {
+    std::cout << "Hello, world!" << std::endl;
+    return 0;
+}
+```
+
+Or `hello.c`:
 ```c
 #include <stdio.h>
-
-int main()
-{
+int main() {
    printf("Hello, %s!\n", "world");
    return 0;
 }
 ```
 
 ```sh
-$ wasicc -O3 -Wl,--stack-first hello.c -o hello.wasm
-
-$ wasm3 hello.wasm                      
-Hello, world!
-```
-
-### C++ WASI app
-
-Create `hello.cpp`:
-```cpp
-#include <iostream>
-
-int main()
-{
-    std::cout << "Hello World!" << std::endl;
-    return 0;
-}
-```
-
-```sh
-$ wasic++ -O3 -Wl,--stack-first hello.cpp -o hello.wasm
+$ wasic++ -O3 hello.cpp -o hello.wasm
+$ wasicc -O3 hello.c -o hello.wasm
 
 $ wasm3 hello.wasm
 Hello World!
 ```
+
+Limitations:
+- `setjmp/longjmp` and `C++ exceptions` are not available
+- no support for `threads` and `atomics`
+- no support for `dynamic libraries`
