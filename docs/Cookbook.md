@@ -1,4 +1,4 @@
-# Wasm3 cookbook
+# Wasm3 Cookbook
 
 ### Rust WASI app
 
@@ -19,6 +19,14 @@ Hello, world!
 
 ### AssemblyScript WASI app
 
+Create `hello.ts`:
+```ts
+import "wasi"
+
+import {Console} from "as-wasi"
+Console.log('Hello World!\n');
+```
+
 Create `package.json`:
 ```json
 {
@@ -36,14 +44,6 @@ Create `package.json`:
 }
 ```
 
-Create `hello.ts`:
-```ts
-import "wasi"
-
-import {Console} from "as-wasi"
-Console.log('Hello World!\n');
-```
-
 Build and run:
 ```sh
 $ npm install
@@ -55,7 +55,24 @@ Hello World!
 
 ### TinyGo WASI app
 
-TODO
+Create `hello.go`:
+```go
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Printf("Hello, %s!\n", "world")
+}
+```
+
+Build and run:
+```sh
+$ tinygo build -o hello.wasm -target wasi ./hello.go
+
+$ wasm3 hello.wasm
+Hello, world!
+```
 
 ### Zig WASI app
 
