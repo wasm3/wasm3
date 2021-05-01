@@ -106,6 +106,35 @@ _   (CompileFunction (function));
 }
 
 
+M3Result  m3_AddFunctionToTable  (IM3Function			i_function,
+								  uint32_t *			o_elementIndex,
+								  uint32_t 	 	        i_tableIndex)
+{
+	M3Result result = m3Err_none;
+	
+	if (i_function and o_elementIndex)
+	{
+		IM3Module module = i_function->module;
+		
+		if (module)
+		{
+			u32 newTableSize = module->table0Size + 1;
+			module->table0 = m3_ReallocArray (IM3Function, module->table0, newTableSize, module->table0Size);
+			_throwifnull (module->table0);
+			
+			* o_elementIndex = module->table0Size;
+			module->table0 [* o_elementIndex] = i_function;
+			module->table0Size = newTableSize;
+		}
+		else _throw ("null module");
+
+	}
+	else _throw (m3Err_nullArgument);
+	
+	_catch: return result;
+}
+
+
 IM3Function  m3_GetFunctionByIndex  (IM3Module i_module, uint32_t i_index)
 {
     return Module_GetFunction (i_module, i_index);
@@ -121,4 +150,20 @@ M3Result  m3_GetFunctionIndex  (IM3Function			i_function,
 		return m3Err_none;
 	}
 	else return m3Err_functionLookupFailed;
+}
+
+
+M3Result			m3_GetDataSegmentOffset		(IM3Module				i_module,
+												 uint32_t				i_index)
+{
+	M3Result result = m3Err_none;                                       d_m3Assert (i_module);
+	
+	if (i_module)
+	{
+		d_m3Assert (false); // TODO: finish
+	}
+	else _throw (m3Err_nullArgument);
+	
+	_catch: return result;
+
 }

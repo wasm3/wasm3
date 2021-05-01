@@ -189,10 +189,18 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
     return runtime;
 }
 
+
+u64 *  m3_GetStack  (IM3Runtime i_runtime)
+{
+	return (i_runtime) ? (u64 *) i_runtime->stack : NULL;
+}
+
+
 void *  m3_GetUserData  (IM3Runtime i_runtime)
 {
     return i_runtime ? i_runtime->userdata : NULL;
 }
+
 
 void *  ForEachModule  (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info)
 {
@@ -444,6 +452,8 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
+	_throwif ("unallocated linear memory", !(io_memory->mallocated));
+
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
@@ -454,12 +464,11 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
-        _throwif ("unallocated linear memory", !(io_memory->mallocated));
-
         if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
         {
             u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
             memcpy (dest, segment->data, segment->size);
+			segment->offset = -segmentOffset;					// save for m3_GetDataSegmentOffset, negated for validation
         } else {
             _throw ("data segment out of bounds");
         }
@@ -770,6 +779,16 @@ M3Result  m3_CallV  (IM3Function i_function, ...)
     return r;
 }
 
+
+void  ReportNativeStackUsage  ()
+{
+#	if d_m3LogNativeStack
+		int stackUsed =  m3StackGetMax();
+		fprintf (stderr, "Native stack used: %d\n", stackUsed);
+#	endif
+}
+
+
 M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
 {
     IM3Runtime runtime = i_function->module->runtime;
@@ -797,13 +816,9 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     }
     m3StackCheckInit();
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+	ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
-
-#if d_m3LogNativeStack
-    int stackUsed =  m3StackGetMax();
-    fprintf (stderr, "Native stack used: %d\n", stackUsed);
-#endif
 
     return r;
 }
@@ -839,13 +854,10 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
 
     m3StackCheckInit();
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+	ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
 
-#if d_m3LogNativeStack
-    int stackUsed =  m3StackGetMax();
-    fprintf (stderr, "Native stack used: %d\n", stackUsed);
-#endif
 
     return r;
 }
@@ -881,15 +893,25 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
 
     m3StackCheckInit();
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+	ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
 
-#if d_m3LogNativeStack
-    int stackUsed =  m3StackGetMax();
-    fprintf (stderr, "Native stack used: %d\n", stackUsed);
-#endif
-
     return r;
+}
+
+
+M3Result  m3_CallDirect  (IM3Function i_function)
+{
+	IM3Runtime runtime = i_function->module->runtime;
+	
+	m3StackCheckInit();
+	M3Result result = (M3Result) Call (i_function->compiled, (m3stack_t) (runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+	ReportNativeStackUsage ();
+
+	runtime->lastCalled = result ? NULL : i_function;
+	
+	return result;
 }
 
 

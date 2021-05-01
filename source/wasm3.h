@@ -119,6 +119,7 @@ d_m3ErrorConst  (none,                          NULL)
 
 // general errors
 d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
+d_m3ErrorConst  (nullArgument,                  "null pointer argument provided")
 
 // parse errors
 d_m3ErrorConst  (incompatibleWasmVersion,       "incompatible Wasm binary version")
@@ -289,6 +290,12 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
 
+	// These two function can be used when you wish to manually push and retrieve from the Wasm3 call stack.
+	// Arguments and return values are 64-bit aligned, so simply treat the result of m3_GetStack (...) as a u64 array.
+	// Arguments should be written starting at 'stack_pointer [m3_GetRetCount (...)]'.
+	// Return values start at 'stack_pointer [0]'
+	uint64_t *			m3_GetStack					(IM3Runtime				i_runtime);
+	M3Result            m3_CallDirect				(IM3Function			i_function);
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);

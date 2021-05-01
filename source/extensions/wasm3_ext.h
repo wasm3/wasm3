@@ -37,12 +37,33 @@ extern "C" {
                                                      const uint8_t * const  i_wasmBytes,            // i_wasmBytes is copied
                                                      bool                   i_doCompilation);
 
+	M3Result 		    m3_AddFunctionToTable       (IM3Function			i_function,
+													 uint32_t *				o_elementIndex,
+													 uint32_t 	 	        i_tableIndex);			// must be zero
+
 
     IM3Function         m3_GetFunctionByIndex       (IM3Module              i_module,
                                                      uint32_t               i_index);
 
 	M3Result 		    m3_GetFunctionIndex        	(IM3Function			i_function,
 													 uint32_t * 	        o_index);
+
+	M3Result			m3_GetDataSegmentOffset		(IM3Module				i_module,
+													 uint32_t				i_index);
+
+
+#if 0
+	M3Result			m3_SetStackGlobalIndex		(IM3Module				io_module,
+													 uint32_t				i_index);
+
+	M3Result			m3_StackAllocate			(IM3Module				io_module,
+													 uint32_t * 			o_location,
+													 const uint8_t * const	i_bytes,
+													 uint32_t				i_size);
+
+	M3Result			m3_PopStack					(IM3Module				io_module,
+													 uint32_t				i_size);
+#endif
 
 #if defined(__cplusplus)
 }
