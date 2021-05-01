@@ -305,8 +305,10 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
         switch (m3_GetRetType(func, i)) {
         case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)valptrs[i]);  break;
         case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)valptrs[i]);  break;
+# if d_m3HasFloat
         case c_m3Type_f32:  fprintf (stderr, "Result: %" PRIf32 "\n", *(f32*)valptrs[i]);  break;
         case c_m3Type_f64:  fprintf (stderr, "Result: %" PRIf64 "\n", *(f64*)valptrs[i]);  break;
+# endif
         default: return "unknown return type";
         }
     }
