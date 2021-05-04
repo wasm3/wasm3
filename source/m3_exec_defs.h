@@ -12,27 +12,35 @@
 
 d_m3BeginExternC
 
-#define m3MemData(mem)              (u8*)(((M3MemoryHeader*)(mem))+1)
-#define m3MemRuntime(mem)           (((M3MemoryHeader*)(mem))->runtime)
-#define m3MemInfo(mem)              (&(((M3MemoryHeader*)(mem))->runtime->memory))
+# define m3MemData(mem)					(u8*)(((M3MemoryHeader*)(mem))+1)
+# define m3MemRuntime(mem)				(((M3MemoryHeader*)(mem))->runtime)
+# define m3MemInfo(mem)					(&(((M3MemoryHeader*)(mem))->runtime->memory))
 
-#if d_m3HasFloat
+# define d_m3BaseOpSig              	pc_t _pc, m3stack_t _sp, M3MemoryHeader * _mem, m3reg_t _r0
+# define d_m3BaseOpArgs               	_sp, _mem, _r0
+# define d_m3BaseOpAllArgs            	_pc, _sp, _mem, _r0
+# define d_m3BaseOpDefaultArgs        	0
+# define d_m3BaseClearRegisters       	_r0 = 0;
 
-#   define d_m3OpSig                pc_t _pc, m3stack_t _sp, M3MemoryHeader * _mem, m3reg_t _r0, f64 _fp0
-#   define d_m3OpArgs               _sp, _mem, _r0, _fp0
-#   define d_m3OpAllArgs            _pc, _sp, _mem, _r0, _fp0
-#   define d_m3OpDefaultArgs        0, 0.0
-#   define d_m3ClearRegisters       _r0 = 0; _fp0 = 0.0;
+# define d_m3ExpOpSig(...)				d_m3BaseOpSig, __VA_ARGS__
+# define d_m3ExpOpArgs(...)				d_m3BaseOpArgs, __VA_ARGS__
+# define d_m3ExpOpAllArgs(...)			d_m3BaseOpAllArgs, __VA_ARGS__
+# define d_m3ExpOpDefaultArgs(...)		d_m3BaseOpDefaultArgs, __VA_ARGS__
+# define d_m3ExpClearRegisters(...)		d_m3BaseClearRegisters; __VA_ARGS__
 
-#else
-
-#   define d_m3OpSig                pc_t _pc, m3stack_t _sp, M3MemoryHeader * _mem, m3reg_t _r0
-#   define d_m3OpArgs               _sp, _mem, _r0
-#   define d_m3OpAllArgs            _pc, _sp, _mem, _r0
-#   define d_m3OpDefaultArgs        0
-#   define d_m3ClearRegisters       _r0 = 0;
-
-#endif
+# if d_m3HasFloat
+#	define d_m3OpSig                d_m3ExpOpSig			(f64 _fp0)
+#   define d_m3OpArgs               d_m3ExpOpArgs			(_fp0)
+#   define d_m3OpAllArgs            d_m3ExpOpAllArgs		(_fp0)
+#   define d_m3OpDefaultArgs        d_m3ExpOpDefaultArgs	(0.)
+#   define d_m3ClearRegisters       d_m3ExpClearRegisters	(_fp0 = 0.;)
+# else
+#	define d_m3OpSig                d_m3BaseOpSig
+#   define d_m3OpArgs               d_m3BaseOpArgs
+#   define d_m3OpAllArgs            d_m3BaseOpAllArgs
+#   define d_m3OpDefaultArgs        d_m3BaseOpDefaultArgs
+#   define d_m3ClearRegisters       d_m3BaseClearRegisters
+# endif
 
 typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 

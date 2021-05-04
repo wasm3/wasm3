@@ -616,8 +616,10 @@ M3Result  m3_GetGlobal  (IM3Global                 i_global,
     switch (i_global->type) {
     case c_m3Type_i32: o_value->value.i32 = i_global->intValue; break;
     case c_m3Type_i64: o_value->value.i64 = i_global->intValue; break;
+# if d_m3HasFloat
     case c_m3Type_f32: o_value->value.f32 = i_global->f32Value; break;
     case c_m3Type_f64: o_value->value.f64 = i_global->f64Value; break;
+# endif
     default: return m3Err_invalidTypeId;
     }
 
@@ -636,8 +638,10 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
     switch (i_value->type) {
     case c_m3Type_i32: i_global->intValue = i_value->value.i32; break;
     case c_m3Type_i64: i_global->intValue = i_value->value.i64; break;
+# if d_m3HasFloat
     case c_m3Type_f32: i_global->f32Value = i_value->value.f32; break;
     case c_m3Type_f64: i_global->f64Value = i_value->value.f64; break;
+# endif
     default: return m3Err_invalidTypeId;
     }
 
@@ -795,8 +799,10 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = va_arg(i_args, i32);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = va_arg(i_args, i64);  s += 8; break;
+# if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = va_arg(i_args, f64);  s += 8; break; // f32 is passed as f64
         case c_m3Type_f64:  *(f64*)(s) = va_arg(i_args, f64);  s += 8; break;
+# endif
         default: return "unknown argument type";
         }
     }
@@ -836,8 +842,10 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = *(i32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = *(i64*)i_argptrs[i];  s += 8; break;
+# if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = *(f32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_f64:  *(f64*)(s) = *(f64*)i_argptrs[i];  s += 8; break;
+# endif
         default: return "unknown argument type";
         }
     }
@@ -878,8 +886,10 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); s += 8; break;
-        case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
+# if d_m3HasFloat
+		case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
+# endif
         default: return "unknown argument type";
         }
     }
@@ -924,8 +934,10 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
         switch (d_FuncRetType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 8; break;
         case c_m3Type_i64:  *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
+# if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
         case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
+# endif 
         default: return "unknown return type";
         }
     }
@@ -956,8 +968,10 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
         switch (d_FuncRetType(ftype, i)) {
         case c_m3Type_i32:  *va_arg(o_rets, i32*) = *(i32*)(s);  s += 8; break;
         case c_m3Type_i64:  *va_arg(o_rets, i64*) = *(i64*)(s);  s += 8; break;
+# if d_m3HasFloat
         case c_m3Type_f32:  *va_arg(o_rets, f32*) = *(f32*)(s);  s += 8; break;
         case c_m3Type_f64:  *va_arg(o_rets, f64*) = *(f64*)(s);  s += 8; break;
+# endif
         default: return "unknown argument type";
         }
     }
@@ -1040,7 +1054,8 @@ M3Result  m3Error  (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module,
 {
     if (i_runtime)
     {
-        i_runtime->error = (M3ErrorInfo){ i_result, i_runtime, i_module, i_function, i_file, i_lineNum };
+        i_runtime->error = (M3ErrorInfo){ .result = i_result, .runtime = i_runtime, .module = i_module,
+                                          .function = i_function, .file = i_file, .line = i_lineNum };
         i_runtime->error.message = i_runtime->error_message;
 
         va_list args;
