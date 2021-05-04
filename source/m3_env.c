@@ -1092,8 +1092,7 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
 
 uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
 {
-    uint8_t * memory = NULL;
-    d_m3Assert (i_memoryIndex == 0);
+    uint8_t * memory = NULL;													d_m3Assert (i_memoryIndex == 0);
 
     if (i_runtime)
     {
@@ -1108,6 +1107,23 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
 
     return memory;
 }
+
+
+uint8_t *  m3_GetMemoryAtOffset  (IM3Runtime i_runtime, uint64_t i_offset, uint32_t i_size, uint32_t i_memoryIndex)
+{
+	uint8_t * memory = NULL;													d_m3Assert (i_memoryIndex == 0);
+
+	if (i_runtime)
+	{
+		if (i_offset + i_size <= i_runtime->memory.mallocated->length)
+		{
+			memory = m3MemData (i_runtime->memory.mallocated) + i_offset;
+		}
+	}
+
+	return memory;
+}
+
 
 M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 {

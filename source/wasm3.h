@@ -205,6 +205,11 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
+    uint8_t *           m3_GetMemoryAtOffset        (IM3Runtime             i_runtime,
+                                                     uint64_t  	            i_offset,
+													 uint32_t  	            i_size,
+                                                     uint32_t               i_memoryIndex);
+
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
 
