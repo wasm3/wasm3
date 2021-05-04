@@ -1114,7 +1114,10 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
 
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
-    M3Compiler compiler = GetOpInfo (i_opcode)->compiler;
+    const M3OpInfo* opinfo = GetOpInfo (i_opcode);
+    _throwif (m3Err_unknownOpcode, not opinfo);
+
+    M3Compiler compiler = opinfo->compiler;
     _throwif (m3Err_noCompiler, not compiler);
 
 _   ((* compiler) (o, i_opcode));

@@ -515,6 +515,11 @@ _               (ReadLEB_u32 (& functionIndex, & bytes, end));
 
 M3Result  m3_RunStart  (IM3Module io_module)
 {
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    // Execution disabled for fuzzing builds
+    return m3Err_none;
+#endif
+
     M3Result result = m3Err_none;
 
     if (io_module and io_module->startFunction >= 0)
