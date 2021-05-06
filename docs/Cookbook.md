@@ -149,6 +149,21 @@ Limitations:
 - no support for `threads` and `atomics`
 - no support for `dynamic libraries`
 
+### Grain WASI app
+
+Create `hello.gr`:
+```
+print("Hello, world!")
+```
+
+Build and run:
+```sh
+$ grain compile hello.gr -o hello.wasm
+
+$ wasm3 hello.wasm
+Hello, world!
+```
+
 ### WAT WASI app
 
 Create `hello.wat`:
