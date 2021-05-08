@@ -83,8 +83,8 @@ d_m3BeginExternC
 #endif
 
 #if d_m3EnableStrace >= 3
-    #define d_m3TraceLoad(TYPE,offset,val)      d_m3TracePrint("load." #TYPE "  0x%x = %" PRI##TYPE, offset, val)
-    #define d_m3TraceStore(TYPE,offset,val)     d_m3TracePrint("store." #TYPE " 0x%x , %" PRI##TYPE, offset, val)
+    #define d_m3TraceLoad(TYPE,offset,val)      d_m3TracePrint("load." #TYPE " %d 0x%x = %" PRI##TYPE, offset, offset, val)
+    #define d_m3TraceStore(TYPE,offset,val)     d_m3TracePrint("store." #TYPE " %d 0x%x , %" PRI##TYPE, offset, offset, val)
 #else
     #define d_m3TraceLoad(TYPE,offset,val)
     #define d_m3TraceStore(TYPE,offset,val)
@@ -727,7 +727,7 @@ d_m3Op  (Entry)
 #if d_m3SkipStackCheck
     if (true)
 #else
-    if (LIKELY((void *)((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack))
+    if (LIKELY ((void *) (_sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
 #if defined(DEBUG)
@@ -744,7 +744,7 @@ d_m3Op  (Entry)
         }
 
 #if d_m3EnableStrace >= 2
-        d_m3TracePrint("%s %s {", m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp));
+        d_m3TracePrint("%s %s {", m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp + function->numRetSlots));
         trace_rt->callDepth++;
 #endif
 
