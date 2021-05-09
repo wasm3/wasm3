@@ -15,7 +15,6 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <inttypes.h>
 #include <stdarg.h>
 
@@ -217,12 +216,11 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //  modules
 //-------------------------------------------------------------------------------------------------------------------------------
 
-    // i_wasmBytes data must be persistent during the lifetime of the module unless i_copyWasmBytes is true
+    // i_wasmBytes data must be persistent during the lifetime of the module
     M3Result            m3_ParseModule              (IM3Environment         i_environment,
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
-                                                     uint32_t               i_numWasmBytes,
-													 bool 					i_copyWasmBytes);
+                                                     uint32_t               i_numWasmBytes);
 
     // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
     // a. m3_LoadModule has not yet been called on that module. Or,

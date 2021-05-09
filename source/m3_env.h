@@ -116,7 +116,7 @@ typedef struct M3Module
     M3MemoryInfo            memoryInfo;
     bool                    memoryImported;
 
-    bool                    hasWasmCodeCopy;
+    //bool                    hasWasmCodeCopy;
 
     struct M3Module *       next;
 }
@@ -181,7 +181,7 @@ typedef struct M3Runtime
 #endif
 
     M3ErrorInfo             error;
-#if d_m3VerboseLogs
+#if d_m3VerboseErrorMessages
     char                    error_message[256]; // the actual buffer. M3ErrorInfo can point to this
 #endif
 

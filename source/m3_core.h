@@ -27,11 +27,9 @@
 
 d_m3BeginExternC
 
+#define d_m3ImplementFloat (d_m3HasFloat || d_m3NoFloatDynamic)
+
 #if !defined(d_m3ShortTypesDefined)
-#if d_m3HasFloat || d_m3NoFloatDynamic
-typedef double          f64;
-typedef float           f32;
-#endif
 
 typedef uint64_t        u64;
 typedef int64_t         i64;
@@ -41,6 +39,12 @@ typedef uint16_t        u16;
 typedef int16_t         i16;
 typedef uint8_t         u8;
 typedef int8_t          i8;
+
+#if d_m3ImplementFloat
+typedef double          f64;
+typedef float           f32;
+#endif
+
 #endif // d_m3ShortTypesDefined
 
 #define PRIf32          "f"
@@ -178,7 +182,7 @@ static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", 
 static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "?" };
 
 
-# if d_m3VerboseLogs
+# if d_m3VerboseErrorMessages
 
 M3Result m3Error (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, IM3Function i_function,
                   const char * const i_file, u32 i_lineNum, const char * const i_errorMessage, ...);
@@ -224,7 +228,7 @@ u32         SizeOfType              (u8 i_m3Type);
 
 M3Result    Read_u64                (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_u32                (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
-#if d_m3HasFloat || d_m3NoFloatDynamic
+#if d_m3ImplementFloat
 M3Result    Read_f64                (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_f32                (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 #endif

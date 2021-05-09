@@ -814,7 +814,6 @@ M3Result  CopyStackTopToRegister  (IM3Compilation o, bool i_updateStack)
     {
         u8 type = GetStackTopType (o);
 
-        if (i_updateStack)
 _       (PreserveRegisterIfOccupied (o, type));
 
         IM3Operation op = c_setRegisterOps [type];
@@ -1074,7 +1073,7 @@ _   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, 
 }
 
 
-#if d_m3HasFloat
+#if d_m3ImplementFloat
 M3Result  Compile_Const_f32  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
@@ -1101,12 +1100,13 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 }
 #endif
 
-#ifdef d_m3CompileExtendedOpcode
+#ifdef d_m3EnableExtendedOpcodes
 
 M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
+_try {
     u8 opcode;
 _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
 
@@ -1124,7 +1124,7 @@ _   ((* compiler) (o, i_opcode));
 
     o->previousOpcode = i_opcode;
 
-    _catch: return result;
+	} _catch: return result;
 }
 #endif
 
@@ -1668,7 +1668,7 @@ M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
 
 _   (CopyStackTopToRegister (o, false));
-_   (Pop (o));
+_   (PopType (o, c_m3Type_i32));
 
 _   (EmitOp     (o, op_MemGrow));
 
@@ -1676,6 +1676,33 @@ _   (PushRegister (o, c_m3Type_i32));
 
     _catch: return result;
 }
+
+
+M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result = m3Err_none;
+    
+    i8 reserved;
+_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    
+    IM3Operation op;
+    if (i_opcode == c_waOp_memoryCopy)
+    {
+_       (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+        op = op_MemCopy;
+    }
+    else op = op_MemFill;
+
+_   (CopyStackTopToRegister (o, false));
+    
+_   (EmitOp  (o, op));
+_   (PopType (o, c_m3Type_i32));
+_   (EmitSlotNumOfStackTopAndPop (o));
+_   (EmitSlotNumOfStackTopAndPop (o));
+    
+    _catch: return result;
+}
+
 
 static
 M3Result  ReadBlockType  (IM3Compilation o, IM3FuncType * o_blockType)
@@ -2052,7 +2079,7 @@ _           (PushRegister (o, opInfo->type));
 #       ifdef DEBUG
             result = ErrorCompile ("no operation found for opcode", o, "'%s'", opInfo->name);
 #       else
-            result = ErrorCompile ("no operation found for opcode", o, "");
+            result = ErrorCompile ("no operation found for opcode", o, "%x", i_opcode);
 #       endif
         _throw (result);
     }
@@ -2346,7 +2373,12 @@ const M3OpInfo c_operations [] =
 
 # ifdef DEBUG // for codepage logging. the order doesn't matter:
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
+
+# if d_m3HasFloat
 #   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64, op_##OP##_f32, op_##OP##_f64, })
+# else
+#   define d_m3DebugTypedOp(OP) M3OP (#OP, 0, none, { op_##OP##_i32, op_##OP##_i64 })
+# endif
 
     d_m3DebugOp (Compile),          d_m3DebugOp (Entry),            d_m3DebugOp (End),
     d_m3DebugOp (Unsupported),      d_m3DebugOp (CallRawFunction),
@@ -2359,18 +2391,25 @@ const M3OpInfo c_operations [] =
     d_m3DebugOp (Select_i32_rss),   d_m3DebugOp (Select_i32_srs),   d_m3DebugOp (Select_i32_ssr),   d_m3DebugOp (Select_i32_sss),
     d_m3DebugOp (Select_i64_rss),   d_m3DebugOp (Select_i64_srs),   d_m3DebugOp (Select_i64_ssr),   d_m3DebugOp (Select_i64_sss),
 
+# if d_m3HasFloat
     d_m3DebugOp (Select_f32_sss),   d_m3DebugOp (Select_f32_srs),   d_m3DebugOp (Select_f32_ssr),
     d_m3DebugOp (Select_f32_rss),   d_m3DebugOp (Select_f32_rrs),   d_m3DebugOp (Select_f32_rsr),
 
     d_m3DebugOp (Select_f64_sss),   d_m3DebugOp (Select_f64_srs),   d_m3DebugOp (Select_f64_ssr),
     d_m3DebugOp (Select_f64_rss),   d_m3DebugOp (Select_f64_rrs),   d_m3DebugOp (Select_f64_rsr),
+# endif
 
     d_m3DebugTypedOp (SetGlobal),   d_m3DebugOp (SetGlobal_s32),    d_m3DebugOp (SetGlobal_s64),
 
     d_m3DebugTypedOp (SetRegister), d_m3DebugTypedOp (SetSlot),     d_m3DebugTypedOp (PreserveSetSlot),
 # endif
 
-# ifdef d_m3CompileExtendedOpcode
+# ifdef d_m3EnableExtendedOpcodes
+# ifdef DEBUG
+    d_m3DebugOp (MemFill),
+    d_m3DebugOp (MemCopy),
+#endif
+    
     [0xFC] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 
@@ -2390,8 +2429,14 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_s:sat/f64",0,  i_64,   d_convertOpList (i64_TruncSat_f64),        Compile_Convert ),  // 0x06
     M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
 
+    M3OP_RESERVED, M3OP_RESERVED,
+    
+    M3OP( "memory.copy",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0a
+    M3OP( "memory.fill",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0b
+
+
 # ifdef DEBUG
-    M3OP_F( "termination", 0, c_m3Type_unknown ) // for find_operation_info
+    M3OP( "termination", 0, c_m3Type_unknown ) // for find_operation_info
 # endif
 };
 

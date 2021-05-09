@@ -90,6 +90,22 @@ d_m3BeginExternC
     #define d_m3TraceStore(TYPE,offset,val)
 #endif
 
+#ifdef DEBUG
+  #define d_outOfBounds newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
+                        _mem->runtime, "memory size: %zu; access offset: %zu",      \
+                        _mem->length, operand))
+
+#   define d_outOfBoundsMemOp(OFFSET, SIZE) newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
+                      _mem->runtime, "memory size: %zu; access offset: %zu; size: %u",     \
+                      _mem->length, OFFSET, SIZE))
+#else
+  #define d_outOfBounds newTrap (m3Err_trapOutOfBoundsMemoryAccess)
+
+#   define d_outOfBoundsMemOp(OFFSET, SIZE) newTrap (m3Err_trapOutOfBoundsMemoryAccess)
+
+#endif
+
+
 d_m3RetSig  Call  (d_m3OpSig)
 {
     m3ret_t possible_trap = m3_Yield ();
@@ -686,6 +702,44 @@ d_m3Op  (MemGrow)
 }
 
 
+d_m3Op  (MemCopy)
+{
+    u32 size = (u32) _r0;
+    u64 source = slot (u32);
+    u64 destination = slot (u32);
+    
+    if (destination + size <= _mem->length)
+    {
+        if (source + size <= _mem->length)
+        {
+            u8 * dst = m3MemData (_mem) + destination;
+            u8 * src = m3MemData (_mem) + source;
+            memmove (dst, src, size);
+            
+            nextOp ();
+        }
+        else d_outOfBoundsMemOp (source, size);
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+
+d_m3Op  (MemFill)
+{
+    u32 size = (u32) _r0;
+    u32 byte = slot (u32);
+    u64 destination = slot (u32);
+    
+    if (destination + size <= _mem->length)
+    {
+        u8 * mem8 = m3MemData (_mem) + destination;
+        memset (mem8, (u8) byte, size);
+        nextOp ();
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+
 // it's a debate: should the compilation be trigger be the caller or callee page.
 // it's a much easier to put it in the caller pager. if it's in the callee, either the entire page
 // has be left dangling or it's just a stub that jumps to a newly acquired page.  In Gestalt, I opted
@@ -1230,14 +1284,6 @@ d_m3Op  (SetGlobal_f64)
 #  define m3MemCheck(x) true
 #else
 #  define m3MemCheck(x) LIKELY(x)
-#endif
-
-#ifdef DEBUG
-  #define d_outOfBounds newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
-                        _mem->runtime, "memory size: %zu; access offset: %zu",      \
-                        _mem->length, operand))
-#else
-  #define d_outOfBounds newTrap (m3Err_trapOutOfBoundsMemoryAccess)
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.

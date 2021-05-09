@@ -41,11 +41,6 @@ void  m3_FreeModule  (IM3Module i_module)
         }
         m3_Free (i_module->globals);
 
-		if (i_module->hasWasmCodeCopy)
-		{
-			m3_Free (i_module->wasmStart);
-		}
-		
         m3_Free (i_module);
     }
 }
