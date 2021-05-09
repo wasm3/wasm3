@@ -205,7 +205,7 @@ int  main  (int argc, const char  * argv [])
 		};
 		  
 		IM3Module module;
-		result = m3_ParseModule  (env, & module, wasm, 44);		     				    expect (result == m3Err_none)
+		result = m3_ParseModule  (env, & module, wasm, 44, false);		   			    expect (result == m3Err_none)
 	
 		result = m3_LoadModule (runtime, module);                                       expect (result == m3Err_none)
 
