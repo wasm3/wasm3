@@ -887,7 +887,7 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
         case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); s += 8; break;
 # if d_m3HasFloat
-		case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
+        case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
 # endif
         default: return "unknown argument type";
@@ -937,7 +937,7 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
         case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
-# endif 
+# endif
         default: return "unknown return type";
         }
     }

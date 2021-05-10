@@ -12,9 +12,16 @@
 
 #include "wasm3.h"
 #include "m3_api_defs.h"
-#include "m3_api_wasi.h"
 #include "m3_api_libc.h"
+
+#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
+#include "m3_api_wasi.h"
+#define LINK_WASI
+#endif
+
+#if defined(d_m3HasTracer)
 #include "m3_api_tracer.h"
+#endif
 
 // TODO: remove
 #include "m3_env.h"
@@ -31,15 +38,12 @@
 
 #define FATAL(msg, ...) { fprintf(stderr, "Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
-#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
-#define LINK_WASI
-#endif
 
-IM3Environment env;
-IM3Runtime runtime;
+static IM3Environment env;
+static IM3Runtime runtime;
 
-u8* wasm_bins[MAX_MODULES];
-int wasm_bins_qty = 0;
+static u8* wasm_bins[MAX_MODULES];
+static int wasm_bins_qty = 0;
 
 #if defined(GAS_LIMIT)
 
@@ -95,11 +99,12 @@ M3Result link_all  (IM3Module module)
 
 const char* modname_from_fn(const char* fn)
 {
-	const char* off = strrchr(fn, '/');
-	if (off) return off+1;
-	off = strrchr(fn, '\\');
-	if (off) return off+1;
-	return fn;
+    const char* sep = "/\\:*?";
+    while (char c = *sep++) {
+        const char* off = strrchr(fn, c) + 1;
+        fn = (fn < off) ? off : fn;
+    }
+    return fn;
 }
 
 M3Result repl_load  (const char* fn)
@@ -392,11 +397,11 @@ M3Result repl_global_get  (const char* name)
     if (err) return err;
 
     switch (tagged.type) {
-	case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32\n", tagged.value.i32);  break;
-	case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64\n", tagged.value.i64);  break;
-	case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32\n", tagged.value.f32);  break;
-	case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64\n", tagged.value.f64);  break;
-	default:            return m3Err_invalidTypeId;
+    case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32\n", tagged.value.i32);  break;
+    case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64\n", tagged.value.i64);  break;
+    case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32\n", tagged.value.f32);  break;
+    case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64\n", tagged.value.f64);  break;
+    default:            return m3Err_invalidTypeId;
     }
     return m3Err_none;
 }
@@ -410,11 +415,11 @@ M3Result repl_global_set  (const char* name, const char* value)
     };
 
     switch (tagged.type) {
-	case c_m3Type_i32:  tagged.value.i32 = strtoul(value, NULL, 10);  	break;
-	case c_m3Type_i64:  tagged.value.i64 = strtoull(value, NULL, 10);  	break;
-	case c_m3Type_f32:  tagged.value.f32 = strtod(value, NULL); 		break;
-	case c_m3Type_f64:  tagged.value.f64 = strtod(value, NULL);			break;
-	default:            return m3Err_invalidTypeId;
+    case c_m3Type_i32:  tagged.value.i32 = strtoul(value, NULL, 10);    break;
+    case c_m3Type_i64:  tagged.value.i64 = strtoull(value, NULL, 10);   break;
+    case c_m3Type_f32:  tagged.value.f32 = strtod(value, NULL);         break;
+    case c_m3Type_f64:  tagged.value.f64 = strtod(value, NULL);         break;
+    default:            return m3Err_invalidTypeId;
     }
 
     return m3_SetGlobal (g, &tagged);
