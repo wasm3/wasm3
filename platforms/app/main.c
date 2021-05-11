@@ -100,7 +100,8 @@ M3Result link_all  (IM3Module module)
 const char* modname_from_fn(const char* fn)
 {
     const char* sep = "/\\:*?";
-    while (char c = *sep++) {
+    char c;
+    while ((c = *sep++)) {
         const char* off = strrchr(fn, c) + 1;
         fn = (fn < off) ? off : fn;
     }
@@ -262,6 +263,9 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 
     if (!strcmp(name, "_start")) {
 #if defined(LINK_WASI)
+        // Strip wasm file path
+        argv[0] = modname_from_fn(argv[0]);
+
         m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
         wasi_ctx->argc = argc;
         wasi_ctx->argv = argv;
