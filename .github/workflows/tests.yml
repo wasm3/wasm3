@@ -349,7 +349,7 @@ jobs:
     - name: Install QEMU
       run: |
         sudo apt update
-        sudo apt install qemu-user
+        sudo apt install qemu-user-static
     - name: Install ${{ matrix.config.toolchain }}
       run: |
         sudo apt install ${{ matrix.config.toolchain }}
