@@ -316,6 +316,7 @@ namespace wasm3 {
             detail::check_error(res);
             Ret ret;
             res = m3_GetResults(m_func, 1, &ret);
+            detail::check_error(res);
             return ret;
         }
 
@@ -334,6 +335,7 @@ namespace wasm3 {
             Ret ret;
             const void* ret_ptrs[] = { &ret };
             res = m3_GetResults(m_func, 1, ret_ptrs);
+            detail::check_error(res);
             return ret;
         }
 
