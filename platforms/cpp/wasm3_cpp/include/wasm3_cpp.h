@@ -11,8 +11,7 @@
 
 #include <m3_api_defs.h>
 #include "wasm3.h"
-/* FIXME: remove when there is a public API to get function return value */
-#include "m3_env.h"
+
 
 namespace wasm3 {
     /** @cond */
@@ -24,19 +23,21 @@ namespace wasm3 {
         typedef const void *(*m3_api_raw_fn)(IM3Runtime, uint64_t *, void *);
 
         template<typename T>
-        void arg_from_stack(T &dest, stack_type &psp, mem_type mem) {
-            dest = *(T *) (psp);
-            psp++;
+        void arg_from_stack(T &dest, stack_type &_sp, mem_type mem) {
+            m3ApiGetArg(T, tmp);
+            dest = tmp;
         }
 
         template<typename T>
-        void arg_from_stack(T* &dest, stack_type &psp, mem_type _mem) {
-            dest = (void*) m3ApiOffsetToPtr(* ((u32 *) (psp++)));
+        void arg_from_stack(T* &dest, stack_type &_sp, mem_type _mem) {
+            m3ApiGetArgMem(T*, tmp);
+            dest = tmp;
         };
 
         template<typename T>
-        void arg_from_stack(const T* &dest, stack_type &psp, mem_type _mem) {
-            dest = (void*) m3ApiOffsetToPtr(* ((u32 *) (psp++)));
+        void arg_from_stack(const T* &dest, stack_type &_sp, mem_type _mem) {
+            m3ApiGetArgMem(const T*, tmp);
+            dest = tmp;
         };
 
         template<char c>
@@ -77,13 +78,14 @@ namespace wasm3 {
 
         template <typename Ret, typename ...Args, Ret (*Fn)(Args...)>
         struct wrap_helper<Fn> {
-            static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type sp, mem_type mem) {
-                Ret *ret_ptr = (Ret *) (sp);
+            static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type _sp, mem_type mem) {
                 std::tuple<Args...> args;
-                get_args_from_stack(sp, mem, args);
+                // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
+                // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
+                m3ApiReturnType(Ret);
+                get_args_from_stack(_sp, mem, args);
                 Ret r = std::apply(Fn, args);
-                *ret_ptr = r;
-                return m3Err_none;
+                m3ApiReturn(r);
             }
         };
 
@@ -312,9 +314,7 @@ namespace wasm3 {
             M3Result res = m3_CallArgv(m_func, sizeof...(args), argv);
             detail::check_error(res);
             Ret ret;
-            /* FIXME: there should be a public API to get the return value */
-            auto sp = (detail::stack_type) m_runtime->stack;
-            detail::arg_from_stack(ret, sp, nullptr);
+            res = m3_GetResults(m_func, 1, &ret);
             return ret;
         }
 
@@ -342,9 +342,8 @@ namespace wasm3 {
             M3Result res = m3_CallArgv(m_func, sizeof...(args), argv);
             detail::check_error(res);
             Ret ret;
-            /* FIXME: there should be a public API to get the return value */
-            auto sp = (detail::stack_type) m_runtime->stack;
-            detail::arg_from_stack(ret, sp, nullptr);
+            const void* ret_ptrs[] = { &ret };
+            res = m3_GetResults(m_func, 1, ret_ptrs);
             return ret;
         }
 
