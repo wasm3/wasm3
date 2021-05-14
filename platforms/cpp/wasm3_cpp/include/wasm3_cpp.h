@@ -256,6 +256,7 @@ namespace wasm3 {
         friend class runtime;
 
         module(const std::shared_ptr<M3Environment> &env, std::istream &in_wasm) {
+            in_wasm.unsetf(std::ios::skipws);
             std::vector<uint8_t> in_bytes;
             std::copy(std::istream_iterator<uint8_t>(in_wasm),
                       std::istream_iterator<uint8_t>(),
