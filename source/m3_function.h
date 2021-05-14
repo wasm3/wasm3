@@ -61,8 +61,8 @@ typedef struct M3Function
 
 #if defined (DEBUG)
     u32                     hits;
-    u32                     index;
 #endif
+	u32                     index;
 
     u16                     maxStackSlots;
 
