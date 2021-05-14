@@ -321,25 +321,14 @@ namespace wasm3 {
         /**
          * Call the function with the provided arguments (int/float types).
          *
-         * WASM3 only accepts string arguments when calling WASM functions, and automatically converts them
-         * into the correct type based on the called function signature.
-         *
-         * This function provides a way to pass integer/float types, by first converting them to strings,
-         * and then letting WASM3 do the reverse conversion. This is to be fixed once WASM3 gains an equivalent
-         * of m3_CallArgv which can accept arbitrary types, not just strings.
-         *
          * Note that the type of the return value must be explicitly specified as a template argument.
          *
          * @return the return value of the function.
          */
         template<typename Ret, typename ... Args>
         Ret call(Args... args) {
-            std::string argv_str[] = {std::to_string(args)...};
-            const char* argv[sizeof...(Args)];
-            for (size_t i = 0; i < sizeof...(Args); ++i) {
-                argv[i] = argv_str[i].c_str();
-            }
-            M3Result res = m3_CallArgv(m_func, sizeof...(args), argv);
+            const void *arg_ptrs[] = { reinterpret_cast<const void*>(&args)... };
+            M3Result res = m3_Call(m_func, sizeof...(args), arg_ptrs);
             detail::check_error(res);
             Ret ret;
             const void* ret_ptrs[] = { &ret };
