@@ -128,8 +128,9 @@ M3Result  LinkRawFunction  (IM3Module io_module,  IM3Function io_function, ccstr
     M3Result result = m3Err_none;                                                 d_m3Assert (io_module->runtime);
 
 _try {
-_   (ValidateSignature (io_function, signature));
-
+    if (signature) {
+_       (ValidateSignature (io_function, signature));
+    }
     IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 4);
 
     if (page)

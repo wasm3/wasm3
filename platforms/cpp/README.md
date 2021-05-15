@@ -54,7 +54,7 @@ If the module doesn't reference an imported function named `func`, an exception 
 
 `template <typename Ret> Ret function::call()` — call a WebAssembly function which doesn't take any arguments. The return value of the function is automatically converted to the type `Ret`. Note that you need to specify the return type when using this template function, and the type has to match the type returned by the WebAssembly function.
 
-`template <typename Ret, typename ...Args> Ret function::call(Args...)` — same as above, but also allows passing arguments to the WebAssembly function. Note that due to a limitation of WASM3 API, the arguments are first converted to strings, and then passed to WASM3. The strings are then converted to the appropriate types based on the WebAssembly function signature. This conversion is limited to the following types: `int32_t`, `int64_t`, `float`, `double`.
+`template <typename Ret, typename ...Args> Ret function::call(Args...)` — same as above, but also allows passing arguments to the WebAssembly function.
 
 `template <typename Ret, typename ...Args> Ret function::call_argv(Args...)` — same as above, except that this function takes arguments as C strings (`const char*`).
 
