@@ -344,7 +344,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
     m3ApiWriteMem64(buf+0,  stat.st_dev);
     m3ApiWriteMem64(buf+8,  stat.st_ino);
     m3ApiWriteMem8 (buf+16, stat.st_filetype);
-    m3ApiWriteMem64(buf+20, stat.st_nlink);
+    m3ApiWriteMem32(buf+20, stat.st_nlink);
     m3ApiWriteMem64(buf+24, stat.st_size);
     m3ApiWriteMem64(buf+32, stat.st_atim);
     m3ApiWriteMem64(buf+40, stat.st_mtim);
@@ -596,7 +596,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
     m3ApiWriteMem64(buf+0,  stat.st_dev);
     m3ApiWriteMem64(buf+8,  stat.st_ino);
     m3ApiWriteMem8 (buf+16, stat.st_filetype);
-    m3ApiWriteMem64(buf+20, stat.st_nlink);
+    m3ApiWriteMem32(buf+20, stat.st_nlink);
     m3ApiWriteMem64(buf+24, stat.st_size);
     m3ApiWriteMem64(buf+32, stat.st_atim);
     m3ApiWriteMem64(buf+40, stat.st_mtim);
