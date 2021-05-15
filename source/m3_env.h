@@ -97,6 +97,10 @@ typedef struct M3Module
     u32                     numFunctions;
     M3Function *            functions;
 
+#	if d_m3EnableExtensions
+	u32                     numReservedFunctions;
+#	endif
+
     i32                     startFunction;
 
     u32                     numDataSegments;
@@ -121,6 +125,8 @@ typedef struct M3Module
     struct M3Module *       next;
 }
 M3Module;
+
+IM3Module					m3_NewModule				(IM3Environment i_environment);
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
 

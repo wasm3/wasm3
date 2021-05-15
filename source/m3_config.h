@@ -73,6 +73,9 @@
 #   define d_m3EnableExceptionBreakpoint        0       // see m3_exception.h
 # endif
 
+# ifndef d_m3EnableExtensions
+#   define d_m3EnableExtensions        			1		// enables the specialized APIs in wasm3_ext.h
+# endif
 
 // profiling and tracing ------------------------------------------------------
 

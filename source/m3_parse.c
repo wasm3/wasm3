@@ -52,7 +52,7 @@ _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                               
     {
         // table of IM3FuncType (that point to the actual M3FuncType struct in the Environment)
         io_module->funcTypes = m3_AllocArray (IM3FuncType, numTypes);
-        _throwifnull(io_module->funcTypes);
+        _throwifnull (io_module->funcTypes);
         io_module->numFuncTypes = numTypes;
 
         for (u32 i = 0; i < numTypes; ++i)
@@ -110,6 +110,7 @@ _               (NormalizeType (& retType, wasmType));
     if (result)
     {
         m3_Free (ftype);
+		// FIX: M3FuncTypes in the table are leaked
         m3_Free (io_module->funcTypes);
         io_module->numFuncTypes = 0;
     }
@@ -576,17 +577,13 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 
 M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes, bool i_copyBytes)
 {
-    M3Result result;
+    M3Result result;	    													 m3log (parse, "load module: %d bytes", i_numBytes);
 
-    IM3Module module;
+	IM3Module module = m3_NewModule (i_environment);
+
 _try {
-    module = m3_AllocStruct (M3Module);
-    _throwifnull(module);
-    module->name = ".unnamed";                                                      m3log (parse, "load module: %d bytes", i_numBytes);
-    module->startFunction = -1;
-	module->environment = i_environment;
-    module->hasWasmCodeCopy = i_copyBytes;
-
+	_throwifnull (module);
+	
 	const u8 * pos = i_bytes;
 	
 	if (i_copyBytes)

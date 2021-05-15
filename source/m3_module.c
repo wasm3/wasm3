@@ -9,6 +9,30 @@
 #include "m3_exception.h"
 
 
+
+IM3Module  m3_NewModule  (IM3Environment i_environment)
+{
+	IM3Module module = m3_AllocStruct (M3Module);
+
+	if (module)
+	{
+		module->name = ".unnamed";
+		module->startFunction = -1;
+		module->environment = i_environment;
+
+		module->hasWasmCodeCopy = false;
+		module->wasmStart = NULL;
+		module->wasmEnd = NULL;
+		
+#		if d_m3EnableExtensions
+		module->numReservedFunctions = 0;
+#		endif
+	}
+
+	return module;
+}
+
+
 void Module_FreeFunctions (IM3Module i_module)
 {
     for (u32 i = 0; i < i_module->numFunctions; ++i)
@@ -77,18 +101,33 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 
 _try {
-    u32 index = io_module->numFunctions++;
-    io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
-    _throwifnull(io_module->functions);
-    _throwif("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
+
+	u32 index = io_module->numFunctions++;
+
+#	if d_m3EnableExtensions
+	if (io_module->runtime)	// module loaded, so this must be an InjectFunction call
+	{
+		if (io_module->numReservedFunctions)
+		{
+			io_module->numReservedFunctions--;
+		}
+		else _throw ("reserved function capacity exceeded");
+	}
+	else
+#	endif
+	io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
+	
+    _throwifnull (io_module->functions);
+    _throwif ("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
 
     IM3FuncType ft = io_module->funcTypes [i_typeIndex];
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
-#   ifdef DEBUG
+	
+# if defined (DEBUG) || d_m3EnableExtensions
     func->index = index;
-#   endif
+# endif
 
     if (i_importInfo and func->numNames == 0)
     {
@@ -102,6 +141,7 @@ _try {
 } _catch:
     return result;
 }
+
 
 void  Module_GenerateNames  (IM3Module i_module)
 {

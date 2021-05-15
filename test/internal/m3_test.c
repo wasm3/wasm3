@@ -30,6 +30,8 @@ bool RunTest (int i_argc, const char * i_argv [], cstr_t i_name)
 
 int  main  (int argc, const char  * argv [])
 {
+//	m3_PrintM3Info ();
+	
     Test (signatures)
     {
         M3Result result;
@@ -158,13 +160,13 @@ int  main  (int argc, const char  * argv [])
         };
         
         // will partially fail (compilation) because module isn't attached to a runtime yet.
-        result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);        expect (result != m3Err_none)
+        result = m3Ext_InjectFunction (module, & functionIndex, "i()", wasm, true);     expect (result != m3Err_none)
                                                                                         expect (functionIndex >= 0)
 
         result = m3_LoadModule (runtime, module);                                       expect (result == m3Err_none)
 
         // try again
-        result = m3_InjectFunction (module, & functionIndex, "i()", wasm, true);        expect (result == m3Err_none)
+        result = m3Ext_InjectFunction (module, & functionIndex, "i()", wasm, true);        expect (result == m3Err_none)
 
         IM3Function function = m3_GetFunctionByIndex (module, functionIndex);           expect (function)
         

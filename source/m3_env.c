@@ -107,6 +107,7 @@ void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_f
     * io_funcType = newType;
 }
 
+
 IM3CodePage RemoveCodePageOfCapacity (M3CodePage ** io_list, u32 i_minimumLineCount)
 {
     IM3CodePage prev = NULL;
@@ -499,13 +500,16 @@ _           (EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end
             u32 numElements;
 _           (ReadLEB_u32 (& numElements, & bytes, end));
 
-            size_t endElement = (size_t)(numElements) + offset;
+            size_t endElement = (size_t) numElements + offset;
             _throwif ("table overflow", endElement > d_m3MaxSaneTableSize);
 
-            io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
+			// i don't find any requirement that elements must be in increasing sequence. so make sure the table isn't shrunk.
+			if (endElement > io_module->table0Size)
+			{
+				io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
+				io_module->table0Size = (u32) endElement;
+			}
             _throwifnull(io_module->table0);
-
-            io_module->table0Size = (u32) endElement;
 
             for (u32 e = 0; e < numElements; ++e)
             {
