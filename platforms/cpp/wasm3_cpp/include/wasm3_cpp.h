@@ -73,44 +73,51 @@ namespace wasm3 {
             }, tuple);
         }
 
-        template<auto func>
+        template<typename Func>
         struct wrap_helper;
 
-        template <typename Ret, typename ...Args, Ret (*Fn)(Args...)>
-        struct wrap_helper<Fn> {
+        template <typename Ret, typename ...Args>
+        struct wrap_helper<Ret(Args...)> {
+            using Func = Ret(Args...);
             static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type _sp, mem_type mem) {
                 std::tuple<Args...> args;
                 // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
                 // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
                 m3ApiReturnType(Ret);
                 get_args_from_stack(_sp, mem, args);
-                Ret r = std::apply(Fn, args);
+                Func* function = reinterpret_cast<Func*>(_ctx->userdata);
+                Ret r = std::apply(function, args);
                 m3ApiReturn(r);
             }
         };
 
-        template <typename ...Args, void (*Fn)(Args...)>
-        struct wrap_helper<Fn> {
+        template <typename ...Args>
+        struct wrap_helper<void(Args...)> {
+            using Func = void(Args...);
             static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type sp, mem_type mem) {
                 std::tuple<Args...> args;
                 get_args_from_stack(sp, mem, args);
-                std::apply(Fn, args);
-                return m3Err_none;
+                Func* function = reinterpret_cast<Func*>(_ctx->userdata);
+                std::apply(function, args);
+                m3ApiSuccess();
             }
         };
 
-        template<auto value>
+        template<typename Func>
         class m3_wrapper;
 
-        template<typename Ret, typename ... Args, Ret (*Fn)(Args...)>
-        class m3_wrapper<Fn> {
+        template<typename Ret, typename ... Args>
+        class m3_wrapper<Ret(Args...)> {
         public:
             static M3Result link(IM3Module io_module,
                                  const char *const i_moduleName,
-                                 const char *const i_functionName) {
+                                 const char *const i_functionName,
+                                 Ret (*function)(Args...)) {
 
-                return m3_LinkRawFunction(io_module, i_moduleName, i_functionName, m3_signature<Ret, Args...>::value,
-                                          &wrap_helper<Fn>::wrap_fn);
+                return m3_LinkRawFunctionEx(io_module, i_moduleName, i_functionName,
+                                            m3_signature<Ret, Args...>::value,
+                                            &wrap_helper<Ret(Args...)>::wrap_fn,
+                                            reinterpret_cast<void*>(function));
             }
         };
     } // namespace detail
@@ -237,18 +244,19 @@ namespace wasm3 {
          *
          * Throws an exception if the module doesn't reference a function with the given name.
          *
-         * @tparam func  Function to link (a function pointer)
+         * @tparam Func Function type (signature)
          * @param module  Name of the module to link the function to, or "*" to link to any module
-         * @param function  Name of the function (as referenced by the module)
+         * @param function_name  Name of the function (as referenced by the module)
+         * @param function  Function to link (a function pointer)
          */
-        template<auto func>
-        void link(const char *module, const char *function);
+        template<typename Func>
+        void link(const char *module, const char *function_name, Func *function);
 
         /**
          * Same as module::link, but doesn't throw an exception if the function is not referenced.
          */
-        template<auto func>
-        void link_optional(const char *module, const char *function);
+        template<typename Func>
+        void link_optional(const char *module, const char *function_name, Func *function);
 
 
     protected:
@@ -372,15 +380,15 @@ namespace wasm3 {
         return function(m_runtime, name);
     }
 
-    template<auto func>
-    void module::link(const char *module, const char *function) {
-        M3Result ret = detail::m3_wrapper<func>::link(m_module.get(), module, function);
+    template<typename Func>
+    void module::link(const char *module, const char *function_name, Func *function) {
+        M3Result ret = detail::m3_wrapper<Func>::link(m_module.get(), module, function_name, function);
         detail::check_error(ret);
     }
 
-    template<auto func>
-    void module::link_optional(const char *module, const char *function) {
-        M3Result ret = detail::m3_wrapper<func>::link(m_module.get(), module, function);
+    template<typename Func>
+    void module::link_optional(const char *module, const char *function_name, Func *function) {
+        M3Result ret = detail::m3_wrapper<Func>::link(m_module.get(), module, function_name, function);
         if (ret == m3Err_functionLookupFailed) {
             return;
         }

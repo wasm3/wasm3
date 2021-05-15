@@ -41,11 +41,9 @@ int main(void)
         wasm3::module mod = env.parse_module(test_prog_wasm, test_prog_wasm_len);
         runtime.load(mod);
 
-        /* link C++ functions "sum" and "ext_memcpy" to the module */
-        mod.link<sum>("*", "sum");
-        mod.link<ext_memcpy>("*", "ext_memcpy");
+        mod.link("*", "sum", sum);
+        mod.link("*", "ext_memcpy", ext_memcpy);
 
-        /* find and call functions defined in a wasm module */
         {
             wasm3::function test_fn = runtime.find_function("test");
             auto res = test_fn.call<int>(20, 10);
