@@ -256,6 +256,7 @@ namespace wasm3 {
         friend class runtime;
 
         module(const std::shared_ptr<M3Environment> &env, std::istream &in_wasm) {
+            in_wasm.unsetf(std::ios::skipws);
             std::vector<uint8_t> in_bytes;
             std::copy(std::istream_iterator<uint8_t>(in_wasm),
                       std::istream_iterator<uint8_t>(),
@@ -315,6 +316,7 @@ namespace wasm3 {
             detail::check_error(res);
             Ret ret;
             res = m3_GetResults(m_func, 1, &ret);
+            detail::check_error(res);
             return ret;
         }
 
@@ -333,6 +335,7 @@ namespace wasm3 {
             Ret ret;
             const void* ret_ptrs[] = { &ret };
             res = m3_GetResults(m_func, 1, ret_ptrs);
+            detail::check_error(res);
             return ret;
         }
 
