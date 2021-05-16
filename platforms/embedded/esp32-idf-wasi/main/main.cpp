@@ -55,7 +55,7 @@ static void run_wasm(void)
 
 extern "C" void app_main(void)
 {
-    printf("\nWasm3 v" M3_VERSION " on ESP32, build " __DATE__ " " __TIME__ "\n");
+    printf("\nWasm3 v" M3_VERSION " on " CONFIG_IDF_TARGET ", build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
     run_wasm();
