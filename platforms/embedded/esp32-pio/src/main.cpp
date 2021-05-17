@@ -12,7 +12,6 @@
 #include <unistd.h>
 
 #include "wasm3.h"
-#include "m3_env.h"
 
 #include "extra/fib32.wasm.h"
 
@@ -48,13 +47,16 @@ static void run_wasm(void)
     result = m3_CallV(f, 24);
     if (result) FATAL("m3_Call: %s", result);
 
-    long value = *(uint64_t*)(runtime->stack);
-    printf("Result: %ld\n", value);
+    unsigned value = 0;
+    result = m3_GetResultsV (f, &value);
+    if (result) FATAL("m3_GetResults: %s", result);
+
+    printf("Result: %u\n", value);
 }
 
 extern "C" void app_main(void)
 {
-    printf("\nWasm3 v" M3_VERSION " on ESP32, build " __DATE__ " " __TIME__ "\n");
+    printf("\nWasm3 v" M3_VERSION " on " CONFIG_IDF_TARGET ", build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
     run_wasm();
