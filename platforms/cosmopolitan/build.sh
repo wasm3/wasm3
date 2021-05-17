@@ -1,5 +1,5 @@
 
-COSMOPOLITAN_VERSION=0.2
+COSMOPOLITAN_VERSION=1.0
 COSMOPOLITAN_URL=https://github.com/jart/cosmopolitan/releases/download/$COSMOPOLITAN_VERSION/cosmopolitan-amalgamation-$COSMOPOLITAN_VERSION.zip
 
 SOURCE_DIR=../../source
@@ -27,10 +27,12 @@ fi
 
 echo "Building Wasm3..."
 
-gcc -g -O -static -fno-pie -no-pie -mno-red-zone -nostdlib -nostdinc                \
+# TODO: remove -fno-strict-aliasing
+
+gcc -g -Os -static -nostdlib -nostdinc -fno-pie -no-pie -mno-red-zone               \
   -Wl,--gc-sections -Wl,-z,max-page-size=0x1000 -fuse-ld=bfd                        \
   -Wl,-T,cosmopolitan/ape.lds -include cosmopolitan/cosmopolitan.h                  \
-  -Wno-format-security -Wfatal-errors $EXTRA_FLAGS                                  \
+  -Wno-format-security -Wfatal-errors -fno-strict-aliasing $EXTRA_FLAGS             \
   -fomit-frame-pointer -fno-stack-check -fno-stack-protector                        \
   -o wasm3.com.dbg -DAPE -I$STD -I$SOURCE_DIR $SOURCE_DIR/*.c ../app/main.c         \
   cosmopolitan/crt.o cosmopolitan/ape.o cosmopolitan/cosmopolitan.a
