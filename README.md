@@ -98,8 +98,9 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 ## Further Resources
 
 [Demos](./docs/Demos.md)  
-[Cookbook](./docs/Cookbook.md)  
 [Installation instructions](./docs/Installation.md)  
+[Cookbook](./docs/Cookbook.md)  
+[Troubleshooting](./docs/Troubleshooting.md)  
 [Build and Development instructions](./docs/Development.md)  
 [Supported Hardware](./docs/Hardware.md)  
 [Testing & Fuzzing](./docs/Testing.md)  
