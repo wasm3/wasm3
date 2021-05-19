@@ -1,5 +1,7 @@
 #include <cstdio>
+#include <cstring>
 #include <fstream>
+
 #include "wasm3_cpp.h"
 #include "wasm/test_prog.wasm.h"
 

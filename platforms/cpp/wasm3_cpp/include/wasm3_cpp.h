@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <iterator>
+#include <cassert>
 
 #include "wasm3.h"
 
