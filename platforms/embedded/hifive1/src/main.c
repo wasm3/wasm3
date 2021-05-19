@@ -7,9 +7,9 @@
 
 #include <stdio.h>
 #include <time.h>
-#include "m3/wasm3.h"
+#include "wasm3.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "extra/fib32.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 

@@ -5,9 +5,9 @@
 //  All rights reserved.
 //
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "extra/fib32.wasm.h"
 
 #include <stdio.h>
 #include <jee.h>

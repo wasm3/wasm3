@@ -44,12 +44,12 @@ namespace wasm3 {
             static const char value = c;
         };
         template<typename T> struct m3_type_to_sig;
-        template<> struct m3_type_to_sig<i32> : m3_sig<'i'> {};
-        template<> struct m3_type_to_sig<i64> : m3_sig<'I'> {};
-        template<> struct m3_type_to_sig<f32> : m3_sig<'f'> {};
-        template<> struct m3_type_to_sig<f64> : m3_sig<'F'> {};
-        template<> struct m3_type_to_sig<void> : m3_sig<'v'> {};
-        template<> struct m3_type_to_sig<void *> : m3_sig<'*'> {};
+        template<> struct m3_type_to_sig<int32_t> : m3_sig<'i'> {};
+        template<> struct m3_type_to_sig<int64_t> : m3_sig<'I'> {};
+        template<> struct m3_type_to_sig<float>   : m3_sig<'f'> {};
+        template<> struct m3_type_to_sig<double>  : m3_sig<'F'> {};
+        template<> struct m3_type_to_sig<void>    : m3_sig<'v'> {};
+        template<> struct m3_type_to_sig<void *>  : m3_sig<'*'> {};
         template<> struct m3_type_to_sig<const void *> : m3_sig<'*'> {};
 
 

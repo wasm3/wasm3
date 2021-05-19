@@ -18,7 +18,7 @@ sinclude $(TOP_DIR)/tools/tool_chain.def
 
 USE_LIB=1
 
-CSRCS = $(wildcard *.c) $(wildcard m3/*.c)
+CSRCS = $(wildcard *.c) $(wildcard wasm3/*.c)
 
 #EXTRA_CCFLAGS += -u
 ifndef PDIR
