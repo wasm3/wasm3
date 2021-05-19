@@ -322,7 +322,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 # define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 # define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
-# define m3ApiCheckMem(addr, len)   { if (UNLIKELY(m3ApiIsNullPtr(addr) || ((uint64_t)(addr) + (len)) > ((uint64_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(m3ApiIsNullPtr(addr) || ((uint64_t)(addr) + (len)) > ((uint64_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
 
 # define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
 # define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return m3Err_none; }

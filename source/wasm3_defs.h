@@ -257,4 +257,17 @@
 #  endif
 # endif
 
+/*
+ * Other
+ */
+
+# if defined(M3_COMPILER_GCC) || defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_ICC)
+#  define M3_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#  define M3_LIKELY(x)   __builtin_expect(!!(x), 1)
+# else
+#  define M3_UNLIKELY(x) (x)
+#  define M3_LIKELY(x)   (x)
+# endif
+
+
 #endif // wasm3_defs_h
