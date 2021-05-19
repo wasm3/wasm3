@@ -23,5 +23,5 @@ Try increasing `d_m3MaxFunctionStackHeight` in `m3_config.h` and rebuilding Wasm
 
 Your module requires some `Memory`, but doesn't define/export it by itself.  
 This happens if module is built by `Emscripten`, or it's a library that is intended to be linked to some other modules.  
-Wasm3 currently doesn't support running such modules directly, but you can remove this limitation wen you embed Wasm3 into your own app.
+Wasm3 currently doesn't support running such modules directly, but you can remove this limitation when you embed Wasm3 into your own app.
 
