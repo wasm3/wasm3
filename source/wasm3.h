@@ -18,6 +18,8 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
+#include <wasm3_defs.h>
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -203,6 +205,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
+    // This is used internally by Raw Function helpers
+    uint32_t            m3_GetMemorySize            (IM3Runtime             i_runtime);
+
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
 
@@ -304,6 +309,45 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     // The runtime owns the backtrace, do not free the backtrace you obtain. Returns NULL if there's no backtrace.
     IM3BacktraceInfo    m3_GetBacktrace             (IM3Runtime i_runtime);
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//  raw function definition helpers
+//-------------------------------------------------------------------------------------------------------------------------------
+
+# define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)_mem + (uint32_t)(offset))
+# define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)_mem)
+
+# define m3ApiReturnType(TYPE)      TYPE* raw_return = ((TYPE*) (_sp++));
+# define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
+# define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
+
+# define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
+# define m3ApiCheckMem(addr, len)   { if (UNLIKELY(m3ApiIsNullPtr(addr) || ((uint64_t)(addr) + (len)) > ((uint64_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+
+# define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
+# define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return m3Err_none; }
+# define m3ApiTrap(VALUE)           { return VALUE; }
+# define m3ApiSuccess()             { return m3Err_none; }
+
+# if defined(M3_BIG_ENDIAN)
+#  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))
+#  define m3ApiReadMem16(ptr)        m3_bswap16((* (uint16_t *)(ptr)))
+#  define m3ApiReadMem32(ptr)        m3_bswap32((* (uint32_t *)(ptr)))
+#  define m3ApiReadMem64(ptr)        m3_bswap64((* (uint64_t *)(ptr)))
+#  define m3ApiWriteMem8(ptr, val)   { * (uint8_t  *)(ptr)  = (val); }
+#  define m3ApiWriteMem16(ptr, val)  { * (uint16_t *)(ptr) = m3_bswap16((val)); }
+#  define m3ApiWriteMem32(ptr, val)  { * (uint32_t *)(ptr) = m3_bswap32((val)); }
+#  define m3ApiWriteMem64(ptr, val)  { * (uint64_t *)(ptr) = m3_bswap64((val)); }
+# else
+#  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))
+#  define m3ApiReadMem16(ptr)        (* (uint16_t *)(ptr))
+#  define m3ApiReadMem32(ptr)        (* (uint32_t *)(ptr))
+#  define m3ApiReadMem64(ptr)        (* (uint64_t *)(ptr))
+#  define m3ApiWriteMem8(ptr, val)   { * (uint8_t  *)(ptr) = (val); }
+#  define m3ApiWriteMem16(ptr, val)  { * (uint16_t *)(ptr) = (val); }
+#  define m3ApiWriteMem32(ptr, val)  { * (uint32_t *)(ptr) = (val); }
+#  define m3ApiWriteMem64(ptr, val)  { * (uint64_t *)(ptr) = (val); }
+# endif
 
 #if defined(__cplusplus)
 }

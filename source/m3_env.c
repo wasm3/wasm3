@@ -1107,6 +1107,11 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
     return memory;
 }
 
+uint32_t  m3_GetMemorySize  (IM3Runtime i_runtime)
+{
+    return i_runtime->memory.mallocated->length;
+}
+
 M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 {
 # if d_m3RecordBacktraces

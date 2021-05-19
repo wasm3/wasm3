@@ -11,7 +11,6 @@
 #include <ctype.h>
 
 #include "wasm3.h"
-#include "m3_api_defs.h"
 #include "m3_api_libc.h"
 
 #if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)

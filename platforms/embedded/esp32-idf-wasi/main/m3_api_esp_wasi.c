@@ -9,7 +9,6 @@
 
 #include "m3_api_esp_wasi.h"
 
-#include "m3/m3_api_defs.h"
 #include "m3/m3_env.h"
 #include "m3/m3_exception.h"
 

@@ -9,7 +9,6 @@
 #include <string>
 #include <iterator>
 
-#include <m3_api_defs.h>
 #include "wasm3.h"
 
 
