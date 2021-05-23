@@ -63,15 +63,6 @@
 #  define M3_BSWAP_f64(X) {}
 # endif
 
-# if defined(M3_COMPILER_GCC) || defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_ICC)
-#  define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#  define LIKELY(x)   __builtin_expect(!!(x), 1)
-# else
-#  define UNLIKELY(x) (x)
-#  define LIKELY(x)   (x)
-# endif
-
-
 # if defined(M3_COMPILER_MSVC)
 #  define M3_WEAK //__declspec(selectany)
 # elif defined(__MINGW32__)
@@ -184,7 +175,7 @@ typedef int8_t          i8;
  * Arch-specific defaults
  */
 #if defined(__riscv) && __riscv_xlen == 64
-#  ifndef d_m3MaxFunctionStackHeight
+#  ifndef d_m3Use32BitSlots
 #    define d_m3Use32BitSlots                   0
 #  endif
 #endif
