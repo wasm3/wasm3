@@ -359,6 +359,12 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 #endif // APE
 
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
+
+    // Make descriptors 0,1,2 look like a TTY
+    if (fd <= 2) {
+        fdstat->fs_rights_base &= ~(__WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL);
+    }
+
     fdstat->fs_rights_inheriting = (uint64_t)-1; // all rights
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 #endif

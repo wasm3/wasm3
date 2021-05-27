@@ -263,7 +263,9 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
     if (!strcmp(name, "_start")) {
 #if defined(LINK_WASI)
         // Strip wasm file path
-        argv[0] = modname_from_fn(argv[0]);
+        if (argc > 0) {
+            argv[0] = modname_from_fn(argv[0]);
+        }
 
         m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
         wasi_ctx->argc = argc;

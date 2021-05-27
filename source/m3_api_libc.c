@@ -179,8 +179,11 @@ m3ApiRawFunction(m3_libc_printf)
 m3ApiRawFunction(m3_libc_clock_ms)
 {
     m3ApiReturnType (uint32_t)
-
+#ifdef CLOCKS_PER_SEC
     m3ApiReturn(clock() / (CLOCKS_PER_SEC/1000));
+#else
+    m3ApiReturn(clock());
+#endif
 }
 
 static
