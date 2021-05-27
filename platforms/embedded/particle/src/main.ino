@@ -65,9 +65,9 @@ void setup()
   Serial.println();
   Serial.println("Wasm3 v" M3_VERSION " on Particle, build " __DATE__ " " __TIME__);
 
-  u32 start = millis();
+  uint32_t start = millis();
   run_wasm();
-  u32 end = millis();
+  uint32_t end = millis();
 
   Serial.print("Elapsed: ");
   Serial.print(end - start);
