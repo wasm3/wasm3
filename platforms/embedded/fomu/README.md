@@ -1,7 +1,7 @@
 ## Build for Fomu
 
 ```sh
-export PATH=/opt/fomu-toolchain-linux_x86_64-v1.5.1/bin:$PATH
+export PATH=/opt/fomu-toolchain-linux_x86_64-v1.5.6/bin:$PATH
 make
 ```
 

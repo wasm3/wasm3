@@ -6,6 +6,7 @@
 //
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <irq.h>
 #include <usb.h>
@@ -34,9 +35,9 @@ void uart_print(const char *str) {
     uart_write(str, strlen(str));
 }
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "extra/fib32.wasm.h"
 
 #define FATAL(func, msg) {              \
   uart_print("Fatal: " func ": ");      \
