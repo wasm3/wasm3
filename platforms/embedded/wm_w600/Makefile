@@ -32,9 +32,9 @@ SUBDIRS += \
 	$(TOP_DIR)/platform/common 		\
 	$(TOP_DIR)/platform/drivers		\
 	$(TOP_DIR)/platform/sys			\
-	$(TOP_DIR)/src/network	\
-	$(TOP_DIR)/src/os			\
-	$(TOP_DIR)/src/app
+	$(TOP_DIR)/src/os				\
+	$(TOP_DIR)/src/app				\
+	$(TOP_DIR)/src/network
 endif
 endif
 
@@ -48,28 +48,25 @@ COMPONENTS_$(TARGET) += \
 	$(TOP_DIR)/platform/common/libcommon$(LIB_EXT)		\
 	$(TOP_DIR)/platform/drivers/libdrivers$(LIB_EXT)		\
 	$(TOP_DIR)/platform/sys/libsys$(LIB_EXT)			\
-	$(TOP_DIR)/src/network/libnetwork$(LIB_EXT)	\
-	$(TOP_DIR)/src/os/libos$(LIB_EXT)			\
+	$(TOP_DIR)/src/os/libos$(LIB_EXT)					\
+	$(TOP_DIR)/src/network/libnetwork$(LIB_EXT)					\
 	$(TOP_DIR)/src/app/libapp$(LIB_EXT)
 endif
 
-
-LINKLIB = 	\
-	$(TOP_DIR)/lib/libwlan$(LIB_EXT)			\
-	$(TOP_DIR)/lib/libairkiss_log$(LIB_EXT)
-
-LINKLIB += -lm
-
 ifeq ($(USE_LIB), 1)
-LINKLIB += \
+LINKLIB = \
 	$(TOP_DIR)/lib/libcommon$(LIB_EXT) 		\
 	$(TOP_DIR)/lib/libdrivers$(LIB_EXT)		\
 	$(TOP_DIR)/lib/libsys$(LIB_EXT)			\
-	$(TOP_DIR)/lib/libnetwork$(LIB_EXT)		\
 	$(TOP_DIR)/lib/libos$(LIB_EXT)			\
+	$(TOP_DIR)/lib/libnetwork$(LIB_EXT)		\
 	$(TOP_DIR)/lib/libapp$(LIB_EXT)
 endif
 
+LINKLIB += 	\
+	$(TOP_DIR)/lib/libairkiss_log$(LIB_EXT)	\
+	$(TOP_DIR)/lib/libwlan$(LIB_EXT) 
+	
 ifeq ($(COMPILE), gcc)
 LINKFLAGS_$(TARGET) =  \
 	$(LINKLIB)	\
@@ -90,12 +87,17 @@ endif
 #   for a subtree within the makefile rooted therein
 #
 
-DEFINES = -DWM_W600 -Os -flto -Wfatal-errors \
+CONFIGURATION_DEFINES += -DWM_W600
+
+DEFINES += $(CONFIGURATION_DEFINES) -Os -flto -Wfatal-errors \
+			-fomit-frame-pointer -fno-stack-check -fno-stack-protector \
 			-Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers
 #			-Dd_m3FixedHeap=8192
 #			-fno-optimize-sibling-calls
 
-LINKFLAGS_$(TARGET) += $(DEFINES)
+LINKFLAGS_$(TARGET) += -Os -flto
+
+LINKLIB += -lm
 
 #############################################################
 # Recursion Magic - Don't touch this!!
@@ -110,7 +112,7 @@ LINKFLAGS_$(TARGET) += $(DEFINES)
 #
 
 INCLUDES := $(INCLUDES) -I$(PDIR)include
-INCLUDES += -I ./
+INCLUDES += -I ./ -I ./wasm3/
 
 sinclude $(TOP_DIR)/tools/rules.mk
 

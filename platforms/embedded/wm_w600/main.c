@@ -7,9 +7,9 @@
 
 #include "wm_include.h"
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "extra/fib32.wasm.h"
 
 #define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
 
@@ -70,6 +70,11 @@ void wasm3_task(void *data)
     uint32_t end = millis();
 
     printf("Elapsed: %ld ms\n", (end - start));
+}
+
+void pre_gpio_config(void)
+{
+
 }
 
 void UserMain(void)
