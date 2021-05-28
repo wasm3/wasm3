@@ -1,0 +1,7 @@
+{
+    "build" : {
+        "flags": "-Os -fomit-frame-pointer -fno-stack-check -fno-stack-protector -Wfatal-errors -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers",
+        "srcFilter": ["+<*>", "-<extensions/*>"],
+        "libArchive": false
+    }
+}

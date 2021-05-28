@@ -73,11 +73,11 @@ bool run_wasm()
     uart_print("Running...\n");
 
     result = m3_CallV (f, 24);
-    if (result) FATAL("m3_Call: %s", result);
+    if (result) FATAL("m3_Call", result);
 
     uint32_t value = 0;
     result = m3_GetResultsV (f, &value);
-    if (result) FATAL("m3_GetResults: %s", result);
+    if (result) FATAL("m3_GetResults", result);
 
     char buff[32];
     ltoa(value, buff, 10);

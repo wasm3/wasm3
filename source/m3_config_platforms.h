@@ -71,7 +71,7 @@
 #  define M3_NO_UBSAN
 # else
 #  define M3_WEAK       __attribute__((weak))
-#  define M3_NO_UBSAN   __attribute__((no_sanitize("undefined")))
+#  define M3_NO_UBSAN   //__attribute__((no_sanitize("undefined")))
 # endif
 
 # ifndef M3_MIN
