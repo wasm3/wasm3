@@ -9,7 +9,7 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
 
 The fastest WebAssembly interpreter, and the most universal runtime.  
-<sub>Based on [**CoreMark 1.0** benchmark](./docs/Performance.md). Your mileage may vary.</sub>
+<sub>Based on [**CoreMark 1.0**](./docs/Performance.md) and [**independent**](https://00f.net/2021/02/22/webassembly-runtimes-benchmarks) benchmarks. Your mileage may vary.</sub>
 
 
 [![Twitter](https://img.shields.io/twitter/follow/wasm3_engine?style=flat-square&color=1da1f2&label=twitter&logo=twitter)](https://twitter.com/wasm3_engine) 
@@ -18,7 +18,7 @@ The fastest WebAssembly interpreter, and the most universal runtime.
 
 ## Getting Started
 
-Here's an online demo and a small [getting started guide](https://wapm.io/package/vshymanskyy/wasm3):
+Here's a small [getting started guide](https://wapm.io/package/vshymanskyy/wasm3). Click here to start:
 
 [![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wasm3)
 
@@ -30,9 +30,9 @@ Here's an online demo and a small [getting started guide](https://wapm.io/packag
 Wasm3 can also be used as a library for:
 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/python.svg" width="18" height="18" /> Python3](https://github.com/wasm3/pywasm3) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
 [　 Zig](https://github.com/alichay/zig-wasm3)  
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dot-net.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
