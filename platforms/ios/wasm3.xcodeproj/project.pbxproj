@@ -19,7 +19,6 @@
 		3D1B3B1A23C8E20D00142C16 /* m3_exec.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0723C8E20C00142C16 /* m3_exec.c */; };
 		3D1B3B1B23C8E20D00142C16 /* m3_info.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0A23C8E20C00142C16 /* m3_info.c */; };
 		3D1B3B1C23C8E20D00142C16 /* m3_module.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0D23C8E20C00142C16 /* m3_module.c */; };
-		3D1B3B1D23C8E20D00142C16 /* m3_optimize.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0E23C8E20C00142C16 /* m3_optimize.c */; };
 		3D1B3B1E23C8E20D00142C16 /* m3_parse.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0F23C8E20C00142C16 /* m3_parse.c */; };
 		3D1ED51023C8C8E70072E395 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1ED50F23C8C8E70072E395 /* AppDelegate.swift */; };
 		3D1ED51223C8C8E70072E395 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1ED51123C8C8E70072E395 /* ViewController.swift */; };
@@ -36,7 +35,6 @@
 		3D1B3AEF23C8E20C00142C16 /* fib32_tail.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib32_tail.wasm.h; sourceTree = "<group>"; };
 		3D1B3AF023C8E20C00142C16 /* fib64.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib64.wasm.h; sourceTree = "<group>"; };
 		3D1B3AF123C8E20C00142C16 /* wasi_core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasi_core.h; sourceTree = "<group>"; };
-		3D1B3AF323C8E20C00142C16 /* m3_api_defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_api_defs.h; sourceTree = "<group>"; };
 		3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_api_libc.c; sourceTree = "<group>"; };
 		3D1B3AF523C8E20C00142C16 /* m3_api_libc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_api_libc.h; sourceTree = "<group>"; };
 		3D1B3AF623C8E20C00142C16 /* m3_api_meta_wasi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_api_meta_wasi.c; sourceTree = "<group>"; };
@@ -63,7 +61,6 @@
 		3D1B3B0B23C8E20C00142C16 /* m3_info.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_info.h; sourceTree = "<group>"; };
 		3D1B3B0C23C8E20C00142C16 /* m3_math_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_math_utils.h; sourceTree = "<group>"; };
 		3D1B3B0D23C8E20C00142C16 /* m3_module.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_module.c; sourceTree = "<group>"; };
-		3D1B3B0E23C8E20C00142C16 /* m3_optimize.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_optimize.c; sourceTree = "<group>"; };
 		3D1B3B0F23C8E20C00142C16 /* m3_parse.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_parse.c; sourceTree = "<group>"; };
 		3D1ED50C23C8C8E70072E395 /* wasm3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wasm3.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3D1ED50F23C8C8E70072E395 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -76,7 +73,6 @@
 		3D1ED52223C8CB560072E395 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		3D3C322D23C9319A00DB9F7E /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
 		3D3EC19D23D558D5008FD665 /* wasm3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasm3.h; sourceTree = "<group>"; };
-		3D3EC19D23D578D5008FD665 /* wasm3_defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasm3_defs.h; sourceTree = "<group>"; };
 		B5E985C6262018B700FBE0FC /* m3_function.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_function.h; sourceTree = "<group>"; };
 		B5E985C7262018B700FBE0FC /* m3_function.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_function.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -99,8 +95,6 @@
 				B5E985C6262018B700FBE0FC /* m3_function.h */,
 				3D1B3AED23C8E20C00142C16 /* extra */,
 				3D3EC19D23D558D5008FD665 /* wasm3.h */,
-                3D3EC19D23D578D5008FD665 /* wasm3_defs.h */,
-				3D1B3AF323C8E20C00142C16 /* m3_api_defs.h */,
 				3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */,
 				3D1B3AF523C8E20C00142C16 /* m3_api_libc.h */,
 				3D1B3AF623C8E20C00142C16 /* m3_api_meta_wasi.c */,
@@ -127,7 +121,6 @@
 				3D1B3B0B23C8E20C00142C16 /* m3_info.h */,
 				3D1B3B0C23C8E20C00142C16 /* m3_math_utils.h */,
 				3D1B3B0D23C8E20C00142C16 /* m3_module.c */,
-				3D1B3B0E23C8E20C00142C16 /* m3_optimize.c */,
 				3D1B3B0F23C8E20C00142C16 /* m3_parse.c */,
 			);
 			name = source;
@@ -267,7 +260,6 @@
 				3D1ED51023C8C8E70072E395 /* AppDelegate.swift in Sources */,
 				3D1B3B1923C8E20D00142C16 /* m3_env.c in Sources */,
 				3D1B3B1623C8E20D00142C16 /* m3_compile.c in Sources */,
-				3D1B3B1D23C8E20D00142C16 /* m3_optimize.c in Sources */,
 				3D1ED52423C8CB560072E395 /* main.c in Sources */,
 				3D1B3B1E23C8E20D00142C16 /* m3_parse.c in Sources */,
 			);
@@ -415,7 +407,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				HEADER_SEARCH_PATHS = "$(inherited) source/";
+				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = wasm3/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.2;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -434,7 +426,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				HEADER_SEARCH_PATHS = "$(inherited) source/";
+				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = wasm3/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.2;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";

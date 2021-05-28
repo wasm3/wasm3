@@ -9,16 +9,16 @@
 #define wasm3_h
 
 #define M3_VERSION_MAJOR 0
-#define M3_VERSION_MINOR 4
-#define M3_VERSION_REV   9
-#define M3_VERSION       "0.4.9"
+#define M3_VERSION_MINOR 5
+#define M3_VERSION_REV   0
+#define M3_VERSION       "0.5.0"
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdarg.h>
 
-#include <wasm3_defs.h>
+#include "wasm3_defs.h"
 
 #if defined(__cplusplus)
 extern "C" {
