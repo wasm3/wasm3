@@ -641,6 +641,8 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
         {
             u16 constTableIndex = slot - o->slotFirstConstIndex;
 
+            d_m3Assert(constTableIndex < d_m3MaxConstantTableSize);
+
             if (is64BitType)
             {
                 u64 * constant = (u64 *) & o->constants [constTableIndex];

@@ -33,7 +33,7 @@
 # endif
 
 # ifndef d_m3MaxConstantTableSize
-#   define d_m3MaxConstantTableSize             120
+#   define d_m3MaxConstantTableSize             1024
 # endif
 
 # ifndef d_m3MaxDuplicateFunctionImpl

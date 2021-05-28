@@ -65,10 +65,13 @@
 
 # if defined(M3_COMPILER_MSVC)
 #  define M3_WEAK //__declspec(selectany)
+#  define M3_NO_UBSAN
 # elif defined(__MINGW32__)
 #  define M3_WEAK //__attribute__((selectany))
+#  define M3_NO_UBSAN
 # else
-#  define M3_WEAK __attribute__((weak))
+#  define M3_WEAK       __attribute__((weak))
+#  define M3_NO_UBSAN   __attribute__((no_sanitize("undefined")))
 # endif
 
 # ifndef M3_MIN
@@ -163,6 +166,9 @@ typedef int8_t          i8;
 #  ifndef d_m3VerboseErrorMessages
 #    define d_m3VerboseErrorMessages            0
 #  endif
+# ifndef d_m3MaxConstantTableSize
+#   define d_m3MaxConstantTableSize             64
+# endif
 #  ifndef d_m3MaxFunctionStackHeight
 #    define d_m3MaxFunctionStackHeight          64
 #  endif
