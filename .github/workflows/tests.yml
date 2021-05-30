@@ -237,7 +237,7 @@ jobs:
         java-version: 1.8
     - name: Install NDK
       run: |
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.0.7026061"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670"
     - name: Build
       run: |
         cd platforms/android
