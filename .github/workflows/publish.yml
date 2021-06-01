@@ -45,29 +45,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  cosmopolitan:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build αcτµαlly pδrταblε εxεcµταblε
-      run: |
-        cd platforms/cosmopolitan
-        ./build.sh
-        cp ./wasm3.com ../../wasm3-cosmopolitan.com
-        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: ${{ env.draft }}
-        files: |
-            *.com
-            *.com.dbg
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  wasm3-linux-static-x64:
+  wasm3-linux-x64:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
 
@@ -87,13 +65,35 @@ jobs:
         cmake ..
     - name: Build
       run: |
-        cmake --verbose --build build
-        cp ./build/wasm3 ./wasm3-linux-static-x64.elf
+        cmake --build build --verbose
+        cp ./build/wasm3 ./wasm3-linux-x64.elf
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
         draft: ${{ env.draft }}
         files: "*.elf"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cosmopolitan:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build αcτµαlly pδrταblε εxεcµταblε
+      run: |
+        cd platforms/cosmopolitan
+        ./build.sh
+        cp ./wasm3.com ../../wasm3-cosmopolitan.com
+        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: ${{ env.draft }}
+        files: |
+            *.com
+            *.com.dbg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
