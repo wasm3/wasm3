@@ -9,7 +9,7 @@ env:
   draft: true
 
 jobs:
-  build-windows:
+  windows:
     runs-on: windows-latest
     name: ${{ matrix.config.target }}
     timeout-minutes: 10
@@ -45,7 +45,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-cosmopolitan:
+  cosmopolitan:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
 
@@ -67,7 +67,37 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-wasi:
+  linux-static-x64:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install musl
+      run: |
+        sudo apt update
+        sudo apt install musl-tools
+    - name: Configure
+      env:
+        CC: musl-gcc
+        LDFLAGS: "-static -s"
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build
+      run: |
+        cmake --build build
+        cp ./build/wasm3 ./wasm3-linux-static-x64.elf
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: ${{ env.draft }}
+        files: "*.elf"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  wasi:
     runs-on: ubuntu-latest
     name: wasm3-wasi
     timeout-minutes: 10
@@ -114,7 +144,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-android:
+  android:
     runs-on: ubuntu-latest
     name: wasm3-android-coremark
     timeout-minutes: 10
@@ -129,6 +159,7 @@ jobs:
     - name: Install NDK
       run: |
         sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --uninstall "cmake;3.18.1"
         sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "cmake;3.10.2.4988404"
     - name: Build
       run: |
