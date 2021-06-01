@@ -1,6 +1,6 @@
 [package]
 name = "vshymanskyy/wasm3"
-version = "0.4.9"
+version = "0.5.0"
 description = "🚀 The fastest WebAssembly interpreter. You can finally run WebAssembly on WebAssembly 😆"
 readme = "README.md"
 repository = "https://github.com/wasm3/wasm3"

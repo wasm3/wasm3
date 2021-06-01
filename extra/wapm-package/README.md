@@ -45,7 +45,7 @@ $ wasm3 /tmp/test.wasm
 or even... run wasm3 inside wasm3:
 
 ```sh
-$ curl https://registry-cdn.wapm.io/contents/vshymanskyy/wasm3/0.4.9/build/wasm3-wasi.wasm -o /tmp/wasm3.wasm
+$ curl https://registry-cdn.wapm.io/contents/vshymanskyy/wasm3/0.5.0/build/wasm3-wasi.wasm -o /tmp/wasm3.wasm
 $ wasm3 --stack-size 100000 /tmp/wasm3.wasm /tmp/test.wasm
 ```
 

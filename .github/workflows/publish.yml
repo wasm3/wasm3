@@ -9,7 +9,7 @@ env:
   draft: true
 
 jobs:
-  windows:
+  wasm3-windows:
     runs-on: windows-latest
     name: ${{ matrix.config.target }}
     timeout-minutes: 10
@@ -67,7 +67,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  linux-static-x64:
+  wasm3-linux-static-x64:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
 
@@ -87,7 +87,7 @@ jobs:
         cmake ..
     - name: Build
       run: |
-        cmake --build build
+        cmake --verbose --build build
         cp ./build/wasm3 ./wasm3-linux-static-x64.elf
     - name: Publish
       uses: softprops/action-gh-release@v1
@@ -97,9 +97,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  wasi:
+  wasm3-wasi:
     runs-on: ubuntu-latest
-    name: wasm3-wasi
     timeout-minutes: 10
 
     env:
@@ -144,9 +143,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  android:
+  wasm3-android-coremark:
     runs-on: ubuntu-latest
-    name: wasm3-android-coremark
     timeout-minutes: 10
 
     steps:
