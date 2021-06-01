@@ -292,7 +292,8 @@ M3Result  AllocateSlots  (IM3Compilation o, u16 * o_slot, u8 i_type)
 
 M3Result  AllocateConstantSlots  (IM3Compilation o, u16 * o_slot, u8 i_type)
 {
-    return AllocateSlotsWithinRange (o, o_slot, i_type, o->slotFirstConstIndex, o->slotFirstDynamicIndex);
+    u16 maxTableIndex = o->slotFirstConstIndex + d_m3MaxConstantTableSize;
+    return AllocateSlotsWithinRange (o, o_slot, i_type, o->slotFirstConstIndex, M3_MIN(o->slotFirstDynamicIndex, maxTableIndex));
 }
 
 
