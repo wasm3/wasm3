@@ -237,7 +237,9 @@ jobs:
         java-version: 1.8
     - name: Install NDK
       run: |
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --list
         sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --uninstall "cmake;3.18.1"
         sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "cmake;3.10.2.4988404"
     - name: Build
       run: |
