@@ -51,12 +51,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install musl
+    - name: Setup musl
       run: |
         sudo apt update
         sudo apt install musl-tools
-        musl-gcc --version
-        cmake --version
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v1.9
+      with:
+        cmake-version: '3.16.x'
     - name: Configure
       env:
         CC: musl-gcc
@@ -64,6 +66,7 @@ jobs:
       run: |
         mkdir build
         cd build
+        cmake --version
         cmake ..
     - name: Build
       run: |
