@@ -2,7 +2,8 @@
 
 - **In-browser Wasm3 (with MetaWASI support) on Webassembly.sh** │ [try it](https://webassembly.sh/?run-command=wasm3)
 - **PyGame + pywasm3 examples** | [github](https://github.com/wasm3/pywasm3/tree/main/examples)
-- **DOOM comiled to WASI, running on pywasm3** |  [video](https://twitter.com/wasm3_engine/status/1393588527863144450), [github](https://github.com/wasm3/pywasm3-doom-demo)
+- **DOOM compiled to WASI, running on pywasm3** |  [video](https://twitter.com/wasm3_engine/status/1393588527863144450), [github](https://github.com/wasm3/pywasm3-doom-demo)
+- **Wasm3 self-compilation using `clang.wasm`** |  [github](https://github.com/wasm3/wasm3-self-compiling)
 - **Dino game**
   - on PyBadge/Arduino | [video](https://twitter.com/vshymanskyy/status/1345048053041029121), [github](https://github.com/wasm3/wasm3-arduino/tree/main/examples/Wasm_Dino_PyBadge)
   - on Raspberry Pi Pico | [github](https://github.com/vshymanskyy/wasm3_dino_rpi_pico)
