@@ -46,7 +46,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   wasm3-linux-x64:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
@@ -55,6 +55,8 @@ jobs:
       run: |
         sudo apt update
         sudo apt install musl-tools
+        musl-gcc --version
+        cmake --version
     - name: Configure
       env:
         CC: musl-gcc
@@ -76,7 +78,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   wasm3-cosmopolitan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
