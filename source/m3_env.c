@@ -513,6 +513,22 @@ _               (ReadLEB_u32 (& functionIndex, & bytes, end));
     _catch: return result;
 }
 
+M3Result  m3_CompileModule  (IM3Module io_module)
+{
+    M3Result result = m3Err_none;
+
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+        if (f->wasm and not f->compiled)
+        {
+_       	(CompileFunction (f));
+        }
+    }
+
+    _catch: return result;
+}
+
 M3Result  m3_RunStart  (IM3Module io_module)
 {
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION

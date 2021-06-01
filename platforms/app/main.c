@@ -430,8 +430,12 @@ M3Result repl_global_set  (const char* name, const char* value)
     return m3_SetGlobal (g, &tagged);
 }
 
+M3Result repl_compile  ()
+{
+    return m3_CompileModule(runtime->modules);
+}
 
-M3Result repl_dump()
+M3Result repl_dump  ()
 {
     uint32_t len;
     uint8_t* mem = m3_GetMemory(runtime, &len, 0);
@@ -448,7 +452,7 @@ M3Result repl_dump()
     return m3Err_none;
 }
 
-void repl_free()
+void repl_free  ()
 {
     if (runtime) {
         m3_FreeRuntime (runtime);
@@ -461,7 +465,7 @@ void repl_free()
     }
 }
 
-M3Result repl_init(unsigned stack)
+M3Result repl_init  (unsigned stack)
 {
     repl_free();
     runtime = m3_NewRuntime (env, stack, NULL);
@@ -664,6 +668,8 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_global_set(argv[1], argv[2]);
         } else if (!strcmp(":dump", argv[0])) {
             result = repl_dump();
+        } else if (!strcmp(":compile", argv[0])) {
+            result = repl_compile();
         } else if (!strcmp(":invoke", argv[0])) {
             unescape(argv[1]);
             result = repl_invoke(argv[1], argc-2, (const char**)(argv+2));

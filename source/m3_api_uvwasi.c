@@ -521,6 +521,26 @@ m3ApiRawFunction(m3_wasi_generic_path_rename)
     m3ApiReturn(ret);
 }
 
+m3ApiRawFunction(m3_wasi_generic_path_symlink)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArgMem   (const char *         , old_path)
+    m3ApiGetArg      (uvwasi_size_t        , old_path_len)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArgMem   (const char *         , new_path)
+    m3ApiGetArg      (uvwasi_size_t        , new_path_len)
+
+    m3ApiCheckMem(old_path, old_path_len);
+    m3ApiCheckMem(new_path, new_path_len);
+
+    uvwasi_errno_t ret = uvwasi_path_symlink(&uvwasi, old_path, old_path_len,
+                                                  fd, new_path, new_path_len);
+
+    WASI_TRACE("old_fd:%d, old_path:%s, fd:%d, new_path:%s", old_fd, old_path, fd, new_path);
+
+    m3ApiReturn(ret);
+}
+
 m3ApiRawFunction(m3_wasi_generic_path_unlink_file)
 {
     m3ApiReturnType  (uint32_t)
@@ -993,7 +1013,7 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",  
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_readlink",            "i(i*i*i*)",    &m3_wasi_generic_path_readlink)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_remove_directory",    "i(i*i)",       &m3_wasi_generic_path_remove_directory)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_rename",              "i(i*ii*i)",    &m3_wasi_generic_path_rename)));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_symlink",             "i(*ii*i)",     )));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_symlink",             "i(*ii*i)",     &m3_wasi_generic_path_symlink)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_unlink_file",         "i(i*i)",       &m3_wasi_generic_path_unlink_file)));
 
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "poll_oneoff",          "i(**i*)", &m3_wasi_generic_poll_oneoff)));

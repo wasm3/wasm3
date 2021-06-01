@@ -229,6 +229,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully loaded into the runtime
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
 
+    // Optional, compiles all functions in the module
+    M3Result            m3_CompileModule            (IM3Module io_module);
+
     // Calling m3_RunStart is optional
     M3Result            m3_RunStart                 (IM3Module i_module);
 
