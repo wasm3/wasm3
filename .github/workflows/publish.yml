@@ -75,7 +75,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  cosmopolitan:
+  wasm3-cosmopolitan:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
 
