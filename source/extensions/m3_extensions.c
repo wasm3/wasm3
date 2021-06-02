@@ -61,8 +61,13 @@ M3Result  m3Ext_InjectFunction  (IM3Module                 i_module,
 {
     M3Result result = m3Err_none;                                       d_m3Assert (io_functionIndex);
 
+	IM3FuncType ftype = NULL;
+	
+	_try {
+	if (not i_module)
+		_throw (m3Err_nullArgument);
+	
     IM3Function function = NULL;
-    IM3FuncType ftype = NULL;
 _   (SignatureToFuncType (& ftype, i_signature));
 
     i32 index = * io_functionIndex;
@@ -125,7 +130,7 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
 
 _   (CompileFunction (function));
 
-    _catch:
+	} _catch:
     m3_Free (ftype);
 
     return result;
