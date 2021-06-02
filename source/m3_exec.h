@@ -707,7 +707,7 @@ d_m3Op  (MemCopy)
     u32 size = (u32) _r0;
     u64 source = slot (u32);
     u64 destination = slot (u32);
-    
+
     if (destination + size <= _mem->length)
     {
         if (source + size <= _mem->length)
@@ -715,7 +715,7 @@ d_m3Op  (MemCopy)
             u8 * dst = m3MemData (_mem) + destination;
             u8 * src = m3MemData (_mem) + source;
             memmove (dst, src, size);
-            
+
             nextOp ();
         }
         else d_outOfBoundsMemOp (source, size);
@@ -729,7 +729,7 @@ d_m3Op  (MemFill)
     u32 size = (u32) _r0;
     u32 byte = slot (u32);
     u64 destination = slot (u32);
-    
+
     if (destination + size <= _mem->length)
     {
         u8 * mem8 = m3MemData (_mem) + destination;

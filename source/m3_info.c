@@ -142,7 +142,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
     ret = snprintf (s, e-s, "(");
     s += M3_MAX (0, ret);
 
-	u64 * argSp = (u64 *) i_sp;
+    u64 * argSp = (u64 *) i_sp;
 
     IM3FuncType funcType = i_function->funcType;
     if (funcType)

@@ -110,7 +110,7 @@ _               (NormalizeType (& retType, wasmType));
     if (result)
     {
         m3_Free (ftype);
-		// FIX: M3FuncTypes in the table are leaked
+        // FIX: M3FuncTypes in the table are leaked
         m3_Free (io_module->funcTypes);
         io_module->numFuncTypes = 0;
     }
@@ -347,7 +347,7 @@ _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
             if (i_bytes <= i_end)
             {
-				/*
+                /*
                 u32 numLocalBlocks;
 _               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "    code size: %-4d", size);
 
@@ -365,8 +365,8 @@ _                   (NormalizeType (& normalType, wasmType));
 
                     numLocals += varCount;                                                      m3log (parse, "      %2d locals; type: '%s'", varCount, c_waTypes [normalType]);
                 }
-				 */
-				
+                 */
+
                 IM3Function func = Module_GetFunction (io_module, f + io_module->numFuncImports);
 
                 func->module = io_module;
@@ -577,21 +577,21 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 
 M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes, bool i_copyBytes)
 {
-    M3Result result;	    													 m3log (parse, "load module: %d bytes", i_numBytes);
+    M3Result result;                                                             m3log (parse, "load module: %d bytes", i_numBytes);
 
-	IM3Module module = m3_NewModule (i_environment);
+    IM3Module module = m3_NewModule (i_environment);
 
 _try {
-	_throwifnull (module);
-	
-	const u8 * pos = i_bytes;
-	
-	if (i_copyBytes)
-	{
-		pos = m3_CopyMem (i_bytes, i_numBytes);
-		_throwifnull (pos);
-	}
-		
+    _throwifnull (module);
+
+    const u8 * pos = i_bytes;
+
+    if (i_copyBytes)
+    {
+        pos = m3_CopyMem (i_bytes, i_numBytes);
+        _throwifnull (pos);
+    }
+
     const u8 * end = pos + i_numBytes;
 
     module->wasmStart = pos;

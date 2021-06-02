@@ -942,9 +942,9 @@ _           (CopyStackIndexToSlot (o, targetSlot, i_stackIndex));               
             o->wasmStack [i_stackIndex] = targetSlot;
 
         }
-        
+
 _       (CopyStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStackIndex, i_tempSlot));
-        
+
         // restore the stack state
         o->wasmStack [i_stackIndex] = srcSlot;
         o->wasmStack [preserveIndex] = collisionSlot;
@@ -992,9 +992,9 @@ _           (CopyStackTopToRegister (o, false));
         // TODO: tempslot affects maxStackSlots, so can grow unnecess each time.
         u16 tempSlot = o->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
         AlignSlotToType (& tempSlot, c_m3Type_i64);
-        
+
 _       (CopyStackSlotsR (o, slotRecords, endIndex - numValues, endIndex, tempSlot));
-        
+
         if (d_m3LogWasmStack) dump_type_stack (o);
     }
 
@@ -1114,17 +1114,17 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
 
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
-	IM3OpInfo opInfo = GetOpInfo (i_opcode);
-	_throwif (m3Err_unknownOpcode, not opInfo);
+    IM3OpInfo opInfo = GetOpInfo (i_opcode);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
-	M3Compiler compiler = opInfo->compiler;
+    M3Compiler compiler = opInfo->compiler;
     _throwif (m3Err_noCompiler, not compiler);
 
 _   ((* compiler) (o, i_opcode));
 
     o->previousOpcode = i_opcode;
 
-	} _catch: return result;
+    } _catch: return result;
 }
 #endif
 
@@ -1468,7 +1468,7 @@ _       (GetBlockScope (o, & scope, target));
 
         // TODO: don't need codepage rigmarole for
         // no-param forward-branch targets
-        
+
 _       (AcquireCompilationCodePage (o, & continueOpPage));
 
         pc_t startPC = GetPagePC (continueOpPage);
@@ -1681,10 +1681,10 @@ _   (PushRegister (o, c_m3Type_i32));
 M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
-    
+
     i8 reserved;
 _   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
-    
+
     IM3Operation op;
     if (i_opcode == c_waOp_memoryCopy)
     {
@@ -1694,12 +1694,12 @@ _       (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
     else op = op_MemFill;
 
 _   (CopyStackTopToRegister (o, false));
-    
+
 _   (EmitOp  (o, op));
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
 _   (EmitSlotNumOfStackTopAndPop (o));
-    
+
     _catch: return result;
 }
 
@@ -2010,7 +2010,7 @@ M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result;
 
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
-	_throwif (m3Err_unknownOpcode, not opInfo);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
     IM3Operation op;
 
@@ -2093,7 +2093,7 @@ M3Result  Compile_Convert  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result = m3Err_none;
 
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
-	_throwif (m3Err_unknownOpcode, not opInfo);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
     bool destInSlot = IsRegisterTypeAllocated (o, opInfo->type);
     bool sourceInSlot = IsStackTopInSlot (o);
@@ -2123,7 +2123,7 @@ _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
-	_throwif (m3Err_unknownOpcode, not opInfo);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
     if (IsFpType (opInfo->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
@@ -2409,7 +2409,7 @@ const M3OpInfo c_operations [] =
     d_m3DebugOp (MemFill),
     d_m3DebugOp (MemCopy),
 #endif
-    
+
     [0xFC] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 
@@ -2430,7 +2430,7 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
 
     M3OP_RESERVED, M3OP_RESERVED,
-    
+
     M3OP( "memory.copy",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0a
     M3OP( "memory.fill",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0b
 
@@ -2483,9 +2483,9 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
         }
 
         IM3OpInfo opinfo = GetOpInfo (opcode);
-		
-		if (opinfo == NULL)
-			_throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
+
+        if (opinfo == NULL)
+            _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
 
         if (opinfo->compiler) {
 _           ((* opinfo->compiler) (o, opcode))
@@ -2653,8 +2653,8 @@ M3Result  CompileLocals  (IM3Compilation o)
     u32 numLocalBlocks;
 _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 
-	u32 numLocals = 0;
-	
+    u32 numLocals = 0;
+
     for (u32 l = 0; l < numLocalBlocks; ++l)
     {
         u32 varCount;
@@ -2664,13 +2664,13 @@ _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 _       (ReadLEB_u32 (& varCount, & o->wasm, o->wasmEnd));
 _       (ReadLEB_i7 (& waType, & o->wasm, o->wasmEnd));
 _       (NormalizeType (& localType, waType));
-        numLocals += varCount;                                                         	m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
+        numLocals += varCount;                                                          m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
         while (varCount--)
 _           (PushAllocatedSlot (o, localType));
     }
-	
-	if (o->function)
-		o->function->numLocals = numLocals;
+
+    if (o->function)
+        o->function->numLocals = numLocals;
 
     _catch: return result;
 }

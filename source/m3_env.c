@@ -193,7 +193,7 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
 
 u64 *  m3_GetStack  (IM3Runtime i_runtime)
 {
-	return (i_runtime) ? (u64 *) i_runtime->stack : NULL;
+    return (i_runtime) ? (u64 *) i_runtime->stack : NULL;
 }
 
 
@@ -453,7 +453,7 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
-	_throwif ("unallocated linear memory", !(io_memory->mallocated));
+    _throwif ("unallocated linear memory", !(io_memory->mallocated));
 
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {
@@ -469,7 +469,7 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
         {
             u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
             memcpy (dest, segment->data, segment->size);
-			segment->offset = -segmentOffset;					// save for m3_GetDataSegmentOffset, negated for validation
+            segment->offset = -segmentOffset;                   // save for m3_GetDataSegmentOffset, negated for validation
         } else {
             _throw ("data segment out of bounds");
         }
@@ -503,12 +503,12 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
             size_t endElement = (size_t) numElements + offset;
             _throwif ("table overflow", endElement > d_m3MaxSaneTableSize);
 
-			// i don't find any requirement that elements must be in increasing sequence. so make sure the table isn't shrunk.
-			if (endElement > io_module->table0Size)
-			{
-				io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
-				io_module->table0Size = (u32) endElement;
-			}
+            // i don't find any requirement that elements must be in increasing sequence. so make sure the table isn't shrunk.
+            if (endElement > io_module->table0Size)
+            {
+                io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
+                io_module->table0Size = (u32) endElement;
+            }
             _throwifnull(io_module->table0);
 
             for (u32 e = 0; e < numElements; ++e)
@@ -795,10 +795,10 @@ M3Result  m3_CallV  (IM3Function i_function, ...)
 
 void  ReportNativeStackUsage  ()
 {
-#	if d_m3LogNativeStack
-		int stackUsed =  m3StackGetMax();
-		fprintf (stderr, "Native stack used: %d\n", stackUsed);
-#	endif
+#   if d_m3LogNativeStack
+        int stackUsed =  m3StackGetMax();
+        fprintf (stderr, "Native stack used: %d\n", stackUsed);
+#   endif
 }
 
 
@@ -831,7 +831,7 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     }
     m3StackCheckInit();
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-	ReportNativeStackUsage ();
+    ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
 
@@ -871,7 +871,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
 
     m3StackCheckInit();
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-	ReportNativeStackUsage ();
+    ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
 
@@ -903,7 +903,7 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
         case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); s += 8; break;
 # if d_m3HasFloat
-		case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
+        case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
 # endif
         default: return "unknown argument type";
@@ -912,7 +912,7 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
 
     m3StackCheckInit();
     M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-	ReportNativeStackUsage ();
+    ReportNativeStackUsage ();
 
     runtime->lastCalled = r ? NULL : i_function;
 
@@ -922,15 +922,15 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
 
 M3Result  m3_CallDirect  (IM3Function i_function)
 {
-	IM3Runtime runtime = i_function->module->runtime;
-	
-	m3StackCheckInit();
-	M3Result result = (M3Result) Call (i_function->compiled, (m3stack_t) (runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-	ReportNativeStackUsage ();
+    IM3Runtime runtime = i_function->module->runtime;
 
-	runtime->lastCalled = result ? NULL : i_function;
-	
-	return result;
+    m3StackCheckInit();
+    M3Result result = (M3Result) Call (i_function->compiled, (m3stack_t) (runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+    ReportNativeStackUsage ();
+
+    runtime->lastCalled = result ? NULL : i_function;
+
+    return result;
 }
 
 
@@ -963,7 +963,7 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
         case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
-# endif 
+# endif
         default: return "unknown return type";
         }
     }
@@ -1116,7 +1116,7 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
 
 uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
 {
-    uint8_t * memory = NULL;													d_m3Assert (i_memoryIndex == 0);
+    uint8_t * memory = NULL;                                                    d_m3Assert (i_memoryIndex == 0);
 
     if (i_runtime)
     {
@@ -1135,17 +1135,17 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
 
 uint8_t *  m3_GetMemoryAtOffset  (IM3Runtime i_runtime, uint64_t i_offset, uint32_t i_size, uint32_t i_memoryIndex)
 {
-	uint8_t * memory = NULL;													d_m3Assert (i_memoryIndex == 0);
+    uint8_t * memory = NULL;                                                    d_m3Assert (i_memoryIndex == 0);
 
-	if (i_runtime)
-	{
-		if (i_offset + i_size <= i_runtime->memory.mallocated->length)
-		{
-			memory = m3MemData (i_runtime->memory.mallocated) + i_offset;
-		}
-	}
+    if (i_runtime)
+    {
+        if (i_offset + i_size <= i_runtime->memory.mallocated->length)
+        {
+            memory = m3MemData (i_runtime->memory.mallocated) + i_offset;
+        }
+    }
 
-	return memory;
+    return memory;
 }
 
 

@@ -206,8 +206,8 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      uint32_t               i_memoryIndex);
 
     uint8_t *           m3_GetMemoryAtOffset        (IM3Runtime             i_runtime,
-                                                     uint64_t  	            i_offset,
-													 uint32_t  	            i_size,
+                                                     uint64_t               i_offset,
+                                                     uint32_t               i_size,
                                                      uint32_t               i_memoryIndex);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
@@ -222,7 +222,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes,
-													 bool 					i_copyWasmBytes);
+                                                     bool                   i_copyWasmBytes);
 
     // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
     // a. m3_LoadModule has not yet been called on that module. Or,
@@ -295,12 +295,12 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
 
-	// These two function can be used when you wish to manually push and retrieve from the Wasm3 call stack.
-	// Arguments and return values are 64-bit aligned, so simply treat the result of m3_GetStack (...) as a u64 array.
-	// Arguments should be written starting at 'stack_pointer [m3_GetRetCount (...)]'.
-	// Return values start at 'stack_pointer [0]'
-	uint64_t *			m3_GetStack					(IM3Runtime				i_runtime);
-	M3Result            m3_CallDirect				(IM3Function			i_function);
+    // These two function can be used when you wish to manually push and retrieve from the Wasm3 call stack.
+    // Arguments and return values are 64-bit aligned, so simply treat the result of m3_GetStack (...) as a u64 array.
+    // Arguments should be written starting at 'stack_pointer [m3_GetRetCount (...)]'.
+    // Return values start at 'stack_pointer [0]'
+    uint64_t *          m3_GetStack                 (IM3Runtime             i_runtime);
+    M3Result            m3_CallDirect               (IM3Function            i_function);
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);

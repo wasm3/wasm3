@@ -48,8 +48,8 @@ typedef struct M3Function
     bytes_t                 wasmEnd;
 
     cstr_t                  names[d_m3MaxDuplicateFunctionImpl];
-	u16                     numNames;                               // maximum of d_m3MaxDuplicateFunctionImpl
- 
+    u16                     numNames;                               // maximum of d_m3MaxDuplicateFunctionImpl
+
     IM3FuncType             funcType;
 
     pc_t                    compiled;
@@ -62,11 +62,11 @@ typedef struct M3Function
 # if defined (DEBUG)
     u32                     hits;
 # endif
-	
+
 # if defined (DEBUG) || d_m3EnableExtensions
-	u32                     index;
+    u32                     index;
 # endif
-	
+
     u16                     maxStackSlots;
 
     u16                     numRetSlots;
@@ -77,7 +77,7 @@ typedef struct M3Function
 
     bool                    ownsWasmCode;
 
-	u16                     numConstantBytes;
+    u16                     numConstantBytes;
     void *                  constants;
 }
 M3Function;
