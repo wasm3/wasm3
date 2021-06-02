@@ -52,7 +52,7 @@ _   (ReadLEB_u32 (& numTypes, & i_bytes, i_end));                               
     {
         // table of IM3FuncType (that point to the actual M3FuncType struct in the Environment)
         io_module->funcTypes = m3_AllocArray (IM3FuncType, numTypes);
-        _throwifnull(io_module->funcTypes);
+        _throwifnull (io_module->funcTypes);
         io_module->numFuncTypes = numTypes;
 
         for (u32 i = 0; i < numTypes; ++i)
@@ -110,6 +110,7 @@ _               (NormalizeType (& retType, wasmType));
     if (result)
     {
         m3_Free (ftype);
+        // FIX: M3FuncTypes in the table are leaked
         m3_Free (io_module->funcTypes);
         io_module->numFuncTypes = 0;
     }
@@ -346,6 +347,7 @@ _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
             if (i_bytes <= i_end)
             {
+                /*
                 u32 numLocalBlocks;
 _               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "    code size: %-4d", size);
 
@@ -363,6 +365,7 @@ _                   (NormalizeType (& normalType, wasmType));
 
                     numLocals += varCount;                                                      m3log (parse, "      %2d locals; type: '%s'", varCount, c_waTypes [normalType]);
                 }
+                 */
 
                 IM3Function func = Module_GetFunction (io_module, f + io_module->numFuncImports);
 
@@ -370,7 +373,7 @@ _                   (NormalizeType (& normalType, wasmType));
                 func->wasm = start;
                 func->wasmEnd = i_bytes;
                 //func->ownsWasmCode = io_module->hasWasmCodeCopy;
-                func->numLocals = numLocals;
+//                func->numLocals = numLocals;
             }
             else _throw (m3Err_wasmSectionOverrun);
         }
@@ -574,12 +577,12 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 
 M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes)
 {
-    M3Result result;
+    M3Result result;                                                             m3log (parse, "load module: %d bytes", i_numBytes);
 
     IM3Module module;
 _try {
     module = m3_AllocStruct (M3Module);
-    _throwifnull(module);
+    _throwifnull (module);
     module->name = ".unnamed";                                                      m3log (parse, "load module: %d bytes", i_numBytes);
     module->startFunction = -1;
     //module->hasWasmCodeCopy = false;

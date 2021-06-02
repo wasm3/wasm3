@@ -72,15 +72,18 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
     M3Result result = m3Err_none;
 
 _try {
+
     u32 index = io_module->numFunctions++;
     io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
-    _throwifnull(io_module->functions);
-    _throwif("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
+
+    _throwifnull (io_module->functions);
+    _throwif ("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
 
     IM3FuncType ft = io_module->funcTypes [i_typeIndex];
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
+
 #   ifdef DEBUG
     func->index = index;
 #   endif

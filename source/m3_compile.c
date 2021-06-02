@@ -1117,10 +1117,10 @@ _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_i
 
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
-    const M3OpInfo* opinfo = GetOpInfo (i_opcode);
-    _throwif (m3Err_unknownOpcode, not opinfo);
+    IM3OpInfo opInfo = GetOpInfo (i_opcode);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
-    M3Compiler compiler = opinfo->compiler;
+    M3Compiler compiler = opInfo->compiler;
     _throwif (m3Err_noCompiler, not compiler);
 
 _   ((* compiler) (o, i_opcode));
@@ -2012,9 +2012,10 @@ M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    const M3OpInfo * op = GetOpInfo(i_opcode);
+    IM3OpInfo opInfo = GetOpInfo (i_opcode);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
-    IM3Operation operation;
+    IM3Operation op;
 
     // This preserve is for for FP compare operations.
     // either need additional slot destination operations or the
@@ -2022,64 +2023,64 @@ M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
     // moving out the way might be the optimal solution most often?
     // otherwise, the _r0 reg can get buried down in the stack
     // and be idle & wasted for a moment.
-    if (IsFpType (GetStackTopType (o)) and IsIntType (op->type))
+    if (IsFpType (GetStackTopType (o)) and IsIntType (opInfo->type))
     {
-_       (PreserveRegisterIfOccupied (o, op->type));
+_       (PreserveRegisterIfOccupied (o, opInfo->type));
     }
 
-    if (op->stackOffset == 0)
+    if (opInfo->stackOffset == 0)
     {
         if (IsStackTopInRegister (o))
         {
-            operation = op->operations [0]; // _s
+            op = opInfo->operations [0]; // _s
         }
         else
         {
-_           (PreserveRegisterIfOccupied (o, op->type));
-            operation = op->operations [1]; // _r
+_           (PreserveRegisterIfOccupied (o, opInfo->type));
+            op = opInfo->operations [1]; // _r
         }
     }
     else
     {
         if (IsStackTopInRegister (o))
         {
-            operation = op->operations [0];  // _rs
+            op = opInfo->operations [0];  // _rs
 
             if (IsStackTopMinus1InRegister (o))
             {                                       d_m3Assert (i_opcode == 0x38 or i_opcode == 0x39);
-                operation = op->operations [3]; // _rr for fp.store
+                op = opInfo->operations [3]; // _rr for fp.store
             }
         }
         else if (IsStackTopMinus1InRegister (o))
         {
-            operation = op->operations [1]; // _sr
+            op = opInfo->operations [1]; // _sr
 
-            if (not operation)  // must be commutative, then
-                operation = op->operations [0];
+            if (not op)  // must be commutative, then
+                op = opInfo->operations [0];
         }
         else
         {
-_           (PreserveRegisterIfOccupied (o, op->type));     // _ss
-            operation = op->operations [2];
+_           (PreserveRegisterIfOccupied (o, opInfo->type));     // _ss
+            op = opInfo->operations [2];
         }
     }
 
-    if (operation)
+    if (op)
     {
-_       (EmitOp (o, operation));
+_       (EmitOp (o, op));
 
 _       (EmitSlotNumOfStackTopAndPop (o));
 
-        if (op->stackOffset < 0)
+        if (opInfo->stackOffset < 0)
 _           (EmitSlotNumOfStackTopAndPop (o));
 
-        if (op->type != c_m3Type_none)
-_           (PushRegister (o, op->type));
+        if (opInfo->type != c_m3Type_none)
+_           (PushRegister (o, opInfo->type));
     }
     else
     {
 #       ifdef DEBUG
-            result = ErrorCompile ("no operation found for opcode", o, "'%s'", op->name);
+            result = ErrorCompile ("no operation found for opcode", o, "'%s'", opInfo->name);
 #       else
             result = ErrorCompile ("no operation found for opcode", o, "%x", i_opcode);
 #       endif
@@ -2094,7 +2095,8 @@ M3Result  Compile_Convert  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
-    const M3OpInfo * opInfo = GetOpInfo(i_opcode);
+    IM3OpInfo opInfo = GetOpInfo (i_opcode);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
     bool destInSlot = IsRegisterTypeAllocated (o, opInfo->type);
     bool sourceInSlot = IsStackTopInSlot (o);
@@ -2123,9 +2125,10 @@ _try {
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
-    const M3OpInfo * op = GetOpInfo(i_opcode);
+    IM3OpInfo opInfo = GetOpInfo (i_opcode);
+    _throwif (m3Err_unknownOpcode, not opInfo);
 
-    if (IsFpType (op->type))
+    if (IsFpType (opInfo->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
 _   (Compile_Operator (o, i_opcode));
@@ -2440,7 +2443,8 @@ const M3OpInfo c_operationsFC [] =
 # endif
 };
 
-const M3OpInfo*  GetOpInfo  (m3opcode_t opcode)
+
+IM3OpInfo  GetOpInfo  (m3opcode_t opcode)
 {
     switch (opcode >> 8) {
     case 0x00:
@@ -2481,7 +2485,7 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
             }
         }
 
-        IM3OpInfo opinfo = GetOpInfo(opcode);
+        IM3OpInfo opinfo = GetOpInfo (opcode);
 
         if (opinfo == NULL)
             _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
@@ -2652,6 +2656,8 @@ M3Result  CompileLocals  (IM3Compilation o)
     u32 numLocalBlocks;
 _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 
+    u32 numLocals = 0;
+
     for (u32 l = 0; l < numLocalBlocks; ++l)
     {
         u32 varCount;
@@ -2661,10 +2667,13 @@ _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
 _       (ReadLEB_u32 (& varCount, & o->wasm, o->wasmEnd));
 _       (ReadLEB_i7 (& waType, & o->wasm, o->wasmEnd));
 _       (NormalizeType (& localType, waType));
-                                                                                                m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
+        numLocals += varCount;                                                          m3log (compile, "pushing locals. count: %d; type: %s", varCount, c_waTypes [localType]);
         while (varCount--)
 _           (PushAllocatedSlot (o, localType));
     }
+
+    if (o->function)
+        o->function->numLocals = numLocals;
 
     _catch: return result;
 }

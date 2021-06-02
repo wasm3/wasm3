@@ -781,7 +781,8 @@ d_m3Op  (Entry)
 #if d_m3SkipStackCheck
     if (true)
 #else
-    if (LIKELY((void *)((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack))
+    // TODO: check this
+    if (LIKELY ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
 #if defined(DEBUG)
@@ -798,7 +799,7 @@ d_m3Op  (Entry)
         }
 
 #if d_m3EnableStrace >= 2
-        d_m3TracePrint("%s %s {", m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp));
+        d_m3TracePrint("%s %s {", m3_GetFunctionName(function), SPrintFunctionArgList (function, _sp + function->numRetSlots));
         trace_rt->callDepth++;
 #endif
 

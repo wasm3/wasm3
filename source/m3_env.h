@@ -41,7 +41,7 @@ typedef M3Memory *          IM3Memory;
 
 typedef struct M3DataSegment
 {
-    const u8 *              initExpr;       // wasm code
+    const u8 *              initExpr;           // wasm code
     const u8 *              data;
 
     u32                     initExprSize;

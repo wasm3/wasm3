@@ -140,7 +140,7 @@ M3OpInfo;
 
 typedef const M3OpInfo *    IM3OpInfo;
 
-extern const M3OpInfo* GetOpInfo(m3opcode_t opcode);
+IM3OpInfo  GetOpInfo  (m3opcode_t opcode);
 
 // TODO: This helper should be removed, when MultiValue is implemented
 static inline
