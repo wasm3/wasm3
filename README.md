@@ -35,7 +35,7 @@ Wasm3 can also be used as a library for:
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
 [　 Zig](https://github.com/alichay/zig-wasm3)  
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dot-net.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino)
 
 
