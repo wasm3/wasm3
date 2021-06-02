@@ -2655,10 +2655,9 @@ M3Result  CompileLocals  (IM3Compilation o)
 {
     M3Result result;
 
+    u32 numLocals = 0;
     u32 numLocalBlocks;
 _   (ReadLEB_u32 (& numLocalBlocks, & o->wasm, o->wasmEnd));
-
-    u32 numLocals = 0;
 
     for (u32 l = 0; l < numLocalBlocks; ++l)
     {

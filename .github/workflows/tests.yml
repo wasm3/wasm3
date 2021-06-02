@@ -473,6 +473,8 @@ jobs:
       run: |
         cd platforms/embedded/particle
         particle compile --followSymlinks photon
+        particle compile --followSymlinks argon
+        particle compile --followSymlinks pi
 
   esp32-idf:
     runs-on: ubuntu-latest
