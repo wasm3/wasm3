@@ -41,14 +41,14 @@ typedef M3Memory *          IM3Memory;
 
 typedef struct M3DataSegment
 {
-    const u8 *              initExpr;       	// wasm code
+    const u8 *              initExpr;           // wasm code
     const u8 *              data;
 
-	union
-	{
-		u32               	initExprSize;		// after the segment is processed,
-		i32					offset;				// it's offset is written here
-	};
+    union
+    {
+        u32                 initExprSize;       // after the segment is processed,
+        i32                 offset;             // it's offset is written here
+    };
     u32                     memoryRegion;
     u32                     size;
 }
@@ -97,9 +97,9 @@ typedef struct M3Module
     u32                     numFunctions;
     M3Function *            functions;
 
-#	if d_m3EnableExtensions
-	u32                     numReservedFunctions;
-#	endif
+#   if d_m3EnableExtensions
+    u32                     numReservedFunctions;
+#   endif
 
     i32                     startFunction;
 
@@ -126,7 +126,7 @@ typedef struct M3Module
 }
 M3Module;
 
-IM3Module					m3_NewModule				(IM3Environment i_environment);
+IM3Module                   m3_NewModule                (IM3Environment i_environment);
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
 

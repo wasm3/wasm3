@@ -9,27 +9,26 @@
 #include "m3_exception.h"
 
 
-
 IM3Module  m3_NewModule  (IM3Environment i_environment)
 {
-	IM3Module module = m3_AllocStruct (M3Module);
+    IM3Module module = m3_AllocStruct (M3Module);
 
-	if (module)
-	{
-		module->name = ".unnamed";
-		module->startFunction = -1;
-		module->environment = i_environment;
+    if (module)
+    {
+        module->name = ".unnamed";
+        module->startFunction = -1;
+        module->environment = i_environment;
 
-		module->hasWasmCodeCopy = false;
-		module->wasmStart = NULL;
-		module->wasmEnd = NULL;
-		
-#		if d_m3EnableExtensions
-		module->numReservedFunctions = 0;
-#		endif
-	}
+        module->hasWasmCodeCopy = false;
+        module->wasmStart = NULL;
+        module->wasmEnd = NULL;
 
-	return module;
+#       if d_m3EnableExtensions
+        module->numReservedFunctions = 0;
+#       endif
+    }
+
+    return module;
 }
 
 
@@ -65,11 +64,11 @@ void  m3_FreeModule  (IM3Module i_module)
         }
         m3_Free (i_module->globals);
 
-		if (i_module->hasWasmCodeCopy)
-		{
-			m3_Free (i_module->wasmStart);
-		}
-		
+        if (i_module->hasWasmCodeCopy)
+        {
+            m3_Free (i_module->wasmStart);
+        }
+
         m3_Free (i_module);
     }
 }
@@ -102,21 +101,21 @@ M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportIn
 
 _try {
 
-	u32 index = io_module->numFunctions++;
+    u32 index = io_module->numFunctions++;
 
-#	if d_m3EnableExtensions
-	if (io_module->runtime)	// module loaded, so this must be an InjectFunction call
-	{
-		if (io_module->numReservedFunctions)
-		{
-			io_module->numReservedFunctions--;
-		}
-		else _throw ("reserved function capacity exceeded");
-	}
-	else
-#	endif
-	io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
-	
+#   if d_m3EnableExtensions
+    if (io_module->runtime) // module loaded, so this must be an InjectFunction call
+    {
+        if (io_module->numReservedFunctions)
+        {
+            io_module->numReservedFunctions--;
+        }
+        else _throw ("reserved function capacity exceeded");
+    }
+    else
+#   endif
+    io_module->functions = m3_ReallocArray (M3Function, io_module->functions, io_module->numFunctions, index);
+
     _throwifnull (io_module->functions);
     _throwif ("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
 
@@ -124,7 +123,7 @@ _try {
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
-	
+
 # if defined (DEBUG) || d_m3EnableExtensions
     func->index = index;
 # endif
@@ -142,7 +141,7 @@ _try {
     return result;
 }
 
-
+#ifdef DEBUG
 void  Module_GenerateNames  (IM3Module i_module)
 {
     for (u32 i = 0; i < i_module->numFunctions; ++i)
@@ -169,6 +168,7 @@ void  Module_GenerateNames  (IM3Module i_module)
         }
     }
 }
+#endif
 
 IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 {

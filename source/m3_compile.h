@@ -35,7 +35,7 @@ enum
     c_waOp_i64_const            = 0x42,
     c_waOp_f32_const            = 0x43,
     c_waOp_f64_const            = 0x44,
-    
+
     c_waOp_memoryCopy           = 0xfc0a,
     c_waOp_memoryFill           = 0xfc0b
 };

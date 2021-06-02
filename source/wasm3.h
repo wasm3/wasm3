@@ -9,15 +9,17 @@
 #define wasm3_h
 
 #define M3_VERSION_MAJOR 0
-#define M3_VERSION_MINOR 4
-#define M3_VERSION_REV   9
-#define M3_VERSION       "0.4.9"
+#define M3_VERSION_MINOR 5
+#define M3_VERSION_REV   0
+#define M3_VERSION       "0.5.0"
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>
 #include <stdarg.h>
+
+#include "wasm3_defs.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -206,9 +208,12 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      uint32_t               i_memoryIndex);
 
     uint8_t *           m3_GetMemoryAtOffset        (IM3Runtime             i_runtime,
-                                                     uint64_t  	            i_offset,
-													 uint32_t  	            i_size,
+                                                     uint64_t               i_offset,
+                                                     uint32_t               i_size,
                                                      uint32_t               i_memoryIndex);
+
+    // This is used internally by Raw Function helpers
+    uint32_t            m3_GetMemorySize            (IM3Runtime             i_runtime);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
@@ -222,7 +227,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes,
-													 bool 					i_copyWasmBytes);
+                                                     bool                   i_copyWasmBytes);
 
     // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
     // a. m3_LoadModule has not yet been called on that module. Or,
@@ -231,6 +236,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully loaded into the runtime
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
+
+    // Optional, compiles all functions in the module
+    M3Result            m3_CompileModule            (IM3Module io_module);
 
     // Calling m3_RunStart is optional
     M3Result            m3_RunStart                 (IM3Module i_module);
@@ -295,12 +303,12 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
 
-	// These two function can be used when you wish to manually push and retrieve from the Wasm3 call stack.
-	// Arguments and return values are 64-bit aligned, so simply treat the result of m3_GetStack (...) as a u64 array.
-	// Arguments should be written starting at 'stack_pointer [m3_GetRetCount (...)]'.
-	// Return values start at 'stack_pointer [0]'
-	uint64_t *			m3_GetStack					(IM3Runtime				i_runtime);
-	M3Result            m3_CallDirect				(IM3Function			i_function);
+    // These two function can be used when you wish to manually push and retrieve from the Wasm3 call stack.
+    // Arguments and return values are 64-bit aligned, so simply treat the result of m3_GetStack (...) as a u64 array.
+    // Arguments should be written starting at 'stack_pointer [m3_GetRetCount (...)]'.
+    // Return values start at 'stack_pointer [0]'
+    uint64_t *          m3_GetStack                 (IM3Runtime             i_runtime);
+    M3Result            m3_CallDirect               (IM3Function            i_function);
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
@@ -318,6 +326,45 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     // The runtime owns the backtrace, do not free the backtrace you obtain. Returns NULL if there's no backtrace.
     IM3BacktraceInfo    m3_GetBacktrace             (IM3Runtime i_runtime);
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//  raw function definition helpers
+//-------------------------------------------------------------------------------------------------------------------------------
+
+# define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)_mem + (uint32_t)(offset))
+# define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)_mem)
+
+# define m3ApiReturnType(TYPE)      TYPE* raw_return = ((TYPE*) (_sp++));
+# define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
+# define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
+
+# define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
+# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(m3ApiIsNullPtr(addr) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+
+# define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
+# define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return m3Err_none; }
+# define m3ApiTrap(VALUE)           { return VALUE; }
+# define m3ApiSuccess()             { return m3Err_none; }
+
+# if defined(M3_BIG_ENDIAN)
+#  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))
+#  define m3ApiReadMem16(ptr)        m3_bswap16((* (uint16_t *)(ptr)))
+#  define m3ApiReadMem32(ptr)        m3_bswap32((* (uint32_t *)(ptr)))
+#  define m3ApiReadMem64(ptr)        m3_bswap64((* (uint64_t *)(ptr)))
+#  define m3ApiWriteMem8(ptr, val)   { * (uint8_t  *)(ptr)  = (val); }
+#  define m3ApiWriteMem16(ptr, val)  { * (uint16_t *)(ptr) = m3_bswap16((val)); }
+#  define m3ApiWriteMem32(ptr, val)  { * (uint32_t *)(ptr) = m3_bswap32((val)); }
+#  define m3ApiWriteMem64(ptr, val)  { * (uint64_t *)(ptr) = m3_bswap64((val)); }
+# else
+#  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))
+#  define m3ApiReadMem16(ptr)        (* (uint16_t *)(ptr))
+#  define m3ApiReadMem32(ptr)        (* (uint32_t *)(ptr))
+#  define m3ApiReadMem64(ptr)        (* (uint64_t *)(ptr))
+#  define m3ApiWriteMem8(ptr, val)   { * (uint8_t  *)(ptr) = (val); }
+#  define m3ApiWriteMem16(ptr, val)  { * (uint16_t *)(ptr) = (val); }
+#  define m3ApiWriteMem32(ptr, val)  { * (uint32_t *)(ptr) = (val); }
+#  define m3ApiWriteMem64(ptr, val)  { * (uint64_t *)(ptr) = (val); }
+# endif
 
 #if defined(__cplusplus)
 }
