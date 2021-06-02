@@ -9,7 +9,6 @@
 #include "m3_exception.h"
 
 
-
 IM3Module  m3_NewModule  (IM3Environment i_environment)
 {
     IM3Module module = m3_AllocStruct (M3Module);
@@ -142,7 +141,7 @@ _try {
     return result;
 }
 
-
+#ifdef DEBUG
 void  Module_GenerateNames  (IM3Module i_module)
 {
     for (u32 i = 0; i < i_module->numFunctions; ++i)
@@ -169,6 +168,7 @@ void  Module_GenerateNames  (IM3Module i_module)
         }
     }
 }
+#endif
 
 IM3Function  Module_GetFunction  (IM3Module i_module, u32 i_functionIndex)
 {

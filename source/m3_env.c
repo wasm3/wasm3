@@ -503,7 +503,8 @@ _           (ReadLEB_u32 (& numElements, & bytes, end));
             size_t endElement = (size_t) numElements + offset;
             _throwif ("table overflow", endElement > d_m3MaxSaneTableSize);
 
-            // i don't find any requirement that elements must be in increasing sequence. so make sure the table isn't shrunk.
+            // is there any requirement that elements must be in increasing sequence?
+            // make sure the table isn't shrunk.
             if (endElement > io_module->table0Size)
             {
                 io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
@@ -521,6 +522,22 @@ _               (ReadLEB_u32 (& functionIndex, & bytes, end));
             }
         }
         else _throw ("element table index must be zero for MVP");
+    }
+
+    _catch: return result;
+}
+
+M3Result  m3_CompileModule  (IM3Module io_module)
+{
+    M3Result result = m3Err_none;
+
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+        if (f->wasm and not f->compiled)
+        {
+_           (CompileFunction (f));
+        }
     }
 
     _catch: return result;
@@ -792,13 +809,13 @@ M3Result  m3_CallV  (IM3Function i_function, ...)
     return r;
 }
 
-
+static
 void  ReportNativeStackUsage  ()
 {
-#   if d_m3LogNativeStack
+# if d_m3LogNativeStack
         int stackUsed =  m3StackGetMax();
         fprintf (stderr, "Native stack used: %d\n", stackUsed);
-#   endif
+# endif
 }
 
 
@@ -1130,6 +1147,12 @@ uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, 
     }
 
     return memory;
+}
+
+
+uint32_t  m3_GetMemorySize  (IM3Runtime i_runtime)
+{
+    return i_runtime->memory.mallocated->length;
 }
 
 
