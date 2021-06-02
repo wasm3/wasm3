@@ -2095,6 +2095,7 @@ M3Result  Compile_Convert  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
+_try {
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
 
@@ -2111,6 +2112,7 @@ _       (PushAllocatedSlotAndEmit (o, opInfo->type))
     else
 _       (PushRegister (o, opInfo->type))
 
+}
     _catch: return result;
 }
 

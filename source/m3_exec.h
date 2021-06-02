@@ -781,8 +781,7 @@ d_m3Op  (Entry)
 #if d_m3SkipStackCheck
     if (true)
 #else
-    // TODO: check this
-    if (LIKELY ((void *) ((m3slot_t *) _sp + function->maxStackSlots) < _mem->maxStack))
+    if (LIKELY ((void *) (_sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
 #if defined(DEBUG)
