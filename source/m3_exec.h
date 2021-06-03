@@ -109,7 +109,7 @@ d_m3BeginExternC
 d_m3RetSig  Call  (d_m3OpSig)
 {
     m3ret_t possible_trap = m3_Yield ();
-    if (UNLIKELY(possible_trap)) return possible_trap;
+    if (M3_UNLIKELY(possible_trap)) return possible_trap;
 
     nextOpDirect();
 }
@@ -281,8 +281,8 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
 // clz(0), ctz(0) results are undefined for rest platforms, fix it
 #if (defined(__i386__) || defined(__x86_64__)) && !(defined(__AVX2__) || (defined(__ABM__) && defined(__BMI__)))
-    #define OP_CLZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
-    #define OP_CTZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
+    #define OP_CLZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
+    #define OP_CTZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
     // for 64-bit instructions branchless approach more preferable
     #define OP_CLZ_64(x) (__builtin_clzll((x) | (1LL <<  0)) + OP_EQZ(x))
     #define OP_CTZ_64(x) (__builtin_ctzll((x) | (1LL << 63)) + OP_EQZ(x))
@@ -294,10 +294,10 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
     #define OP_CLZ_64(x) __builtin_clzll(x)
     #define OP_CTZ_64(x) __builtin_ctzll(x)
 #else
-    #define OP_CLZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
-    #define OP_CTZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
-    #define OP_CLZ_64(x) (UNLIKELY((x) == 0) ? 64 : __builtin_clzll(x))
-    #define OP_CTZ_64(x) (UNLIKELY((x) == 0) ? 64 : __builtin_ctzll(x))
+    #define OP_CLZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
+    #define OP_CTZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
+    #define OP_CLZ_64(x) (M3_UNLIKELY((x) == 0) ? 64 : __builtin_clzll(x))
+    #define OP_CTZ_64(x) (M3_UNLIKELY((x) == 0) ? 64 : __builtin_ctzll(x))
 #endif
 
 d_m3UnaryOp_i (u32, Clz, OP_CLZ_32)
@@ -537,7 +537,7 @@ d_m3Op  (Call)
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
     _mem = memory->mallocated;
 
-    if (LIKELY(not r))
+    if (M3_LIKELY(not r))
         nextOp ();
     else
     {
@@ -559,23 +559,23 @@ d_m3Op  (CallIndirect)
 
     m3ret_t r = m3Err_none;
 
-    if (LIKELY(tableIndex < module->table0Size))
+    if (M3_LIKELY(tableIndex < module->table0Size))
     {
         IM3Function function = module->table0 [tableIndex];
 
-        if (LIKELY(function))
+        if (M3_LIKELY(function))
         {
-            if (LIKELY(type == function->funcType))
+            if (M3_LIKELY(type == function->funcType))
             {
-                if (UNLIKELY(not function->compiled))
+                if (M3_UNLIKELY(not function->compiled))
                     r = CompileFunction (function);
 
-                if (LIKELY(not r))
+                if (M3_LIKELY(not r))
                 {
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
                     _mem = memory->mallocated;
 
-                    if (LIKELY(not r))
+                    if (M3_LIKELY(not r))
                         nextOpDirect ();
                     else
                     {
@@ -590,7 +590,7 @@ d_m3Op  (CallIndirect)
     }
     else r = m3Err_trapTableIndexOutOfRange;
 
-    if (UNLIKELY(r))
+    if (M3_UNLIKELY(r))
         newTrap (r);
     else forwardTrap (r);
 }
@@ -648,7 +648,7 @@ d_m3Op  (CallRawFunction)
     runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
-    if (UNLIKELY(possible_trap)) {
+    if (M3_UNLIKELY(possible_trap)) {
         d_m3TracePrint("%s -> %s", outbuff, (char*)possible_trap);
     } else {
         switch (GetSingleRetType(ftype)) {
@@ -661,7 +661,7 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    if (UNLIKELY(possible_trap)) {
+    if (M3_UNLIKELY(possible_trap)) {
         _mem = memory->mallocated;
         pushBacktraceFrame ();
     }
@@ -687,7 +687,7 @@ d_m3Op  (MemGrow)
     u32 numPagesToGrow = (u32) _r0;
     _r0 = memory->numPages;
 
-    if (numPagesToGrow)
+    if (M3_LIKELY(numPagesToGrow))
     {
         u32 requiredPages = memory->numPages + numPagesToGrow;
 
@@ -708,9 +708,9 @@ d_m3Op  (MemCopy)
     u64 source = slot (u32);
     u64 destination = slot (u32);
 
-    if (destination + size <= _mem->length)
+    if (M3_LIKELY(destination + size <= _mem->length))
     {
-        if (source + size <= _mem->length)
+        if (M3_LIKELY(source + size <= _mem->length))
         {
             u8 * dst = m3MemData (_mem) + destination;
             u8 * src = m3MemData (_mem) + source;
@@ -730,7 +730,7 @@ d_m3Op  (MemFill)
     u32 byte = slot (u32);
     u64 destination = slot (u32);
 
-    if (destination + size <= _mem->length)
+    if (M3_LIKELY(destination + size <= _mem->length))
     {
         u8 * mem8 = m3MemData (_mem) + destination;
         memset (mem8, (u8) byte, size);
@@ -753,7 +753,7 @@ d_m3Op  (Compile)
 
     m3ret_t result = m3Err_none;
 
-    if (UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
+    if (M3_UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
         result = CompileFunction (function);
 
     if (not result)
@@ -781,7 +781,7 @@ d_m3Op  (Entry)
 #if d_m3SkipStackCheck
     if (true)
 #else
-    if (LIKELY ((void *) (_sp + function->maxStackSlots) < _mem->maxStack))
+    if (M3_LIKELY ((void *) (_sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
 #if defined(DEBUG)
@@ -821,7 +821,7 @@ d_m3Op  (Entry)
         }
 #endif
 
-        if (UNLIKELY(r)) {
+        if (M3_UNLIKELY(r)) {
             _mem = memory->mallocated;
             fillBacktraceFrame ();
         }
@@ -1283,7 +1283,7 @@ d_m3Op  (SetGlobal_f64)
 #if d_m3SkipMemoryBoundsCheck
 #  define m3MemCheck(x) true
 #else
-#  define m3MemCheck(x) LIKELY(x)
+#  define m3MemCheck(x) M3_LIKELY(x)
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.

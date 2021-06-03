@@ -573,7 +573,7 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
-    if (UNLIKELY(io_module->runtime)) {
+    if (M3_UNLIKELY(io_module->runtime)) {
         return m3Err_moduleAlreadyLinked;
     }
 
