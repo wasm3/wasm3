@@ -26,7 +26,7 @@ void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message);
 #define _try
 #define _(TRY)                            { result = TRY; if (result) { EXCEPTION_PRINT (result); goto _catch; } }
 #define _throw(ERROR)                     { result = ERROR; EXCEPTION_PRINT (result); goto _catch; }
-#define _throwif(ERROR, COND)             if (UNLIKELY(COND)) \
+#define _throwif(ERROR, COND)             if (M3_UNLIKELY(COND)) \
                                           { result = ERROR; EXCEPTION_PRINT (result); goto _catch; }
 
 #define _throwifnull(PTR)                   _throwif (m3Err_mallocFailed, !(PTR))

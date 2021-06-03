@@ -269,14 +269,4 @@
 #  define M3_LIKELY(x)   (x)
 # endif
 
-// TODO: remove
-# if defined(M3_COMPILER_GCC) || defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_ICC)
-#  define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#  define LIKELY(x)   __builtin_expect(!!(x), 1)
-# else
-#  define UNLIKELY(x) (x)
-#  define LIKELY(x)   (x)
-# endif
-
-
 #endif // wasm3_defs_h

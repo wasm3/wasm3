@@ -73,7 +73,7 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
     //printf("== realloc %p => %d\n", io_ptr, i_newSize);
 
-    if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
+    if (M3_UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
     void * newPtr;
 
@@ -122,11 +122,11 @@ void  m3_FreeImpl  (void * io_ptr)
 
 void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
-    if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
+    if (M3_UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
     void * newPtr = realloc (i_ptr, i_newSize);
 
-    if (LIKELY(newPtr))
+    if (M3_LIKELY(newPtr))
     {
         if (i_newSize > i_oldSize) {
             memset ((u8 *) newPtr + i_oldSize, 0x0, i_newSize - i_oldSize);
@@ -321,7 +321,7 @@ M3Result  Read_opcode  (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_en
         m3opcode_t opcode = * ptr++;
 
 #ifndef d_m3EnableExtendedOpcodes
-        if (UNLIKELY(opcode == 0xFC))
+        if (M3_UNLIKELY(opcode == 0xFC))
         {
             if (ptr < i_end)
             {
@@ -550,7 +550,7 @@ u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
 void  PushBacktraceFrame  (IM3Runtime io_runtime, pc_t i_pc)
 {
     // don't try to push any more frames if we've already had an alloc failure
-    if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
+    if (M3_UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
     M3BacktraceFrame * newFrame = m3_AllocStruct(M3BacktraceFrame);
@@ -575,7 +575,7 @@ void  FillBacktraceFunctionInfo  (IM3Runtime io_runtime, IM3Function i_function)
 {
     // If we've had an alloc failure then the last frame doesn't refer to the
     // frame we want to fill in the function info for.
-    if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
+    if (M3_UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
     if (!io_runtime->backtrace.lastFrame)
