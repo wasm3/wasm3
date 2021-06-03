@@ -8,16 +8,21 @@
 #ifndef m3_api_esp_wasi_h
 #define m3_api_esp_wasi_h
 
-#include "m3/m3_core.h"
+#include "m3_core.h"
 
-# if defined(__cplusplus)
-extern "C" {
-# endif
+d_m3BeginExternC
+
+typedef struct m3_wasi_context_t
+{
+    i32                     exit_code;
+    u32                     argc;
+    ccstr_t *               argv;
+} m3_wasi_context_t;
 
     M3Result    m3_LinkEspWASI     (IM3Module io_module);
 
-#if defined(__cplusplus)
-}
-# endif
+m3_wasi_context_t* m3_GetWasiContext();
+
+d_m3EndExternC
 
 #endif /* m3_api_esp_wasi_h */

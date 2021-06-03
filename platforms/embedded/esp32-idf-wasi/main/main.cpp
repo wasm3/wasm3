@@ -11,7 +11,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
+#include "m3_env.h"
 
 #include "m3_api_esp_wasi.h"
 #include "wasi_test.wasm.h"
@@ -49,7 +50,13 @@ static void run_wasm(void)
     printf("Running...\n");
 
     const char* i_argv[2] = { "test.wasm", NULL };
-    result = m3_CallArgv (f, 1, i_argv);
+
+    m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+    wasi_ctx->argc = 1;
+    wasi_ctx->argv = i_argv;
+
+    result = m3_CallV (f);
+
     if (result) FATAL("m3_Call: %s", result);
 }
 
