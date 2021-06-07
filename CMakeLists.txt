@@ -183,6 +183,8 @@ else()
 
 endif()
 
+target_link_libraries(${OUT_FILE} m3)
+
 if(BUILD_WASI MATCHES "simple")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
 elseif(BUILD_WASI MATCHES "metawasi")
@@ -214,7 +216,6 @@ else()
 endif()
 
 add_subdirectory(source)
-target_link_libraries(${OUT_FILE} m3)
 
 message("Flags:         ${CMAKE_C_FLAGS}")
 message("Debug flags:   ${CMAKE_C_FLAGS_DEBUG}")

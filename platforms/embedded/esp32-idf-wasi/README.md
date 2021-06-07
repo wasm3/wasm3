@@ -15,7 +15,7 @@ source $IDF_PATH/export.sh
 idf.py menuconfig
 
 # Select target:
-idf.py set-target esp32s2beta # or esp32
+idf.py set-target esp32     # or: esp32s2, esp32c3, esp32s3, linux
 
 idf.py build
 

@@ -406,11 +406,12 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     case 2: whence = UVWASI_WHENCE_SET; whstr = "SET"; break;
     }
 
-    uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, result);
+    uvwasi_filesize_t pos;
+    uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, &pos);
 
     WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
 
-    //TODO: m3ApiWriteMem
+    m3ApiWriteMem64(result, pos);
 
     m3ApiReturn(ret);
 }
@@ -434,11 +435,12 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
     case 2: whence = UVWASI_WHENCE_END; whstr = "END"; break;
     }
 
-    uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, result);
+    uvwasi_filesize_t pos;
+    uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, &pos);
 
     WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
 
-    //TODO: m3ApiWriteMem
+    m3ApiWriteMem64(result, pos);
 
     m3ApiReturn(ret);
 }
@@ -839,11 +841,12 @@ m3ApiRawFunction(m3_wasi_generic_clock_res_get)
 
     m3ApiCheckMem(resolution, sizeof(uvwasi_timestamp_t));
 
-    uvwasi_errno_t ret = uvwasi_clock_res_get(&uvwasi, wasi_clk_id, resolution);
+    uvwasi_timestamp_t t;
+    uvwasi_errno_t ret = uvwasi_clock_res_get(&uvwasi, wasi_clk_id, &t);
 
     WASI_TRACE("clk_id:%d", wasi_clk_id);
 
-    //TODO: m3ApiWriteMem64
+    m3ApiWriteMem64(resolution, t);
 
     m3ApiReturn(ret);
 }
@@ -857,11 +860,12 @@ m3ApiRawFunction(m3_wasi_generic_clock_time_get)
 
     m3ApiCheckMem(time, sizeof(uvwasi_timestamp_t));
 
-    uvwasi_errno_t ret = uvwasi_clock_time_get(&uvwasi, wasi_clk_id, precision, time);
+    uvwasi_timestamp_t t;
+    uvwasi_errno_t ret = uvwasi_clock_time_get(&uvwasi, wasi_clk_id, precision, &t);
 
     WASI_TRACE("clk_id:%d", wasi_clk_id);
 
-    //TODO: m3ApiWriteMem64
+    m3ApiWriteMem64(time, t);
 
     m3ApiReturn(ret);
 }
