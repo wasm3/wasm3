@@ -149,3 +149,33 @@ llc -march=wasm32 -mattr=help
 chromium-browser --single-process --js-flags="--help" 2>&1 | grep wasm
 ```
 
+## Build with Zig
+
+Grab the latest nightly Zig toolchain from [ziglang.org/download], and then simply run:
+
+[ziglang.org/download]: https://ziglang.org/download/
+
+```sh
+zig build
+```
+
+This will install `wasm3` compiled for your target architecture in `zig-out/bin/wasm3`.
+
+In order to build `wasm3` in a mode different than Debug, e.g., in ReleaseFast, pass in
+an appropriate flag like so:
+
+```sh
+zig build -Drelease-fast
+```
+
+If you want to cross-compile to some specific target, pass in the target with a flag like so:
+
+```sh
+zig build -Dtarget=wasm32-wasi
+```
+
+Or if targeting Apple Silicon (this works from *any* host with Zig):
+
+```sh
+zig build -Dtarget=aarch64-macos
+```
