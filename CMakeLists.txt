@@ -161,6 +161,8 @@ else()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
   if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     # TODO: Place clang-specific options here
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fp-model precise")
   elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wjump-misses-init")
   endif()

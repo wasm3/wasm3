@@ -38,6 +38,8 @@
 #  endif
 # elif defined(M3_COMPILER_GCC)
 #  define M3_COMPILER_VER "GCC " __VERSION__
+# elif defined(M3_COMPILER_ICC)
+#  define M3_COMPILER_VER __VERSION__
 # elif defined(M3_COMPILER_MSVC)
 #  define M3_COMPILER_VER "MSVC " M3_STR(_MSC_VER)
 # else
@@ -61,7 +63,7 @@
  */
 
 # if defined(M3_COMPILER_MSVC)
-#  define M3_LITTLE_ENDIAN      //_byteswap_ushort, _byteswap_ulong, _byteswap_uint64
+#  define M3_LITTLE_ENDIAN
 # elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #  define M3_LITTLE_ENDIAN
 # elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -74,7 +76,7 @@
  * Detect platform
  */
 
-# if defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_GCC)
+# if defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_GCC) || defined(M3_COMPILER_ICC)
 #  if defined(__wasm__)
 #   define M3_ARCH "wasm"
 
@@ -221,6 +223,10 @@
 #  define m3_bswap32(x)     __builtin_bswap32((x))
 #  define m3_bswap64(x)     __builtin_bswap64((x))
 # elif defined(M3_COMPILER_CLANG) && M3_COMPILER_HAS_BUILTIN(__builtin_bswap16)
+#  define m3_bswap16(x)     __builtin_bswap16((x))
+#  define m3_bswap32(x)     __builtin_bswap32((x))
+#  define m3_bswap64(x)     __builtin_bswap64((x))
+# elif defined(M3_COMPILER_ICC)
 #  define m3_bswap16(x)     __builtin_bswap16((x))
 #  define m3_bswap32(x)     __builtin_bswap32((x))
 #  define m3_bswap64(x)     __builtin_bswap64((x))
