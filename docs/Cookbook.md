@@ -73,6 +73,13 @@ $ wasm3 hello.wasm
 Hello, world!
 ```
 
+
+### Go WASI app
+
+Go currently does not provide the WASI interface.  
+For reference see [this issue](https://github.com/golang/go/issues/31105).
+
+
 ### Zig WASI app
 
 Create `hello.zig`:
