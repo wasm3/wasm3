@@ -20,6 +20,7 @@ typedef struct m3_wasi_context_t
 } m3_wasi_context_t;
 
 M3Result    m3_LinkWASI     (IM3Module io_module);
+M3Result	m3_CloseWASI	(IM3Module i_module);
 
 m3_wasi_context_t* m3_GetWasiContext();
 

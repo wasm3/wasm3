@@ -860,4 +860,20 @@ _catch:
     return result;
 }
 
+
+M3Result  m3_CloseWASI  (IM3Module io_module)
+{
+	M3Result result = m3Err_none;
+
+#ifdef _WIN32
+#else
+	for (int i = 3; i < PREOPEN_CNT; i++) {
+		close (preopen[i].fd);
+		preopen[i].fd = 0;
+	}
+#endif
+	
+	return result;
+}
+
 #endif // d_m3HasWASI
