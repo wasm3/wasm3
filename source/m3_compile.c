@@ -114,6 +114,16 @@ void  AlignSlotToType  (u16 * io_slot, u8 i_type)
 }
 
 
+M3Result  GetStackTopIndexChecked  (IM3Compilation o, u16 * o_stackIndex)
+{
+	M3Result result = m3Err_none;
+
+	_throwif (m3Err_functionStackUnderrun, o->stackIndex <= o->stackFirstDynamicIndex and not IsStackPolymorphic (o));
+	* o_stackIndex = o->stackIndex - 1;
+			  
+	_catch: return result;
+}
+
 i16  GetStackTopIndex  (IM3Compilation o)
 {                                                           d_m3Assert (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic (o));
     return o->stackIndex - 1;
@@ -770,8 +780,9 @@ M3Result  CopyStackTopToSlot  (IM3Compilation o, u16 i_destSlot)  // NoPushPop
 {
     M3Result result;
 
-    i16 stackTop = GetStackTopIndex (o);
-_   (CopyStackIndexToSlot (o, i_destSlot, (u16) stackTop));
+	u16 stackTop = 0;
+_	(GetStackTopIndexChecked (o, & stackTop));
+_   (CopyStackIndexToSlot (o, i_destSlot, stackTop));
 
     _catch: return result;
 }
