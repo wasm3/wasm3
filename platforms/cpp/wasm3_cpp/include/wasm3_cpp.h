@@ -328,6 +328,16 @@ namespace wasm3 {
             return ret;
         }
 
+        template<typename ... Args>
+        typename detail::first_type<void, 
+                typename std::enable_if<std::is_convertible<Args, const char*>::value>::type...>::type
+        call_argv(Args... args) {
+            /* std::enable_if above checks that all argument types are convertible const char* */
+            const char* argv[] = {args...};
+            M3Result res = m3_CallArgv(m_func, sizeof...(args), argv);
+            detail::check_error(res);
+        }
+
         /**
          * Call the function with the provided arguments (int/float types).
          *
@@ -345,6 +355,13 @@ namespace wasm3 {
             res = m3_GetResults(m_func, 1, ret_ptrs);
             detail::check_error(res);
             return ret;
+        }
+
+        template<typename ... Args>
+        void call(Args... args) {
+            const void *arg_ptrs[] = { reinterpret_cast<const void*>(&args)... };
+            M3Result res = m3_Call(m_func, sizeof...(args), arg_ptrs);
+            detail::check_error(res);
         }
 
     protected:
