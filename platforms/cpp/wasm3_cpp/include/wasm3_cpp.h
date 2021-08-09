@@ -265,15 +265,15 @@ namespace wasm3 {
 
         module(const std::shared_ptr<M3Environment> &env, std::istream &in_wasm) {
             in_wasm.unsetf(std::ios::skipws);
-            std::vector<uint8_t> in_bytes;
             std::copy(std::istream_iterator<uint8_t>(in_wasm),
                       std::istream_iterator<uint8_t>(),
-                      std::back_inserter(in_bytes));
-            parse(env.get(), in_bytes.data(), in_bytes.size());
+                      std::back_inserter(m_moduleRawData));
+            parse(env.get(), m_moduleRawData.data(), m_moduleRawData.size());
         }
 
         module(const std::shared_ptr<M3Environment> &env, const uint8_t *data, size_t size) : m_env(env) {
-            parse(env.get(), data, size);
+            m_moduleRawData = std::vector<uint8_t>{data, data + size};
+            parse(env.get(), m_moduleRawData.data(), m_moduleRawData.size());
         }
 
         void parse(IM3Environment env, const uint8_t *data, size_t size) {
@@ -296,6 +296,7 @@ namespace wasm3 {
         std::shared_ptr<M3Environment> m_env;
         std::shared_ptr<M3Module> m_module;
         bool m_loaded = false;
+        std::vector<uint8_t> m_moduleRawData {};
     };
 
 
