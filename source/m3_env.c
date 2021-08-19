@@ -197,6 +197,15 @@ u64 *  m3_GetStack  (IM3Runtime i_runtime)
 }
 
 
+void  m3_RebaseStack  (IM3Runtime i_runtime, u64 * i_newStackBase)
+{
+	if (i_runtime and i_newStackBase)
+	{
+		i_runtime->stack = i_newStackBase;
+	}
+}
+
+
 void *  m3_GetUserData  (IM3Runtime i_runtime)
 {
     return i_runtime ? i_runtime->userdata : NULL;
@@ -295,6 +304,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
         pc_t m3code = GetPagePC (o->page);
         result = CompileBlock (o, ftype, c_waOp_block);
 
+		// FIX: this compare doesn't make sense
         if (not result && o->maxStackSlots >= runtime.numStackSlots) {
             result = m3Err_trapStackOverflow;
         }

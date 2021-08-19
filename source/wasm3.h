@@ -310,6 +310,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     uint64_t *          m3_GetStack                 (IM3Runtime             i_runtime);
     M3Result            m3_CallDirect               (IM3Function            i_function);
 
+	void  				m3_RebaseStack				(IM3Runtime 			i_runtime,
+													 uint64_t * 			i_newStackBase);
+
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
 

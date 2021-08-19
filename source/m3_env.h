@@ -173,7 +173,7 @@ typedef struct M3Runtime
     IM3Module               modules;        // linked list of imported modules
 
     void *                  stack;
-    u32                     stackSize;
+//    u32                     stackSize;
     u32                     numStackSlots;
     IM3Function             lastCalled;     // last function that successfully executed
 
