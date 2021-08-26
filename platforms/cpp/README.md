@@ -32,7 +32,7 @@ All the classes are located in `wasm3` namespace.
 
 Before loading a module, you may need to link some external functions to it:
 
-`template <Func> void module::link(const char *mod, Func *function, const char *function_name)` — link a function `function` to module named `mod` under the name `function_name`. To link to any module, use `mod="*"`. 
+`template <Func> void module::link(const char *mod, const char *function_name, Func *function)` — link a function `function` to module named `mod` under the name `function_name`. To link to any module, use `mod="*"`. 
 
 `function` has to be either a non-member function or a static member function.
 
