@@ -745,7 +745,11 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
             if (is64BitType)
             {
                 u64 * constant = (u64 *) & o->constants [constTableIndex];
+# if d_m3Use32BitSlots
+                memcpy (constant, & i_word, sizeof (u64));      // Avoid unaligned write
+# else
                 * constant = i_word;
+# endif
             }
             else
             {
