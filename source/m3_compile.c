@@ -584,7 +584,12 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
+# if d_m3Use32BitSlots
+                u64 constant;
+                memcpy (&constant, &o->constants [slot - o->slotFirstConstIndex], sizeof (u64));      // Avoid unaligned read
+# else
                 u64 constant = * (u64 *) & o->constants [slot - o->slotFirstConstIndex];
+# endif
 
                 if (constant == i_word)
                 {
