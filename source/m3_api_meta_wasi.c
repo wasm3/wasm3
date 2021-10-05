@@ -20,6 +20,7 @@
 
 #if __has_include("wasi/api.h")
 # include <wasi/api.h>
+# define USE_NEW_WASI
 
 #elif __has_include("wasi/core.h")
 # warning "Using legacy WASI headers"
@@ -44,6 +45,97 @@ void copy_iov_to_host(void* _mem, __wasi_iovec_t* host_iov, __wasi_iovec_t* wasi
         host_iov[i].buf_len  = wasi_iov[i].buf_len;
     }
 }
+
+#if d_m3EnableWasiTracing
+
+const char* wasi_errno2str(__wasi_errno_t err)
+{
+    switch (err) {
+    case  0: return "ESUCCESS";
+    case  1: return "E2BIG";
+    case  2: return "EACCES";
+    case  3: return "EADDRINUSE";
+    case  4: return "EADDRNOTAVAIL";
+    case  5: return "EAFNOSUPPORT";
+    case  6: return "EAGAIN";
+    case  7: return "EALREADY";
+    case  8: return "EBADF";
+    case  9: return "EBADMSG";
+    case 10: return "EBUSY";
+    case 11: return "ECANCELED";
+    case 12: return "ECHILD";
+    case 13: return "ECONNABORTED";
+    case 14: return "ECONNREFUSED";
+    case 15: return "ECONNRESET";
+    case 16: return "EDEADLK";
+    case 17: return "EDESTADDRREQ";
+    case 18: return "EDOM";
+    case 19: return "EDQUOT";
+    case 20: return "EEXIST";
+    case 21: return "EFAULT";
+    case 22: return "EFBIG";
+    case 23: return "EHOSTUNREACH";
+    case 24: return "EIDRM";
+    case 25: return "EILSEQ";
+    case 26: return "EINPROGRESS";
+    case 27: return "EINTR";
+    case 28: return "EINVAL";
+    case 29: return "EIO";
+    case 30: return "EISCONN";
+    case 31: return "EISDIR";
+    case 32: return "ELOOP";
+    case 33: return "EMFILE";
+    case 34: return "EMLINK";
+    case 35: return "EMSGSIZE";
+    case 36: return "EMULTIHOP";
+    case 37: return "ENAMETOOLONG";
+    case 38: return "ENETDOWN";
+    case 39: return "ENETRESET";
+    case 40: return "ENETUNREACH";
+    case 41: return "ENFILE";
+    case 42: return "ENOBUFS";
+    case 43: return "ENODEV";
+    case 44: return "ENOENT";
+    case 45: return "ENOEXEC";
+    case 46: return "ENOLCK";
+    case 47: return "ENOLINK";
+    case 48: return "ENOMEM";
+    case 49: return "ENOMSG";
+    case 50: return "ENOPROTOOPT";
+    case 51: return "ENOSPC";
+    case 52: return "ENOSYS";
+    case 53: return "ENOTCONN";
+    case 54: return "ENOTDIR";
+    case 55: return "ENOTEMPTY";
+    case 56: return "ENOTRECOVERABLE";
+    case 57: return "ENOTSOCK";
+    case 58: return "ENOTSUP";
+    case 59: return "ENOTTY";
+    case 60: return "ENXIO";
+    case 61: return "EOVERFLOW";
+    case 62: return "EOWNERDEAD";
+    case 63: return "EPERM";
+    case 64: return "EPIPE";
+    case 65: return "EPROTO";
+    case 66: return "EPROTONOSUPPORT";
+    case 67: return "EPROTOTYPE";
+    case 68: return "ERANGE";
+    case 69: return "EROFS";
+    case 70: return "ESPIPE";
+    case 71: return "ESRCH";
+    case 72: return "ESTALE";
+    case 73: return "ETIMEDOUT";
+    case 74: return "ETXTBSY";
+    case 75: return "EXDEV";
+    case 76: return "ENOTCAPABLE";
+    default: return "<unknown>";
+    }
+}
+
+#  define WASI_TRACE(fmt, ...)    { fprintf(stderr, "%s " fmt, __FUNCTION__+16, ##__VA_ARGS__); fprintf(stderr, " => %s\n", wasi_errno2str(ret)); }
+#else
+#  define WASI_TRACE(fmt, ...)
+#endif
 
 /*
  * WASI API implementation
@@ -151,6 +243,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 
     __wasi_errno_t ret = __wasi_fd_prestat_dir_name(fd, path, path_len);
 
+    WASI_TRACE("fd:%d, len:%d | path:%s", fd, path_len, path);
+
     m3ApiReturn(ret);
 }
 
@@ -163,6 +257,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
     m3ApiCheckMem(buf, sizeof(__wasi_prestat_t));
 
     __wasi_errno_t ret = __wasi_fd_prestat_get(fd, buf);
+
+    WASI_TRACE("fd:%d | type:%d, name_len:%d", fd, buf->pr_type, buf->u.dir.pr_name_len);
 
     m3ApiReturn(ret);
 }
@@ -177,6 +273,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 
     __wasi_errno_t ret = __wasi_fd_fdstat_get(fd, fdstat);
 
+    WASI_TRACE("fd:%d", fd);
+
     m3ApiReturn(ret);
 }
 
@@ -187,6 +285,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
     m3ApiGetArg      (__wasi_fdflags_t     , flags)
 
     __wasi_errno_t ret = __wasi_fd_fdstat_set_flags(fd, flags);
+
+    WASI_TRACE("fd:%d, flags:0x%x", fd, flags);
 
     m3ApiReturn(ret);
 }
@@ -259,16 +359,18 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
 
     m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
 
-    __wasi_whence_t whence;
+    __wasi_whence_t whence = -1;
+    const char* whstr = "???";
 
     switch (wasi_whence) {
-    case 0: whence = __WASI_WHENCE_CUR; break;
-    case 1: whence = __WASI_WHENCE_END; break;
-    case 2: whence = __WASI_WHENCE_SET; break;
-    default:                m3ApiReturn(__WASI_ERRNO_INVAL);
+    case 0: whence = __WASI_WHENCE_CUR; whstr = "CUR"; break;
+    case 1: whence = __WASI_WHENCE_END; whstr = "END"; break;
+    case 2: whence = __WASI_WHENCE_SET; whstr = "SET"; break;
     }
 
     __wasi_errno_t ret = __wasi_fd_seek(fd, offset, whence, result);
+
+    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
 
     m3ApiReturn(ret);
 }
@@ -283,16 +385,18 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
 
     m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
 
-    __wasi_whence_t whence;
+    __wasi_whence_t whence = -1;
+    const char* whstr = "???";
 
     switch (wasi_whence) {
-    case 0: whence = __WASI_WHENCE_SET; break;
-    case 1: whence = __WASI_WHENCE_CUR; break;
-    case 2: whence = __WASI_WHENCE_END; break;
-    default:                m3ApiReturn(__WASI_ERRNO_INVAL);
+    case 0: whence = __WASI_WHENCE_SET; whstr = "SET"; break;
+    case 1: whence = __WASI_WHENCE_CUR; whstr = "CUR"; break;
+    case 2: whence = __WASI_WHENCE_END; whstr = "END"; break;
     }
 
     __wasi_errno_t ret = __wasi_fd_seek(fd, offset, whence, result);
+
+    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
 
     m3ApiReturn(ret);
 }
@@ -305,6 +409,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_renumber)
 
     __wasi_errno_t ret = __wasi_fd_renumber(from, to);
 
+    WASI_TRACE("from:%d, to:%d", from, to);
+
     m3ApiReturn(ret);
 }
 
@@ -314,6 +420,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_sync)
     m3ApiGetArg      (__wasi_fd_t          , fd)
 
     __wasi_errno_t ret = __wasi_fd_sync(fd);
+
+    WASI_TRACE("fd:%d", fd);
 
     m3ApiReturn(ret);
 }
@@ -326,10 +434,9 @@ m3ApiRawFunction(m3_wasi_generic_fd_tell)
 
     m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
 
-    __wasi_filesize_t pos;
-    __wasi_errno_t ret = __wasi_fd_tell(fd, &pos);
+    __wasi_errno_t ret = __wasi_fd_tell(fd, result);
 
-    m3ApiWriteMem64(result, pos);
+    WASI_TRACE("fd:%d | result:%d", fd, *result);
 
     m3ApiReturn(ret);
 }
@@ -344,6 +451,8 @@ m3ApiRawFunction(m3_wasi_generic_path_create_directory)
     m3ApiCheckMem(path, path_len);
 
     __wasi_errno_t ret = __wasi_path_create_directory(fd, path, path_len);
+
+    WASI_TRACE("fd:%d, path:%s", fd, path);
 
     m3ApiReturn(ret);
 }
@@ -364,6 +473,8 @@ m3ApiRawFunction(m3_wasi_generic_path_readlink)
 
     __wasi_errno_t ret = __wasi_path_readlink(fd, path, path_len, buf, buf_len, bufused);
 
+    WASI_TRACE("fd:%d, path:%s | buf:%s, bufused:%d", fd, path, buf, *bufused);
+
     m3ApiReturn(ret);
 }
 
@@ -377,6 +488,8 @@ m3ApiRawFunction(m3_wasi_generic_path_remove_directory)
     m3ApiCheckMem(path, path_len);
 
     __wasi_errno_t ret = __wasi_path_remove_directory(fd, path, path_len);
+
+    WASI_TRACE("fd:%d, path:%s", fd, path);
 
     m3ApiReturn(ret);
 }
@@ -397,6 +510,8 @@ m3ApiRawFunction(m3_wasi_generic_path_rename)
     __wasi_errno_t ret = __wasi_path_rename(old_fd, old_path, old_path_len,
                                             new_fd, new_path, new_path_len);
 
+    WASI_TRACE("old_fd:%d, old_path:%s, new_fd:%d, new_path:%s", old_fd, old_path, new_fd, new_path);
+
     m3ApiReturn(ret);
 }
 
@@ -415,6 +530,8 @@ m3ApiRawFunction(m3_wasi_generic_path_symlink)
     __wasi_errno_t ret = __wasi_path_symlink(old_path, old_path_len,
                                                   fd, new_path, new_path_len);
 
+    WASI_TRACE("old_path:%s, fd:%d, new_path:%s", old_path, fd, new_path);
+
     m3ApiReturn(ret);
 }
 
@@ -428,6 +545,8 @@ m3ApiRawFunction(m3_wasi_generic_path_unlink_file)
     m3ApiCheckMem(path, path_len);
 
     __wasi_errno_t ret = __wasi_path_unlink_file(fd, path, path_len);
+
+    WASI_TRACE("fd:%d, path:%s", fd, path);
 
     m3ApiReturn(ret);
 }
@@ -458,6 +577,8 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
                                  fs_flags,
                                  fd);
 
+    WASI_TRACE("dirfd:%d, dirflags:0x%x, path:%s, oflags:0x%x, fs_flags:0x%x | fd:%d", dirfd, dirflags, path, oflags, fs_flags, *fd);
+
     m3ApiReturn(ret);
 }
 
@@ -476,6 +597,8 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
     __wasi_filestat_t stat;
 
     __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
+
+    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%d", fd, flags, path, stat.st_size);
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
@@ -509,6 +632,8 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
     __wasi_filestat_t stat;
 
     __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
+
+    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%d", fd, flags, path, stat.st_size);
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
@@ -544,6 +669,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_pread)
 
     __wasi_errno_t ret = __wasi_fd_pread(fd, iovs, iovs_len, offset, nread);
 
+    WASI_TRACE("fd:%d | nread:%d", fd, *nread);
+
     m3ApiReturn(ret);
 }
 
@@ -563,6 +690,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
 
     __wasi_errno_t ret = __wasi_fd_read(fd, iovs, iovs_len, nread);
 
+    WASI_TRACE("fd:%d | nread:%d", fd, *nread);
+
     m3ApiReturn(ret);
 }
 
@@ -581,6 +710,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
     copy_iov_to_host(_mem, iovs, wasi_iovs, iovs_len);
 
     __wasi_errno_t ret = __wasi_fd_write(fd, (__wasi_ciovec_t*)iovs, iovs_len, nwritten);
+
+    WASI_TRACE("fd:%d | nwritten:%d", fd, *nwritten);
 
     m3ApiReturn(ret);
 }
@@ -602,6 +733,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_pwrite)
 
     __wasi_errno_t ret = __wasi_fd_pwrite(fd, (__wasi_ciovec_t*)iovs, iovs_len, offset, nwritten);
 
+    WASI_TRACE("fd:%d | nwritten:%d", fd, *nwritten);
+
     m3ApiReturn(ret);
 }
 
@@ -619,6 +752,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_readdir)
 
     __wasi_errno_t ret = __wasi_fd_readdir(fd, buf, buf_len, cookie, bufused);
 
+    WASI_TRACE("fd:%d | bufused:%d", fd, *bufused);
+
     m3ApiReturn(ret);
 }
 
@@ -629,6 +764,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_close)
 
     __wasi_errno_t ret = __wasi_fd_close(fd);
 
+    WASI_TRACE("fd:%d", fd);
+
     m3ApiReturn(ret);
 }
 
@@ -638,6 +775,8 @@ m3ApiRawFunction(m3_wasi_generic_fd_datasync)
     m3ApiGetArg      (__wasi_fd_t, fd)
 
     __wasi_errno_t ret = __wasi_fd_datasync(fd);
+
+    WASI_TRACE("fd:%d", fd);
 
     m3ApiReturn(ret);
 }
@@ -652,6 +791,8 @@ m3ApiRawFunction(m3_wasi_generic_random_get)
 
     __wasi_errno_t ret = __wasi_random_get(buf, buf_len);
 
+    WASI_TRACE("len:%d", buf_len);
+
     m3ApiReturn(ret);
 }
 
@@ -664,6 +805,8 @@ m3ApiRawFunction(m3_wasi_generic_clock_res_get)
     m3ApiCheckMem(resolution, sizeof(__wasi_timestamp_t));
 
     __wasi_errno_t ret = __wasi_clock_res_get(wasi_clk_id, resolution);
+
+    WASI_TRACE("clk_id:%d", wasi_clk_id);
 
     m3ApiReturn(ret);
 }
@@ -678,6 +821,8 @@ m3ApiRawFunction(m3_wasi_generic_clock_time_get)
     m3ApiCheckMem(time, sizeof(__wasi_timestamp_t));
 
     __wasi_errno_t ret = __wasi_clock_time_get(wasi_clk_id, precision, time);
+
+    WASI_TRACE("clk_id:%d", wasi_clk_id);
 
     m3ApiReturn(ret);
 }
@@ -695,6 +840,8 @@ m3ApiRawFunction(m3_wasi_generic_poll_oneoff)
     m3ApiCheckMem(nevents,  sizeof(__wasi_size_t));
 
     __wasi_errno_t ret = __wasi_poll_oneoff(in, out, nsubscriptions, nevents);
+
+    WASI_TRACE("nsubscriptions:%d | nevents:%d", nsubscriptions, *nevents);
 
     m3ApiReturn(ret);
 }
@@ -717,21 +864,24 @@ m3ApiRawFunction(m3_wasi_generic_proc_raise)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_signal_t, sig)
 
-	__wasi_errno_t ret = __wasi_proc_raise(sig);
+    __wasi_errno_t ret = __WASI_ERRNO_INVAL;
+#ifdef USE_NEW_WASI
+    ret = __wasi_proc_raise(sig);
+#endif
 
-	WASI_TRACE("sig:%d", sig);
+    WASI_TRACE("sig:%d", sig);
 
-	m3ApiReturn(ret);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_generic_sched_yield)
 {
     m3ApiReturnType  (uint32_t)
-	__wasi_errno_t ret = __wasi_sched_yield();
+    __wasi_errno_t ret = __wasi_sched_yield();
 
-	WASI_TRACE("");
+    WASI_TRACE("");
 
-	m3ApiReturn(ret);
+    m3ApiReturn(ret);
 }
 
 

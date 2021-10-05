@@ -213,7 +213,7 @@ int         m3StackGetMax           ();
 uint64_t    m3_GetTimestamp         ();
 #else
 #define     PRIts                   "%s"
-#define     m3_GetTimestamp() 		""
+#define     m3_GetTimestamp()       ""
 #endif
 
 void        m3_Abort                (const char* message);

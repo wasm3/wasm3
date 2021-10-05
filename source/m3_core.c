@@ -35,10 +35,10 @@ static uint64_t initial_ts = -1;
 
 uint64_t m3_GetTimestamp()
 {
-	if (initial_ts == -1) {
-		initial_ts = 0;
-		initial_ts = m3_GetTimestamp();
-	}
+    if (initial_ts == -1) {
+        initial_ts = 0;
+        initial_ts = m3_GetTimestamp();
+    }
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     uint64_t us = SEC_TO_US((uint64_t)ts.tv_sec) + NS_TO_US((uint64_t)ts.tv_nsec);

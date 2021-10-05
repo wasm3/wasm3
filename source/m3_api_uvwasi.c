@@ -353,7 +353,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
     m3ApiWriteMem64(buf+40, stat.st_mtim);
     m3ApiWriteMem64(buf+48, stat.st_ctim);
 
-    m3ApiReturn(UVWASI_ESUCCESS);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_filestat_get)
@@ -384,7 +384,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_filestat_get)
     m3ApiWriteMem64(buf+48, stat.st_mtim);
     m3ApiWriteMem64(buf+56, stat.st_ctim);
 
-    m3ApiReturn(UVWASI_ESUCCESS);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_unstable_fd_seek)
@@ -409,7 +409,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     uvwasi_filesize_t pos;
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, &pos);
 
-    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
+    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, pos);
 
     m3ApiWriteMem64(result, pos);
 
@@ -438,7 +438,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
     uvwasi_filesize_t pos;
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, &pos);
 
-    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, *result);
+    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, pos);
 
     m3ApiWriteMem64(result, pos);
 
@@ -581,7 +581,7 @@ m3ApiRawFunction(m3_wasi_generic_path_symlink)
     uvwasi_errno_t ret = uvwasi_path_symlink(&uvwasi, old_path, old_path_len,
                                                   fd, new_path, new_path_len);
 
-    WASI_TRACE("old_fd:%d, old_path:%s, fd:%d, new_path:%s", old_fd, old_path, fd, new_path);
+    WASI_TRACE("old_path:%s, fd:%d, new_path:%s", old_path, fd, new_path);
 
     m3ApiReturn(ret);
 }
@@ -670,7 +670,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
     m3ApiWriteMem64(buf+40, stat.st_mtim);
     m3ApiWriteMem64(buf+48, stat.st_ctim);
 
-    m3ApiReturn(UVWASI_ESUCCESS);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
@@ -705,7 +705,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
     m3ApiWriteMem64(buf+48, stat.st_mtim);
     m3ApiWriteMem64(buf+56, stat.st_ctim);
 
-    m3ApiReturn(UVWASI_ESUCCESS);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_generic_fd_pread)
@@ -991,21 +991,21 @@ m3ApiRawFunction(m3_wasi_generic_proc_raise)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (uvwasi_signal_t, sig)
 
-	uvwasi_errno_t ret = uvwasi_proc_raise(&uvwasi, sig);
+    uvwasi_errno_t ret = uvwasi_proc_raise(&uvwasi, sig);
 
-	WASI_TRACE("sig:%d", sig);
+    WASI_TRACE("sig:%d", sig);
 
-	m3ApiReturn(ret);
+    m3ApiReturn(ret);
 }
 
 m3ApiRawFunction(m3_wasi_generic_sched_yield)
 {
     m3ApiReturnType  (uint32_t)
-	uvwasi_errno_t ret = uvwasi_sched_yield(&uvwasi);
+    uvwasi_errno_t ret = uvwasi_sched_yield(&uvwasi);
 
-	WASI_TRACE("");
+    WASI_TRACE("");
 
-	m3ApiReturn(ret);
+    m3ApiReturn(ret);
 }
 
 
