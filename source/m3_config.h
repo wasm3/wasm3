@@ -125,6 +125,13 @@
 #   define d_m3LogNativeStack                   0       // track the memory usage of the C-stack
 # endif
 
+# ifndef d_m3LogHeapOps
+#   define d_m3LogHeapOps                       0       // track heap usage
+# endif
+
+# ifndef d_m3LogTimestamps
+#   define d_m3LogTimestamps                    0       // track timestamps on heap logs
+# endif
 
 // other ----------------------------------------------------------------------
 

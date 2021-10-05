@@ -208,16 +208,67 @@ int         m3StackGetMax           ();
 #define     m3StackGetMax()         0
 #endif
 
+#if d_m3LogTimestamps
+#define     PRIts                   "%llu"
+uint64_t    m3_GetTimestamp         ();
+#else
+#define     PRIts                   "%s"
+#define     m3_GetTimestamp() 		""
+#endif
+
 void        m3_Abort                (const char* message);
-void *      m3_Malloc               (size_t i_size);
-void *      m3_Realloc              (void *i_ptr, size_t i_newSize, size_t i_oldSize);
-void        m3_FreeImpl             (void * i_ptr);
+void *      m3_Malloc_Impl          (size_t i_size);
+void *      m3_Realloc_Impl         (void * i_ptr, size_t i_newSize, size_t i_oldSize);
+void        m3_Free_Impl            (void * i_ptr);
 void *      m3_CopyMem              (const void * i_from, size_t i_size);
 
-#define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc (sizeof (STRUCT))
-#define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc (sizeof (STRUCT) * (NUM))
-#define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
-#define     m3_Free(P)                              do { m3_FreeImpl ((void*)(P)); (P) = NULL; } while(0)
+#if d_m3LogHeapOps
+
+// Tracing format: timestamp;heap:OpCode;name;size(bytes);new items;new ptr;old items;old ptr
+
+static inline void * m3_AllocStruct_Impl(ccstr_t name, size_t i_size) {
+    void * result = m3_Malloc_Impl(i_size);
+    fprintf(stderr, PRIts ";heap:AllocStruct;%s;%zu;;%p;;\n", m3_GetTimestamp(), name, i_size, result);
+    return result;
+}
+
+static inline void * m3_AllocArray_Impl(ccstr_t name, size_t i_num, size_t i_size) {
+    void * result = m3_Malloc_Impl(i_size * i_num);
+    fprintf(stderr, PRIts ";heap:AllocArr;%s;%zu;%zu;%p;;\n", m3_GetTimestamp(), name, i_size, i_num, result);
+    return result;
+}
+
+static inline void * m3_ReallocArray_Impl(ccstr_t name, void * i_ptr_old, size_t i_num_new, size_t i_num_old, size_t i_size) {
+    void * result = m3_Realloc_Impl (i_ptr_old, i_size * i_num_new, i_size * i_num_old);
+    fprintf(stderr, PRIts ";heap:ReallocArr;%s;%zu;%zu;%p;%zu;%p\n", m3_GetTimestamp(), name, i_size, i_num_new, result, i_num_old, i_ptr_old);
+    return result;
+}
+
+static inline void * m3_Malloc (ccstr_t name, size_t i_size) {
+    void * result = m3_Malloc_Impl (i_size);
+    fprintf(stderr, PRIts ";heap:AllocMem;%s;%zu;;%p;;\n", m3_GetTimestamp(), name, i_size, result);
+    return result;
+}
+static inline void * m3_Realloc (ccstr_t name, void * i_ptr, size_t i_newSize, size_t i_oldSize) {
+    void * result = m3_Realloc_Impl (i_ptr, i_newSize, i_oldSize);
+    fprintf(stderr, PRIts ";heap:ReallocMem;%s;;%zu;%p;%zu;%p\n", m3_GetTimestamp(), name, i_newSize, result, i_oldSize, i_ptr);
+    return result;
+}
+
+#define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_AllocStruct_Impl  (#STRUCT, sizeof (STRUCT))
+#define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_AllocArray_Impl   (#STRUCT, NUM, sizeof (STRUCT))
+#define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_ReallocArray_Impl (#STRUCT, (void *)(PTR), (NEW), (OLD), sizeof (STRUCT))
+#define     m3_Free(P)                              do { void* p = (void*)(P);                                  \
+                                                        if (p) { fprintf(stderr, PRIts ";heap:FreeMem;;;;%p;\n", m3_GetTimestamp(), p); }     \
+                                                        m3_Free_Impl (p); (P) = NULL; } while(0)
+#else
+#define     m3_Malloc(NAME, SIZE)                   m3_Malloc_Impl(SIZE)
+#define     m3_Realloc(NAME, PTR, NEW, OLD)         m3_Realloc_Impl(PTR, NEW, OLD)
+#define     m3_AllocStruct(STRUCT)                  (STRUCT *)m3_Malloc_Impl (sizeof (STRUCT))
+#define     m3_AllocArray(STRUCT, NUM)              (STRUCT *)m3_Malloc_Impl (sizeof (STRUCT) * (NUM))
+#define     m3_ReallocArray(STRUCT, PTR, NEW, OLD)  (STRUCT *)m3_Realloc_Impl ((void *)(PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define     m3_Free(P)                              do { m3_Free_Impl ((void*)(P)); (P) = NULL; } while(0)
+#endif
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 

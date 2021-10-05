@@ -11,7 +11,7 @@
 
 M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
 {
-    *o_functionType = (IM3FuncType) m3_Malloc (sizeof (M3FuncType) + i_numTypes);
+    *o_functionType = (IM3FuncType) m3_Malloc ("M3FuncType", sizeof (M3FuncType) + i_numTypes);
     return (*o_functionType) ? m3Err_none : m3Err_mallocFailed;
 }
 
