@@ -29,7 +29,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
 
 #if d_m3RecordBacktraces
         u32 pageSizeBt = sizeof (M3CodeMappingPage) + sizeof (M3CodeMapEntry) * page->info.numLines;
-        page->info.mapping = (M3CodeMappingPage *)m3_Malloc (pageSizeBt);
+        page->info.mapping = (M3CodeMappingPage *)m3_Malloc ("M3CodeMappingPage", pageSizeBt);
 
         if (page->info.mapping)
         {

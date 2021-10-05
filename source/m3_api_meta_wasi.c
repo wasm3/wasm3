@@ -303,7 +303,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_renumber)
     m3ApiGetArg      (__wasi_fd_t          , from)
     m3ApiGetArg      (__wasi_fd_t          , to)
 
-    __wasi_errno_t ret = __wasi_fd_renumber(&uvwasi, from, to);
+    __wasi_errno_t ret = __wasi_fd_renumber(from, to);
 
     m3ApiReturn(ret);
 }
@@ -313,7 +313,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_sync)
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
 
-    __wasi_errno_t ret = __wasi_fd_sync(&uvwasi, fd);
+    __wasi_errno_t ret = __wasi_fd_sync(fd);
 
     m3ApiReturn(ret);
 }
@@ -327,7 +327,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_tell)
     m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
 
     __wasi_filesize_t pos;
-    __wasi_errno_t ret = __wasi_fd_tell(&uvwasi, fd, &pos);
+    __wasi_errno_t ret = __wasi_fd_tell(fd, &pos);
 
     m3ApiWriteMem64(result, pos);
 

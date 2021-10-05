@@ -16,6 +16,7 @@
 // Redefine puts
 int puts(const char* s) {
     Serial.println(s);
+    return 1;
 }
 
 void run_wasm()
