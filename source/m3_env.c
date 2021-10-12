@@ -716,12 +716,6 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
         {
 _           (CompileFunction (function))
         }
-
-        // Check if start function needs to be called
-        if (function->module->startFunction)
-        {
-_           (m3_RunStart (function->module))
-        }
     }
     else _throw (ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName));
 
@@ -734,6 +728,19 @@ _           (m3_RunStart (function->module))
     return result;
 }
 
+static
+M3Result checkStartFunction(IM3Module i_module)
+{
+    M3Result result = m3Err_none;                               d_m3Assert(i_module);
+
+    // Check if start function needs to be called
+    if (i_module->startFunction)
+    {
+        result = m3_RunStart (i_module);
+    }
+    
+    return result;
+}
 
 uint32_t  m3_GetArgCount  (IM3Function i_function)
 {
@@ -839,12 +846,17 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
         }
     }
     m3StackCheckInit();
-    M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+
+    M3Result result = m3Err_none;
+_   (checkStartFunction(i_function->module))
+
+    result = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
     ReportNativeStackUsage ();
 
-    runtime->lastCalled = r ? NULL : i_function;
+    runtime->lastCalled = result ? NULL : i_function;
 
-    return r;
+    _catch:
+    return result;
 }
 
 M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argptrs[])
@@ -879,13 +891,17 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     }
 
     m3StackCheckInit();
-    M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+
+    M3Result result = m3Err_none;
+_   (checkStartFunction(i_function->module))
+
+    result = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
     ReportNativeStackUsage ();
 
-    runtime->lastCalled = r ? NULL : i_function;
+    runtime->lastCalled = result ? NULL : i_function;
 
-
-    return r;
+    _catch:
+    return result;
 }
 
 M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_argv[])
@@ -920,12 +936,17 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     }
 
     m3StackCheckInit();
-    M3Result r = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+
+    M3Result result = m3Err_none;
+_   (checkStartFunction(i_function->module))
+
+    result = (M3Result) Call (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
     ReportNativeStackUsage ();
 
-    runtime->lastCalled = r ? NULL : i_function;
+    runtime->lastCalled = result ? NULL : i_function;
 
-    return r;
+    _catch:
+    return result;
 }
 
 
