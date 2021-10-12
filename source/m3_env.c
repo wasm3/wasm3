@@ -560,9 +560,9 @@ _           (CompileFunction (function));
         IM3Module module = function->module;
         IM3Runtime runtime = module->runtime;
 
-_       ((M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
-
         io_module->startFunction = -1;
+
+_       ((M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
     }
 
     _catch: return result;
