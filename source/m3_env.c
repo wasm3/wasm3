@@ -560,9 +560,17 @@ _           (CompileFunction (function));
         IM3Module module = function->module;
         IM3Runtime runtime = module->runtime;
 
+        i32 startFunctionTmp = io_module->startFunction;
         io_module->startFunction = -1;
 
-_       ((M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs));
+        result = (M3Result) Call(function->compiled, (m3stack_t)runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+
+        if (result)
+        {
+            io_module->startFunction = startFunctionTmp;
+            EXCEPTION_PRINT(result);
+            goto _catch;
+        }
     }
 
     _catch: return result;
