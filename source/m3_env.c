@@ -543,6 +543,7 @@ M3Result  m3_RunStart  (IM3Module io_module)
 #endif
 
     M3Result result = m3Err_none;
+    i32 startFunctionTmp = -1;
 
     if (io_module and io_module->startFunction >= 0)
     {
@@ -560,7 +561,7 @@ _           (CompileFunction (function));
         IM3Module module = function->module;
         IM3Runtime runtime = module->runtime;
 
-        i32 startFunctionTmp = io_module->startFunction;
+        startFunctionTmp = io_module->startFunction;
         io_module->startFunction = -1;
 
         result = (M3Result) Call (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
@@ -727,7 +728,7 @@ _           (CompileFunction (function))
         }
 
         // Check if start function needs to be called
-        if (function->module->startFunction)
+        if (function->module->startFunction >= 0)
         {
 _           (m3_RunStart (function->module))
         }
