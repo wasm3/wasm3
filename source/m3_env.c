@@ -80,6 +80,12 @@ void  m3_FreeEnvironment  (IM3Environment i_environment)
 }
 
 
+void m3_SetCustomSectionHandler  (IM3Environment i_environment, M3SectionHandler i_handler)
+{
+    if (i_environment) i_environment->customSectionHandler = i_handler;
+}
+
+
 // returns the same io_funcType or replaces it with an equivalent that's already in the type linked list
 void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_funcType)
 {
@@ -747,7 +753,7 @@ M3Result checkStartFunction(IM3Module i_module)
     {
         result = m3_RunStart (i_module);
     }
-    
+
     return result;
 }
 

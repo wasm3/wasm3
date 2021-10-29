@@ -138,6 +138,8 @@ typedef struct M3Environment
     IM3FuncType             retFuncTypes [c_m3Type_unknown];    // these 'point' to elements in the linked list above.
                                                                 // the number of elements must match the basic types as per M3ValueType
     M3CodePage *            pagesReleased;
+
+    M3SectionHandler        customSectionHandler;
 }
 M3Environment;
 

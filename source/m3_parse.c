@@ -476,17 +476,11 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 }
 
 
-M3Result  ParseSection_Custom  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
+M3Result  ParseSection_Name  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     M3Result result;
 
     cstr_t name;
-_   (Read_utf8 (& name, & i_bytes, i_end));
-                                                                                    m3log (parse, "** Custom: '%s'", name);
-    if (strcmp (name, "name") != 0)
-        i_bytes = i_end;
-
-    m3_Free (name);
 
     while (i_bytes < i_end)
     {
@@ -528,6 +522,25 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
 
         i_bytes = start + payloadLength;
     }
+
+    _catch: return result;
+}
+
+
+M3Result  ParseSection_Custom  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
+{
+    M3Result result;
+
+    cstr_t name;
+_   (Read_utf8 (& name, & i_bytes, i_end));
+                                                                                    m3log (parse, "** Custom: '%s'", name);
+    if (strcmp (name, "name") == 0) {
+_       (ParseSection_Name(io_module, i_bytes, i_end));
+    } else if (io_module->environment->customSectionHandler) {
+_       (io_module->environment->customSectionHandler(io_module, name, i_bytes, i_end));
+    }
+
+    m3_Free (name);
 
     _catch: return result;
 }

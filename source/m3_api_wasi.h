@@ -27,7 +27,7 @@ M3Result    m3_LinkWASI             (IM3Module io_module);
 
 #if defined(d_m3HasUVWASI)
 
-M3Result    m3_LinkWASIWithOptions	(IM3Module io_module, uvwasi_options_t uvwasiOptions);
+M3Result    m3_LinkWASIWithOptions  (IM3Module io_module, uvwasi_options_t uvwasiOptions);
 
 #endif
 

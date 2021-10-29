@@ -190,6 +190,11 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     void                m3_FreeEnvironment          (IM3Environment i_environment);
 
+    typedef M3Result (* M3SectionHandler) (IM3Module i_module, const char* name, const uint8_t * start, const uint8_t * end);
+
+    void                m3_SetCustomSectionHandler  (IM3Environment i_environment,    M3SectionHandler i_handler);
+
+
 //-------------------------------------------------------------------------------------------------------------------------------
 //  execution context
 //-------------------------------------------------------------------------------------------------------------------------------
