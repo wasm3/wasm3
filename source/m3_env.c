@@ -743,7 +743,7 @@ M3Result checkStartFunction(IM3Module i_module)
     M3Result result = m3Err_none;                               d_m3Assert(i_module);
 
     // Check if start function needs to be called
-    if (i_module->startFunction)
+    if (i_module->startFunction >= 0)
     {
         result = m3_RunStart (i_module);
     }
