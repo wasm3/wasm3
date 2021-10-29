@@ -17,8 +17,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "uvwasi.h"
-
 #ifndef d_m3EnableWasiTracing
 #  define d_m3EnableWasiTracing     0
 #endif
@@ -1026,8 +1024,6 @@ m3_wasi_context_t* m3_GetWasiContext()
 
 M3Result  m3_LinkWASI  (IM3Module module)
 {
-    M3Result result = m3Err_none;
-
     #define ENV_COUNT       9
 
     char* env[ENV_COUNT];
@@ -1055,6 +1051,13 @@ M3Result  m3_LinkWASI  (IM3Module module)
     init_options.envp = (const char **) env;
     init_options.preopenc = PREOPENS_COUNT;
     init_options.preopens = preopens;
+
+    return m3_LinkWASIWithOptions(module, init_options);
+}
+
+M3Result  m3_LinkWASIWithOptions  (IM3Module module, uvwasi_options_t init_options)
+{
+    M3Result result = m3Err_none;
 
     if (!wasi_context) {
         wasi_context = (m3_wasi_context_t*)malloc(sizeof(m3_wasi_context_t));
