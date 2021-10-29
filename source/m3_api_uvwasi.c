@@ -337,7 +337,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
 
     uvwasi_errno_t ret = uvwasi_fd_filestat_get(&uvwasi, fd, &stat);
 
-    WASI_TRACE("fd:%d | fs.size:%d", fd, stat.st_size);
+    WASI_TRACE("fd:%d | fs.size:%ld", fd, stat.st_size);
 
     if (ret != UVWASI_ESUCCESS) {
         m3ApiReturn(ret);
@@ -368,7 +368,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_filestat_get)
 
     uvwasi_errno_t ret = uvwasi_fd_filestat_get(&uvwasi, fd, &stat);
 
-    WASI_TRACE("fd:%d | fs.size:%d", fd, stat.st_size);
+    WASI_TRACE("fd:%d | fs.size:%ld", fd, stat.st_size);
 
     if (ret != UVWASI_ESUCCESS) {
         m3ApiReturn(ret);
@@ -409,7 +409,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     uvwasi_filesize_t pos;
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, &pos);
 
-    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, pos);
+    WASI_TRACE("fd:%d, offset:%ld, whence:%s | result:%ld", fd, offset, whstr, pos);
 
     m3ApiWriteMem64(result, pos);
 
@@ -438,7 +438,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
     uvwasi_filesize_t pos;
     uvwasi_errno_t ret = uvwasi_fd_seek(&uvwasi, fd, offset, whence, &pos);
 
-    WASI_TRACE("fd:%d, offset:%d, whence:%s | result:%d", fd, offset, whstr, pos);
+    WASI_TRACE("fd:%d, offset:%ld, whence:%s | result:%ld", fd, offset, whstr, pos);
 
     m3ApiWriteMem64(result, pos);
 
