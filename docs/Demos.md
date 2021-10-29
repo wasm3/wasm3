@@ -3,6 +3,8 @@
 - **In-browser Wasm3 (with MetaWASI support) on Webassembly.sh** │ [try it](https://webassembly.sh/?run-command=wasm3)
 - **PyGame + pywasm3 examples** | [github](https://github.com/wasm3/pywasm3/tree/main/examples)
 - **DOOM compiled to WASI, running on pywasm3** |  [video](https://twitter.com/wasm3_engine/status/1393588527863144450), [github](https://github.com/wasm3/pywasm3-doom-demo)
+- **WebAssembly On Your Nintendo DS** |  [blog](https://softwayre.com/blog/2021/09/13/webassembly-on-your-nintendo-ds), [github](https://github.com/moxon6/snake-assemblyscript-ds)
+- **Each pixel on this ESP32 board is controlled by a different WebAssembly app** |  [video](https://twitter.com/zubr_kabbi/status/1436833749359017985), [github](https://github.com/kabbi/m5-atom-wasms)
 - **Wasm3 self-compilation using `clang.wasm`** |  [github](https://github.com/wasm3/wasm3-self-compiling)
 - **Dino game**
   - on PyBadge/Arduino | [video](https://twitter.com/vshymanskyy/status/1345048053041029121), [github](https://github.com/wasm3/wasm3-arduino/tree/main/examples/Wasm_Dino_PyBadge)
