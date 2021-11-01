@@ -110,30 +110,28 @@ typedef int8_t          i8;
 
 # if defined (M3_COMPILER_MSVC)
 #   define vectorcall   // For MSVC, better not to specify any call convention
+# elif defined(__x86_64__)
+#   define vectorcall   __attribute__((aligned(32)))
 # elif defined(__MINGW32__)
 #   define vectorcall
 # elif defined(WIN32)
 #   define vectorcall   __vectorcall
 # elif defined (ESP8266)
 #   include <c_types.h>
-#   define op_section   //ICACHE_FLASH_ATTR
+#   define vectorcall   //ICACHE_FLASH_ATTR
 # elif defined (ESP32)
 #   if defined(M3_IN_IRAM)  // the interpreter is in IRAM, attribute not needed
-#     define op_section
+#     define vectorcall
 #   else
 #     include "esp_system.h"
-#     define op_section   IRAM_ATTR
+#     define vectorcall   IRAM_ATTR
 #   endif
 # elif defined (FOMU)
-#   define op_section   __attribute__((section(".ramtext")))
+#   define vectorcall   __attribute__((section(".ramtext")))
 # endif
 
 #ifndef vectorcall
 #define vectorcall
-#endif
-
-#ifndef op_section
-#define op_section
 #endif
 
 

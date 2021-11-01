@@ -45,13 +45,18 @@ d_m3BeginExternC
 typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 
 #define d_m3RetSig                  static inline m3ret_t vectorcall
-#define d_m3Op(NAME)                M3_NO_UBSAN op_section d_m3RetSig op_##NAME (d_m3OpSig)
+#define d_m3Op(NAME)                M3_NO_UBSAN d_m3RetSig op_##NAME (d_m3OpSig)
 
 #define nextOpImpl()                ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 #define jumpOpImpl(PC)              ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
 
 #define nextOpDirect()              return nextOpImpl()
 #define jumpOpDirect(PC)            return jumpOpImpl((pc_t)(PC))
+
+d_m3RetSig  RunCode  (d_m3OpSig)
+{
+    nextOpDirect();
+}
 
 d_m3EndExternC
 
