@@ -22,6 +22,9 @@
 //  and the second operand (the top of the stack) is in a register
 //------------------------------------------------------------------------------------------------------
 
+#ifndef M3_COMPILE_OPCODES
+#  error "Opcodes should only be included in one compilation unit"
+#endif
 
 #include "m3_math_utils.h"
 #include "m3_compile.h"
@@ -1472,16 +1475,6 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 # endif
 
 # if d_m3EnableOpProfiling
-
-typedef struct M3ProfilerSlot
-{
-    cstr_t      opName;
-    u64         hitCount;
-}
-M3ProfilerSlot;
-
-void  ProfileHit  (cstr_t i_operationName);
-
 d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
     ProfileHit (i_operationName);

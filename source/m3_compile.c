@@ -5,12 +5,114 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+// Allow using opcodes for compilation process
+#define M3_COMPILE_OPCODES
+
 #include "m3_env.h"
 #include "m3_compile.h"
-#include "m3_emit.h"
 #include "m3_exec.h"
 #include "m3_exception.h"
 #include "m3_info.h"
+
+//----- EMIT --------------------------------------------------------------------------------------------------------------
+
+static inline
+pc_t GetPC (IM3Compilation o)
+{
+    return GetPagePC (o->page);
+}
+
+static M3_NOINLINE
+M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
+{
+    M3Result result = m3Err_none;
+
+    i_numLines += 2; // room for Bridge
+
+    if (NumFreeLines (o->page) < i_numLines)
+    {
+        IM3CodePage page = AcquireCodePageWithCapacity (o->runtime, i_numLines);
+
+        if (page)
+        {
+            m3log (emit, "bridging new code page from: %d %p (free slots: %d) to: %d", o->page->info.sequence, GetPC (o), NumFreeLines (o->page), page->info.sequence);
+            d_m3Assert (NumFreeLines (o->page) >= 2);
+
+            EmitWord (o->page, op_Branch);
+            EmitWord (o->page, GetPagePC (page));
+
+            ReleaseCodePage (o->runtime, o->page);
+
+            o->page = page;
+        }
+        else result = m3Err_mallocFailedCodePage;
+    }
+
+    return result;
+}
+
+static M3_NOINLINE
+M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
+{
+    M3Result result = m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic (o));
+
+    // it's OK for page to be null; when compile-walking the bytecode without emitting
+    if (o->page)
+    {
+# if d_m3EnableOpTracing
+        if (i_operation != op_DumpStack)
+            o->numEmits++;
+# endif
+
+        // have execution jump to a new page if slots are critically low
+        result = EnsureCodePageNumLines (o, d_m3CodePageFreeLinesThreshold);
+
+        if (not result)
+        {                                                           if (d_m3LogEmit) log_emit (o, i_operation);
+# if d_m3RecordBacktraces
+            EmitMappingEntry (o->page, o->lastOpcodeStart - o->module->wasmStart);
+# endif // d_m3RecordBacktraces
+            EmitWord (o->page, i_operation);
+        }
+    }
+
+    return result;
+}
+
+// Push an immediate constant into the M3 codestream
+static M3_NOINLINE
+void  EmitConstant32  (IM3Compilation o, const u32 i_immediate)
+{
+    if (o->page)
+        EmitWord32 (o->page, i_immediate);
+}
+
+static M3_NOINLINE
+void  EmitSlotOffset  (IM3Compilation o, const i32 i_offset)
+{
+    if (o->page)
+        EmitWord32 (o->page, i_offset);
+}
+
+static M3_NOINLINE
+pc_t  EmitPointer  (IM3Compilation o, const void * const i_pointer)
+{
+    pc_t ptr = GetPagePC (o->page);
+
+    if (o->page)
+        EmitWord (o->page, i_pointer);
+
+    return ptr;
+}
+
+static M3_NOINLINE
+void * ReservePointer (IM3Compilation o)
+{
+    pc_t ptr = GetPagePC (o->page);
+    EmitPointer (o, NULL);
+    return (void *) ptr;
+}
+
 
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -2141,6 +2243,32 @@ _   (Compile_Operator (o, i_opcode));
 }
 
 
+M3Result  CompileRawFunction  (IM3Module io_module,  IM3Function io_function, const void * i_function, const void * i_userdata)
+{
+    d_m3Assert (io_module->runtime);
+
+    IM3CodePage page = AcquireCodePageWithCapacity (io_module->runtime, 4);
+
+    if (page)
+    {
+        io_function->compiled = GetPagePC (page);
+        io_function->module = io_module;
+
+        EmitWord (page, op_CallRawFunction);
+        EmitWord (page, i_function);
+        EmitWord (page, io_function);
+        EmitWord (page, i_userdata);
+
+        ReleaseCodePage (io_module->runtime, page);
+        return m3Err_none;
+    }
+    else {
+        return m3Err_mallocFailedCodePage;
+    }
+}
+
+
+
 // d_logOp, d_logOp2 macros aren't actually used by the compiler, just codepage decoding (d_m3LogCodePages = 1)
 #define d_logOp(OP)                         { op_##OP,                  NULL,                       NULL,                       NULL }
 #define d_logOp2(OP1,OP2)                   { op_##OP1,                 op_##OP2,                   NULL,                       NULL }
@@ -2470,7 +2598,18 @@ M3Result  CompileBlockStatements  (IM3Compilation o)
     bool validEnd = false;
 
     while (o->wasm < o->wasmEnd)
-    {                                                                   emit_stack_dump (o);
+    {
+# if d_m3EnableOpTracing
+        if (o->numEmits)
+        {
+            EmitOp          (o, op_DumpStack);
+            EmitConstant32  (o, o->numOpcodes);
+            EmitConstant32  (o, GetMaxUsedSlotPlusOne(o));
+            EmitPointer     (o, o->function);
+
+            o->numEmits = 0;
+        }
+# endif
         m3opcode_t opcode;
         o->lastOpcodeStart = o->wasm;
 _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opcode (o, opcode);

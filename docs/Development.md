@@ -19,7 +19,7 @@ It can be easily integrated into any build system, as shown in `platforms`.
 ```sh
 mkdir build
 cd build
-cmake -GNinja -DCLANG_SUFFIX="-9" ..
+cmake -GNinja -DCLANG_SUFFIX="-12" ..
 ninja
 ```
 

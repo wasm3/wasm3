@@ -14,7 +14,6 @@
 		3D1B3B1523C8E20D00142C16 /* m3_code.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3AFA23C8E20C00142C16 /* m3_code.c */; };
 		3D1B3B1623C8E20D00142C16 /* m3_compile.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3AFC23C8E20C00142C16 /* m3_compile.c */; };
 		3D1B3B1723C8E20D00142C16 /* m3_core.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0023C8E20C00142C16 /* m3_core.c */; };
-		3D1B3B1823C8E20D00142C16 /* m3_emit.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0223C8E20C00142C16 /* m3_emit.c */; };
 		3D1B3B1923C8E20D00142C16 /* m3_env.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0423C8E20C00142C16 /* m3_env.c */; };
 		3D1B3B1A23C8E20D00142C16 /* m3_exec.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0723C8E20C00142C16 /* m3_exec.c */; };
 		3D1B3B1B23C8E20D00142C16 /* m3_info.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1B3B0A23C8E20C00142C16 /* m3_info.c */; };
@@ -49,8 +48,6 @@
 		3D1B3AFF23C8E20C00142C16 /* m3_config_platforms.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_config_platforms.h; sourceTree = "<group>"; };
 		3D1B3B0023C8E20C00142C16 /* m3_core.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_core.c; sourceTree = "<group>"; };
 		3D1B3B0123C8E20C00142C16 /* m3_core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_core.h; sourceTree = "<group>"; };
-		3D1B3B0223C8E20C00142C16 /* m3_emit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_emit.c; sourceTree = "<group>"; };
-		3D1B3B0323C8E20C00142C16 /* m3_emit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_emit.h; sourceTree = "<group>"; };
 		3D1B3B0423C8E20C00142C16 /* m3_env.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_env.c; sourceTree = "<group>"; };
 		3D1B3B0523C8E20C00142C16 /* m3_env.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_env.h; sourceTree = "<group>"; };
 		3D1B3B0623C8E20C00142C16 /* m3_exception.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_exception.h; sourceTree = "<group>"; };
@@ -109,8 +106,6 @@
 				3D1B3AFF23C8E20C00142C16 /* m3_config_platforms.h */,
 				3D1B3B0023C8E20C00142C16 /* m3_core.c */,
 				3D1B3B0123C8E20C00142C16 /* m3_core.h */,
-				3D1B3B0223C8E20C00142C16 /* m3_emit.c */,
-				3D1B3B0323C8E20C00142C16 /* m3_emit.h */,
 				3D1B3B0423C8E20C00142C16 /* m3_env.c */,
 				3D1B3B0523C8E20C00142C16 /* m3_env.h */,
 				3D1B3B0623C8E20C00142C16 /* m3_exception.h */,
@@ -252,7 +247,6 @@
 				3D1ED51223C8C8E70072E395 /* ViewController.swift in Sources */,
 				3D1B3B1A23C8E20D00142C16 /* m3_exec.c in Sources */,
 				3D1B3B1223C8E20D00142C16 /* m3_api_meta_wasi.c in Sources */,
-				3D1B3B1823C8E20D00142C16 /* m3_emit.c in Sources */,
 				3D1B3B1523C8E20D00142C16 /* m3_code.c in Sources */,
 				3D1B3B1423C8E20D00142C16 /* m3_bind.c in Sources */,
 				3D1B3B1C23C8E20D00142C16 /* m3_module.c in Sources */,
