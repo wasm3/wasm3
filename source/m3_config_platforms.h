@@ -74,7 +74,12 @@
 # else
 #  define M3_WEAK       __attribute__((weak))
 #  define M3_NO_UBSAN   //__attribute__((no_sanitize("undefined")))
-#  define M3_NOINLINE   __attribute__((noinline))
+// Workaround for Cosmopolitan noinline conflict: https://github.com/jart/cosmopolitan/issues/310
+#  if defined(noinline)
+#    define M3_NOINLINE   noinline
+#  else
+#    define M3_NOINLINE   __attribute__((noinline))
+#  endif
 # endif
 
 # ifndef M3_MIN
