@@ -184,7 +184,7 @@ M3Result    CompileFunction             (IM3Function io_function);
 
 u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
-M3Result    CompileRawFunction          (IM3Module io_module,  IM3Function io_function, const void * i_function, const void * i_userdata);
+M3Result    CompileRawFunction          (IM3Module io_module, IM3Function io_function, const void * i_function, const void * i_userdata);
 
 d_m3EndExternC
 

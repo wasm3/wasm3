@@ -8,7 +8,6 @@ set(sources
     "m3_code.c"
     "m3_compile.c"
     "m3_core.c"
-    "m3_emit.c"
     "m3_env.c"
     "m3_exec.c"
     "m3_function.c"
@@ -28,8 +27,6 @@ if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
 else()
     # Flags common for GCC and Clang
 
-    # FIXME: cast to 'void *' from smaller integer type 'i32'
-    set_source_files_properties(m3_emit.c PROPERTIES COMPILE_FLAGS -Wno-int-to-pointer-cast)
 
     # FIXME: comparison of integers of different signs: 'u32' and 'i32'
     set_source_files_properties(m3_env.c PROPERTIES COMPILE_FLAGS -Wno-sign-compare)

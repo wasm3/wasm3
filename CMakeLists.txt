@@ -38,7 +38,6 @@ endif()
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
   set(CMAKE_CXX_COMPILER "clang++${CLANG_SUFFIX}")
-  set(CMAKE_C_FLAGS      "${CMAKE_C_FLAGS} -fuse-ld=lld")
 
   if(BUILD_FUZZ)
     set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
