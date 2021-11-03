@@ -30,8 +30,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3D1B3AEF23C8E20C00142C16 /* coremark_minimal.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = coremark_minimal.wasm.h; sourceTree = "<group>"; };
 		3D1B3AEE23C8E20C00142C16 /* fib32.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib32.wasm.h; sourceTree = "<group>"; };
-		3D1B3AEF23C8E20C00142C16 /* fib32_tail.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib32_tail.wasm.h; sourceTree = "<group>"; };
 		3D1B3AF023C8E20C00142C16 /* fib64.wasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fib64.wasm.h; sourceTree = "<group>"; };
 		3D1B3AF123C8E20C00142C16 /* wasi_core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasi_core.h; sourceTree = "<group>"; };
 		3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_api_libc.c; sourceTree = "<group>"; };
@@ -125,8 +125,8 @@
 		3D1B3AED23C8E20C00142C16 /* extra */ = {
 			isa = PBXGroup;
 			children = (
+				3D1B3AEF23C8E20C00142C16 /* coremark_minimal.wasm.h */,
 				3D1B3AEE23C8E20C00142C16 /* fib32.wasm.h */,
-				3D1B3AEF23C8E20C00142C16 /* fib32_tail.wasm.h */,
 				3D1B3AF023C8E20C00142C16 /* fib64.wasm.h */,
 				3D1B3AF123C8E20C00142C16 /* wasi_core.h */,
 			);
