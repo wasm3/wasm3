@@ -5,7 +5,7 @@ android {
     ndkVersion '22.1.7171670'
 
     defaultConfig {
-        applicationId 'com.example.hellojni'
+        applicationId 'com.example.wasm3'
         minSdkVersion 23
         targetSdkVersion 29
         versionCode 1

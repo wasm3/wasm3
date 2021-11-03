@@ -976,8 +976,8 @@ _               (IncrementSlotUsageCount (o, * o_preservedSlotNumber));
     _catch: return result;
 }
 
-
-M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, i32 i_depth)
+static
+M3Result  GetBlockScope  (IM3Compilation o, IM3CompilationScope * o_scope, u32 i_depth)
 {
     M3Result result = m3Err_none;
 
