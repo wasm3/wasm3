@@ -69,7 +69,6 @@ static void* runMain(void* ctx)
     printf("Device: %s\n\n", systemInfo.machine);
 
     run_wasm();
-    run_native();
 
     return 0;
 }
