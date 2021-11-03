@@ -16,6 +16,7 @@
 
 #include "wasm3.h"
 #include "m3_config.h"
+#include "m3_api_libc.h"
 
 #include "coremark_minimal.wasm.h"
 
@@ -42,6 +43,9 @@ void run_wasm()
 
     result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
+
+    result = m3_LinkLibC (module);
+    if (result) FATAL("m3_LinkLibC: %s", result);
 
     IM3Function f;
     result = m3_FindFunction (&f, runtime, "run");
