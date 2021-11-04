@@ -64,10 +64,14 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | --- | --- |
 | ☑ Import/Export of Mutable Globals           | ☑ Structured execution tracing     |
 | ☑ Non-trapping float-to-int conversions      | ☑ Big-Endian systems support       |
-| ☑ Sign-extension operators                   | ☑ Self-hosting                     |
+| ☑ Sign-extension operators                   | ☑ Wasm and WASI self-hosting       |
 | ☑ Multi-value                                | ☑ Gas metering                     |
 | ☑ Bulk memory operations (partial support)   | ☑ Linear memory limit (< 64KiB)    |
-| ☐ Reference types                            | ☐ Tail call optimization           |
+| ☐ Reference types                            |
+| ☐ Tail call optimization                     |
+| ☐ Fixed-width SIMD                           |
+| ☐ Multiple memories                          |
+| ☐ Exception handling                         |
 
 ## Motivation
 
