@@ -21,7 +21,7 @@
 # endif
 
 # ifndef d_m3MaxFunctionStackHeight
-#   define d_m3MaxFunctionStackHeight           2000    // TODO: comment on upper limit
+#   define d_m3MaxFunctionStackHeight           2000    // max: 32768
 # endif
 
 # ifndef d_m3MaxLinearMemoryPages
@@ -40,8 +40,8 @@
 #   define d_m3MaxDuplicateFunctionImpl         3
 # endif
 
-# ifndef d_m3EnableExtendedOpcodes
-#   define d_m3EnableExtendedOpcodes            1
+# ifndef d_m3CascadedOpcodes                            // Cascaded opcodes are slightly faster at the expense of some memory
+#   define d_m3CascadedOpcodes                  1       // Adds ~3Kb to operations table in m3_compile.c
 # endif
 
 # ifndef d_m3VerboseErrorMessages

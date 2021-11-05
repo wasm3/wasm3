@@ -20,6 +20,9 @@
 
 #include "wasm3_defs.h"
 
+// Constants
+#define M3_BACKTRACE_TRUNCATED      (void*)(SIZE_MAX)
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -62,8 +65,6 @@ typedef struct M3BacktraceInfo
 }
 M3BacktraceInfo, * IM3BacktraceInfo;
 
-// Constants
-#define M3_BACKTRACE_TRUNCATED      (void*)(SIZE_MAX)
 
 typedef enum M3ValueType
 {
@@ -146,7 +147,7 @@ d_m3ErrorConst  (malformedFunctionSignature,    "malformed function signature")
 // compilation errors
 d_m3ErrorConst  (noCompiler,                    "no compiler found for opcode")
 d_m3ErrorConst  (unknownOpcode,                 "unknown opcode")
-d_m3ErrorConst  (restictedOpcode,               "restricted opcode")
+d_m3ErrorConst  (restrictedOpcode,              "restricted opcode")
 d_m3ErrorConst  (functionStackOverflow,         "compiling function overran its stack height limit")
 d_m3ErrorConst  (functionStackUnderrun,         "compiling function underran the stack")
 d_m3ErrorConst  (mallocFailedCodePage,          "memory allocation failed when acquiring a new M3 code page")

@@ -31,10 +31,15 @@ enum
 
     c_waOp_getGlobal            = 0x23,
 
+    c_waOp_store_f32            = 0x38,
+    c_waOp_store_f64            = 0x39,
+
     c_waOp_i32_const            = 0x41,
     c_waOp_i64_const            = 0x42,
     c_waOp_f32_const            = 0x43,
     c_waOp_f64_const            = 0x44,
+
+    c_waOp_extended             = 0xfc,
 
     c_waOp_memoryCopy           = 0xfc0a,
     c_waOp_memoryFill           = 0xfc0b

@@ -1205,7 +1205,7 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 }
 #endif
 
-#ifdef d_m3EnableExtendedOpcodes
+#if d_m3CascadedOpcodes
 
 M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -1401,7 +1401,7 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         {
             M3Global * global = & o->module->globals [globalIndex];
 
-_           ((i_opcode == 0x23) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
+_           ((i_opcode == c_waOp_getGlobal) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
         else _throw (ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name));
     }
@@ -1723,8 +1723,8 @@ _try {
     u32 typeIndex;
 _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
 
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    u32 tableIndex;
+_   (ReadLEB_u32 (& tableIndex, & o->wasm, o->wasmEnd));
 
     _throwif ("function call type index out of range", typeIndex >= o->module->numFuncTypes);
 
@@ -2149,7 +2149,7 @@ _           (PreserveRegisterIfOccupied (o, opInfo->type));
             op = opInfo->operations [0];  // _rs
 
             if (IsStackTopMinus1InRegister (o))
-            {                                       d_m3Assert (i_opcode == 0x38 or i_opcode == 0x39);
+            {                                       d_m3Assert (i_opcode == c_waOp_store_f32 or i_opcode == c_waOp_store_f64);
                 op = opInfo->operations [3]; // _rr for fp.store
             }
         }
@@ -2290,7 +2290,7 @@ const M3OpInfo c_operations [] =
     M3OP( "if",                 -1, none,   d_emptyOpList,                      Compile_If ),           // 0x04
     M3OP( "else",                0, none,   d_emptyOpList,                      Compile_Nop ),          // 0x05
 
-    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                          // 0x06 - 0x0a
+    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                          // 0x06...0x0a
 
     M3OP( "end",                 0, none,   d_emptyOpList,                      Compile_End ),          // 0x0b
     M3OP( "br",                  0, none,   d_logOp (Branch),                   Compile_Branch ),       // 0x0c
@@ -2302,13 +2302,13 @@ const M3OpInfo c_operations [] =
     M3OP( "return_call",         0, any,    d_emptyOpList,                      Compile_Call ),         // 0x12 TODO: Optimize
     M3OP( "return_call_indirect",0, any,    d_emptyOpList,                      Compile_CallIndirect ), // 0x13
 
-    M3OP_RESERVED,  M3OP_RESERVED,                                                                      // 0x14 - 0x15
-    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // 0x16 - 0x19
+    M3OP_RESERVED,  M3OP_RESERVED,                                                                      // 0x14...
+    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // ...0x19
 
     M3OP( "drop",               -1, none,   d_emptyOpList,                      Compile_Drop ),         // 0x1a
     M3OP( "select",             -2, any,    d_emptyOpList,                      Compile_Select  ),      // 0x1b
 
-    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // 0x1c - 0x1f
+    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // 0x1c...0x1f
 
     M3OP( "local.get",          1,  any,    d_emptyOpList,                      Compile_GetLocal ),     // 0x20
     M3OP( "local.set",          1,  none,   d_emptyOpList,                      Compile_SetLocal ),     // 0x21
@@ -2316,7 +2316,7 @@ const M3OpInfo c_operations [] =
     M3OP( "global.get",         1,  none,   d_emptyOpList,                      Compile_GetSetGlobal ), // 0x23
     M3OP( "global.set",         1,  none,   d_emptyOpList,                      Compile_GetSetGlobal ), // 0x24
 
-    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                       // 0x25 - 0x27
+    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                       // 0x25...0x27
 
     M3OP( "i32.load",           0,  i_32,   d_unaryOpList (i32, Load_i32),      Compile_Load_Store ),   // 0x28
     M3OP( "i64.load",           0,  i_64,   d_unaryOpList (i64, Load_i64),      Compile_Load_Store ),   // 0x29
@@ -2532,18 +2532,15 @@ const M3OpInfo c_operations [] =
     d_m3DebugOp (Select_f64_rss),   d_m3DebugOp (Select_f64_rrs),   d_m3DebugOp (Select_f64_rsr),
 # endif
 
+	d_m3DebugOp (MemFill),          d_m3DebugOp (MemCopy),
+
     d_m3DebugTypedOp (SetGlobal),   d_m3DebugOp (SetGlobal_s32),    d_m3DebugOp (SetGlobal_s64),
 
     d_m3DebugTypedOp (SetRegister), d_m3DebugTypedOp (SetSlot),     d_m3DebugTypedOp (PreserveSetSlot),
 # endif
 
-# ifdef d_m3EnableExtendedOpcodes
-# ifdef DEBUG
-    d_m3DebugOp (MemFill),
-    d_m3DebugOp (MemCopy),
-#endif
-
-    [0xFC] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
+# if d_m3CascadedOpcodes
+    [c_waOp_extended] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 
 # ifdef DEBUG
@@ -2578,13 +2575,13 @@ IM3OpInfo  GetOpInfo  (m3opcode_t opcode)
 {
     switch (opcode >> 8) {
     case 0x00:
-        if (opcode < M3_COUNT_OF(c_operations)) {
+        if (M3_LIKELY(opcode < M3_COUNT_OF(c_operations))) {
             return &c_operations[opcode];
         }
         break;
-    case 0xFC:
+    case c_waOp_extended:
         opcode &= 0xFF;
-        if (opcode < M3_COUNT_OF(c_operationsFC)) {
+        if (M3_LIKELY(opcode < M3_COUNT_OF(c_operationsFC))) {
             return &c_operationsFC[opcode];
         }
         break;
@@ -2622,7 +2619,7 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
             case c_waOp_getGlobal: case c_waOp_end:
                 break;
             default:
-                _throw(m3Err_restictedOpcode);
+                _throw(m3Err_restrictedOpcode);
             }
         }
 
