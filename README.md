@@ -58,19 +58,20 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/firefoxbrowser.svg" width="18" height="18" /> Browsers. Yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
-## Advanced features and [post-mvp proposals](https://github.com/WebAssembly/proposals) support
+## Features
 
-☑ Sign-extension operators  
-☑ Non-trapping float-to-int conversions  
-☑ Import/Export of Mutable Globals  
-☑ Structured execution tracing  
-☑ Big-Endian systems support  
-☑ Self-hosting  
-☑ Gas metering  
-☑ Multi-value  
-☐ Reference types  
-☐ Bulk memory operations  
-☐ Tail call optimization  
+| Webassembly [Core Proposals][WasmProps]  | Extra |
+| --- | --- |
+| ☑ Import/Export of Mutable Globals           | ☑ Structured execution tracing     |
+| ☑ Non-trapping float-to-int conversions      | ☑ Big-Endian systems support       |
+| ☑ Sign-extension operators                   | ☑ Wasm and WASI self-hosting       |
+| ☑ Multi-value                                | ☑ Gas metering                     |
+| ☑ Bulk memory operations (partial support)   | ☑ Linear memory limit (< 64KiB)    |
+| ☐ Reference types                            |
+| ☐ Tail call optimization                     |
+| ☐ Fixed-width SIMD                           |
+| ☐ Multiple memories                          |
+| ☐ Exception handling                         |
 
 ## Motivation
 
@@ -110,4 +111,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [Awesome WebAssembly Tools](https://github.com/vshymanskyy/awesome-wasm-tools/blob/main/README.md)
 
 ### License
-This project is released under The MIT License (MIT)
+This project is released under The MIT License (MIT)<
+
+
+[WasmProps]: https://github.com/WebAssembly/proposals/blob/master/finished-proposals.md  "WebAssembly Finished Proposals"
