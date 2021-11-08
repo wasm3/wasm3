@@ -95,6 +95,8 @@
 
 #if defined(__AVR__)
 
+#include <inttypes.h>
+
 # define PRIu64         "llu"
 # define PRIi64         "lli"
 

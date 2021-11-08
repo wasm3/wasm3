@@ -191,10 +191,6 @@ void  ReleaseCompilationCodePage  (IM3Compilation o)
     ReleaseCodePage (o->runtime, o->page);
 }
 
-
-static inline bool  IsStackPolymorphic          (IM3Compilation o);
-static inline M3Result  SetStackPolymorphic     (IM3Compilation o);
-
 static inline
 u16 GetTypeNumSlots (u8 i_type)
 {
