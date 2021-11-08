@@ -138,6 +138,7 @@ d_m3ErrorConst  (tooManyMemorySections,         "only one memory per module is s
 d_m3ErrorConst  (tooManyArgsRets,               "too many arguments or return values")
 
 // link errors
+d_m3ErrorConst  (moduleNotLinked,               "attempting to use module that is not loaded")
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
 d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
 d_m3ErrorConst  (functionImportMissing,         "missing imported function")

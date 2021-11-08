@@ -131,6 +131,8 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
 {
     M3Result result = m3Err_functionLookupFailed;
 
+    _throwif(m3Err_moduleNotLinked, !(io_module->runtime));
+
     bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
 
     for (u32 i = 0; i < io_module->numFunctions; ++i)
@@ -151,7 +153,7 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
             }
         }
     }
-
+_catch:
     return result;
 }
 
