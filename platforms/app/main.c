@@ -548,7 +548,9 @@ void print_usage() {
     puts("Options:");
     puts("  --func <function>     function to run       default: _start");
     puts("  --stack-size <size>   stack size in bytes   default: 64KB");
+    puts("  --compile             disable lazy compilation");
     puts("  --dump-on-trap        dump wasm memory");
+    puts("  --gas-limit           set gas limit");
 }
 
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
@@ -562,6 +564,7 @@ int  main  (int i_argc, const char* i_argv[])
 
     bool argRepl = false;
     bool argDumpOnTrap = false;
+    bool argCompile = false;
     const char* argFile = NULL;
     const char* argFunc = "_start";
     unsigned argStackSize = 64*1024;
@@ -586,6 +589,8 @@ int  main  (int i_argc, const char* i_argv[])
             argRepl = true;
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
+        } else if (!strcmp("--compile", arg)) {
+            argCompile = true;
         } else if (!strcmp("--stack-size", arg)) {
             const char* tmp = "65536";
             ARGV_SET(tmp);
@@ -618,6 +623,10 @@ int  main  (int i_argc, const char* i_argv[])
     if (argFile) {
         result = repl_load(argFile);
         if (result) FATAL("repl_load: %s", result);
+
+        if (argCompile) {
+            repl_compile();
+        }
 
         if (argFunc and not argRepl) {
             if (!strcmp(argFunc, "_start")) {
