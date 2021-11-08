@@ -48,11 +48,11 @@ void  m3_FreeModule  (IM3Module i_module)
 
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
-    M3Result result = m3Err_none;
 _try {
+    result = m3Err_none;
     u32 index = io_module->numGlobals++;
     io_module->globals = m3_ReallocArray (M3Global, io_module->globals, io_module->numGlobals, index);
-    _throwifnull(io_module->globals);
+    _throwifnull (io_module->globals);
     M3Global * global = & io_module->globals [index];
 
     global->type = i_type;
@@ -68,19 +68,19 @@ _try {
 
 M3Result  Module_PreallocFunctions  (IM3Module io_module, u32 i_totalFunctions)
 {
-    M3Result result = m3Err_none;
+_try {
+    result = m3Err_none;
     if (i_totalFunctions > io_module->allFunctions) {
         io_module->functions = m3_ReallocArray (M3Function, io_module->functions, i_totalFunctions, io_module->allFunctions);
         io_module->allFunctions = i_totalFunctions;
         _throwifnull (io_module->functions);
     }
-    _catch: return result;
+} _catch:
+    return result;
 }
 
 M3Result  Module_AddFunction  (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo)
 {
-    M3Result result = m3Err_none;
-
 _try {
 
     u32 index = io_module->numFunctions++;

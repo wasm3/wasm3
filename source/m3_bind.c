@@ -26,8 +26,6 @@ u8  ConvertTypeCharToTypeId (char i_code)
 
 M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signature)
 {
-    M3Result result = m3Err_none;
-
     IM3FuncType funcType = NULL;
 
 _try {
@@ -129,15 +127,16 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
                                     voidptr_t       i_function,
                                     voidptr_t       i_userdata)
 {
-    M3Result result = m3Err_functionLookupFailed;
+_try {
+    _throwif(m3Err_moduleNotLinked, !io_module->runtime);
 
-    _throwif(m3Err_moduleNotLinked, !(io_module->runtime));
+    const bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
 
-    bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
+    result = m3Err_functionLookupFailed;
 
     for (u32 i = 0; i < io_module->numFunctions; ++i)
     {
-        IM3Function f = & io_module->functions [i];
+        const IM3Function f = & io_module->functions [i];
 
         if (f->import.moduleUtf8 and f->import.fieldUtf8)
         {
@@ -145,15 +144,13 @@ M3Result  FindAndLinkFunction      (IM3Module       io_module,
                (wildcardModule or strcmp (f->import.moduleUtf8, i_moduleName) == 0))
             {
                 if (i_signature) {
-                    result = ValidateSignature (f, i_signature);
-                    if (M3_UNLIKELY(result)) return result;
+_                   (ValidateSignature (f, i_signature));
                 }
-                result = CompileRawFunction (io_module, f, i_function, i_userdata);
-                if (M3_UNLIKELY(result)) return result;
+_               (CompileRawFunction (io_module, f, i_function, i_userdata));
             }
         }
     }
-_catch:
+} _catch:
     return result;
 }
 

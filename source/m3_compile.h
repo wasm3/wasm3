@@ -192,7 +192,7 @@ static inline bool  IsIntRegisterSlotAlias     (u16 i_slot)    { return (i_slot 
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
-u16  		GetMaxUsedSlotPlusOne       (IM3Compilation o);
+u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
 M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 

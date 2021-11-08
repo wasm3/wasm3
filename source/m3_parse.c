@@ -38,7 +38,6 @@ _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
 
 M3Result  ParseSection_Type  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
 {
-    M3Result result = m3Err_none;
     IM3FuncType ftype = NULL;
 
 _try {
@@ -309,9 +308,7 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
     M3Result result = m3Err_none;
 
     u32 numSegments;
-    result = ReadLEB_u32 (& numSegments, & i_bytes, i_end);                         m3log (parse, "** Element [%d]", numSegments);
-
-    _throwif ("error parsing Element section", result);
+_   (ReadLEB_u32 (& numSegments, & i_bytes, i_end));                         m3log (parse, "** Element [%d]", numSegments);
 
     _throwif ("too many element segments", numSegments > d_m3MaxSaneElementSegments);
 
@@ -592,9 +589,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 
 M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes)
 {
-    M3Result result;                                                             m3log (parse, "load module: %d bytes", i_numBytes);
-
-    IM3Module module;
+    IM3Module module;                                                               m3log (parse, "load module: %d bytes", i_numBytes);
 _try {
     module = m3_AllocStruct (M3Module);
     _throwifnull (module);

@@ -1204,8 +1204,6 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 static
 M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result = m3Err_none;
-
 _try {
     u8 opcode;
 _   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
@@ -1322,8 +1320,6 @@ _           (Pop (o));
 static
 M3Result  Compile_GetLocal  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
 _try {
 
     u32 localIndex;
@@ -1534,8 +1530,6 @@ _           (SetStackPolymorphic (o));
 static
 M3Result  Compile_BranchTable  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
 _try {
     u32 targetCount;
 _   (ReadLEB_u32 (& targetCount, & o->wasm, o->wasmEnd));
@@ -1617,8 +1611,6 @@ _   (SetStackPolymorphic (o));
 static
 M3Result  CompileCallArgsAndReturn  (IM3Compilation o, u16 * o_stackOffset, IM3FuncType i_type, bool i_isIndirect)
 {
-    M3Result result = m3Err_none;
-
 _try {
 
     u16 topSlot = GetMaxUsedSlotPlusOne (o);
@@ -1665,8 +1657,6 @@ _       (Push (o, type, topSlot));
 static
 M3Result  Compile_Call  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
 _try {
     u32 functionIndex;
 _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
@@ -1712,8 +1702,6 @@ _           (EmitOp     (o, op));
 static
 M3Result  Compile_CallIndirect  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
 _try {
     u32 typeIndex;
 _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
@@ -1912,8 +1900,6 @@ _   (CompileBlock (o, blockType, i_opcode));
 static
 M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, IM3FuncType i_blockType)
 {
-    M3Result result;
-
 _try {
 
     IM3CodePage elsePage;
@@ -1940,8 +1926,6 @@ _   (EmitOp (o, op_Branch));
 static
 M3Result  Compile_If  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
     /*      [   op_If   ]
             [ <else-pc> ]   ---->   [ ..else..  ]
             [  ..if..   ]           [ ..block.. ]
@@ -2191,8 +2175,6 @@ _           (PushRegister (o, opInfo->type));
 static
 M3Result  Compile_Convert  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result = m3Err_none;
-
 _try {
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
@@ -2217,8 +2199,6 @@ _       (PushRegister (o, opInfo->type))
 static
 M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
 _try {
     u32 alignHint, memoryOffset;
 
@@ -2675,7 +2655,7 @@ _           (PushAllocatedSlot (o, type));
 
 M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i_blockOpcode)
 {
-    M3Result result = m3Err_none;                                                       d_m3Assert (not IsRegisterAllocated (o, 0));
+                                                                                        d_m3Assert (not IsRegisterAllocated (o, 0));
                                                                                         d_m3Assert (not IsRegisterAllocated (o, 1));
     M3CompilationScope outerScope = o->block;
     M3CompilationScope * block = & o->block;
@@ -2851,8 +2831,6 @@ M3Result  ReserveConstants  (IM3Compilation o)
 
 M3Result  CompileFunction  (IM3Function io_function)
 {
-    M3Result result = m3Err_none;
-
     if (!io_function->wasm) return "function body is missing";
 
     IM3FuncType funcType = io_function->funcType;                   m3log (compile, "compiling: [%d] %s %s; wasm-size: %d",

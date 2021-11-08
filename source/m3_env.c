@@ -16,8 +16,6 @@
 
 IM3Environment  m3_NewEnvironment  ()
 {
-    M3Result result = m3Err_none;
-
     IM3Environment env = m3_AllocStruct (M3Environment);
 
     if (env)
