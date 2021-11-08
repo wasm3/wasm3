@@ -13,7 +13,7 @@
 // general --------------------------------------------------------------------
 
 # ifndef d_m3CodePageAlignSize
-#   define d_m3CodePageAlignSize                4096
+#   define d_m3CodePageAlignSize                32*1024
 # endif
 
 # ifndef d_m3EnableCodePageRefCounting

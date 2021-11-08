@@ -172,22 +172,10 @@ u8 GetSingleRetType(IM3FuncType ftype) {
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
-u16         GetTypeNumSlots             (u8 i_type);
-void        AlignSlotToType             (u16 * io_slotIndex, u8 i_type);
-
-bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
-bool        IsRegisterSlotAlias         (u16 i_slot);
-bool        IsFpRegisterSlotAlias       (u16 i_slot);
-bool        IsIntRegisterSlotAlias      (u16 i_slot);
-
-bool        IsStackPolymorphic          (IM3Compilation o);
-
 M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 
 M3Result    CompileBlockStatements      (IM3Compilation io);
 M3Result    CompileFunction             (IM3Function io_function);
-
-u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
 M3Result    CompileRawFunction          (IM3Module io_module, IM3Function io_function, const void * i_function, const void * i_userdata);
 

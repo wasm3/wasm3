@@ -6,6 +6,7 @@
 //
 
 #define M3_IMPLEMENT_ERROR_STRINGS
+#include "m3_config.h"
 #include "wasm3.h"
 
 #include "m3_core.h"

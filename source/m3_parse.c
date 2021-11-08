@@ -127,7 +127,7 @@ _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                           
 
     _throwif("too many functions", numFunctions > d_m3MaxSaneFunctionsCount);
 
-    // TODO: prealloc functions
+_   (Module_PreallocFunctions(io_module, io_module->numFunctions + numFunctions));
 
     for (u32 i = 0; i < numFunctions; ++i)
     {
@@ -151,6 +151,9 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 _   (ReadLEB_u32 (& numImports, & i_bytes, i_end));                                 m3log (parse, "** Import [%d]", numImports);
 
     _throwif("too many imports", numImports > d_m3MaxSaneImportsCount);
+
+    // Most imports are functions, so we won't waste much space anyway (if any)
+_   (Module_PreallocFunctions(io_module, numImports));
 
     for (u32 i = 0; i < numImports; ++i)
     {

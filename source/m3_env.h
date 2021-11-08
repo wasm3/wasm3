@@ -91,6 +91,7 @@ typedef struct M3Module
 
     u32                     numFuncImports;
     u32                     numFunctions;
+    u32                     allFunctions;           // allocated functions count
     M3Function *            functions;
 
     i32                     startFunction;
@@ -120,6 +121,7 @@ M3Module;
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
 
+M3Result                    Module_PreallocFunctions    (IM3Module io_module, u32 i_totalFunctions);
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
 

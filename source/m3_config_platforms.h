@@ -120,8 +120,6 @@ typedef int8_t          i8;
 #   define vectorcall   // For MSVC, better not to specify any call convention
 # elif defined(__x86_64__)
 #   define vectorcall   __attribute__((aligned(32)))
-# elif defined(__aarch64__)
-#   define vectorcall   __attribute__((aligned(16)))
 //# elif defined(__riscv) && (__riscv_xlen == 64)
 //#   define vectorcall   __attribute__((aligned(16)))
 # elif defined(__MINGW32__)
