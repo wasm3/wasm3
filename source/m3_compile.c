@@ -150,9 +150,6 @@ static const IM3Operation c_fpSelectOps [2] [2] [3] = { { { op_Select_f32_sss, o
                                                           { op_Select_f64_rss, op_Select_f64_rrs, op_Select_f64_rsr } } };    // selector in reg
 #endif
 
-static const u16 c_m3RegisterUnallocated = 0;
-static const u16 c_slotUnused = 0xffff;
-
 // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
 static const u16 c_ioSlotCount = sizeof (u64) / sizeof (m3slot_t);
 
@@ -194,9 +191,6 @@ void  ReleaseCompilationCodePage  (IM3Compilation o)
     ReleaseCodePage (o->runtime, o->page);
 }
 
-static inline bool  IsRegisterSlotAlias        (u16 i_slot)    { return (i_slot >= d_m3Reg0SlotAlias and i_slot != c_slotUnused); }
-static inline bool  IsFpRegisterSlotAlias      (u16 i_slot)    { return (i_slot == d_m3Fp0SlotAlias);  }
-static inline bool  IsIntRegisterSlotAlias     (u16 i_slot)    { return (i_slot == d_m3Reg0SlotAlias); }
 
 static inline bool  IsStackPolymorphic          (IM3Compilation o);
 static inline M3Result  SetStackPolymorphic     (IM3Compilation o);
@@ -436,11 +430,6 @@ void DeallocateSlot (IM3Compilation o, i16 i_slot, u8 i_type)
     }
 }
 
-static inline
-bool  IsRegisterAllocated  (IM3Compilation o, u32 i_register)
-{
-    return (o->regStackIndexPlusOne [i_register] != c_m3RegisterUnallocated);
-}
 
 static inline
 bool  IsRegisterTypeAllocated  (IM3Compilation o, u8 i_type)
@@ -466,7 +455,6 @@ u16  GetRegisterStackIndex  (IM3Compilation o, u32 i_register)
     return o->regStackIndexPlusOne [i_register] - 1;
 }
 
-static inline
 u16  GetMaxUsedSlotPlusOne  (IM3Compilation o)
 {
     while (o->slotMaxAllocatedIndexPlusOne > o->slotFirstDynamicIndex)
@@ -819,12 +807,6 @@ _       (Pop (o));
     }
 
     _catch: return result;
-}
-
-static inline
-bool  IsStackPolymorphic  (IM3Compilation o)
-{
-    return o->block.isPolymorphic;
 }
 
 static inline

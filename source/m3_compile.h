@@ -153,6 +153,26 @@ u8 GetSingleRetType(IM3FuncType ftype) {
     return (ftype && ftype->numRets) ? ftype->types[0] : (u8)c_m3Type_none;
 }
 
+static const u16 c_m3RegisterUnallocated = 0;
+static const u16 c_slotUnused = 0xffff;
+
+static inline
+bool  IsRegisterAllocated  (IM3Compilation o, u32 i_register)
+{
+    return (o->regStackIndexPlusOne [i_register] != c_m3RegisterUnallocated);
+}
+
+static inline
+bool  IsStackPolymorphic  (IM3Compilation o)
+{
+    return o->block.isPolymorphic;
+}
+
+static inline bool  IsRegisterSlotAlias        (u16 i_slot)    { return (i_slot >= d_m3Reg0SlotAlias and i_slot != c_slotUnused); }
+static inline bool  IsFpRegisterSlotAlias      (u16 i_slot)    { return (i_slot == d_m3Fp0SlotAlias);  }
+static inline bool  IsIntRegisterSlotAlias     (u16 i_slot)    { return (i_slot == d_m3Reg0SlotAlias); }
+
+
 #ifdef DEBUG
     #define M3OP(...)       { __VA_ARGS__ }
     #define M3OP_RESERVED   { "reserved" }
@@ -171,6 +191,8 @@ u8 GetSingleRetType(IM3FuncType ftype) {
 #endif
 
 //-----------------------------------------------------------------------------------------------------------------------------------
+
+u16  		GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
 M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 
