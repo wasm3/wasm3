@@ -49,7 +49,6 @@ void  m3_FreeModule  (IM3Module i_module)
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
 {
 _try {
-    result = m3Err_none;
     u32 index = io_module->numGlobals++;
     io_module->globals = m3_ReallocArray (M3Global, io_module->globals, io_module->numGlobals, index);
     _throwifnull (io_module->globals);
@@ -69,7 +68,6 @@ _try {
 M3Result  Module_PreallocFunctions  (IM3Module io_module, u32 i_totalFunctions)
 {
 _try {
-    result = m3Err_none;
     if (i_totalFunctions > io_module->allFunctions) {
         io_module->functions = m3_ReallocArray (M3Function, io_module->functions, i_totalFunctions, io_module->allFunctions);
         io_module->allFunctions = i_totalFunctions;

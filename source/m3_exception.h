@@ -23,7 +23,7 @@ void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message);
 # endif
 
 
-#define _try                                M3Result result;
+#define _try                                M3Result result = m3Err_none;
 #define _(TRY)                              { result = TRY; if (M3_UNLIKELY(result)) { EXCEPTION_PRINT (result); goto _catch; } }
 #define _throw(ERROR)                       { result = ERROR; EXCEPTION_PRINT (result); goto _catch; }
 #define _throwif(ERROR, COND)               if (M3_UNLIKELY(COND)) { _throw(ERROR); }
