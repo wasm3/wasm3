@@ -188,6 +188,8 @@ typedef struct M3Runtime
 #if d_m3RecordBacktraces
     M3BacktraceInfo         backtrace;
 #endif
+
+	u32						newCodePageSequence;
 }
 M3Runtime;
 

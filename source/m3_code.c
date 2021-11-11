@@ -6,15 +6,13 @@
 //
 
 #include "m3_code.h"
-
+#include "m3_env.h"
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
 
-IM3CodePage  NewCodePage  (u32 i_minNumLines)
+IM3CodePage  NewCodePage  (IM3Runtime i_runtime, u32 i_minNumLines)
 {
-    static u32 s_sequence = 0;
-
     IM3CodePage page;
 
     u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
@@ -24,7 +22,7 @@ IM3CodePage  NewCodePage  (u32 i_minNumLines)
 
     if (page)
     {
-        page->info.sequence = ++s_sequence;
+        page->info.sequence = ++i_runtime->newCodePageSequence;
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
 
 #if d_m3RecordBacktraces
