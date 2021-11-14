@@ -22,7 +22,7 @@ M3CodePage;
 typedef M3CodePage *    IM3CodePage;
 
 
-IM3CodePage             NewCodePage             (u32 i_minNumLines);
+IM3CodePage             NewCodePage             (IM3Runtime i_runtime, u32 i_minNumLines);
 
 void                    FreeCodePages           (IM3CodePage * io_list);
 

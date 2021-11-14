@@ -1055,7 +1055,7 @@ IM3CodePage  AcquireCodePageWithCapacity  (IM3Runtime i_runtime, u32 i_minLineCo
         page = Environment_AcquireCodePage (i_runtime->environment, i_minLineCount);
 
         if (not page)
-            page = NewCodePage (i_minLineCount);
+            page = NewCodePage (i_runtime, i_minLineCount);
 
         if (page)
             i_runtime->numCodePages++;
