@@ -111,7 +111,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [Awesome WebAssembly Tools](https://github.com/vshymanskyy/awesome-wasm-tools/blob/main/README.md)
 
 ### License
-This project is released under The MIT License (MIT)<
+This project is released under The MIT License (MIT)
 
 
 [WasmProps]: https://github.com/WebAssembly/proposals/blob/master/finished-proposals.md  "WebAssembly Finished Proposals"
