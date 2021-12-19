@@ -100,6 +100,26 @@ $ wasm3 hello.wasm
 Hello, world!
 ```
 
+### Zig C-code WASI app
+
+Create `hello.c`:
+```c
+#include <stdio.h>
+
+int main() {
+   printf("Hello, %s!\n", "world");
+   return 0;
+}
+```
+
+Build and run:
+```sh
+$ zig build-exe -O ReleaseSmall -target wasm32-wasi hello.c -lc
+
+$ wasm3 hello.wasm
+Hello, world!
+```
+
 ## Zig library
 
 Create `add.zig`:
