@@ -67,10 +67,10 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | ☑ Sign-extension operators                   | ☑ Wasm and WASI self-hosting       |
 | ☑ Multi-value                                | ☑ Gas metering                     |
 | ☑ Bulk memory operations (partial support)   | ☑ Linear memory limit (< 64KiB)    |
+| ☐ Multiple memories                          |
 | ☐ Reference types                            |
 | ☐ Tail call optimization                     |
 | ☐ Fixed-width SIMD                           |
-| ☐ Multiple memories                          |
 | ☐ Exception handling                         |
 
 ## Motivation

@@ -1,5 +1,6 @@
 /build*
 /source-*
+/.toolchains
 test/.spec-*
 test/*.log
 test/tailcall/*.S
