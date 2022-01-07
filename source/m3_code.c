@@ -91,7 +91,7 @@ void  EmitWord64  (IM3CodePage i_page, const u64 i_word)
 {
 #if M3_SIZEOF_PTR == 4
                                                                         d_m3Assert (i_page->info.lineIndex+2 <= i_page->info.numLines);
-    * ((u64 *) & i_page->code [i_page->info.lineIndex]) = i_word;
+    memcpy (& i_page->code [i_page->info.lineIndex], &i_word, sizeof (i_word));                 // Avoid unaligned write
     i_page->info.lineIndex += 2;
 #else
                                                                         d_m3Assert (i_page->info.lineIndex+1 <= i_page->info.numLines);
