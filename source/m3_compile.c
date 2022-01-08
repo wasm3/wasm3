@@ -1906,6 +1906,7 @@ _   (CompileBlock (o, blockType, i_opcode));
 static
 M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, IM3FuncType i_blockType)
 {
+    IM3CodePage savedPage = o->page;
 _try {
 
     IM3CodePage elsePage;
@@ -1913,19 +1914,17 @@ _   (AcquireCompilationCodePage (o, & elsePage));
 
     * o_startPC = GetPagePC (elsePage);
 
-    IM3CodePage savedPage = o->page;
     o->page = elsePage;
 
 _   (CompileBlock (o, i_blockType, c_waOp_else));
 
 _   (EmitOp (o, op_Branch));
     EmitPointer (o, GetPagePC (savedPage));
-
-    ReleaseCompilationCodePage (o);
-
-    o->page = savedPage;
-
 } _catch:
+    if(o->page != savedPage) {
+        ReleaseCompilationCodePage (o);
+    }
+    o->page = savedPage;
     return result;
 }
 
