@@ -2727,7 +2727,7 @@ _           (PopType (o, type));
         u16 slot = GetSlotForStackIndex (o, paramIndex + i);
         Push (o, type, slot);
 
-        if (slot >= o->slotFirstDynamicIndex)
+        if (slot >= o->slotFirstDynamicIndex && slot != c_slotUnused)
             MarkSlotsAllocatedByType (o, slot, type);
     }
 
