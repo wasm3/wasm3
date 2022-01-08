@@ -322,11 +322,8 @@ u16  GetExtraSlotForStackIndex  (IM3Compilation o, u16 i_stackIndex)
 static inline
 void  TouchSlot  (IM3Compilation o, u16 i_slot)
 {
-    if (o->function)
-    {
-        // op_Entry uses this value to track and detect stack overflow
-        o->maxStackSlots = M3_MAX (o->maxStackSlots, i_slot + 1);
-    }
+    // op_Entry uses this value to track and detect stack overflow
+    o->maxStackSlots = M3_MAX (o->maxStackSlots, i_slot + 1);
 }
 
 static inline
