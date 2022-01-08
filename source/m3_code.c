@@ -5,6 +5,7 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include <limits.h>
 #include "m3_code.h"
 #include "m3_env.h"
 
@@ -15,9 +16,23 @@ IM3CodePage  NewCodePage  (IM3Runtime i_runtime, u32 i_minNumLines)
 {
     IM3CodePage page;
 
+    // check multiplication overflow
+    if (i_minNumLines > UINT_MAX / sizeof (code_t)) {
+        return NULL;
+    }
     u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
 
+    // check addition overflow
+    if (pageSize < sizeof (M3CodePageHeader)) {
+        return NULL;
+    }
+
     pageSize = (pageSize + (d_m3CodePageAlignSize-1)) & ~(d_m3CodePageAlignSize-1); // align
+    // check alignment overflow
+    if (pageSize == 0) {
+        return NULL;
+    }
+
     page = (IM3CodePage)m3_Malloc ("M3CodePage", pageSize);
 
     if (page)
