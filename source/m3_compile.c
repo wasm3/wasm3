@@ -2707,7 +2707,13 @@ _try {
 _           (PopType (o, type));
         }
     }
-    else o->stackIndex -= numParams;
+    else {
+        if (IsStackPolymorphic (o) && o->block.blockStackIndex + numParams > o->stackIndex) {
+            o->stackIndex = o->block.blockStackIndex;
+        } else {
+            o->stackIndex -= numParams;
+        }
+    }
 
     u16 paramIndex = o->stackIndex;
     block->exitStackIndex = paramIndex; // consume the params at block exit
