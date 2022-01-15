@@ -56,6 +56,29 @@ int main(void)
             auto res = memcpy_test_fn.call<int64_t>();
             std::cout << "result: 0x" << std::hex << res << std::dec << std::endl;
         }
+
+        /**
+         * Calling functions that modify an internal state, with mixed argument / return types
+         */
+        {
+            wasm3::function counter_get_fn = runtime.find_function("test_counter_get");
+            wasm3::function counter_inc_fn = runtime.find_function("test_counter_inc");
+            wasm3::function counter_add_fn = runtime.find_function("test_counter_add");
+
+            // call with no arguments and a return value
+            auto value = counter_get_fn.call<int32_t>();
+            std::cout << "counter: " << value << std::endl;
+
+            // call with no arguments and no return value
+            counter_inc_fn.call();
+            value = counter_get_fn.call<int32_t>();
+            std::cout << "counter after increment: " << value << std::endl;
+
+            // call with one argument and no return value
+            counter_add_fn.call(42);
+            value = counter_get_fn.call<int32_t>();
+            std::cout << "counter after adding value: " << value << std::endl;
+        }
     }
     catch(wasm3::error &e) {
         std::cerr << "WASM3 error: " << e.what() << std::endl;
