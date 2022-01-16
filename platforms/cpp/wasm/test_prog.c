@@ -27,15 +27,15 @@ int64_t WASM_EXPORT test_memcpy(void)
 
 int32_t WASM_EXPORT test_counter_get()
 {
-  return counter;
+    return counter;
 }
 
 void WASM_EXPORT test_counter_inc()
 {
-  ++counter;
+    ++counter;
 }
 
 void WASM_EXPORT test_counter_add(int32_t inc_value)
 {
-  counter += inc_value;
+    counter += inc_value;
 }
