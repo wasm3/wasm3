@@ -233,6 +233,8 @@
 # else
 #  ifdef __linux__
 #   include <endian.h>
+#  else
+#   include <stdint.h>
 #  endif
 #  if defined(__bswap_16)
 #   define m3_bswap16(x)     __bswap_16((x))
