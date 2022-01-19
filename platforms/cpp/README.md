@@ -52,9 +52,30 @@ If the module doesn't reference an imported function named `func`, an exception 
 
 `function` object can be obtained from a `runtime`, looking up the function by name. Function objects are used to call WebAssembly functions.
 
-`template <typename Ret> Ret function::call()` — call a WebAssembly function which doesn't take any arguments. The return value of the function is automatically converted to the type `Ret`. Note that you need to specify the return type when using this template function, and the type has to match the type returned by the WebAssembly function.
+`template <typename Ret = void, typename ...Args> Ret function::call(Args...)` — calls a WebAssembly function with or without arguments and a return value.<br>
+The return value of the function, if not `void`, is automatically converted to the type `Ret`.<br> 
+Note that you always need to specify the matching return type when using this template with a non-void function.<br> 
+Examples:
+```cpp
+// WASM signature: [] → []
+func.call();
 
-`template <typename Ret, typename ...Args> Ret function::call(Args...)` — same as above, but also allows passing arguments to the WebAssembly function.
+// WASM signature: [i32, i32] → []
+func.call(42, 43); // implicit argument types
+
+// WASM signature: [i32, i64] → []
+func.call<void, int32_t, int64_t>(42, 43); // explicit argument types require the return type
+
+// WASM signature: [] → [i32]
+auto result = func.call<int32_t>();
+
+// WASM signature: [i32, i32] → [i64]
+auto result = func.call<int64_t>(42, 43); // implicit argument types
+
+// WASM signature: [i32, i64] → [i64]
+auto result = func.call<int64_t, int32_t, int64_t>(42, 43); // explicit argument types
+
+```
 
 `template <typename Ret, typename ...Args> Ret function::call_argv(Args...)` — same as above, except that this function takes arguments as C strings (`const char*`).
 
