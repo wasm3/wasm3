@@ -348,12 +348,12 @@ namespace wasm3 {
          */
         template<typename Ret = void, typename ... Args>
         Ret call(Args... args) {
-            constexpr auto argCount = sizeof...(args);
+            constexpr auto arg_count = sizeof...(args);
             M3Result res;
             
-            if constexpr (argCount > 0) {
+            if constexpr (arg_count > 0) {
                 const void *arg_ptrs[] = { reinterpret_cast<const void*>(&args)... };
-                res = m3_Call(m_func, argCount, arg_ptrs);  
+                res = m3_Call(m_func, arg_count, arg_ptrs);  
             } else {
                 res = m3_Call(m_func, 0, nullptr);  
             }
