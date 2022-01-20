@@ -85,5 +85,35 @@ int main(void)
         return 1;
     }
 
+    /** 
+     * Wasm module with multivalue support
+     * https://github.com/WebAssembly/multi-value/blob/master/proposals/multi-value/Overview.md
+     */
+    try {
+        wasm3::environment env;
+        wasm3::runtime runtime = env.new_runtime(1024);
+        const char* file_name = "wasm_multivalue/test_prog_multivalue.wasm";
+        std::ifstream wasm_file(file_name, std::ios::binary | std::ios::in);
+        if (!wasm_file.is_open()) {
+            throw std::runtime_error("Failed to open wasm file");
+        }
+
+        wasm3::module mod = env.parse_module(wasm_file);
+        runtime.load(mod);
+        {
+            //wasm3::function vec4_add_fn = runtime.find_function("vec4_add");
+            wasm3::function vec4_create_fn = runtime.find_function("vec4_create");
+            //wasm3::function vec4_mixed_type_fn = runtime.find_function("mixed_type");
+
+            // call with no arguments and a return value
+            auto [x,y,z,w] = vec4_create_fn.callMultivalue2<float, float, float, float>();
+            std::cout << "Vec4: " << x << ", " << y << ", " << z << ", " << w << std::endl;
+        }
+    }
+    catch(wasm3::error &e) {
+        std::cerr << "WASM3 error: " << e.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }

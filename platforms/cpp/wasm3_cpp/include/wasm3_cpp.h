@@ -369,6 +369,38 @@ namespace wasm3 {
             }
         }
 
+        template<typename ... Ret>
+        std::tuple<Ret...> callMultivalue2() {
+            M3Result res = m3_Call(m_func, 0, nullptr);  
+            detail::check_error(res);
+
+            std::tuple<Ret...> ret;
+            
+            const void* ret_ptrs[] = { 
+              std::get<0>(res), 
+              std::get<1>(res),
+              std::get<2>(res), 
+              std::get<3>(res),
+            };
+            res = m3_GetResults(m_func, 4, ret_ptrs);
+            detail::check_error(res);
+
+            return ret;
+        }
+
+        std::tuple<float, float, float, float> callMultivalue() {
+            M3Result res = m3_Call(m_func, 0, nullptr);  
+
+            detail::check_error(res);
+
+            float ret[4];
+            const void* ret_ptrs[] = { &ret[0],&ret[1], &ret[2], &ret[3] };
+            res = m3_GetResults(m_func, 4, ret_ptrs);
+            detail::check_error(res);
+
+            return {ret[0],ret[1],ret[2],ret[3]};
+        }
+
     protected:
         friend class runtime;
 
