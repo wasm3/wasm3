@@ -163,9 +163,11 @@ d_m3ErrorConst  (globalMemoryNotAllocated,      "global memory is missing from a
 d_m3ErrorConst  (globaIndexOutOfBounds,         "global index is too large")
 d_m3ErrorConst  (argumentCountMismatch,         "argument count mismatch")
 d_m3ErrorConst  (argumentTypeMismatch,          "argument type mismatch")
+d_m3ErrorConst  (argumentTypeUnknown,           "unknown argument type")
 d_m3ErrorConst  (globalLookupFailed,            "global lookup failed")
 d_m3ErrorConst  (globalTypeMismatch,            "global type mismatch")
 d_m3ErrorConst  (globalNotMutable,              "global is not mutable")
+d_m3ErrorConst  (functionNotCalled,             "function not called")
 
 // traps
 d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory access")
@@ -301,6 +303,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsV              (IM3Function i_function, ...);
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
+    M3Result            m3_GetResultsBuffer         (IM3Function i_function, size_t i_bufferSize, void * o_buffer);
 
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
