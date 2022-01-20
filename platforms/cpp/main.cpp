@@ -5,6 +5,30 @@
 #include "wasm3_cpp.h"
 #include "wasm/test_prog.wasm.h"
 
+struct Vec3
+{
+  float x;
+  float y;
+  float z;
+};
+
+struct Vec4
+{
+  float x;
+  float y;
+  float z;
+  float w;
+};
+
+struct Vec5
+{
+  float x;
+  float y;
+  float z;
+  float w;
+  float v;
+};
+
 int sum(int a, int b)
 {
     return a + b;
@@ -108,6 +132,23 @@ int main(void)
             // call with no arguments and a return value
             auto [x,y,z,w] = vec4_create_fn.callMultivalue2<float, float, float, float>();
             std::cout << "Vec4: " << x << ", " << y << ", " << z << ", " << w << std::endl;
+
+            auto vec = vec4_create_fn.callMultivalue<Vec4>();
+            std::cout << "Vec4: " << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << std::endl;
+
+            try {
+                auto vec5 = vec4_create_fn.callMultivalue<Vec5>();
+                std::cout << "Vec5: " << vec5.x << ", " << vec5.y << ", " << vec5.z << ", " << vec5.w << ", " << vec5.v << std::endl;
+            } catch(wasm3::error &e) {
+                std::cerr << "WASM3 error: " << e.what() << std::endl;
+            }
+
+            try {
+                auto vec3 = vec4_create_fn.callMultivalue<Vec3>();
+                std::cout << "Vec3: " << vec3.x << ", " << vec3.y << ", " << vec3.z << ", " << std::endl;
+            } catch(wasm3::error &e) {
+                std::cerr << "WASM3 error: " << e.what() << std::endl;
+            }
         }
     }
     catch(wasm3::error &e) {

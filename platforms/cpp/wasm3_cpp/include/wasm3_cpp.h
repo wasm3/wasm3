@@ -371,35 +371,46 @@ namespace wasm3 {
 
         template<typename ... Ret>
         std::tuple<Ret...> callMultivalue2() {
+            constexpr auto return_count = sizeof...(Ret);
+
             M3Result res = m3_Call(m_func, 0, nullptr);  
             detail::check_error(res);
 
             std::tuple<Ret...> ret;
-            
+            auto&& [a, b, c, d] = ret;
+
             const void* ret_ptrs[] = { 
-              std::get<0>(res), 
-              std::get<1>(res),
-              std::get<2>(res), 
-              std::get<3>(res),
+              &a, &b, &c, &d
             };
-            res = m3_GetResults(m_func, 4, ret_ptrs);
+
+            res = m3_GetResults(m_func, return_count, ret_ptrs);
+
             detail::check_error(res);
 
             return ret;
         }
 
-        std::tuple<float, float, float, float> callMultivalue() {
-            M3Result res = m3_Call(m_func, 0, nullptr);  
+        template<typename Ret, typename ... Args>
+        Ret callMultivalue(Args... args) {
+            constexpr auto arg_count = sizeof...(args);
+            M3Result res;
+            
+            if constexpr (arg_count > 0) {
+                const void *arg_ptrs[] = { reinterpret_cast<const void*>(&args)... };
+                res = m3_Call(m_func, arg_count, arg_ptrs);  
+            } else {
+                res = m3_Call(m_func, 0, nullptr);  
+            }
 
             detail::check_error(res);
 
-            float ret[4];
-            const void* ret_ptrs[] = { &ret[0],&ret[1], &ret[2], &ret[3] };
-            res = m3_GetResults(m_func, 4, ret_ptrs);
+            Ret ret;
+            res = m3_GetResultsBuffer(m_func, sizeof(ret), &ret);
             detail::check_error(res);
 
-            return {ret[0],ret[1],ret[2],ret[3]};
+            return ret; 
         }
+
 
     protected:
         friend class runtime;
