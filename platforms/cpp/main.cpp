@@ -5,29 +5,18 @@
 #include "wasm3_cpp.h"
 #include "wasm/test_prog.wasm.h"
 
-struct Vec3
-{
-  float x;
-  float y;
-  float z;
+typedef float f32;
+typedef double f64;
+
+struct Vec4 {
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 w;
 };
 
-struct Vec4
-{
-  float x;
-  float y;
-  float z;
-  float w;
-};
-
-struct Vec5
-{
-  float x;
-  float y;
-  float z;
-  float w;
-  float v;
-};
+struct Struct3Floats { f32 x[3]; };
+struct Struct5Floats { f32 x[5]; };
 
 int sum(int a, int b)
 {
@@ -129,25 +118,28 @@ int main(void)
             wasm3::function vec4_create_fn = runtime.find_function("vec4_create");
             //wasm3::function vec4_mixed_type_fn = runtime.find_function("mixed_type");
 
-            // call with no arguments and a return value
-            auto [x,y,z,w] = vec4_create_fn.callMultivalue2<float, float, float, float>();
+            // return as tuple with structured binding
+            auto [x,y,z,w] = vec4_create_fn.callMultivalue2<f32, f32, f32, f32>();
             std::cout << "Vec4: " << x << ", " << y << ", " << z << ", " << w << std::endl;
 
+            // return multivalue mapped to structure
             auto vec = vec4_create_fn.callMultivalue<Vec4>();
             std::cout << "Vec4: " << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << std::endl;
 
+            // if the provided struct is too small or big, a "argument count mismatch" error is thrown,
+            // this prevents OOB access or uninitialized values .
             try {
-                auto vec5 = vec4_create_fn.callMultivalue<Vec5>();
-                std::cout << "Vec5: " << vec5.x << ", " << vec5.y << ", " << vec5.z << ", " << vec5.w << ", " << vec5.v << std::endl;
+                auto vec5 = vec4_create_fn.callMultivalue<Struct5Floats>();
+                return 1; // should not be reached, throws
             } catch(wasm3::error &e) {
-                std::cerr << "WASM3 error: " << e.what() << std::endl;
+                std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
             }
 
             try {
-                auto vec3 = vec4_create_fn.callMultivalue<Vec3>();
-                std::cout << "Vec3: " << vec3.x << ", " << vec3.y << ", " << vec3.z << ", " << std::endl;
+                auto vec3 = vec4_create_fn.callMultivalue<Struct3Floats>();
+                return 1; // should not be reached, throws
             } catch(wasm3::error &e) {
-                std::cerr << "WASM3 error: " << e.what() << std::endl;
+                std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
             }
         }
     }
