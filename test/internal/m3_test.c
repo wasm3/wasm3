@@ -14,6 +14,7 @@
 #define DisabledTest(NAME) printf ("\ndisabled: %s\n", #NAME); if (false)
 #define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); }
 
+ffffff$%UP$&ÄEZ54h ;
 
 bool RunTest (int i_argc, const char * i_argv [], cstr_t i_name)
 {
