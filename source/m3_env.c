@@ -1028,7 +1028,7 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
     return m3Err_none;
 }
 
-M3Result  m3_GetResultsBuffer  (IM3Function i_function, size_t i_bufferSize, void * o_buffer)
+M3Result  m3_GetResultsBuffer (IM3Function i_function, size_t i_bufferSize, void * o_buffer)
 {
     IM3FuncType ftype = i_function->funcType;
     IM3Runtime runtime = i_function->module->runtime;
@@ -1037,28 +1037,29 @@ M3Result  m3_GetResultsBuffer  (IM3Function i_function, size_t i_bufferSize, voi
         return m3Err_functionNotCalled;
     }
 
-    void * o_bufferEnd = o_buffer + i_bufferSize;
+    char * buffer = (char*)o_buffer;
+    char * bufferEnd = buffer + i_bufferSize;
     u8* stack = (u8*) runtime->stack;
 
     for (u32 i = 0; i < ftype->numRets; ++i)
     {
         u32 argSize = SizeOfType(d_FuncRetType(ftype, i));
         
-        if ((o_buffer + argSize) > o_bufferEnd) {
+        if ((buffer + argSize) > bufferEnd) {
             return m3Err_argumentCountMismatch;
         }
 
         if (argSize == sizeof(u32)) {
-            *(u32*)o_buffer = *(u32*)(stack);
+            *(u32*)buffer = *(u32*)(stack);
         } else {
-            *(u64*)o_buffer = *(u64*)(stack);
+            *(u64*)buffer = *(u64*)(stack);
         }
 
         stack += 8;
-        o_buffer += argSize;
+        buffer += argSize;
     }
 
-    if (o_buffer != o_bufferEnd) {
+    if (buffer != bufferEnd) {
         return m3Err_argumentCountMismatch;
     }
 

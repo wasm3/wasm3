@@ -376,6 +376,7 @@ namespace wasm3 {
             M3Result res = m3_Call(m_func, 0, nullptr);  
             detail::check_error(res);
 
+            // @TODO: make dynamic
             std::tuple<Ret...> ret;
             auto&& [a, b, c, d] = ret;
 
@@ -384,7 +385,6 @@ namespace wasm3 {
             };
 
             res = m3_GetResults(m_func, return_count, ret_ptrs);
-
             detail::check_error(res);
 
             return ret;
