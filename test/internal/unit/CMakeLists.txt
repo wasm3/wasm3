@@ -1,7 +1,14 @@
 cmake_minimum_required(VERSION 3.9)
 project(wasm3_test_unit)
 
-find_package(Catch2 3 REQUIRED)
+Include(FetchContent)
+
+FetchContent_Declare(
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v3.0.0-preview4
+)
+FetchContent_MakeAvailable(Catch2)
 
 set(target ${CMAKE_PROJECT_NAME})
 
