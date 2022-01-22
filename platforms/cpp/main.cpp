@@ -123,20 +123,20 @@ int main(void)
             std::cout << "Vec4: " << x << ", " << y << ", " << z << ", " << w << std::endl;
 
             // return multivalue mapped to structure
-            auto vec = vec4_create_fn.callMultivalue<Vec4>();
+            auto vec = vec4_create_fn.callMultival<Vec4>();
             std::cout << "Vec4: " << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << std::endl;
 
             // if the provided struct is too small or big, a "argument count mismatch" error is thrown,
-            // this prevents OOB access or uninitialized values .
+            // this prevents OOB access or uninitialized values.
             try {
-                auto vec5 = vec4_create_fn.callMultivalue<Struct5Floats>();
+                auto vec5 = vec4_create_fn.callMultival<Struct5Floats>();
                 return 1; // should not be reached, throws
             } catch(wasm3::error &e) {
                 std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
             }
 
             try {
-                auto vec3 = vec4_create_fn.callMultivalue<Struct3Floats>();
+                auto vec3 = vec4_create_fn.callMultival<Struct3Floats>();
                 return 1; // should not be reached, throws
             } catch(wasm3::error &e) {
                 std::cerr << "Expected WASM3 error: " << e.what() << std::endl;

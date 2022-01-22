@@ -369,6 +369,7 @@ namespace wasm3 {
             }
         }
 
+        // @TODO better name, make args and returns work at the same time
         template<typename ... Ret>
         std::tuple<Ret...> callMultivalue2() {
             constexpr auto return_count = sizeof...(Ret);
@@ -391,21 +392,11 @@ namespace wasm3 {
         }
 
         template<typename Ret, typename ... Args>
-        Ret callMultivalue(Args... args) {
-            constexpr auto arg_count = sizeof...(args);
-            M3Result res;
-            
-            if constexpr (arg_count > 0) {
-                const void *arg_ptrs[] = { reinterpret_cast<const void*>(&args)... };
-                res = m3_Call(m_func, arg_count, arg_ptrs);  
-            } else {
-                res = m3_Call(m_func, 0, nullptr);  
-            }
-
-            detail::check_error(res);
+        Ret callMultival(Args... args) {
+            call<void>(args...);
 
             Ret ret;
-            res = m3_GetResultsBuffer(m_func, sizeof(ret), &ret);
+            const auto res = m3_GetResultsBuffer(m_func, sizeof(ret), &ret);
             detail::check_error(res);
 
             return ret; 
