@@ -119,24 +119,24 @@ int main(void)
             //wasm3::function vec4_mixed_type_fn = runtime.find_function("mixed_type");
 
             // return as tuple with structured binding
-            auto [x,y,z,w] = vec4_create_fn.callMultivalue2<f32, f32, f32, f32>();
+            auto [x,y,z,w] = vec4_create_fn.call_tuple<f32, f32, f32, f32>();
             std::cout << "Vec4: " << x << ", " << y << ", " << z << ", " << w << std::endl;
 
             // return multivalue mapped to structure
-            auto vec = vec4_create_fn.callMultival<Vec4>();
+            auto vec = vec4_create_fn.call_mapped<Vec4>();
             std::cout << "Vec4: " << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << std::endl;
 
             // if the provided struct is too small or big, a "argument count mismatch" error is thrown,
             // this prevents OOB access or uninitialized values.
             try {
-                auto vec5 = vec4_create_fn.callMultival<Struct5Floats>();
+                auto vec5 = vec4_create_fn.call_mapped<Struct5Floats>();
                 return 1; // should not be reached, throws
             } catch(wasm3::error &e) {
                 std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
             }
 
             try {
-                auto vec3 = vec4_create_fn.callMultival<Struct3Floats>();
+                auto vec3 = vec4_create_fn.call_mapped<Struct3Floats>();
                 return 1; // should not be reached, throws
             } catch(wasm3::error &e) {
                 std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
