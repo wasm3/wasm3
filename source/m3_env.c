@@ -1037,6 +1037,10 @@ M3Result  m3_GetResultsBuffer (IM3Function i_function, size_t i_bufferSize, void
         return m3Err_functionNotCalled;
     }
 
+    if (o_buffer == NULL) {
+        return m3Err_functionResultNullPtr;
+    }
+
     char * buffer = (char*)o_buffer;
     char * bufferEnd = buffer + i_bufferSize;
     u8* stack = (u8*) runtime->stack;

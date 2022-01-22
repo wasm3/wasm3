@@ -168,6 +168,7 @@ d_m3ErrorConst  (globalLookupFailed,            "global lookup failed")
 d_m3ErrorConst  (globalTypeMismatch,            "global type mismatch")
 d_m3ErrorConst  (globalNotMutable,              "global is not mutable")
 d_m3ErrorConst  (functionNotCalled,             "function not called")
+d_m3ErrorConst  (functionResultNullPtr,         "provided result pointer is null")
 
 // traps
 d_m3ErrorConst  (trapOutOfBoundsMemoryAccess,   "[trap] out of bounds memory access")
