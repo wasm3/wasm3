@@ -11,9 +11,9 @@ struct Vec4 {
 
 struct MixedStruct { 
     uint32_t testU32;
+    float testF32;
     double testF64;
     uint64_t testS64;
-    float testF32;
 };
 
 Vec4 WASM_EXPORT(vec4_add) (Vec4 a, Vec4 b) {
@@ -32,9 +32,9 @@ Vec4 WASM_EXPORT(vec4_create) () {
 MixedStruct WASM_EXPORT(mixed_type) () {
     return {
         42, 
+        128.75f,
         1.125,
         0xAABB'CCDD'EEFF'1122,
-        128.75f
     };
 }
 
