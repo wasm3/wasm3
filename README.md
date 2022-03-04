@@ -1,4 +1,4 @@
-![StandWithUkraine banner](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner.svg)
+[![SWUbanner](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 <img align="right" width="30%" src="/extra/screenshot-ios.png">
 
