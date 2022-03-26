@@ -722,7 +722,7 @@ _                   (Push (o, i_type, slot));
         u16 slot = c_slotUnused;
         result = AllocateConstantSlots (o, & slot, i_type);
 
-        if (result) // no more constant table space; use inline constants
+        if (result || slot == c_slotUnused) // no more constant table space; use inline constants
         {
             result = m3Err_none;
 
