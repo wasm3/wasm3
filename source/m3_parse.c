@@ -99,7 +99,7 @@ _               (NormalizeType (& retType, wasmType));
 
             Environment_AddFuncType (io_module->environment, & ftype);
             io_module->funcTypes [i] = ftype;
-            ftype = NULL; // ownership transfered to environment
+            ftype = NULL; // ownership transferred to environment
         }
     }
 

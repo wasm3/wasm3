@@ -411,7 +411,7 @@ M3Result  InitGlobals  (IM3Module io_module)
     if (io_module->numGlobals)
     {
         // placing the globals in their structs isn't good for cache locality, but i don't really know what the global
-        // access patterns typcially look like yet.
+        // access patterns typically look like yet.
 
         //          io_module->globalMemory = m3Alloc (m3reg_t, io_module->numGlobals);
 
