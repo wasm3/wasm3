@@ -424,7 +424,8 @@ M3Result  InitGlobals  (IM3Module io_module)
                 if (g->initExpr)
                 {
                     bytes_t start = g->initExpr;
-                    result = EvaluateExpression (io_module, & g->intValue, g->type, & start, g->initExpr + g->initExprSize);
+
+                    result = EvaluateExpression (io_module, & g->i64Value, g->type, & start, g->initExpr + g->initExprSize);
 
                     if (not result)
                     {
@@ -648,8 +649,8 @@ M3Result  m3_GetGlobal  (IM3Global                 i_global,
     if (not i_global) return m3Err_globalLookupFailed;
 
     switch (i_global->type) {
-    case c_m3Type_i32: o_value->value.i32 = i_global->intValue; break;
-    case c_m3Type_i64: o_value->value.i64 = i_global->intValue; break;
+    case c_m3Type_i32: o_value->value.i32 = i_global->i32Value; break;
+    case c_m3Type_i64: o_value->value.i64 = i_global->i64Value; break;
 # if d_m3HasFloat
     case c_m3Type_f32: o_value->value.f32 = i_global->f32Value; break;
     case c_m3Type_f64: o_value->value.f64 = i_global->f64Value; break;
@@ -670,8 +671,8 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
     if (i_global->type != i_value->type) return m3Err_globalTypeMismatch;
 
     switch (i_value->type) {
-    case c_m3Type_i32: i_global->intValue = i_value->value.i32; break;
-    case c_m3Type_i64: i_global->intValue = i_value->value.i64; break;
+    case c_m3Type_i32: i_global->i32Value = i_value->value.i32; break;
+    case c_m3Type_i64: i_global->i64Value = i_value->value.i64; break;
 # if d_m3HasFloat
     case c_m3Type_f32: i_global->f32Value = i_value->value.f32; break;
     case c_m3Type_f64: i_global->f64Value = i_value->value.f64; break;
