@@ -1343,7 +1343,7 @@ M3Result  Compile_GetGlobal  (IM3Compilation o, M3Global * i_global)
 
     IM3Operation op = Is64BitType (i_global->type) ? op_GetGlobal_s64 : op_GetGlobal_s32;
 _   (EmitOp (o, op));
-    EmitPointer (o, & i_global->intValue);
+    EmitPointer (o, & i_global->i64Value);
 _   (PushAllocatedSlotAndEmit (o, i_global->type));
 
     _catch: return result;
@@ -1366,7 +1366,7 @@ M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
         else op = Is64BitType (type) ? op_SetGlobal_s64 : op_SetGlobal_s32;
 
 _      (EmitOp (o, op));
-        EmitPointer (o, & i_global->intValue);
+        EmitPointer (o, & i_global->i64Value);
 
         if (IsStackTopInSlot (o))
             EmitSlotOffset (o, GetStackTopSlotNumber (o));
