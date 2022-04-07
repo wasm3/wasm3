@@ -189,13 +189,15 @@ __wasi_timestamp_t convert_timespec(const struct timespec *ts) {
 #if defined(HAS_IOVEC)
 
 static inline
-void copy_iov_to_host(void* _mem, struct iovec* host_iov, wasi_iovec_t* wasi_iov, int32_t iovs_len)
+const void* copy_iov_to_host(IM3Runtime runtime, void* _mem, struct iovec* host_iov, wasi_iovec_t* wasi_iov, int32_t iovs_len)
 {
     // Convert wasi memory offsets to host addresses
     for (int i = 0; i < iovs_len; i++) {
         host_iov[i].iov_base = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iov[i].buf));
         host_iov[i].iov_len  = m3ApiReadMem32(&wasi_iov[i].buf_len);
+        m3ApiCheckMem(host_iov[i].iov_base,     host_iov[i].iov_len);
     }
+    m3ApiSuccess();
 }
 
 #endif
@@ -576,7 +578,10 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
-    copy_iov_to_host(_mem, iovs, wasi_iovs, iovs_len);
+    const void* mem_check = copy_iov_to_host(runtime, _mem, iovs, wasi_iovs, iovs_len);
+    if (mem_check != m3Err_none) {
+        return mem_check;
+    }
 
     ssize_t ret = readv(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
@@ -588,7 +593,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
         void* addr = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
         size_t len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
         if (len == 0) continue;
-
+        m3ApiCheckMem(addr,     len);
         int ret = read (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
@@ -612,7 +617,10 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
-    copy_iov_to_host(_mem, iovs, wasi_iovs, iovs_len);
+    const void* mem_check = copy_iov_to_host(runtime, _mem, iovs, wasi_iovs, iovs_len);
+    if (mem_check != m3Err_none) {
+        return mem_check;
+    }
 
     ssize_t ret = writev(fd, iovs, iovs_len);
     if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
@@ -624,7 +632,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
         void* addr = m3ApiOffsetToPtr(m3ApiReadMem32(&wasi_iovs[i].buf));
         size_t len = m3ApiReadMem32(&wasi_iovs[i].buf_len);
         if (len == 0) continue;
-
+        m3ApiCheckMem(addr,     len);
         int ret = write (fd, addr, len);
         if (ret < 0) m3ApiReturn(errno_to_wasi(errno));
         res += ret;
