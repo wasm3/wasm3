@@ -40,8 +40,8 @@ static void run_wasm(void)
     result = m3_LoadModule (runtime, module);
     if (result) FATAL("m3_LoadModule: %s", result);
 
-    result = m3_LinkEspWASI (runtime->modules);
-    if (result) FATAL("m3_LinkEspWASI: %s", result);
+    result = m3_LinkEspModuleWASI (runtime->modules);
+    if (result) FATAL("m3_LinkEspModuleWASI: %s", result);
 
     IM3Function f;
     result = m3_FindFunction (&f, runtime, "_start");
@@ -51,7 +51,7 @@ static void run_wasm(void)
 
     const char* i_argv[2] = { "test.wasm", NULL };
 
-    m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+    m3_wasi_context_t* wasi_ctx = m3_GetModuleWasiContext(module);
     wasi_ctx->argc = 1;
     wasi_ctx->argv = i_argv;
 

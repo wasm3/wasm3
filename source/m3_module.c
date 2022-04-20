@@ -7,7 +7,7 @@
 
 #include "m3_env.h"
 #include "m3_exception.h"
-
+#include "m3_wasi.h"
 
 void Module_FreeFunctions (IM3Module i_module)
 {
@@ -40,6 +40,12 @@ void  m3_FreeModule  (IM3Module i_module)
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free (i_module->globals);
+
+#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
+        if (NULL != i_module->wasi) {
+            m3_FreeWasi(i_module->wasi);
+        }
+#endif
 
         m3_Free (i_module);
     }

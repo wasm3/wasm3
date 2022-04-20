@@ -913,17 +913,20 @@ m3_wasi_context_t* m3_GetWasiContext()
     return wasi_context;
 }
 
+m3_wasi_context_t* m3_GetModuleWasiContext (IM3Module module)
+{
+    return module->wasi;
+}
 
-M3Result  m3_LinkWASI  (IM3Module module)
+void m3_FreeWasi(m3_wasi_context_t* wasi)
+{
+    m3_Free(wasi);
+}
+
+static inline
+M3Result  _linkWASI (IM3Module module, m3_wasi_context_t* wasi_context)
 {
     M3Result result = m3Err_none;
-
-    if (!wasi_context) {
-        wasi_context = (m3_wasi_context_t*)malloc(sizeof(m3_wasi_context_t));
-        wasi_context->exit_code = 0;
-        wasi_context->argc = 0;
-        wasi_context->argv = 0;
-    }
 
     static const char* namespaces[2] = { "wasi_unstable", "wasi_snapshot_preview1" };
 
@@ -989,6 +992,27 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sched_yield",
 
 _catch:
     return result;
+}
+
+M3Result m3_LinkModuleWASI (IM3Module module)
+{
+    if (NULL == module->wasi) {
+        module->wasi = m3_AllocStruct(m3_wasi_context_t);
+    }
+    else {
+        return "WASI already linked";
+    }
+
+    return _linkWASI(module, module->wasi);
+}
+
+M3Result  m3_LinkWASI  (IM3Module module)
+{
+    if (!wasi_context) {
+        wasi_context = m3_AllocStruct(m3_wasi_context_t);
+    }
+
+    return _linkWASI(module, wasi_context);
 }
 
 #endif // d_m3HasMetaWASI
