@@ -33,7 +33,7 @@
 #if defined(APE)
 // Actually Portable Executable
 // All functions are already included in cosmopolitan.h
-#elif defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__)
+#elif defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__CYGWIN__)
 #  include <unistd.h>
 #  include <sys/uio.h>
 #  if defined(__APPLE__)
