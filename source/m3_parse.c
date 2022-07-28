@@ -506,13 +506,11 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
                 if (index < io_module->numFunctions)
                 {
                     IM3Function func = &(io_module->functions [index]);
-                    if (func->numNames == 0)
+                    if (func->numNames < d_m3MaxDuplicateFunctionImpl)
                     {
-                        func->names[0] = name;        m3log (parse, "    naming function%5d:  %s", index, name);
-                        func->numNames = 1;
+                        func->names[func->numNames++] = name;        m3log (parse, "    naming function%5d:  %s", index, name);
                         name = NULL; // transfer ownership
                     }
-//                          else m3log (parse, "prenamed: %s", io_module->functions [index].name);
                 }
 
                 m3_Free (name);
