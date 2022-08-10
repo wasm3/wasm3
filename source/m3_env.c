@@ -844,6 +844,10 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     ClearBacktrace (runtime);
 # endif
 
+    m3StackCheckInit();
+
+_   (checkStartFunction(i_function->module))
+
     u8* s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
@@ -858,9 +862,6 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
         default: return "unknown argument type";
         }
     }
-    m3StackCheckInit();
-
-_   (checkStartFunction(i_function->module))
 
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
     ReportNativeStackUsage ();
@@ -887,6 +888,10 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     ClearBacktrace (runtime);
 # endif
 
+    m3StackCheckInit();
+
+_   (checkStartFunction(i_function->module))
+
     u8* s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
@@ -901,10 +906,6 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
         default: return "unknown argument type";
         }
     }
-
-    m3StackCheckInit();
-
-_   (checkStartFunction(i_function->module))
 
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
     ReportNativeStackUsage ();
@@ -931,6 +932,10 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     ClearBacktrace (runtime);
 # endif
 
+    m3StackCheckInit();
+
+_   (checkStartFunction(i_function->module))
+
     u8* s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
@@ -945,10 +950,6 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
         default: return "unknown argument type";
         }
     }
-
-    m3StackCheckInit();
-
-_   (checkStartFunction(i_function->module))
 
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
     ReportNativeStackUsage ();
