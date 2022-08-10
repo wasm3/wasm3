@@ -835,6 +835,7 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
     IM3Runtime runtime = i_function->module->runtime;
     IM3FuncType ftype = i_function->funcType;
     M3Result result = m3Err_none;
+    u8* s = NULL;
 
     if (!i_function->compiled) {
         return m3Err_missingCompiledCode;
@@ -848,7 +849,7 @@ M3Result  m3_CallVL  (IM3Function i_function, va_list i_args)
 
 _   (checkStartFunction(i_function->module))
 
-    u8* s = GetStackPointerForArgs (i_function);
+    s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
@@ -876,6 +877,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
     IM3Runtime runtime = i_function->module->runtime;
     IM3FuncType ftype = i_function->funcType;
     M3Result result = m3Err_none;
+    u8* s = NULL;
 
     if (i_argc != ftype->numArgs) {
         return m3Err_argumentCountMismatch;
@@ -892,7 +894,7 @@ M3Result  m3_Call  (IM3Function i_function, uint32_t i_argc, const void * i_argp
 
 _   (checkStartFunction(i_function->module))
 
-    u8* s = GetStackPointerForArgs (i_function);
+    s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
@@ -920,6 +922,7 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
     IM3FuncType ftype = i_function->funcType;
     IM3Runtime runtime = i_function->module->runtime;
     M3Result result = m3Err_none;
+    u8* s = NULL;
 
     if (i_argc != ftype->numArgs) {
         return m3Err_argumentCountMismatch;
@@ -936,7 +939,7 @@ M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_
 
 _   (checkStartFunction(i_function->module))
 
-    u8* s = GetStackPointerForArgs (i_function);
+    s = GetStackPointerForArgs (i_function);
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
