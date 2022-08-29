@@ -183,16 +183,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install WASI SDK
+    - name: Setup environment
       env:
         WASI_VERSION: 11
-        WASI_VERSION_FULL: ${{ env.WASI_VERSION }}.0
-        WASI_SDK_PATH: ${{ env.GITHUB_WORKSPACE }}/.toolchains/wasi-sdk-${{ env.WASI_VERSION_FULL }}
+        WASI_VERSION_FULL: 11.0
+      run: |
+        echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
+        echo "WASI_SDK_PATH=${GITHUB_WORKSPACE}/.toolchains/wasi-sdk-${WASI_VERSION_FULL}" >> $GITHUB_ENV
+    - name: Install WASI SDK
       run: |
         mkdir -p .toolchains
         cd .toolchains
-        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
-        tar xvf wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
+        tar xvf ${WASI_TAR}
     - name: Install Wasmer
       run: curl https://get.wasmer.io -sSfL | sh -s "1.0.2"
     - name: Configure
