@@ -147,4 +147,6 @@
 #   define d_m3SkipMemoryBoundsCheck            0       // skip memory bounds checks
 # endif
 
+#define d_m3EnableCodePageRefCounting           0       // not supported currently
+
 #endif // m3_config_h
