@@ -92,12 +92,12 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
 [<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　
 [<img src="/extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
-[<img src="/extra/logos/losant.png" height="32" />](https://github.com/Losant/eea-examples)　
+[<img src="/extra/logos/losant.svg" height="32" />](https://github.com/Losant/eea-examples)　
 [<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
 [<img src="https://www.balena.io/avatar.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
 [<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
-[<img src="/extra/logos/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup) 
-[<img src="https://wasm4.org/img/logo.png" height="32" />](https://wasm4.org/)
+[<img src="/extra/logos/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup)　
+[<img src="https://wasm4.org/img/logo.png" height="32" />](https://wasm4.org)
 
 ## Further Resources
 
