@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <iostream>
 #include <vector>
+#include <array>
 #include <memory>
 #include <string>
 #include <iterator>
@@ -348,16 +349,8 @@ namespace wasm3 {
          */
         template<typename Ret = void, typename ... Args>
         Ret call(Args... args) {
-            constexpr auto arg_count = sizeof...(args);
-            M3Result res;
-            
-            if constexpr (arg_count > 0) {
-                const void *arg_ptrs[] = { reinterpret_cast<const void*>(&args)... };
-                res = m3_Call(m_func, arg_count, arg_ptrs);  
-            } else {
-                res = m3_Call(m_func, 0, nullptr);  
-            }
-
+            std::array<const void*, sizeof...(args)> arg_ptrs{ reinterpret_cast<const void*>(&args)... };
+            M3Result res = m3_Call(m_func, arg_ptrs.size(), arg_ptrs.data());
             detail::check_error(res);
 
             if constexpr (!std::is_void<Ret>::value) {

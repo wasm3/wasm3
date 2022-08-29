@@ -67,7 +67,7 @@
 #  define M3_WEAK //__declspec(selectany)
 #  define M3_NO_UBSAN
 #  define M3_NOINLINE
-# elif defined(__MINGW32__)
+# elif defined(__MINGW32__) || defined(__CYGWIN__)
 #  define M3_WEAK //__attribute__((selectany))
 #  define M3_NO_UBSAN
 #  define M3_NOINLINE   __attribute__((noinline))
