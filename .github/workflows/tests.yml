@@ -186,7 +186,7 @@ jobs:
     - name: Setup environment
       env:
         WASI_VERSION: 11
-        WASI_VERSION_FULL: 11.0
+        WASI_VERSION_FULL: "11.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
