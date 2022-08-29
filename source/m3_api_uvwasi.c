@@ -329,6 +329,48 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
     m3ApiReturn(ret);
 }
 
+m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_rights)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArg      (uvwasi_rights_t      , rights_base)
+    m3ApiGetArg      (uvwasi_rights_t      , rights_inheriting)
+
+    uvwasi_errno_t ret = uvwasi_fd_fdstat_set_rights(&uvwasi, fd, rights_base, rights_inheriting);
+
+    WASI_TRACE("fd:%d, base:0x%llx, inheriting:0x%llx", fd, rights_base, rights_inheriting);
+
+    m3ApiReturn(ret);
+}
+
+m3ApiRawFunction(m3_wasi_generic_fd_filestat_set_size)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArg      (uvwasi_filesize_t    , size)
+
+    uvwasi_errno_t ret = uvwasi_fd_filestat_set_size(&uvwasi, fd, size);
+
+    WASI_TRACE("fd:%d, size:%lld", fd, size);
+
+    m3ApiReturn(ret);
+}
+
+m3ApiRawFunction(m3_wasi_generic_fd_filestat_set_times)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArg      (uvwasi_timestamp_t   , atim)
+    m3ApiGetArg      (uvwasi_timestamp_t   , mtim)
+    m3ApiGetArg      (uvwasi_fstflags_t    , fst_flags)
+
+    uvwasi_errno_t ret = uvwasi_fd_filestat_set_times(&uvwasi, fd, atim, mtim, fst_flags);
+
+    WASI_TRACE("fd:%d, atim:%lld, mtim:%lld, flags:%d", fd, atim, mtim, fst_flags);
+
+    m3ApiReturn(ret);
+}
+
 m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
 {
     m3ApiReturnType  (uint32_t)
@@ -878,6 +920,35 @@ m3ApiRawFunction(m3_wasi_generic_fd_readdir)
     m3ApiReturn(ret);
 }
 
+m3ApiRawFunction(m3_wasi_generic_fd_advise)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArg      (uvwasi_filesize_t    , offset)
+    m3ApiGetArg      (uvwasi_filesize_t    , length)
+    m3ApiGetArg      (uvwasi_advice_t      , advice)
+
+    uvwasi_errno_t ret = uvwasi_fd_advise(&uvwasi, fd, offset, length, advice);
+
+    WASI_TRACE("fd:%d, offset:%lld, length:%lld, advice:%d", fd, offset, length, advice);
+
+    m3ApiReturn(ret);
+}
+
+m3ApiRawFunction(m3_wasi_generic_fd_allocate)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (uvwasi_fd_t          , fd)
+    m3ApiGetArg      (uvwasi_filesize_t    , offset)
+    m3ApiGetArg      (uvwasi_filesize_t    , length)
+
+    uvwasi_errno_t ret = uvwasi_fd_allocate(&uvwasi, fd, offset, length);
+
+    WASI_TRACE("fd:%d, offset:%lld, length:%lld", fd, offset, length);
+
+    m3ApiReturn(ret);
+}
+
 m3ApiRawFunction(m3_wasi_generic_fd_close)
 {
     m3ApiReturnType  (uint32_t)
@@ -1098,27 +1169,27 @@ _       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "clock_time_
 _       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "environ_get",          "i(**)",   &m3_wasi_generic_environ_get, wasi_context)));
 _       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "environ_sizes_get",    "i(**)",   &m3_wasi_generic_environ_sizes_get, wasi_context)));
 
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_advise",            "i(iIIi)", )));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_allocate",          "i(iII)",  )));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_close",             "i(i)",    &m3_wasi_generic_fd_close, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_datasync",          "i(i)",    &m3_wasi_generic_fd_datasync, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_generic_fd_fdstat_get, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_fdstat_set_flags",  "i(ii)",   &m3_wasi_generic_fd_fdstat_set_flags, wasi_context)));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_rights", "i(iII)",  )));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_set_size", "i(iI)",   )));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_set_times","i(iIIi)", )));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_pread",             "i(i*iI*)",&m3_wasi_generic_fd_pread, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_prestat_get",       "i(i*)",   &m3_wasi_generic_fd_prestat_get, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_prestat_dir_name",  "i(i*i)",  &m3_wasi_generic_fd_prestat_dir_name, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_pwrite",            "i(i*iI*)",&m3_wasi_generic_fd_pwrite, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_read",              "i(i*i*)", &m3_wasi_generic_fd_read, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_readdir",           "i(i*iI*)",&m3_wasi_generic_fd_readdir, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_renumber",          "i(ii)",   &m3_wasi_generic_fd_renumber, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_sync",              "i(i)",    &m3_wasi_generic_fd_sync, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_tell",              "i(i*)",   &m3_wasi_generic_fd_tell, wasi_context)));
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "fd_write",             "i(i*i*)", &m3_wasi_generic_fd_write, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_advise",            "i(iIIi)", &m3_wasi_generic_fd_advise, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_allocate",          "i(iII)",  &m3_wasi_generic_fd_allocate, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_close",             "i(i)",    &m3_wasi_generic_fd_close, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_datasync",          "i(i)",    &m3_wasi_generic_fd_datasync, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_get",        "i(i*)",   &m3_wasi_generic_fd_fdstat_get, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_flags",  "i(ii)",   &m3_wasi_generic_fd_fdstat_set_flags, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_fdstat_set_rights", "i(iII)",  &m3_wasi_generic_fd_fdstat_set_rights, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_set_size", "i(iI)",   &m3_wasi_generic_fd_filestat_set_size, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_filestat_set_times","i(iIIi)", &m3_wasi_generic_fd_filestat_set_times, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_pread",             "i(i*iI*)",&m3_wasi_generic_fd_pread, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_get",       "i(i*)",   &m3_wasi_generic_fd_prestat_get, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_prestat_dir_name",  "i(i*i)",  &m3_wasi_generic_fd_prestat_dir_name, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_pwrite",            "i(i*iI*)",&m3_wasi_generic_fd_pwrite, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_read",              "i(i*i*)", &m3_wasi_generic_fd_read, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_readdir",           "i(i*iI*)",&m3_wasi_generic_fd_readdir, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_renumber",          "i(ii)",   &m3_wasi_generic_fd_renumber, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_sync",              "i(i)",    &m3_wasi_generic_fd_sync, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_tell",              "i(i*)",   &m3_wasi_generic_fd_tell, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(i*i*)", &m3_wasi_generic_fd_write, wasi_context)));
 
-_       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "path_create_directory",    "i(i*i)",       &m3_wasi_generic_path_create_directory, wasi_context)));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_create_directory",    "i(i*i)",       &m3_wasi_generic_path_create_directory, wasi_context)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_filestat_set_times",  "i(ii*iIIi)",   )));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_link",                "i(ii*ii*i)",   )));
 _       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "path_open",                "i(ii*iiIIi*)", &m3_wasi_generic_path_open, wasi_context)));
