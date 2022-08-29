@@ -21,12 +21,14 @@
 #if __has_include("wasi/api.h")
 # include <wasi/api.h>
 # define USE_NEW_WASI
+# define WASI_STAT_FIELD(f) f
 
 #elif __has_include("wasi/core.h")
 # warning "Using legacy WASI headers"
 # include <wasi/core.h>
 # define __WASI_ERRNO_SUCCESS   __WASI_ESUCCESS
 # define __WASI_ERRNO_INVAL     __WASI_EINVAL
+# define WASI_STAT_FIELD(f) st_##f
 
 #else
 # error "Missing WASI headers"
@@ -310,7 +312,11 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_rights)
     m3ApiGetArg      (__wasi_rights_t      , rights_base)
     m3ApiGetArg      (__wasi_rights_t      , rights_inheriting)
 
+#if 0
     __wasi_errno_t ret = __wasi_fd_fdstat_set_rights(fd, rights_base, rights_inheriting);
+#else
+    __wasi_errno_t ret = __WASI_ERRNO_INVAL;
+#endif
 
     WASI_TRACE("fd:%d, base:0x%" PRIx64 ", inheriting:0x%" PRIx64, fd, rights_base, rights_inheriting);
 
@@ -357,21 +363,21 @@ m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
 
     __wasi_errno_t ret = __wasi_fd_filestat_get(fd, &stat);
 
-    WASI_TRACE("fd:%d | fs.size:%" PRIu64, fd, stat.st_size);
+    WASI_TRACE("fd:%d | fs.size:%" PRIu64, fd, stat.WASI_STAT_FIELD(size));
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
     memset(buf, 0, 56);
-    m3ApiWriteMem64(buf+0,  stat.st_dev);
-    m3ApiWriteMem64(buf+8,  stat.st_ino);
-    m3ApiWriteMem8 (buf+16, stat.st_filetype);
-    m3ApiWriteMem32(buf+20, stat.st_nlink);
-    m3ApiWriteMem64(buf+24, stat.st_size);
-    m3ApiWriteMem64(buf+32, stat.st_atim);
-    m3ApiWriteMem64(buf+40, stat.st_mtim);
-    m3ApiWriteMem64(buf+48, stat.st_ctim);
+    m3ApiWriteMem64(buf+0,  stat.WASI_STAT_FIELD(dev));
+    m3ApiWriteMem64(buf+8,  stat.WASI_STAT_FIELD(ino));
+    m3ApiWriteMem8 (buf+16, stat.WASI_STAT_FIELD(filetype));
+    m3ApiWriteMem32(buf+20, stat.WASI_STAT_FIELD(nlink));
+    m3ApiWriteMem64(buf+24, stat.WASI_STAT_FIELD(size));
+    m3ApiWriteMem64(buf+32, stat.WASI_STAT_FIELD(atim));
+    m3ApiWriteMem64(buf+40, stat.WASI_STAT_FIELD(mtim));
+    m3ApiWriteMem64(buf+48, stat.WASI_STAT_FIELD(ctim));
 
     m3ApiReturn(ret);
 }
@@ -388,21 +394,21 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_filestat_get)
 
     __wasi_errno_t ret = __wasi_fd_filestat_get(fd, &stat);
 
-    WASI_TRACE("fd:%d | fs.size:%" PRIu64, fd, stat.st_size);
+    WASI_TRACE("fd:%d | fs.size:%" PRIu64, fd, stat.WASI_STAT_FIELD(size));
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
     memset(buf, 0, 64);
-    m3ApiWriteMem64(buf+0,  stat.st_dev);
-    m3ApiWriteMem64(buf+8,  stat.st_ino);
-    m3ApiWriteMem8 (buf+16, stat.st_filetype);
-    m3ApiWriteMem64(buf+24, stat.st_nlink);
-    m3ApiWriteMem64(buf+32, stat.st_size);
-    m3ApiWriteMem64(buf+40, stat.st_atim);
-    m3ApiWriteMem64(buf+48, stat.st_mtim);
-    m3ApiWriteMem64(buf+56, stat.st_ctim);
+    m3ApiWriteMem64(buf+0,  stat.WASI_STAT_FIELD(dev));
+    m3ApiWriteMem64(buf+8,  stat.WASI_STAT_FIELD(ino));
+    m3ApiWriteMem8 (buf+16, stat.WASI_STAT_FIELD(filetype));
+    m3ApiWriteMem64(buf+24, stat.WASI_STAT_FIELD(nlink));
+    m3ApiWriteMem64(buf+32, stat.WASI_STAT_FIELD(size));
+    m3ApiWriteMem64(buf+40, stat.WASI_STAT_FIELD(atim));
+    m3ApiWriteMem64(buf+48, stat.WASI_STAT_FIELD(mtim));
+    m3ApiWriteMem64(buf+56, stat.WASI_STAT_FIELD(ctim));
 
     m3ApiReturn(ret);
 }
@@ -663,21 +669,21 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
 
     __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
 
-    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%" PRIu64, fd, flags, path, stat.st_size);
+    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%" PRIu64, fd, flags, path, stat.WASI_STAT_FIELD(size));
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
     memset(buf, 0, 56);
-    m3ApiWriteMem64(buf+0,  stat.st_dev);
-    m3ApiWriteMem64(buf+8,  stat.st_ino);
-    m3ApiWriteMem8 (buf+16, stat.st_filetype);
-    m3ApiWriteMem32(buf+20, stat.st_nlink);
-    m3ApiWriteMem64(buf+24, stat.st_size);
-    m3ApiWriteMem64(buf+32, stat.st_atim);
-    m3ApiWriteMem64(buf+40, stat.st_mtim);
-    m3ApiWriteMem64(buf+48, stat.st_ctim);
+    m3ApiWriteMem64(buf+0,  stat.WASI_STAT_FIELD(dev));
+    m3ApiWriteMem64(buf+8,  stat.WASI_STAT_FIELD(ino));
+    m3ApiWriteMem8 (buf+16, stat.WASI_STAT_FIELD(filetype));
+    m3ApiWriteMem32(buf+20, stat.WASI_STAT_FIELD(nlink));
+    m3ApiWriteMem64(buf+24, stat.WASI_STAT_FIELD(size));
+    m3ApiWriteMem64(buf+32, stat.WASI_STAT_FIELD(atim));
+    m3ApiWriteMem64(buf+40, stat.WASI_STAT_FIELD(mtim));
+    m3ApiWriteMem64(buf+48, stat.WASI_STAT_FIELD(ctim));
 
     m3ApiReturn(ret);
 }
@@ -698,21 +704,21 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
 
     __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
 
-    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%" PRIu64, fd, flags, path, stat.st_size);
+    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%" PRIu64, fd, flags, path, stat.WASI_STAT_FIELD(size));
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
     memset(buf, 0, 64);
-    m3ApiWriteMem64(buf+0,  stat.st_dev);
-    m3ApiWriteMem64(buf+8,  stat.st_ino);
-    m3ApiWriteMem8 (buf+16, stat.st_filetype);
-    m3ApiWriteMem64(buf+24, stat.st_nlink);
-    m3ApiWriteMem64(buf+32, stat.st_size);
-    m3ApiWriteMem64(buf+40, stat.st_atim);
-    m3ApiWriteMem64(buf+48, stat.st_mtim);
-    m3ApiWriteMem64(buf+56, stat.st_ctim);
+    m3ApiWriteMem64(buf+0,  stat.WASI_STAT_FIELD(dev));
+    m3ApiWriteMem64(buf+8,  stat.WASI_STAT_FIELD(ino));
+    m3ApiWriteMem8 (buf+16, stat.WASI_STAT_FIELD(filetype));
+    m3ApiWriteMem64(buf+24, stat.WASI_STAT_FIELD(nlink));
+    m3ApiWriteMem64(buf+32, stat.WASI_STAT_FIELD(size));
+    m3ApiWriteMem64(buf+40, stat.WASI_STAT_FIELD(atim));
+    m3ApiWriteMem64(buf+48, stat.WASI_STAT_FIELD(mtim));
+    m3ApiWriteMem64(buf+56, stat.WASI_STAT_FIELD(ctim));
 
     m3ApiReturn(ret);
 }
@@ -979,7 +985,7 @@ m3ApiRawFunction(m3_wasi_generic_proc_raise)
     m3ApiGetArg      (__wasi_signal_t, sig)
 
     __wasi_errno_t ret = __WASI_ERRNO_INVAL;
-#ifdef USE_NEW_WASI
+#if 0
     ret = __wasi_proc_raise(sig);
 #endif
 
