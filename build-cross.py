@@ -44,6 +44,7 @@ musl_targets = [
 
 VERBOSE = False
 RETEST = False
+REBUILD = False
 
 def run(cmd):
     subprocess.run(cmd, shell=True, check=True, capture_output=not VERBOSE)
@@ -71,7 +72,7 @@ def build_wasi(target):
 
     wasm3_binary = f"build-cross/wasm3-{target['name']}.wasm"
 
-    if not Path(wasm3_binary).exists():
+    if REBUILD or not Path(wasm3_binary).exists():
         build_dir = f"build-cross/{target['name']}/"
         print(f"Building {target['name']} target")
         run(f"""
@@ -104,7 +105,7 @@ def build_musl(target):
 
     wasm3_binary = f"build-cross/wasm3-{target['name']}"
 
-    if not Path(wasm3_binary).exists():
+    if REBUILD or not Path(wasm3_binary).exists():
         build_dir = f"build-cross/{target['name']}/"
         print(f"Building {target['name']} target")
         run(f"""
@@ -161,6 +162,7 @@ if __name__ == '__main__':
     parser.add_argument('-j','--jobs', type=int, metavar='N', default=multiprocessing.cpu_count(), help='parallel builds')
     parser.add_argument('-v','--verbose', action='store_true', help='verbose output')
     parser.add_argument('--retest', action='store_true', help='force tests')
+    parser.add_argument('--rebuild', action='store_true', help='force builds')
     parser.add_argument('--target', metavar='NAME')
     args = parser.parse_args()
 
@@ -169,6 +171,7 @@ if __name__ == '__main__':
 
     VERBOSE = args.verbose
     RETEST = args.retest
+    REBUILD = args.rebuild
 
     if args.jobs <= 1:
         for t in musl_targets:
