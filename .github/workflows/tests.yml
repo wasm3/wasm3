@@ -183,36 +183,36 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install Python dependencies
-      run: |
-        python3 -m pip install pip==20.1.1
-        python3 -m pip install --upgrade setuptools wheel
-        pip3 --version
-    - name: Install Wasienv
+    - name: Install WASI SDK
       env:
-        WASMER_RELEASE_TAG: "1.0.2"
-      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+        WASI_VERSION: 11
+        WASI_VERSION_FULL: ${WASI_VERSION}.0
+        WASI_SDK: ${GITHUB_WORKSPACE}/wasi-sdk-${WASI_VERSION_FULL}
+      run: |
+        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+        tar xvf wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+    - name: Install Wasmer
+      run: curl https://get.wasmer.io -sSfL | sh -s "1.0.2"
     - name: Configure
       run: |
-        source $HOME/.wasienv/wasienv.sh
         mkdir build-wasi
         cd build-wasi
-        wasimake cmake ..
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK}" ..
     - name: Build
       run: |
-        source $HOME/.wasienv/wasienv.sh
         cmake --build build-wasi
+        cp ./build-wasi/wasm3.wasm ./test/
+
     - name: Test WebAssembly spec (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. ../build-wasi/wasm3.wasm -- --repl"
-
+        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --repl"
     - name: Test WASI apps (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. ../build-wasi/wasm3.wasm --" --fast
+        python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm --" --fast
 
     - name: Configure (native)
       run: |
@@ -225,12 +225,11 @@ jobs:
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        cp ../build-wasi/wasm3.wasm ./
-        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm --repl"
+        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm"
+        python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm"
 
   ios:
     runs-on: macos-latest
@@ -410,7 +409,7 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio
+        pip install --upgrade platformio
     - name: Build AVR ATmega1284
       run: |
         cd platforms/embedded/arduino
