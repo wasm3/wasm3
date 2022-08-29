@@ -358,6 +358,11 @@ elif wasm3_ver in Blacklist(["* on sparc* GCC *"]):
     blacklist.add([
       "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
     ])
+elif wasm3_ver in Blacklist(["* on wasm*"]):
+    warning("WASM runaway issues, skipping some tests", True)
+    blacklist.add([
+      "call*runaway*"
+    ])
 
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
 

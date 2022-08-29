@@ -80,6 +80,10 @@
 #   define d_m3EnableOpTracing                  0       // only works with DEBUG
 # endif
 
+# ifndef d_m3EnableWasiTracing
+#  define d_m3EnableWasiTracing                 0
+# endif
+
 # ifndef d_m3EnableStrace
 #   define d_m3EnableStrace                     0       // 1 - trace exported function calls
                                                         // 2 - trace all calls (structured) - requires DEBUG
@@ -146,5 +150,7 @@
 # ifndef d_m3SkipMemoryBoundsCheck
 #   define d_m3SkipMemoryBoundsCheck            0       // skip memory bounds checks
 # endif
+
+#define d_m3EnableCodePageRefCounting           0       // not supported currently
 
 #endif // m3_config_h
