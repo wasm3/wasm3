@@ -447,9 +447,9 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
 
     __wasi_whence_t whence = -1;
     switch (wasi_whence) {
-    case 0: whence = __WASI_WHENCE_SET; whstr = "SET"; break;
-    case 1: whence = __WASI_WHENCE_CUR; whstr = "CUR"; break;
-    case 2: whence = __WASI_WHENCE_END; whstr = "END"; break;
+    case 0: whence = __WASI_WHENCE_SET; break;
+    case 1: whence = __WASI_WHENCE_CUR; break;
+    case 2: whence = __WASI_WHENCE_END; break;
     }
 
     __wasi_filesize_t pos;
