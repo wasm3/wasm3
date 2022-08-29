@@ -1,3 +1,5 @@
+[![SWUbanner](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://vshymanskyy.github.io/StandWithUkraine)
+
 <img align="right" width="30%" src="/extra/screenshot-ios.png">
 
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
@@ -33,11 +35,11 @@ Wasm3 can also be used as a library for:
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/zig.svg" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3)  
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/zig.svg" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3) │
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/perl.svg" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
-
 
 ## Status
 
@@ -85,15 +87,17 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 ## Used by
 
-[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev/)　
-[<img src="/extra/wowcube.png" height="32" />](https://wowcube.com/)　
-[<img src="/extra/scailable.png" height="32" />](https://scailable.net/)　
-[<img src="/extra/blynk.png" height="32" />](https://blynk.io/)　
-[<img src="/extra/iden3.svg" height="32" />](https://www.iden3.io/)　
+[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev)　
+[<img src="/extra/logos/wowcube.png" height="32" />](https://wowcube.com)　
+[<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
+[<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　
+[<img src="/extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
+[<img src="/extra/logos/losant.png" height="28" />](https://github.com/Losant/eea-examples)　
 [<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
 [<img src="https://www.balena.io/avatar.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
 [<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
-[<img src="/extra/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup/)
+[<img src="/extra/logos/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup)　
+[<img src="https://wasm4.org/img/logo.png" height="32" />](https://wasm4.org)
 
 ## Further Resources
 

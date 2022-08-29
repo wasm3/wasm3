@@ -76,6 +76,16 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
+  big-endian-i32-constant:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Get the qemu container
+      run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Run tests
+      run: docker run --rm --interactive --mount type=bind,source=$(pwd),target=/host s390x/alpine sh -c "apk add build-base cmake git --update-cache && cd /host && mkdir build && cd build && cmake .. && cd .. && cmake --build build && echo wasm3 built && echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm && echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm && echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37"
+
   macos:
     runs-on: macos-latest
     name: macos-${{ matrix.config.target }}
@@ -153,6 +163,19 @@ jobs:
       run: |
         cd test
         python run-wasi-test.py
+
+  cygwin-build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@main
+      - name: Set up Cygwin
+        uses: egor-tensin/setup-cygwin@master
+        with:
+            platform: x64
+            packages: make gcc-g++ cmake
+      - run: cd $GITHUB_WORKSPACE && cmake -DBUILD_WASI=simple . && make
+        shell: C:\tools\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
 
   wasi:
     runs-on: ubuntu-latest
