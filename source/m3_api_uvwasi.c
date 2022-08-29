@@ -17,10 +17,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef d_m3EnableWasiTracing
-#  define d_m3EnableWasiTracing     0
-#endif
-
 #ifdef __APPLE__
 # include <crt_externs.h>
 # define environ (*_NSGetEnviron())
