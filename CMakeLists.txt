@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 
 # Detect WasiEnv
-if(DEFINED ENV{WASI_CC})
+if(DEFINED ENV{WASI_CC} OR DEFINED WASI_SDK_PREFIX)
   set(WASIENV           1)
 endif()
 
@@ -47,6 +47,10 @@ if(CLANG OR CLANG_SUFFIX)
     set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=fuzzer,address")
   endif()
+endif()
+
+if(WASIENV)
+  set(OUT_FILE           "wasm3.wasm")
 endif()
 
 if(CLANG_CL)

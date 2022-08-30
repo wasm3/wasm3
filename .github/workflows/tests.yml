@@ -183,36 +183,43 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install Python dependencies
-      run: |
-        python3 -m pip install pip==20.1.1
-        python3 -m pip install --upgrade setuptools wheel
-        pip3 --version
-    - name: Install Wasienv
+    - name: Setup environment
       env:
-        WASMER_RELEASE_TAG: "1.0.2"
-      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+        WASI_VERSION: 11
+        WASI_VERSION_FULL: "11.0"
+      run: |
+        echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
+        echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
+        echo "WASI_SDK_PATH=${GITHUB_WORKSPACE}/.toolchains/wasi-sdk-${WASI_VERSION_FULL}" >> $GITHUB_ENV
+    - name: Install WASI SDK
+      run: |
+        mkdir -p .toolchains
+        cd .toolchains
+        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
+        tar xvf ${WASI_TAR}
+    - name: Install Wasmer
+      run: curl https://get.wasmer.io -sSfL | sh -s "1.0.2"
     - name: Configure
       run: |
-        source $HOME/.wasienv/wasienv.sh
         mkdir build-wasi
         cd build-wasi
-        wasimake cmake ..
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
     - name: Build
       run: |
-        source $HOME/.wasienv/wasienv.sh
         cmake --build build-wasi
+        cp ./build-wasi/wasm3.wasm ./test/
+
     - name: Test WebAssembly spec (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. ../build-wasi/wasm3.wasm -- --repl"
-
+        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --repl"
     - name: Test WASI apps (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. ../build-wasi/wasm3.wasm --" --fast
+        python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm --" --fast
 
     - name: Configure (native)
       run: |
@@ -225,12 +232,11 @@ jobs:
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        cp ../build-wasi/wasm3.wasm ./
-        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm --repl"
+        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 ../build-wasi/wasm3.wasm"
+        python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm"
 
   ios:
     runs-on: macos-latest
@@ -254,16 +260,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: seanmiddleditch/gha-setup-ninja@master
-    - name: Set up JDK 1.8
+    - name: Set up JDK 11
       uses: actions/setup-java@v1
       with:
-        java-version: 1.8
-    - name: Install NDK
-      run: |
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670"
-
-      #sudo ${ANDROID_HOME}/tools/bin/sdkmanager --uninstall "cmake;3.18.1"
-      #sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "cmake;3.10.2.4988404"
+        java-version: 11
     - name: Build
       run: |
         cd platforms/android
@@ -410,7 +410,7 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio
+        pip install --upgrade platformio
     - name: Build AVR ATmega1284
       run: |
         cd platforms/embedded/arduino

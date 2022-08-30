@@ -691,6 +691,16 @@ M3ValueType  m3_GetGlobalType  (IM3Global          i_global)
 
 void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
 {
+
+    // Prefer exported functions
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function f = & i_module->functions [i];
+        if (f->export_name and strcmp (f->export_name, i_name) == 0)
+            return f;
+    }
+
+    // Search internal functions
     for (u32 i = 0; i < i_module->numFunctions; ++i)
     {
         IM3Function f = & i_module->functions [i];

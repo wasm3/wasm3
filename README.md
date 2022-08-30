@@ -87,7 +87,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 ## Used by
 
-[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev)　
+[<img src="/extra/logos/wasmcloud.png" height="32" />](https://wasmcloud.dev)　
 [<img src="/extra/logos/wowcube.png" height="32" />](https://wowcube.com)　
 [<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
 [<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　

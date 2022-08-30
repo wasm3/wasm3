@@ -21,7 +21,7 @@
 # endif
 
 # ifndef d_m3MaxLinearMemoryPages
-#   define d_m3MaxLinearMemoryPages             32768
+#   define d_m3MaxLinearMemoryPages             65536
 # endif
 
 # ifndef d_m3MaxFunctionSlots
@@ -86,7 +86,7 @@
 
 # ifndef d_m3EnableStrace
 #   define d_m3EnableStrace                     0       // 1 - trace exported function calls
-                                                        // 2 - trace all calls (structured) - requires DEBUG
+                                                        // 2 - trace all calls (structured)
                                                         // 3 - all calls + loops + memory operations
 # endif
 
