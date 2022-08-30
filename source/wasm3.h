@@ -110,7 +110,11 @@ M3ImportContext, * IM3ImportContext;
 // -------------------------------------------------------------------------------------------------------------------------------
 
 # if defined(M3_IMPLEMENT_ERROR_STRINGS)
-#   define d_m3ErrorConst(LABEL, STRING)        const M3Result m3Err_##LABEL = { STRING };
+#   if defined(__cplusplus)
+#     define d_m3ErrorConst(LABEL, STRING)      extern const M3Result m3Err_##LABEL = { STRING };
+#   else
+#     define d_m3ErrorConst(LABEL, STRING)      const M3Result m3Err_##LABEL = { STRING };
+#   endif
 # else
 #   define d_m3ErrorConst(LABEL, STRING)        extern const M3Result m3Err_##LABEL;
 # endif
