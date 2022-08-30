@@ -21,7 +21,7 @@
 # endif
 
 # ifndef d_m3MaxLinearMemoryPages
-#   define d_m3MaxLinearMemoryPages             32768
+#   define d_m3MaxLinearMemoryPages             65536
 # endif
 
 # ifndef d_m3MaxFunctionSlots
