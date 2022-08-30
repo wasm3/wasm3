@@ -356,7 +356,7 @@ void  dump_type_stack  (IM3Compilation o)
     {
         d_m3Log(stack, "        ");
 
-        for (u32 i = 0; i < o->stackIndex; ++i)
+        for (u16 i = 0; i < o->stackIndex; ++i)
         {
             if (i > 0 and i == o->stackFirstDynamicIndex)
                 printf ("#");

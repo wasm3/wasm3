@@ -933,7 +933,7 @@ M3Result  FindReferencedLocalWithinCurrentBlock  (IM3Compilation o, u16 * o_pres
     M3Result result = m3Err_none;
 
     IM3CompilationScope scope = & o->block;
-    i16 startIndex = scope->blockStackIndex;
+    u16 startIndex = scope->blockStackIndex;
 
     while (scope->opcode == c_waOp_block)
     {
@@ -1874,7 +1874,7 @@ _   (ReadBlockType (o, & blockType));
 
                     if (IsConstantSlot (o, slot))
                     {
-                        u16 newSlot;
+                        u16 newSlot = c_slotUnused;
 _                       (AllocateSlots (o, & newSlot, type));
 _                       (CopyStackIndexToSlot (o, newSlot, i));
                         o->wasmStack [i] = newSlot;
