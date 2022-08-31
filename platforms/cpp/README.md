@@ -14,7 +14,7 @@ All the classes are located in `wasm3` namespace.
 
 `environment::environment()` — create a new WASM3 environment. Runtimes, modules are owned by an environment.
 
-`runtime environment::new_runtime(size_t stack_size_bytes)` — create new runtime inside the environment.
+`runtime environment::new_runtime(uint32_t stack_size_bytes)` — create new runtime inside the environment.
 
 `module environment::parse_module(std::istream &in)` or `module environment::parse_module(const uint8_t *data, size_t size)` — parse a WASM binary module.
 
