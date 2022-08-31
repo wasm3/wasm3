@@ -153,7 +153,7 @@ typedef int8_t          i8;
 
 # ifndef d_m3MaxFunctionStackHeight
 #  if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_AMEBA) || defined(TEENSYDUINO)
-#    define d_m3MaxFunctionStackHeight          128
+#    define d_m3MaxFunctionStackHeight          256
 #  endif
 # endif
 
@@ -183,7 +183,7 @@ typedef int8_t          i8;
 #   define d_m3MaxConstantTableSize             64
 # endif
 #  ifndef d_m3MaxFunctionStackHeight
-#    define d_m3MaxFunctionStackHeight          64
+#    define d_m3MaxFunctionStackHeight          128
 #  endif
 #  ifndef d_m3CodePageAlignSize
 #    define d_m3CodePageAlignSize               1024
