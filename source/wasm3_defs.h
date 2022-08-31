@@ -58,6 +58,12 @@
 #  define M3_COMPILER_HAS_BUILTIN(x) 0
 # endif
 
+# ifdef __has_attribute
+#  define M3_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
+# else
+#  define M3_COMPILER_HAS_ATTRIBUTE(x) 0
+# endif
+
 /*
  * Detect endianness
  */

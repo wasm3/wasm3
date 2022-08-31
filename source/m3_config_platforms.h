@@ -82,7 +82,7 @@
 #  endif
 # endif
 
-# if defined(M3_COMPILER_CLANG) && __clang_major__ >= 13
+# if M3_COMPILER_HAS_ATTRIBUTE(musttail)
 #   define M3_MUSTTAIL __attribute__((musttail))
 # else
 #   define M3_MUSTTAIL
