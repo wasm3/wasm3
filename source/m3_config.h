@@ -62,7 +62,7 @@
 # endif
 
 # ifndef d_m3RecordBacktraces
-#   define d_m3RecordBacktraces                 0
+#   define d_m3RecordBacktraces                 1
 # endif
 
 # ifndef d_m3EnableExceptionBreakpoint

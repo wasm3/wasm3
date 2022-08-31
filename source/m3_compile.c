@@ -679,8 +679,7 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 constant;
-                memcpy (&constant, &o->constants [slot - o->slotFirstConstIndex], sizeof (constant));
+                u64 constant = * (u64 *) & o->constants [slot - o->slotFirstConstIndex];
 
                 if (constant == i_word)
                 {
@@ -701,9 +700,9 @@ _                   (Push (o, i_type, slot));
             {
                 u64 constant;
                 if (is64BitType) {
-                    memcpy(&constant, & o->constants [i], sizeof(u64));
+                    constant = * (u64 *) & o->constants [i];
                 } else {
-                    memcpy(&constant, & o->constants [i], sizeof(u32));
+                    constant = * (u32 *) & o->constants [i];
                 }
                 if (constant == i_word)
                 {
@@ -740,10 +739,15 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
 
             d_m3Assert(constTableIndex < d_m3MaxConstantTableSize);
 
-            if (is64BitType) {
-                memcpy (& o->constants [constTableIndex], &i_word, sizeof(u64));
-            } else {
-                memcpy (& o->constants [constTableIndex], &i_word, sizeof(u32));
+            if (is64BitType)
+            {
+                u64 * constant = (u64 *) & o->constants [constTableIndex];
+                * constant = i_word;
+            }
+            else
+            {
+                u32 * constant = (u32 *) & o->constants [constTableIndex];
+                * constant = (u32) i_word;
             }
 
 _           (Push (o, i_type, slot));
