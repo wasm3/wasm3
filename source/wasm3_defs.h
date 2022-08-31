@@ -268,6 +268,11 @@
 # endif
 
 /*
+ * Bit ops
+ */
+#define m3_isBitSet(val, pos)           ((val & (1 << pos)) != 0)
+
+/*
  * Other
  */
 

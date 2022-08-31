@@ -82,6 +82,12 @@
 #  endif
 # endif
 
+# if defined(M3_COMPILER_CLANG) && __clang_major__ >= 13
+#   define M3_MUSTTAIL __attribute__((musttail))
+# else
+#   define M3_MUSTTAIL
+# endif
+
 # ifndef M3_MIN
 #  define M3_MIN(A,B) (((A) < (B)) ? (A) : (B))
 # endif

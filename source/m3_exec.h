@@ -47,10 +47,10 @@ d_m3BeginExternC
 
 # if d_m3EnableOpProfiling
                                     d_m3RetSig  profileOp   (d_m3OpSig, cstr_t i_operationName);
-#   define nextOp()                 return profileOp (d_m3OpAllArgs, __FUNCTION__)
+#   define nextOp()                 M3_MUSTTAIL return profileOp (d_m3OpAllArgs, __FUNCTION__)
 # elif d_m3EnableOpTracing
                                     d_m3RetSig  debugOp     (d_m3OpSig, cstr_t i_operationName);
-#   define nextOp()                 return debugOp (d_m3OpAllArgs, __FUNCTION__)
+#   define nextOp()                 M3_MUSTTAIL return debugOp (d_m3OpAllArgs, __FUNCTION__)
 # else
 #   define nextOp()                 nextOpDirect()
 # endif
