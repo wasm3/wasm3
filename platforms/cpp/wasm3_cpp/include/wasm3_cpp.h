@@ -45,7 +45,18 @@ namespace wasm3 {
         struct m3_sig {
             static const char value = c;
         };
-        template<typename T> struct m3_type_to_sig;
+        template<typename T, typename = void> struct m3_type_to_sig;
+
+        template<typename T, typename U>
+        using is_enum_of_t = typename std::enable_if<std::is_enum<T>::value
+            && std::is_same<std::underlying_type_t<T>, U>::value>::type;
+
+        template<typename T>
+        struct m3_type_to_sig<T, is_enum_of_t<T, int32_t>> : m3_sig<'i'> {};
+
+        template<class T>
+        struct m3_type_to_sig<T, is_enum_of_t<T, int64_t>> : m3_sig<'I'> {};
+
         template<> struct m3_type_to_sig<int32_t> : m3_sig<'i'> {};
         template<> struct m3_type_to_sig<int64_t> : m3_sig<'I'> {};
         template<> struct m3_type_to_sig<float>   : m3_sig<'f'> {};
