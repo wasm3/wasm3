@@ -1204,34 +1204,37 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 static
 M3Result  Compile_Simd_Const  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+_try {
 
     uint8_t value[16];
 _   (Read_v128 (& value, & o->wasm, o->wasmEnd));
 
-	_catch: return result;
+} _catch:
+    return result;
 }
 
 static
 M3Result  Compile_Simd_Shuffle  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+_try {
 
     uint8_t value[16];
 _   (Read_v128 (& value, & o->wasm, o->wasmEnd));
 
-    _catch: return result;
+} _catch:
+    return result;
 }
 
 static
 M3Result  Compile_Simd_Extract_Replace  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+_try {
 
     uint8_t laneIdx;
 _   (Read_u8 (& laneIdx, & o->wasm, o->wasmEnd));
 
-    _catch: return result;
+} _catch:
+    return result;
 }
 
 #endif // d_m3ImplementSIMD
@@ -1962,13 +1965,13 @@ M3Result  Compile_Table_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
     u32 sourceMemoryIdx, targetMemoryIdx;
 _   (ReadLEB_u32 (& targetMemoryIdx, & o->wasm, o->wasmEnd));
 
-    IM3Operation op;
+    //IM3Operation op;
     if (i_opcode == c_waOp_memoryCopy)
     {
 _       (ReadLEB_u32 (& sourceMemoryIdx, & o->wasm, o->wasmEnd));
-        op = op_MemCopy;
+        //op = op_MemCopy;
     }
-    else op = op_MemFill;
+    //else op = op_MemFill;
 
     // TODO
 //_   (CopyStackTopToRegister (o, false));
@@ -2177,16 +2180,18 @@ M3Result  Compile_Select  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result = m3Err_none;
 
     u16 slots [3] = { c_slotUnused, c_slotUnused, c_slotUnused };
-    // Read optional type immediate
-    i8 wasmType = c_m3Type_none;
-    if (i_opcode == c_waOp_select_t) {
-_       (ReadLEB_i7 (& wasmType, & o->wasm, o->wasmEnd));
-_       (NormalizeType (& wasmType, wasmType));
-    }
 
     u8 type = GetStackTypeFromTop (o, 1); // get type of selection
 
     IM3Operation op = NULL;
+
+    // Read optional type immediate
+    u8 wasmType = c_m3Type_none;
+    if (i_opcode == c_waOp_select_t) {
+    	i8 t;
+_       (ReadLEB_i7 (& t, & o->wasm, o->wasmEnd));
+_       (NormalizeType (& wasmType, t));
+    }
 
     if (IsFpType (type))
     {
@@ -2287,7 +2292,7 @@ _   (SetStackPolymorphic (o));
 static
 M3Result  Compile_RefNull  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+_try {
 
     u8 reftype;
     i8 wasmType;
@@ -2296,32 +2301,32 @@ _   (NormalizeType (& reftype, wasmType));
 
 	// TODO
 
-_catch:
+} _catch:
     return result;
 }
 
 static
 M3Result  Compile_RefIsNull  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+_try {
 
     // TODO
 
-_catch:
+} _catch:
     return result;
 }
 
 static
 M3Result  Compile_RefFunc  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
+_try {
 
     u32 funcIdx;
 _   (ReadLEB_u32 (& funcIdx, & o->wasm, o->wasmEnd));
 
     // TODO
 
-_catch:
+} _catch:
     return result;
 }
 
