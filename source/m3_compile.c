@@ -1707,6 +1707,8 @@ _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
     u32 tableIndex;
 _   (ReadLEB_u32 (& tableIndex, & o->wasm, o->wasmEnd));
 
+    // TODO
+
     _throwif ("function call type index out of range", typeIndex >= o->module->numFuncTypes);
 
     if (IsStackTopInRegister (o))
@@ -1764,6 +1766,48 @@ _   (PushRegister (o, c_m3Type_i32));
 }
 
 static
+M3Result  Compile_Memory_Init  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    u32 dataIdx;
+_   (ReadLEB_u32 (& dataIdx, & o->wasm, o->wasmEnd));
+
+	u32 memoryIdx;
+_   (ReadLEB_u32 (& memoryIdx, & o->wasm, o->wasmEnd));
+
+	_throwif(m3Err_trapOutOfBoundsMemoryAccess, dataIdx >= o->module->numDataSegments);
+
+_   (CopyStackTopToRegister (o, false));
+
+_   (EmitOp  (o, op_MemInit));
+    EmitPointer(o, &(o->module->dataSegments[dataIdx]));
+
+_   (PopType (o, c_m3Type_i32));
+_   (EmitSlotNumOfStackTopAndPop (o));
+_   (EmitSlotNumOfStackTopAndPop (o));
+
+    _catch: return result;
+}
+
+static
+M3Result  Compile_Data_Drop  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    u32 dataIdx;
+_   (ReadLEB_u32 (& dataIdx, & o->wasm, o->wasmEnd));
+
+	_throwif(m3Err_trapOutOfBoundsMemoryAccess, dataIdx >= o->module->numDataSegments);
+
+_   (EmitOp  (o, op_DataDrop));
+    EmitPointer(o, &(o->module->dataSegments[dataIdx]));
+
+    _catch: return result;
+}
+
+
+static
 M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
@@ -1788,6 +1832,115 @@ _   (EmitSlotNumOfStackTopAndPop (o));
 
     _catch: return result;
 }
+
+
+
+static
+M3Result  Compile_Table_Size  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    i8 reserved;
+_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+
+_   (PreserveRegisterIfOccupied (o, c_m3Type_i32));
+
+_   (EmitOp     (o, op_MemSize));
+
+_   (PushRegister (o, c_m3Type_i32));
+
+    _catch: return result;
+}
+
+static
+M3Result  Compile_Table_Grow  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    i8 reserved;
+_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+
+_   (CopyStackTopToRegister (o, false));
+_   (PopType (o, c_m3Type_i32));
+
+_   (EmitOp     (o, op_MemGrow));
+
+_   (PushRegister (o, c_m3Type_i32));
+
+    _catch: return result;
+}
+
+static
+M3Result  Compile_Table_Init  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+	u32 tableIdx;
+_   (ReadLEB_u32 (& tableIdx, & o->wasm, o->wasmEnd));
+
+    u32 elemIdx;
+_   (ReadLEB_u32 (& elemIdx, & o->wasm, o->wasmEnd));
+
+	//_throwif(m3Err_trapOutOfBoundsMemoryAccess, elemIdx >= o->module->numElemSegments);
+
+_   (CopyStackTopToRegister (o, false));
+
+//_   (EmitOp  (o, op_TableInit));
+//    EmitPointer(o, &(o->module->dataSegments[dataIdx]));
+
+_   (PopType (o, c_m3Type_i32));
+_   (EmitSlotNumOfStackTopAndPop (o));
+_   (EmitSlotNumOfStackTopAndPop (o));
+
+    _catch: return result;
+}
+
+static
+M3Result  Compile_Elem_Drop  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    u32 elemIdx;
+_   (ReadLEB_u32 (& elemIdx, & o->wasm, o->wasmEnd));
+
+	//_throwif(m3Err_trapOutOfBoundsMemoryAccess, elemIdx >= o->module->numDataSegments);
+
+//_   (EmitOp  (o, op_DataDrop));
+//    EmitPointer(o, &(o->module->dataSegments[elemIdx]));
+
+    _catch: return result;
+}
+
+
+static
+M3Result  Compile_Table_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result = m3Err_none;
+
+    u32 sourceMemoryIdx, targetMemoryIdx;
+_   (ReadLEB_u32 (& targetMemoryIdx, & o->wasm, o->wasmEnd));
+
+    IM3Operation op;
+    if (i_opcode == c_waOp_memoryCopy)
+    {
+_       (ReadLEB_u32 (& sourceMemoryIdx, & o->wasm, o->wasmEnd));
+        op = op_MemCopy;
+    }
+    else op = op_MemFill;
+
+    // TODO
+//_   (CopyStackTopToRegister (o, false));
+
+//_   (EmitOp  (o, op));
+//_   (PopType (o, c_m3Type_i32));
+//_   (EmitSlotNumOfStackTopAndPop (o));
+//_   (EmitSlotNumOfStackTopAndPop (o));
+
+    _catch: return result;
+}
+
+
+
 
 
 static
@@ -1982,6 +2135,12 @@ M3Result  Compile_Select  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result = m3Err_none;
 
     u16 slots [3] = { c_slotUnused, c_slotUnused, c_slotUnused };
+    // Read optional type immediate
+    i8 wasmType = c_m3Type_none;
+    if (i_opcode == c_waOp_select_t) {
+_       (ReadLEB_i7 (& wasmType, & o->wasm, o->wasmEnd));
+_       (NormalizeType (& wasmType, wasmType));
+    }
 
     u8 type = GetStackTypeFromTop (o, 1); // get type of selection
 
@@ -2080,6 +2239,47 @@ _   (EmitOp (o, op_Unreachable));
 _   (SetStackPolymorphic (o));
 
     _catch:
+    return result;
+}
+
+static
+M3Result  Compile_RefNull  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    u8 reftype;
+    i8 wasmType;
+_   (ReadLEB_i7 (& wasmType, & o->wasm, o->wasmEnd));
+_   (NormalizeType (& reftype, wasmType));
+
+	// TODO
+
+_catch:
+    return result;
+}
+
+static
+M3Result  Compile_RefIsNull  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    // TODO
+
+_catch:
+    return result;
+}
+
+static
+M3Result  Compile_RefFunc  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    u32 funcIdx;
+_   (ReadLEB_u32 (& funcIdx, & o->wasm, o->wasmEnd));
+
+    // TODO
+
+_catch:
     return result;
 }
 
@@ -2198,12 +2398,18 @@ M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
     u32 alignHint, memoryOffset;
+    u32 memoryIndex = 0;
 
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
+	if (m3_isBitSet(alignHint, 6)) { // has memory index
+_       (ReadLEB_u32 (& memoryIndex, & o->wasm, o->wasmEnd));
+	}
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
+
+    // TODO: use memoryIndex
 
     if (IsFpType (opInfo->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
@@ -2280,8 +2486,9 @@ const M3OpInfo c_operations [] =
 
     M3OP( "drop",               -1, none,   d_emptyOpList,                      Compile_Drop ),         // 0x1a
     M3OP( "select",             -2, any,    d_emptyOpList,                      Compile_Select  ),      // 0x1b
+    M3OP( "select-t",           -2, any,    d_emptyOpList,                      Compile_Select  ),      // 0x1c
 
-    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // 0x1c...0x1f
+    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                                        // 0x1d...0x1f
 
     M3OP( "local.get",          1,  any,    d_emptyOpList,                      Compile_GetLocal ),     // 0x20
     M3OP( "local.set",          1,  none,   d_emptyOpList,                      Compile_SetLocal ),     // 0x21
@@ -2477,6 +2684,14 @@ const M3OpInfo c_operations [] =
     M3OP( "i64.extend16_s",      0,  i_64,   d_unaryOpList (i64, Extend16_s),       NULL    ),          // 0xc3
     M3OP( "i64.extend32_s",      0,  i_64,   d_unaryOpList (i64, Extend32_s),       NULL    ),          // 0xc4
 
+    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                          // 0xc5...
+    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,           // ...0xcf
+
+    M3OP( "ref.null",           1,  any,    d_emptyOpList,                      Compile_RefNull ),      // 0xd0
+    M3OP( "ref.is_null",        0,  any,    d_emptyOpList,                      Compile_RefIsNull ),    // 0xd1
+    M3OP( "ref.func",           1,  any,    d_emptyOpList,                      Compile_RefFunc ),      // 0xd2
+
+
 # ifdef DEBUG // for codepage logging. the order doesn't matter:
 #   define d_m3DebugOp(OP) M3OP (#OP, 0, none, { op_##OP })
 
@@ -2532,11 +2747,18 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_s:sat/f64",0,  i_64,   d_convertOpList (i64_TruncSat_f64),        Compile_Convert ),  // 0x06
     M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
 
-    M3OP_RESERVED, M3OP_RESERVED,
-
+    M3OP( "memory.init",            0,  none,   d_emptyOpList,                           Compile_Memory_Init ),     // 0x08
+    M3OP( "data.drop",              0,  none,   d_emptyOpList,                           Compile_Data_Drop ),       // 0x09
     M3OP( "memory.copy",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0a
     M3OP( "memory.fill",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0b
 
+    M3OP( "table.init",             0,  none,   d_emptyOpList,                           Compile_Table_Init ),      // 0x0c
+    M3OP( "elem.drop",              0,  none,   d_emptyOpList,                           Compile_Elem_Drop ),       // 0x0d
+    M3OP( "table.copy",             0,  none,   d_emptyOpList,                           Compile_Table_CopyFill ),  // 0x0e
+
+    M3OP( "table.grow",             0,  none,   d_emptyOpList,                           Compile_Table_Grow ),      // 0x0f
+    M3OP( "table.size",             0,  none,   d_emptyOpList,                           Compile_Table_Size ),      // 0x10
+    M3OP( "table.fill",             0,  none,   d_emptyOpList,                           Compile_Table_CopyFill ),  // 0x11
 
 # ifdef DEBUG
     M3OP( "termination", 0, c_m3Type_unknown ) // for find_operation_info
@@ -2589,6 +2811,7 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
             switch (opcode) {
             case c_waOp_i32_const: case c_waOp_i64_const:
             case c_waOp_f32_const: case c_waOp_f64_const:
+            case c_waOp_ref_null:  case c_waOp_ref_func:
             case c_waOp_getGlobal: case c_waOp_end:
                 break;
             default:

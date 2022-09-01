@@ -74,6 +74,11 @@ typedef enum M3ValueType
     c_m3Type_f32    = 3,
     c_m3Type_f64    = 4,
 
+    c_m3Type_externref = 5,
+    c_m3Type_funcref = 6,
+
+	c_m3Type_v128 = 7,
+
     c_m3Type_unknown
 } M3ValueType;
 

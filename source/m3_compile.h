@@ -25,6 +25,7 @@ enum
     c_waOp_branchTable          = 0x0e,
     c_waOp_branchIf             = 0x0d,
     c_waOp_call                 = 0x10,
+    c_waOp_select_t             = 0x1c,
     c_waOp_getLocal             = 0x20,
     c_waOp_setLocal             = 0x21,
     c_waOp_teeLocal             = 0x22,
@@ -39,10 +40,16 @@ enum
     c_waOp_f32_const            = 0x43,
     c_waOp_f64_const            = 0x44,
 
+    c_waOp_ref_null             = 0xd0,
+    c_waOp_ref_func             = 0xd2,
+
     c_waOp_extended             = 0xfc,
 
     c_waOp_memoryCopy           = 0xfc0a,
-    c_waOp_memoryFill           = 0xfc0b
+    c_waOp_memoryFill           = 0xfc0b,
+
+    c_waOp_tableCopy           = 0xfc0e,
+    c_waOp_tableFill           = 0xfc11,
 };
 
 

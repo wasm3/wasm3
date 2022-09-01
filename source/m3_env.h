@@ -41,11 +41,11 @@ typedef M3Memory *          IM3Memory;
 
 typedef struct M3DataSegment
 {
-    const u8 *              initExpr;           // wasm code
+    const u8 *              initExpr;           // NULL if section is passive
     const u8 *              data;
 
     u32                     initExprSize;
-    u32                     memoryRegion;
+    u32                     memoryIndex;
     u32                     size;
 }
 M3DataSegment;

@@ -49,7 +49,7 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --repl")
-parser.add_argument("--spec",                          default="opam-1.1.1")
+parser.add_argument("--spec",                          default="main")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
@@ -339,6 +339,29 @@ blacklist = Blacklist([
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
+# TODO: fix those
+if args.spec == "main":
+    blacklist.add([
+      "* select.0.wasm select-*-t*",
+      "* select.0.wasm select-*ref*",
+
+      "* bulk.8.wasm *",
+      "* bulk.9.wasm *",
+      "* bulk.12.wasm *",
+      "* br_table.0.wasm *meet-externref*",
+      "* call_indirect.1.wasm *",
+      "* ref_*.wasm *",
+      "* table_init.*.wasm *",
+      "* table_grow.*.wasm *",
+      "* table_size.*.wasm *",
+      "* table_fill.*.wasm *",
+      "* table_copy.*.wasm *",
+      "* table_get.*.wasm *",
+      "* table_set.*.wasm *",
+
+      "simd_* simd_*.wasm *",
+    ])
+
 if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"]):
     warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True)
     # See: https://docs.microsoft.com/en-us/cpp/c-runtime-library/floating-point-support
@@ -473,9 +496,7 @@ def runInvoke(test):
 if args.file:
     jsonFiles = args.file
 else:
-    jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"))
-    jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "sign-extension-ops", "*.json"))
-    jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "nontrapping-float-to-int-conversions", "*.json"))
+    jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"), recursive=True) # "**",
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()

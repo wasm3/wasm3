@@ -202,11 +202,15 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
     u8 type = -i_convolutedWasmType;
 
     if (type == 0x40)
-        type = c_m3Type_none;
-    else if (type < c_m3Type_i32 or type > c_m3Type_f64)
+        * o_type = c_m3Type_none;
+    else if (type == 0x10)
+        * o_type = c_m3Type_funcref;
+    else if (type == 0x11)
+        * o_type = c_m3Type_externref;
+    else if (type >= c_m3Type_i32 and type <= c_m3Type_f64)
+        * o_type = type;
+    else
         result = m3Err_invalidTypeId;
-
-    * o_type = type;
 
     return result;
 }

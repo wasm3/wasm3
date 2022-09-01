@@ -704,6 +704,37 @@ d_m3Op  (MemGrow)
     nextOp ();
 }
 
+d_m3Op  (MemInit)
+{
+	M3DataSegment* segment        = immediate (M3DataSegment*);
+
+    u32 size = (u32) _r0;
+    u64 offset = slot (u32);
+    u64 destination = slot (u32);
+
+    if (M3_LIKELY(destination + size <= _mem->length))
+    {
+        if (M3_LIKELY(offset + size <= segment->size))
+        {
+            u8 * dst = m3MemData (_mem) + destination;
+            const u8 * src = segment->data + offset;
+            memcpy (dst, src, size);
+
+            nextOp ();
+        }
+        else newTrap (m3Err_trapOutOfBoundsMemoryAccess);
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+d_m3Op  (DataDrop)
+{
+	M3DataSegment* segment        = immediate (M3DataSegment*);
+
+	segment->size = 0;
+
+	nextOp ();
+}
 
 d_m3Op  (MemCopy)
 {

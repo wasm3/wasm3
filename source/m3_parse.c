@@ -405,13 +405,21 @@ _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                        
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
 
-_       (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
+        u32 segmentFlags;
+_       (ReadLEB_u32 (& segmentFlags, & i_bytes, i_end));
+        _throwif ("invalid data segment flags", segmentFlags > 2);
 
-        segment->initExpr = i_bytes;
-_       (Parse_InitExpr (io_module, & i_bytes, i_end));
-        segment->initExprSize = (u32) (i_bytes - segment->initExpr);
+        if (not m3_isBitSet(segmentFlags, 0)) {     // is active
+            if (m3_isBitSet(segmentFlags, 1)) {     // has memory index
+_               (ReadLEB_u32 (& segment->memoryIndex, & i_bytes, i_end));
+            }
 
-        _throwif (m3Err_wasmMissingInitExpr, segment->initExprSize <= 1);
+            segment->initExpr = i_bytes;
+_           (Parse_InitExpr (io_module, & i_bytes, i_end));
+            segment->initExprSize = (u32) (i_bytes - segment->initExpr);
+
+            _throwif (m3Err_wasmMissingInitExpr, segment->initExprSize <= 1);
+        }
 
 _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",

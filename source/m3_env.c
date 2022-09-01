@@ -23,7 +23,7 @@ IM3Environment  m3_NewEnvironment  ()
         _try
         {
             // create FuncTypes for all simple block return ValueTypes
-            for (u8 t = c_m3Type_none; t <= c_m3Type_f64; t++)
+            for (u8 t = c_m3Type_none; t <= c_m3Type_v128; t++)
             {
                 IM3FuncType ftype;
 _               (AllocFuncType (& ftype, 1));
@@ -34,7 +34,6 @@ _               (AllocFuncType (& ftype, 1));
 
                 Environment_AddFuncType (env, & ftype);
 
-                d_m3Assert (t < 5);
                 env->retFuncTypes [t] = ftype;
             }
         }
@@ -456,6 +455,9 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
 
+        if (!segment->initExpr) { // skip passive segments
+            continue;
+        }
         i32 segmentOffset;
         bytes_t start = segment->initExpr;
 _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
@@ -484,23 +486,53 @@ M3Result  InitElements  (IM3Module io_module)
 
     for (u32 i = 0; i < io_module->numElementSegments; ++i)
     {
-        u32 index;
-_       (ReadLEB_u32 (& index, & bytes, end));
+        u32 segmentFlags;
+_       (ReadLEB_u32 (& segmentFlags, & bytes, end));
+        _throwif ("invalid table segment flags", segmentFlags > 7);
 
-        if (index == 0)
-        {
-            i32 offset;
+        const bool isActive = not m3_isBitSet(segmentFlags, 0);
+
+        // bit 2 indicates the use of element type and element expressions
+        // instead of element kind and element indices
+        const bool hasElemExprs = m3_isBitSet(segmentFlags, 2);
+
+        u32 tableIndex = 0;
+        i32 offset = 0;
+
+        if (isActive) {  // is active
+        	// bit 1 indicates the presence of an explicit table index for an active segment
+            const bool hasTableIndex = m3_isBitSet(segmentFlags, 1);
+            if (hasTableIndex) {
+_               (ReadLEB_u32 (& tableIndex, & bytes, end));
+            }
+
 _           (EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end));
             _throwif ("table underflow", offset < 0);
+        } else { // passive
+        	// bit 1 distinguishes passive from declarative segments
+            const bool isDeclared = m3_isBitSet(segmentFlags, 1);
 
-            u32 numElements;
-_           (ReadLEB_u32 (& numElements, & bytes, end));
+            // TODO
+        }
 
+        u8 encoding = c_m3Type_funcref;
+        if (segmentFlags != 0 && segmentFlags != 4) {
+			i8 type;
+_           (ReadLEB_i7 (& type, & bytes, end));
+			_throwif ("element encoding must be 0", type != 0);
+        }
+
+        u32 numElements;
+_       (ReadLEB_u32 (& numElements, & bytes, end));
+
+        if (not hasElemExprs) { // has indexes
             size_t endElement = (size_t) numElements + offset;
             _throwif ("table overflow", endElement > d_m3MaxSaneTableSize);
 
             // is there any requirement that elements must be in increasing sequence?
             // make sure the table isn't shrunk.
+
+            // TODO: use tableIndex
             if (endElement > io_module->table0Size)
             {
                 io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
@@ -516,8 +548,14 @@ _               (ReadLEB_u32 (& functionIndex, & bytes, end));
                 IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", m3_GetFunctionName(function));
                 io_module->table0 [e + offset] = function;
             }
+        } else {
+            for (u32 e = 0; e < numElements; ++e)
+            {
+            	i32 value = 0;
+_               (EvaluateExpression (io_module, & value, c_m3Type_externref, & bytes, end));
+            }
         }
-        else _throw ("element table index must be zero for MVP");
+
     }
 
     _catch: return result;
