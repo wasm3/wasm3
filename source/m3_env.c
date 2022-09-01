@@ -816,8 +816,7 @@ u8 *  GetStackPointerForArgs  (IM3Function i_function)
     u64 * stack = (u64 *) i_function->module->runtime->stack;
     IM3FuncType ftype = i_function->funcType;
 
-    stack += ftype->numRets;
-
+    stack += m3ApiArgOffset(ftype->numRets);
     return (u8 *) stack;
 }
 

@@ -625,7 +625,7 @@ d_m3Op  (CallRawFunction)
 
     const int nArgs = ftype->numArgs;
     const int nRets = ftype->numRets;
-    u64 * args = sp + nRets;
+    u64 * args = sp + m3ApiArgOffset(nRets);
     for (int i=0; i<nArgs; i++) {
         const int type = ftype->types[nRets + i];
         switch (type) {

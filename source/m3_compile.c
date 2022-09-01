@@ -1112,14 +1112,14 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_functionBlock, 
     if (numReturns)
     {
         // return slots like args are 64-bit aligned
-        u16 returnSlot = numReturns * c_ioSlotCount;
-        u16 stackTop = GetStackTopIndex (o);
+        u16 returnSlot = 0;
+        u16 stackTop = GetStackTopIndex (o) - numReturns + 1;
 
         for (u16 i = 0; i < numReturns; ++i)
         {
-            u8 returnType = GetFuncTypeResultType (i_functionBlock->type, numReturns - 1 - i);
+            u8 returnType = GetFuncTypeResultType (i_functionBlock->type, i);
 
-            u8 stackType = GetStackTypeFromTop (o, i);  // using FromTop so that only dynamic items are checked
+            u8 stackType = GetStackTypeFromTop (o, numReturns - 1 - i);  // using FromTop so that only dynamic items are checked
 
             if (IsStackPolymorphic (o) and stackType == c_m3Type_none)
                 stackType = returnType;
@@ -1128,8 +1128,10 @@ M3Result  ReturnValues  (IM3Compilation o, IM3CompilationScope i_functionBlock, 
 
             if (not IsStackPolymorphic (o))
             {
-                returnSlot -= c_ioSlotCount;
-_               (CopyStackIndexToSlot (o, returnSlot, stackTop--));
+                if (stackTop >= 0 && o->wasmStack [stackTop] != returnSlot)
+_                   (CopyStackIndexToSlot (o, returnSlot, stackTop));
+                stackTop++;
+                returnSlot += c_ioSlotCount;
             }
         }
 
@@ -1630,7 +1632,7 @@ _       (Pop (o));
     u16 numArgs = GetFuncTypeNumParams (i_type);
     u16 numRets = GetFuncTypeNumResults (i_type);
 
-    u16 argTop = topSlot + (numArgs + numRets) * c_ioSlotCount;
+    u16 argTop = topSlot + (numArgs + m3ApiArgOffset(numRets)) * c_ioSlotCount;
 
     while (numArgs--)
     {
@@ -2859,7 +2861,8 @@ _   (AcquireCompilationCodePage (o, & o->page));
 
     pc_t pc = GetPagePC (o->page);
 
-    u16 numRetSlots = GetFunctionNumReturns (o->function) * c_ioSlotCount;
+    u16 numRets = GetFunctionNumReturns (o->function);
+    u16 numRetSlots = m3ApiArgOffset(numRets) * c_ioSlotCount;
 
     for (u16 i = 0; i < numRetSlots; ++i)
         MarkSlotAllocated (o, i);
