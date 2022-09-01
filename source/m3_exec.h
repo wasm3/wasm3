@@ -1258,6 +1258,16 @@ d_m3Op  (Const64)
     nextOp ();
 }
 
+#if d_m3HasSIMD
+d_m3Op  (Const128)
+{
+    u64 value = * (u64 *)_pc;
+    _pc += (M3_SIZEOF_PTR == 4) ? 4 : 2;
+    slot (u64) = value; // TODO
+    nextOp ();
+}
+#endif
+
 d_m3Op  (Unsupported)
 {
     newTrap ("unsupported instruction executed");

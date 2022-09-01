@@ -397,7 +397,12 @@ def runInvoke(test):
         test.cmd.append(arg['value'])
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
-    test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
+    try:
+        test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
+    except:
+        # TODO: handle SIMD
+        test_id = f"{test.source} {test.wasm} {test.cmd[0]}"
+
     if test_id in blacklist and not args.all:
         warning(f"Skipped {test_id} (blacklisted)")
         stats.skipped += 1
@@ -496,7 +501,7 @@ def runInvoke(test):
 if args.file:
     jsonFiles = args.file
 else:
-    jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"), recursive=True) # "**",
+    jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "**", "*.json"), recursive=True)
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()

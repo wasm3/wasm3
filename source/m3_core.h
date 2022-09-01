@@ -28,6 +28,7 @@
 d_m3BeginExternC
 
 #define d_m3ImplementFloat (d_m3HasFloat || d_m3NoFloatDynamic)
+#define d_m3ImplementSIMD  d_m3HasSIMD
 
 #if !defined(d_m3ShortTypesDefined)
 
@@ -282,6 +283,9 @@ M3Result    Read_u32                (u32 * o_value, bytes_t * io_bytes, cbytes_t
 #if d_m3ImplementFloat
 M3Result    Read_f64                (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_f32                (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+#endif
+#if d_m3ImplementSIMD
+M3Result    Read_v128               (void * o_value, bytes_t * io_bytes, cbytes_t i_end);
 #endif
 M3Result    Read_u8                 (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_opcode             (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_end);

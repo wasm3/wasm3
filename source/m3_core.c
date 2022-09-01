@@ -207,7 +207,7 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
         * o_type = c_m3Type_funcref;
     else if (type == 0x11)
         * o_type = c_m3Type_externref;
-    else if (type >= c_m3Type_i32 and type <= c_m3Type_f64)
+    else if (type >= c_m3Type_i32 and type <= c_m3Type_v128)
         * o_type = type;
     else
         result = m3Err_invalidTypeId;
@@ -316,6 +316,24 @@ M3Result  Read_f32  (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 
 #endif
 
+#if d_m3ImplementSIMD
+
+M3Result  Read_v128  (void * o_value, bytes_t * io_bytes, cbytes_t i_end)
+{
+    const u8 * ptr = * io_bytes;
+    ptr += 16;
+
+    if (ptr <= i_end)
+    {
+        memcpy(o_value, * io_bytes, 16);
+        * io_bytes = ptr;
+        return m3Err_none;
+    }
+    else return m3Err_wasmUnderrun;
+}
+
+#endif
+
 M3Result  Read_u8  (u8 * o_value, bytes_t  * io_bytes, cbytes_t i_end)
 {
     const u8 * ptr = * io_bytes;
@@ -339,8 +357,9 @@ M3Result  Read_opcode  (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_en
         m3opcode_t opcode = * ptr++;
 
 #if d_m3CascadedOpcodes == 0
-        if (M3_UNLIKELY(opcode == c_waOp_extended))
+        if (M3_UNLIKELY(opcode == c_waOp_extended || opcode == c_waOp_extended_simd))
         {
+        	// TODO: read uleb32
             if (ptr < i_end)
             {
                 opcode = (opcode << 8) | (* ptr++);

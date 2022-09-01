@@ -44,12 +44,18 @@ enum
     c_waOp_ref_func             = 0xd2,
 
     c_waOp_extended             = 0xfc,
+    c_waOp_extended_simd        = 0xfd,
 
     c_waOp_memoryCopy           = 0xfc0a,
     c_waOp_memoryFill           = 0xfc0b,
 
-    c_waOp_tableCopy           = 0xfc0e,
-    c_waOp_tableFill           = 0xfc11,
+    c_waOp_tableCopy            = 0xfc0e,
+    c_waOp_tableFill            = 0xfc11,
+
+	c_waOp_v128_const           = 0xfd0c,
+
+	c_waOp_v128_load8_lane      = 0xfd54,
+	c_waOp_v128_store64_lane    = 0xfd5b,
 };
 
 

@@ -123,6 +123,7 @@ void * ReservePointer (IM3Compilation o)
 #define i_64    c_m3Type_i64
 #define f_32    c_m3Type_f32
 #define f_64    c_m3Type_f64
+#define v_128   c_m3Type_v128
 #define none    c_m3Type_none
 #define any     (u8)-1
 
@@ -1168,8 +1169,8 @@ _   (PushConst (o, value, c_m3Type_i64));                       m3log (compile, 
     _catch: return result;
 }
 
-
 #if d_m3ImplementFloat
+
 static
 M3Result  Compile_Const_f32  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -1195,7 +1196,45 @@ _   (PushConst (o, value.u, c_m3Type_f64));
 
     _catch: return result;
 }
-#endif
+
+#endif // d_m3ImplementFloat
+
+#if d_m3ImplementSIMD
+
+static
+M3Result  Compile_Simd_Const  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    uint8_t value[16];
+_   (Read_v128 (& value, & o->wasm, o->wasmEnd));
+
+	_catch: return result;
+}
+
+static
+M3Result  Compile_Simd_Shuffle  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    uint8_t value[16];
+_   (Read_v128 (& value, & o->wasm, o->wasmEnd));
+
+    _catch: return result;
+}
+
+static
+M3Result  Compile_Simd_Extract_Replace  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result;
+
+    uint8_t laneIdx;
+_   (Read_u8 (& laneIdx, & o->wasm, o->wasmEnd));
+
+    _catch: return result;
+}
+
+#endif // d_m3ImplementSIMD
 
 #if d_m3CascadedOpcodes
 
@@ -1203,8 +1242,10 @@ static
 M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
-    u8 opcode;
-_   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
+    u32 opcode;
+_   (ReadLEB_u32 (& opcode, & o->wasm, o->wasmEnd));            m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
+
+	_throwif ("opcode parsing failed", opcode > 0xFF);
 
     i_opcode = (i_opcode << 8) | opcode;
 
@@ -1222,7 +1263,8 @@ _   ((* compiler) (o, i_opcode));
 
     } _catch: return result;
 }
-#endif
+
+#endif // d_m3CascadedOpcodes
 
 static
 M3Result  Compile_Return  (IM3Compilation o, m3opcode_t i_opcode)
@@ -2411,12 +2453,25 @@ _       (ReadLEB_u32 (& memoryIndex, & o->wasm, o->wasmEnd));
 
     // TODO: use memoryIndex
 
-    if (IsFpType (opInfo->type))
-_       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
+#if d_m3HasSIMD
+    if (i_opcode >= c_waOp_v128_load8_lane && i_opcode <= c_waOp_v128_store64_lane)
+    {
+    	uint8_t laneIdx;
+_   	(Read_u8 (& laneIdx, & o->wasm, o->wasmEnd));
 
-_   (Compile_Operator (o, i_opcode));
+        // TODO
+    }
+    else
+#endif
+    {
+        if (IsFpType (opInfo->type))
+_           (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
-    EmitConstant32 (o, memoryOffset);
+_       (Compile_Operator (o, i_opcode));
+
+        EmitConstant32 (o, memoryOffset);
+    }
+
 }
     _catch: return result;
 }
@@ -2728,7 +2783,8 @@ const M3OpInfo c_operations [] =
 # endif
 
 # if d_m3CascadedOpcodes
-    [c_waOp_extended] = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
+    [c_waOp_extended]      = M3OP( "0xFC", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
+    [c_waOp_extended_simd] = M3OP( "0xFD", 0, c_m3Type_unknown,   d_emptyOpList,  Compile_ExtendedOpcode ),
 # endif
 
 # ifdef DEBUG
@@ -2765,6 +2821,64 @@ const M3OpInfo c_operationsFC [] =
 # endif
 };
 
+#if d_m3HasSIMD
+
+const M3OpInfo c_operationsFD [] =
+{
+	M3OP( "v128.load",          0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load8x8_s",     0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load8x8_u",     0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load16x4_s",    0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load16x4_u",    0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load32x2_s",    0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load32x2_u",    0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load8_splat",   0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load16_splat",  0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load32_splat",  0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+	M3OP( "v128.load64_splat",  0,  v_128,  d_emptyOpList,                      Compile_Load_Store ),   // 0x00
+
+	M3OP( "v128.store",        -2,   none,   d_emptyOpList,                     Compile_Load_Store ),   // 0x0b
+	M3OP( "v128.const",         1,  v_128,   d_logOp (Const128),                Compile_Simd_Const ),   // 0x0c
+	M3OP( "i8x16.shuffle",      0,  v_128,   d_emptyOpList,                     Compile_Simd_Shuffle ), // 0x0d
+
+    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,
+	M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,
+
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x15
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x16
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x17
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x18
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x19
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x1a
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x1b
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x1c
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x1d
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x1e
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x1f
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x20
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x21
+	M3OP( "i8x16.extract_lane_s",	0,  v_128,   d_emptyOpList,              Compile_Simd_Extract_Replace ), // 0x22
+
+	[0x5c] = M3OP( "v128.load32_zero",  0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x5d] = M3OP( "v128.load64_zero",  0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x5c] = M3OP( "v128.load32_zero",  0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+
+	[0x54] = M3OP( "v128.load8_lane", 	0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x55] = M3OP( "v128.load16_lane", 	0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x56] = M3OP( "v128.load32_lane", 	0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x57] = M3OP( "v128.load64_lane", 	0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x58] = M3OP( "v128.store8_lane", 	0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x59] = M3OP( "v128.store16_lane", 0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x5a] = M3OP( "v128.store32_lane", 0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+	[0x5b] = M3OP( "v128.store64_lane", 0, v_128,   d_emptyOpList,           Compile_Load_Store ),
+
+# ifdef DEBUG
+    M3OP( "termination", 0, c_m3Type_unknown ) // for find_operation_info
+# endif
+};
+
+#endif // d_m3HasSIMD
+
 
 IM3OpInfo  GetOpInfo  (m3opcode_t opcode)
 {
@@ -2780,6 +2894,14 @@ IM3OpInfo  GetOpInfo  (m3opcode_t opcode)
             return &c_operationsFC[opcode];
         }
         break;
+#if d_m3HasSIMD
+    case c_waOp_extended_simd:
+        opcode &= 0xFF;
+        if (M3_LIKELY(opcode < M3_COUNT_OF(c_operationsFD))) {
+            return &c_operationsFD[opcode];
+        }
+        break;
+#endif
     }
     return NULL;
 }
@@ -2813,6 +2935,8 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
             case c_waOp_f32_const: case c_waOp_f64_const:
             case c_waOp_ref_null:  case c_waOp_ref_func:
             case c_waOp_getGlobal: case c_waOp_end:
+            case c_waOp_extended_simd:
+            case c_waOp_v128_const:
                 break;
             default:
                 _throw(m3Err_restrictedOpcode);

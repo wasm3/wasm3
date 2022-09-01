@@ -73,11 +73,10 @@ typedef enum M3ValueType
     c_m3Type_i64    = 2,
     c_m3Type_f32    = 3,
     c_m3Type_f64    = 4,
+	c_m3Type_v128   = 5,
 
-    c_m3Type_externref = 5,
-    c_m3Type_funcref = 6,
-
-	c_m3Type_v128 = 7,
+    c_m3Type_externref = 6,
+    c_m3Type_funcref = 7,
 
     c_m3Type_unknown
 } M3ValueType;
@@ -91,6 +90,8 @@ typedef struct M3TaggedValue
         uint64_t    i64;
         float       f32;
         double      f64;
+        uint8_t		v128[16];
+        void*		ref;
     } value;
 }
 M3TaggedValue, * IM3TaggedValue;
