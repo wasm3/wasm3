@@ -2311,6 +2311,7 @@ M3Result  Compile_RefIsNull  (IM3Compilation o, m3opcode_t i_opcode)
 _try {
 
     // TODO
+	goto _catch;
 
 } _catch:
     return result;

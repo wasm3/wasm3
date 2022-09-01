@@ -423,7 +423,7 @@ _           (Parse_InitExpr (io_module, & i_bytes, i_end));
 
 _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
-                                                                                       i, segment->memoryRegion, segment->initExprSize, segment->size);
+                                                                                       i, segment->memoryIndex, segment->initExprSize, segment->size);
         i_bytes += segment->size;
 
         _throwif("data segment underflow", i_bytes > i_end);
