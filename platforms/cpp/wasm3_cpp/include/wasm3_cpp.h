@@ -24,19 +24,19 @@ namespace wasm3 {
         typedef const void *(*m3_api_raw_fn)(IM3Runtime, uint64_t *, void *);
 
         template<typename T>
-        void arg_from_stack(T &dest, stack_type &_sp, mem_type mem) {
+        void arg_from_stack(T &dest, stack_type &_sp, [[maybe_unused]] mem_type mem) {
             m3ApiGetArg(T, tmp);
             dest = tmp;
         }
 
         template<typename T>
-        void arg_from_stack(T* &dest, stack_type &_sp, mem_type _mem) {
+        void arg_from_stack(T* &dest, stack_type &_sp, [[maybe_unused]] mem_type _mem) {
             m3ApiGetArgMem(T*, tmp);
             dest = tmp;
         };
 
         template<typename T>
-        void arg_from_stack(const T* &dest, stack_type &_sp, mem_type _mem) {
+        void arg_from_stack(const T* &dest, stack_type &_sp, [[maybe_unused]] mem_type _mem) {
             m3ApiGetArgMem(const T*, tmp);
             dest = tmp;
         };
@@ -45,7 +45,18 @@ namespace wasm3 {
         struct m3_sig {
             static const char value = c;
         };
-        template<typename T> struct m3_type_to_sig;
+        template<typename T, typename = void> struct m3_type_to_sig;
+
+        template<typename T, typename U>
+        using is_enum_of_t = typename std::enable_if<std::is_enum<T>::value
+            && std::is_same<std::underlying_type_t<T>, U>::value>::type;
+
+        template<typename T>
+        struct m3_type_to_sig<T, is_enum_of_t<T, int32_t>> : m3_sig<'i'> {};
+
+        template<class T>
+        struct m3_type_to_sig<T, is_enum_of_t<T, int64_t>> : m3_sig<'I'> {};
+
         template<> struct m3_type_to_sig<int32_t> : m3_sig<'i'> {};
         template<> struct m3_type_to_sig<int64_t> : m3_sig<'I'> {};
         template<> struct m3_type_to_sig<float>   : m3_sig<'f'> {};
@@ -80,7 +91,7 @@ namespace wasm3 {
         template <typename Ret, typename ...Args>
         struct wrap_helper<Ret(Args...)> {
             using Func = Ret(Args...);
-            static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type _sp, mem_type mem) {
+            static const void *wrap_fn([[maybe_unused]] IM3Runtime rt, IM3ImportContext _ctx, stack_type _sp, mem_type mem) {
                 std::tuple<Args...> args;
                 // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
                 // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
@@ -95,7 +106,7 @@ namespace wasm3 {
         template <typename ...Args>
         struct wrap_helper<void(Args...)> {
             using Func = void(Args...);
-            static const void *wrap_fn(IM3Runtime rt, IM3ImportContext _ctx, stack_type sp, mem_type mem) {
+            static const void *wrap_fn([[maybe_unused]] IM3Runtime rt, IM3ImportContext _ctx, stack_type sp, mem_type mem) {
                 std::tuple<Args...> args;
                 get_args_from_stack(sp, mem, args);
                 Func* function = reinterpret_cast<Func*>(_ctx->userdata);
@@ -169,7 +180,7 @@ namespace wasm3 {
          * @param stack_size_bytes  size of the WASM stack for this runtime
          * @return runtime object
          */
-        runtime new_runtime(size_t stack_size_bytes);
+        runtime new_runtime(uint32_t stack_size_bytes);
 
         /**
          * Parse a WASM module from file
@@ -218,7 +229,7 @@ namespace wasm3 {
     protected:
         friend class environment;
 
-        runtime(const std::shared_ptr<M3Environment> &env, size_t stack_size_bytes)
+        runtime(const std::shared_ptr<M3Environment> &env, uint32_t stack_size_bytes)
                 : m_env(env) {
             m_runtime.reset(m3_NewRuntime(env.get(), stack_size_bytes, nullptr), &m3_FreeRuntime);
             if (m_runtime == nullptr) {
@@ -279,7 +290,7 @@ namespace wasm3 {
 
         void parse(IM3Environment env, const uint8_t *data, size_t size) {
             IM3Module p;
-            M3Result err = m3_ParseModule(env, &p, data, size);
+            M3Result err = m3_ParseModule(env, &p, data, static_cast<uint32_t>(size));
             detail::check_error(err);
             m_module.reset(p, [this](IM3Module module) {
                 if (!m_loaded) {
@@ -375,7 +386,7 @@ namespace wasm3 {
         M3Function *m_func = nullptr;
     };
 
-    inline runtime environment::new_runtime(size_t stack_size_bytes) {
+    inline runtime environment::new_runtime(uint32_t stack_size_bytes) {
         return runtime(m_env, stack_size_bytes);
     }
 

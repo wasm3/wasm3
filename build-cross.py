@@ -78,7 +78,7 @@ def build_wasi(target):
         run(f"""
             mkdir -p {build_dir}
             cd {build_dir}
-            cmake -DCMAKE_TOOLCHAIN_FILE="{WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="{WASI_SDK_PATH}" ../..
+            cmake -GNinja -DCMAKE_TOOLCHAIN_FILE="{WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="{WASI_SDK_PATH}" ../..
             cmake --build .
             cp wasm3.wasm ../wasm3-{target['name']}.wasm
             """)
@@ -114,7 +114,7 @@ def build_musl(target):
             export CC="../../{muslcc}"
             export CFLAGS="{target['cflags']}"
             export LDFLAGS="-static -s"
-            cmake -DBUILD_NATIVE=OFF ../..
+            cmake -GNinja -DBUILD_NATIVE=OFF ../..
             cmake --build .
             cp wasm3 ../wasm3-{target['name']}
             """)

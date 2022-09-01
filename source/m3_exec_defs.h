@@ -50,8 +50,8 @@ typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 #define nextOpImpl()                ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
 #define jumpOpImpl(PC)              ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
 
-#define nextOpDirect()              return nextOpImpl()
-#define jumpOpDirect(PC)            return jumpOpImpl((pc_t)(PC))
+#define nextOpDirect()              M3_MUSTTAIL return nextOpImpl()
+#define jumpOpDirect(PC)            M3_MUSTTAIL return jumpOpImpl((pc_t)(PC))
 
 d_m3RetSig  RunCode  (d_m3OpSig)
 {

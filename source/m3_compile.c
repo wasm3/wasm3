@@ -679,7 +679,8 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 constant = * (u64 *) & o->constants [slot - o->slotFirstConstIndex];
+                u64 constant;
+                memcpy (&constant, &o->constants [slot - o->slotFirstConstIndex], sizeof(constant));
 
                 if (constant == i_word)
                 {
@@ -698,13 +699,17 @@ _                   (Push (o, i_type, slot));
 
             if (IsSlotAllocated (o, slot))
             {
-                u64 constant;
+                bool matches;
                 if (is64BitType) {
-                    constant = * (u64 *) & o->constants [i];
+                    u64 constant;
+                    memcpy (&constant, &o->constants [i], sizeof(constant));
+                    matches = (constant == i_word);
                 } else {
-                    constant = * (u32 *) & o->constants [i];
+                    u32 constant;
+                    memcpy (&constant, &o->constants [i], sizeof(constant));
+                    matches = (constant == i_word);
                 }
-                if (constant == i_word)
+                if (matches)
                 {
                     matchFound = true;
 _                   (Push (o, i_type, slot));
@@ -739,15 +744,11 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
 
             d_m3Assert(constTableIndex < d_m3MaxConstantTableSize);
 
-            if (is64BitType)
-            {
-                u64 * constant = (u64 *) & o->constants [constTableIndex];
-                * constant = i_word;
-            }
-            else
-            {
-                u32 * constant = (u32 *) & o->constants [constTableIndex];
-                * constant = (u32) i_word;
+            if (is64BitType) {
+                memcpy (& o->constants [constTableIndex], &i_word, sizeof(i_word));
+            } else {
+                u32 word32 = i_word;
+                memcpy (& o->constants [constTableIndex], &word32, sizeof(word32));
             }
 
 _           (Push (o, i_type, slot));

@@ -588,6 +588,7 @@ jobs:
             -Dd_m3LogCodePages=1        \
             -Dd_m3LogRuntime=1          \
             -Dd_m3LogNativeStack=1      \
+            -Dd_m3RecordBacktraces=1    \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3

@@ -772,10 +772,10 @@ m3ApiRawFunction(m3_wasi_generic_fd_pread)
 
 #if defined(M3_COMPILER_MSVC)
     if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
-    uvwasi_ciovec_t  iovs[32];
+    uvwasi_iovec_t  iovs[32];
 #else
     if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
-    uvwasi_ciovec_t  iovs[iovs_len];
+    uvwasi_iovec_t  iovs[iovs_len];
 #endif
 
     for (uvwasi_size_t i = 0; i < iovs_len; ++i) {
@@ -787,7 +787,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_pread)
 
     uvwasi_size_t num_read;
 
-    uvwasi_errno_t ret = uvwasi_fd_pread(_get_uvwasi_p(_ctx), fd, (const uvwasi_iovec_t *) iovs, iovs_len, offset, &num_read);
+    uvwasi_errno_t ret = uvwasi_fd_pread(_get_uvwasi_p(_ctx), fd, iovs, iovs_len, offset, &num_read);
 
     WASI_TRACE("fd:%d | nread:%d", fd, num_read);
 
@@ -808,10 +808,10 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
 
 #if defined(M3_COMPILER_MSVC)
     if (iovs_len > 32) m3ApiReturn(UVWASI_EINVAL);
-    uvwasi_ciovec_t  iovs[32];
+    uvwasi_iovec_t  iovs[32];
 #else
     if (iovs_len > 128) m3ApiReturn(UVWASI_EINVAL);
-    uvwasi_ciovec_t  iovs[iovs_len];
+    uvwasi_iovec_t  iovs[iovs_len];
 #endif
     uvwasi_size_t num_read;
     uvwasi_errno_t ret;
@@ -823,7 +823,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
         //fprintf(stderr, "> fd_read fd:%d iov%d.len:%d\n", fd, i, iovs[i].buf_len);
     }
 
-    ret = uvwasi_fd_read(_get_uvwasi_p(_ctx), fd, (const uvwasi_iovec_t *) iovs, iovs_len, &num_read);
+    ret = uvwasi_fd_read(_get_uvwasi_p(_ctx), fd, iovs, iovs_len, &num_read);
 
     WASI_TRACE("fd:%d | nread:%d", fd, num_read);
 

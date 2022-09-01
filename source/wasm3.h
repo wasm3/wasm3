@@ -21,7 +21,7 @@
 #include "wasm3_defs.h"
 
 // Constants
-#define M3_BACKTRACE_TRUNCATED      (void*)(SIZE_MAX)
+#define M3_BACKTRACE_TRUNCATED      (IM3BacktraceFrame)(SIZE_MAX)
 
 #if defined(__cplusplus)
 extern "C" {
