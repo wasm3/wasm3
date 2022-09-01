@@ -339,7 +339,7 @@ blacklist = Blacklist([
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
-# TODO: fix those
+# TODO: Fix those for Wasm 2.0 support
 if args.spec == "main":
     blacklist.add([
       "* select.0.wasm select-*-t*",
@@ -359,6 +359,17 @@ if args.spec == "main":
       "* table_get.*.wasm *",
       "* table_set.*.wasm *",
 
+      "elem.wast:321 elem.31.wasm init()",
+      "elem.wast:331 elem.32.wasm init()",
+
+      "global.wast:* global.0.wasm get-r()",
+      "global.wast:* global.0.wasm get-mr()",
+      "global.wast:* global.0.wasm get-z1()",
+      "global.wast:* global.0.wasm get-z2()",
+      "global.wast:* global.0.wasm set-mr(*",
+      "global.wast:* global.0.wasm as-compare-operand()",
+
+      "simd_* simd_*.wasm *",
       "simd_* simd_*.wasm *",
     ])
 
