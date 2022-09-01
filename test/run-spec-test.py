@@ -49,7 +49,7 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --repl")
-parser.add_argument("--spec",                          default="main")
+parser.add_argument("--spec",                          default="opam-2.0.0")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
@@ -340,7 +340,7 @@ blacklist = Blacklist([
 ])
 
 # TODO: Fix those for Wasm 2.0 support
-if args.spec == "main":
+if args.spec == "opam-2.0.0":
     blacklist.add([
       "* select.0.wasm select-*-t*",
       "* select.0.wasm select-*ref*",

@@ -1246,11 +1246,12 @@ M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
     u32 opcode;
-_   (ReadLEB_u32 (& opcode, & o->wasm, o->wasmEnd));            m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
+_   (ReadLEB_u32 (& opcode, & o->wasm, o->wasmEnd));
 
 	_throwif ("opcode parsing failed", opcode > 0xFF);
 
-    i_opcode = (i_opcode << 8) | opcode;
+    i_opcode = (i_opcode << 8) | opcode;            			m3log (compile, d_indent " (ext: 0x%" PRIx32 ")", get_indention_string (o), i_opcode);
+
 
     //printf("Extended opcode: 0x%x\n", i_opcode);
 
