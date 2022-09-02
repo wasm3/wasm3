@@ -75,7 +75,7 @@ M3Result link_all  (IM3Module module)
     if (res) return res;
 
 #if defined(LINK_WASI)
-    res = m3_LinkModuleWASI (module);
+    res = m3_LinkWASI (module);
     if (res) return res;
 #endif
 
@@ -267,8 +267,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
             argv[0] = modname_from_fn(argv[0]);
         }
 
-        IM3Module module = m3_GetFunctionModule(func);
-        m3_wasi_context_t* wasi_ctx = m3_GetModuleWasiContext(module);
+        m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
         wasi_ctx->argc = argc;
         wasi_ctx->argv = argv;
 
