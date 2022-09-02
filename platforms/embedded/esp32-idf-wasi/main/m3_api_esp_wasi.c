@@ -529,10 +529,6 @@ M3Result SuppressLookupFailure(M3Result i_result)
         return i_result;
 }
 
-m3_wasi_context_t* m3_GetModuleWasiContext(IM3Module module) {
-    return module->wasi;
-}
-
 m3_wasi_context_t* m3_GetWasiContext()
 {
     return wasi_context;

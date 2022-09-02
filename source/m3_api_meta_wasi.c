@@ -1019,11 +1019,6 @@ m3_wasi_context_t* m3_GetWasiContext()
     return wasi_context;
 }
 
-m3_wasi_context_t* m3_GetModuleWasiContext (IM3Module module)
-{
-    return module->wasi;
-}
-
 void m3_FreeWasi(m3_wasi_context_t* wasi)
 {
     m3_Free(wasi);

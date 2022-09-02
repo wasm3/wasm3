@@ -37,8 +37,6 @@ M3Result    m3_LinkModuleWASI       (IM3Module io_module);
 M3Result    m3_LinkModuleWASIWithOptions  (IM3Module io_module, uvwasi_options_t uvwasiOptions);
 #endif
 
-m3_wasi_context_t* m3_GetModuleWasiContext(IM3Module io_module);
-
 
 // ----------------------------------------------------------------------
 // Global WASI
