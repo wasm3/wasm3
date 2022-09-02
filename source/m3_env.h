@@ -11,7 +11,6 @@
 #include "wasm3.h"
 #include "m3_code.h"
 #include "m3_compile.h"
-#include "m3_api_wasi.h"
 
 d_m3BeginExternC
 
@@ -118,8 +117,6 @@ typedef struct M3Module
     //bool                    hasWasmCodeCopy;
 
     struct M3Module *       next;
-
-    m3_wasi_context_t*      wasi;
 }
 M3Module;
 
