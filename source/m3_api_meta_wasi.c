@@ -1095,6 +1095,18 @@ _catch:
     return result;
 }
 
+M3Result m3_NewCustomWASI(M3WASI* wasi_p)
+{
+    *wasi_p = m3_AllocStruct(m3_wasi_context_t);
+
+    return m3Err_none;
+}
+
+void m3_FreeCustomWASI(M3WASI wasi)
+{
+    m3_Free(wasi);
+}
+
 M3Result m3_LinkCustomWASI (IM3Module module, M3WASI wasi)
 {
     return _linkWASI(module, wasi);

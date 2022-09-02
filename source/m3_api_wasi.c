@@ -870,7 +870,7 @@ _catch:
 
 M3Result m3_NewCustomWASI(M3WASI* wasi_p)
 {
-    &wasi_p = m3_AllocStruct(m3_wasi_context_t)
+    *wasi_p = m3_AllocStruct(m3_wasi_context_t);
 
     return m3Err_none;
 }
