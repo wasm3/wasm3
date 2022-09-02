@@ -1104,7 +1104,7 @@ m3_wasi_context_t* m3_GetWasiContext()
     return wasi_context;
 }
 
-static const char* const DEFAULT_ENVIRONMENT[] = {
+static const char* DEFAULT_ENVIRONMENT[] = {
     "TERM=xterm-256color",
     "COLORTERM=truecolor",
     "LANG=en_US.UTF-8",
@@ -1116,7 +1116,7 @@ static const char* const DEFAULT_ENVIRONMENT[] = {
     NULL,
 };
 
-static const uvwasi_preopen_t const DEFAULT_PREOPENS[] = {
+static uvwasi_preopen_t DEFAULT_PREOPENS[] = {
     {
         .mapped_path = "/",
         .real_path = ".",
