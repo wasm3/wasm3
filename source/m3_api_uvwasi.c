@@ -1104,12 +1104,6 @@ m3_wasi_context_t* m3_GetWasiContext()
     return wasi_context;
 }
 
-void m3_FreeWasi(m3_wasi_context_t* wasi)
-{
-    uvwasi_destroy(&wasi->uvwasi);
-    m3_Free(wasi);
-}
-
 static const char* const DEFAULT_ENVIRONMENT[] = {
     "TERM=xterm-256color",
     "COLORTERM=truecolor",
@@ -1144,7 +1138,7 @@ void _m3_set_up_default_uvwasi_opts(uvwasi_options_t* opts_p) {
 }
 
 static
-M3Result  _linkWASI (IM3Module module, uvwasi_options_t init_options, m3_wasi_context_t* wasi_context)
+M3Result  _linkWASI (IM3Module module, m3_wasi_context_t* wasi_context)
 {
     M3Result result = m3Err_none;
 
@@ -1214,24 +1208,9 @@ _catch:
     return result;
 }
 
-M3Result  m3_LinkWASI  (IM3Module module)
-{
-    uvwasi_options_t opts;
-    _m3_set_up_default_uvwasi_opts(&opts);
-
-    return m3_LinkWASIWithOptions(module, opts);
-}
-
-M3Result  m3_LinkModuleWASI  (IM3Module module)
-{
-    uvwasi_options_t opts;
-    _m3_set_up_default_uvwasi_opts(&opts);
-
-    return m3_LinkModuleWASIWithOptions(module, opts);
-}
-
-M3Result _create_wasi_ctx(m3_wasi_context_t** ctx_p, uvwasi_options_t init_options) {
+M3Result m3_NewCustomWASIWithOptions(M3WASI* ctx_p, uvwasi_options_t init_options) {
     *ctx_p = m3_AllocStruct(m3_wasi_context_t);
+    assert(*ctx_p);
 
     uvwasi_errno_t ret = uvwasi_init(&(*ctx_p)->uvwasi, &init_options);
 
@@ -1242,27 +1221,41 @@ M3Result _create_wasi_ctx(m3_wasi_context_t** ctx_p, uvwasi_options_t init_optio
     return m3Err_none;
 }
 
+M3Result m3_NewCustomWASI(M3WASI* wasi_p)
+{
+    uvwasi_options_t opts;
+    _m3_set_up_default_uvwasi_opts(&opts);
+
+    return m3_NewCustomWASIWithOptions(wasi_p, opts);
+}
+
+M3Result  m3_LinkCustomWASI (IM3Module module, M3WASI wasi)
+{
+    return _linkWASI(module, wasi);
+}
+
+void m3_FreeWASI(m3_wasi_context_t* wasi)
+{
+    uvwasi_destroy(&wasi->uvwasi);
+    m3_Free(wasi);
+}
+
+M3Result  m3_LinkWASI  (IM3Module module)
+{
+    uvwasi_options_t opts;
+    _m3_set_up_default_uvwasi_opts(&opts);
+
+    return m3_LinkWASIWithOptions(module, opts);
+}
+
 M3Result  m3_LinkWASIWithOptions  (IM3Module module, uvwasi_options_t init_options)
 {
     if (NULL == wasi_context) {
-        M3Result res = _create_wasi_ctx(&wasi_context, init_options);
+        M3Result res = m3_NewCustomWASIWithOptions(&wasi_context, init_options);
         if (res) return res;
     }
 
-    return _linkWASI(module, init_options, wasi_context);
-}
-
-M3Result  m3_LinkModuleWASIWithOptions  (IM3Module module, uvwasi_options_t init_options)
-{
-    if (NULL == module->wasi) {
-        M3Result res = _create_wasi_ctx(&module->wasi, init_options);
-        if (res) return res;
-    }
-    else {
-        // TODO:  Need a new error code here.
-    }
-
-    return _linkWASI(module, init_options, module->wasi);
+    return _linkWASI(module, wasi_context);
 }
 
 #endif // d_m3HasUVWASI

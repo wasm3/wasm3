@@ -27,14 +27,19 @@ typedef struct m3_wasi_context_t
 #endif
 } m3_wasi_context_t;
 
+#define M3WASI m3_wasi_context_t*
+
 // ----------------------------------------------------------------------
-// Per-module WASI
+// Free-standing WASI
 // ----------------------------------------------------------------------
 
-M3Result    m3_LinkModuleWASI       (IM3Module io_module);
+M3Result m3_NewCustomWASI(M3WASI*);
+void m3_FreeCustomWASI(M3WASI);
+
+M3Result    m3_LinkCustomWASI       (IM3Module, M3WASI);
 
 #if defined(d_m3HasUVWASI)
-M3Result    m3_LinkModuleWASIWithOptions  (IM3Module io_module, uvwasi_options_t uvwasiOptions);
+M3Result    m3_LinkCustomWASIWithOptions  (IM3Module io_module, uvwasi_options_t uvwasiOptions);
 #endif
 
 

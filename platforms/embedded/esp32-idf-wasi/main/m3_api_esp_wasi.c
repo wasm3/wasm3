@@ -610,16 +610,21 @@ _catch:
     return result;
 }
 
-M3Result m3_LinkModuleEspWASI (IM3Module module)
+M3Result m3_NewCustomEspWASI(M3WASI* wasi_p)
 {
-    if (NULL == module->wasi) {
-        module->wasi = m3_AllocStruct(m3_wasi_context_t);
-    }
-    else {
-        return "WASI already linked";
-    }
+    &wasi_p = m3_AllocStruct(m3_wasi_context_t)
 
-    return _linkWASI(module, module->wasi);
+    return m3Err_none;
+}
+
+void m3_FreeCustomEspWASI(M3WASI wasi)
+{
+    m3_Free(wasi);
+}
+
+M3Result m3_LinkCustomEspWASI (IM3Module module, M3WASI wasi)
+{
+    return _linkWASI(module, wasi);
 }
 
 M3Result  m3_LinkEspWASI  (IM3Module module)

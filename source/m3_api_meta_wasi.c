@@ -1095,16 +1095,9 @@ _catch:
     return result;
 }
 
-M3Result m3_LinkModuleWASI (IM3Module module)
+M3Result m3_LinkCustomWASI (IM3Module module, M3WASI wasi)
 {
-    if (NULL == module->wasi) {
-        module->wasi = m3_AllocStruct(m3_wasi_context_t);
-    }
-    else {
-        return "WASI already linked";
-    }
-
-    return _linkWASI(module, module->wasi);
+    return _linkWASI(module, wasi);
 }
 
 M3Result  m3_LinkWASI  (IM3Module module)
