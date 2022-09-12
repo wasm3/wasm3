@@ -89,6 +89,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 [<img src="/extra/logos/wasmcloud.png" height="32" />](https://wasmcloud.dev)　
 [<img src="/extra/logos/wowcube.png" height="32" />](https://wowcube.com)　
+[<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Siemens_AG_logo.svg/1024px-Siemens_AG_logo.svg.png" height="22" />](https://github.com/siemens/dtasm/tree/main/runtime/dtasm3)　
 [<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
 [<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　
 [<img src="/extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
