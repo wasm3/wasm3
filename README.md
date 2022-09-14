@@ -93,6 +93,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
 [<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　
 [<img src="/extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
+[<img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/NuttX_logo.png" height="32" />](https://github.com/apache/incubator-nuttx-apps/tree/master/interpreters/wasm3)　
 [<img src="/extra/logos/losant.png" height="28" />](https://github.com/Losant/eea-examples)　
 [<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
 [<img src="https://www.balena.io/avatar.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
