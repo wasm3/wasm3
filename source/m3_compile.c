@@ -2806,14 +2806,17 @@ M3Result  ReserveConstants  (IM3Compilation o)
     while (wa < o->wasmEnd)
     {
         u8 code = * wa++;
+        u16 addSlots = 0;
 
         if (code == c_waOp_i32_const or code == c_waOp_f32_const)
-            numConstantSlots += 1;
+            addSlots = 1;
         else if (code == c_waOp_i64_const or code == c_waOp_f64_const)
-            numConstantSlots += GetTypeNumSlots (c_m3Type_i64);
+            addSlots = GetTypeNumSlots (c_m3Type_i64);
 
-        if (numConstantSlots >= d_m3MaxConstantTableSize)
+        if (numConstantSlots + addSlots >= d_m3MaxConstantTableSize)
             break;
+
+        numConstantSlots += addSlots;
     }
 
     // if constants overflow their reserved stack space, the compiler simply emits op_Const
