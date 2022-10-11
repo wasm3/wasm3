@@ -1,0 +1,2165 @@
+# FileList, saved  2022-10-06 15:54:03.756742
+[[FileInfo]]
+fullname = "."
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./LICENSE"
+is_dir = false
+short = "MIT License, copyright 2019"
+
+[[FileInfo]]
+fullname = "./build.zig"
+is_dir = false
+short = "build() function in Zig (programming language)"
+
+[[FileInfo]]
+fullname = "./.codespellrc"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./FileList.toml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./build-cross.py"
+is_dir = false
+short = "program to build and test across many platforms"
+
+[[FileInfo]]
+fullname = "./FileList.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/app_fuzz"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/app_fuzz/fuzzer.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/app"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/app/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/app/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/python"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/python/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cosmopolitan"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cosmopolitan/build.sh"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cosmopolitan/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/ViewController.swift"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/icon.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/AppDelegate.swift"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Bridging-Header.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Info.plist"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Assets.xcassets"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Assets.xcassets/AppIcon.appiconset"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Assets.xcassets/AppIcon.appiconset/Contents.json"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Base.lproj"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Base.lproj/LaunchScreen.storyboard"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3/Base.lproj/Main.storyboard"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/project.pbxproj"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/project.xcworkspace"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/project.xcworkspace/contents.xcworkspacedata"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/project.xcworkspace/xcshareddata"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/xcshareddata"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/xcshareddata/xcschemes"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/xcshareddata/xcschemes/wasm3.xcscheme"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/ios/wasm3.xcodeproj/xcshareddata/xcschemes/wasm3 Release.xcscheme"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm/Makefile"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm/test_prog.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm/test_prog.wasm.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm/test_prog.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm3_cpp"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm3_cpp/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm3_cpp/include"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/cpp/wasm3_cpp/include/wasm3_cpp.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/override.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradlew"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/build.gradle"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradle.properties"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradlew.bat"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/settings.gradle"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/proguard-rules.pro"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/build.gradle"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/AndroidManifest.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-mdpi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-hdpi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values-w820dp"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values-w820dp/dimens.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/drawable"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/drawable/ic_launcher.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-xxxhdpi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/layout"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/layout/activity_main.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-xxhdpi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values/colors.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values/dimens.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values/styles.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/values/strings.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-xhdpi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-anydpi-v26"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/java"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/java/com"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/java/com/example"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/java/com/example/wasm3"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/java/com/example/wasm3/MainActivity.java"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/cpp"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/cpp/jni.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/cpp/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/app/src/main/cpp/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradle"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradle/wrapper"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradle/wrapper/gradle-wrapper.jar"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/android/gradle/wrapper/gradle-wrapper.properties"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/openwrt"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/openwrt/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/openwrt/build"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/openwrt/build/Makefile"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1/platformio.ini"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1/lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/hifive1/src/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/wm_w600"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/wm_w600/Makefile"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/wm_w600/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/wm_w600/build.sh"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/wm_w600/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/wm_w600/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/platformio.ini"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/lib/wasm3"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/lib/wasm3/library.json"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/bluepill/src/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/sdkconfig.defaults"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/.old"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/.old/Makefile"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/.old/component.mk"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/main"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/main/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/main/linker.lf"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf/main/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp8266"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp8266/platformio.ini"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp8266/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp8266/lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp8266/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp8266/src/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/arduino"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/arduino/platformio.ini"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/arduino/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/arduino/lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/arduino/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/arduino/src/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/sdkconfig.defaults"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/.old"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/.old/Makefile"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/.old/component.mk"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/main"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/main/wasi_test.wasm.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/main/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/main/m3_api_esp_wasi.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/main/m3_api_esp_wasi.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-idf-wasi/main/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/Makefile"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/gdb_init"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/.env"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/ld"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/ld/regions.ld"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/ld/output_format.ld"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/ld/linker.ld"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/time.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/console.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/usbstd.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/rgb.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/xxhash.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/csr-defs.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/webusb-defs.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/crc.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/toboot-internal.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/xxhash.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/printf.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/spi.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/usb.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/irq.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/toboot-api.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/usb-desc.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/system.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/usbcdc.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/spiflash.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/generated"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/generated/csr.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/generated/mem.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/hw"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/hw/flags.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/include/hw/common.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/usb-epfifo.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/usb-desc.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/usb-dev.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/rgb.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/time.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/ltoa.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/fomu/src/crt0-vexriscv.S"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/project.properties"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/lib/wasm3"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/lib/wasm3/library.properties"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/particle/src/main.ino"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/platformio.ini"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/lib/wasm3"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/lib/wasm3/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/lib/wasm3/library.json"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/src"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/src/sdkconfig"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/src/sdkconfig.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/embedded/esp32-pio/src/main.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten_lib"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten_lib/run_wasm3.js"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten_lib/main.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./platforms/emscripten_lib/run_native.js"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/run-spec-test.py"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/run-wasi-test.py"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/self-hosting"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/self-hosting/wasm3-fib.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/internal"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/internal/m3_test.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/internal/tailcall"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/internal/tailcall/ops.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/internal/tailcall/build.sh"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib32.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.js"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib64.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib32.wat"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib32_tail.wat"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.c.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.py"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.lua"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.walt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.min.js"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib64.wat"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/lang/fib32_tail.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz/corpus"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz/corpus/fib32.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz/corpus/fib64.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz/corpus/fib.c.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz/corpus/fib64_tail.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/fuzz/corpus/fib32_tail.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/smallpt-ex.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/smallpt.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/smallpt-ex.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/smallpt.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/image.jpg"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/smallpt/smallpt-ex-mv.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth/hondarribia.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth/webchip-music.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth/wasm-song.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth/shuffle-chill.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmsynth/image.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/brotli"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/brotli/alice29_small.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/brotli/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/brotli/alice29.txt.compressed"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/brotli/brotli.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/brotli/alice29.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/stream"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/stream/stream.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/stream/stream.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/mandel.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/mandel.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/mandel_dd.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/colors.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/doubledouble.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/mandel_dd.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mandelbrot/image.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/test-opt.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/test.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/0.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/test.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/wasm_api.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/simple/wasm_api.syms"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/core.mal"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/mal.mal"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/mal.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/env.mal"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/.gitattributes"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/mal/test-fib.mal"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/raymarcher"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/raymarcher/raymarcher.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/raymarcher/raymarcher.cpp"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/sphfract"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/sphfract.jpg"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/c-ray.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/scene"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/c-ray-f.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/c-ray/scene.jpg"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmboy"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmboy/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmboy/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmboy/wasmerboy.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/wasmboy/image.png"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/coremark"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/coremark/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/coremark/coremark-minimal.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./test/wasi/coremark/coremark.wasm"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_wasi.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_compile.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_core.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_config.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_tracer.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/CMakeLists.txt"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_libc.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_env.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_exec_defs.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_exec.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_function.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/wasm3.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_config_platforms.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_bind.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_info.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_code.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_parse.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_math_utils.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_module.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_exception.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/wasm3_defs.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_tracer.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_core.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_wasi.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_compile.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_exec.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_env.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_libc.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_bind.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_code.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_info.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_function.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_meta_wasi.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/m3_api_uvwasi.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extensions"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extensions/m3_extensions.c"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extensions/wasm3_ext.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extra"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extra/fib64.wasm.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extra/coremark_minimal.wasm.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extra/fib32_tail.wasm.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extra/fib32.wasm.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./source/extra/wasi_core.h"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs"
+is_dir = true
+short = "documentation in markdown, linked by README.md"
+
+[[FileInfo]]
+fullname = "./docs/Hardware.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Interpreter.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Troubleshooting.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Testing.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Performance.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Demos.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Cookbook.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Development.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Installation.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./docs/Diagnostics.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./extra"
+is_dir = true
+short = "graphics and development tools"
+
+[[FileInfo]]
+fullname = "./extra/screenshot-ios.png"
+is_dir = false
+short = "WASM on phone running CoreMark (benchmark)"
+
+[[FileInfo]]
+fullname = "./extra/wasm-symbol.svg"
+is_dir = false
+short = "WASM3 logo"
+
+[[FileInfo]]
+fullname = "./extra/utils.mk"
+is_dir = false
+short = "Makefile with targets useful to developers"
+
+[[FileInfo]]
+fullname = "./extra/testutils.py"
+is_dir = false
+short = "A few python functions useful when testing"
+
+[[FileInfo]]
+fullname = "./extra/logo.png"
+is_dir = false
+short = "WASM3 logo"
+
+[[FileInfo]]
+fullname = "./extra/screenshot-android.png"
+is_dir = false
+short = "WASM on phone running CoreMark (benchmark)"
+
+[[FileInfo]]
+fullname = "./extra/disasm-func.sh"
+is_dir = false
+short = "Utility to disassemble a specific function"
+
+[[FileInfo]]
+fullname = "./extra/button.png"
+is_dir = false
+short = "Live Demo button"
+
+[[FileInfo]]
+fullname = "./extra/logos"
+is_dir = true
+short = "Logos of other companies"
+
+[[FileInfo]]
+fullname = "./extra/logos/blynk.png"
+is_dir = false
+short = "Blynk (IOT and smart home) logo"
+
+[[FileInfo]]
+fullname = "./extra/logos/scailable.png"
+is_dir = false
+short = "Scailable (portable AI/ML pipeline) logo"
+
+[[FileInfo]]
+fullname = "./extra/logos/shareup_app.svg"
+is_dir = false
+short = "ShareUp.app (privacy first content collector) logo"
+
+[[FileInfo]]
+fullname = "./extra/logos/losant.png"
+is_dir = false
+short = "Losant (enterprise IOT) logo"
+
+[[FileInfo]]
+fullname = "./extra/logos/wowcube.png"
+is_dir = false
+short = "WowCube (immersive reality and gaming) logo"
+
+[[FileInfo]]
+fullname = "./extra/logos/iden3.svg"
+is_dir = false
+short = "Iden3 (decentralized identify management) logo"
+
+[[FileInfo]]
+fullname = "./extra/logos/wasmcloud.png"
+is_dir = false
+short = "WasmCloud (distributed business logic) logo"
+
+[[FileInfo]]
+fullname = "./extra/wapm-package"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./extra/wapm-package/README.md"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./extra/wapm-package/wapm.toml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./extra/wapm-package/build"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./extra/wapm-package/build/.gitignore"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./.github"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./.github/workflows"
+is_dir = true
+short = ""
+
+[[FileInfo]]
+fullname = "./.github/workflows/publish.yml"
+is_dir = false
+short = ""
+
+[[FileInfo]]
+fullname = "./.github/workflows/tests.yml"
+is_dir = false
+short = "Build and test including run-spec-test.py and run-wasi-test.py"

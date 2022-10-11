@@ -1,0 +1,475 @@
+FileList of 110 directories and 323 files, generated 2022-10-06 15:54:03.740660
+
+Project Directory Tree
++  .                                                                             
++--+  .github                            Configurations for github.com (repository)
++--+--+  workflows                       Configuration files for automated tasks on github.com
++--+  docs                               Documentation in markdown, linked by README.md
++--+  extra                              Graphics and development tools          
++--+--+  logos                           Logos of other companies                
++--+--+  wapm-package                                                            
++--+--+--+  build                                                                
++--+  platforms                                                                  
++--+--+  android                                                                 
++--+--+--+  app                                                                  
++--+--+--+--+  src                                                               
++--+--+--+--+--+  main                                                           
++--+--+--+--+--+--+  cpp                                                         
++--+--+--+--+--+--+  java                                                        
++--+--+--+--+--+--+--+  com                                                      
++--+--+--+--+--+--+--+--+  example                                               
++--+--+--+--+--+--+--+--+--+  wasm3                                              
++--+--+--+--+--+--+  res                                                         
++--+--+--+--+--+--+--+  drawable                                                 
++--+--+--+--+--+--+--+  layout                                                   
++--+--+--+--+--+--+--+  mipmap-anydpi-v26                                         
++--+--+--+--+--+--+--+  mipmap-hdpi                                              
++--+--+--+--+--+--+--+  mipmap-mdpi                                              
++--+--+--+--+--+--+--+  mipmap-xhdpi                                             
++--+--+--+--+--+--+--+  mipmap-xxhdpi                                            
++--+--+--+--+--+--+--+  mipmap-xxxhdpi                                           
++--+--+--+--+--+--+--+  values                                                   
++--+--+--+--+--+--+--+  values-w820dp                                            
++--+--+--+  gradle                                                               
++--+--+--+--+  wrapper                                                           
++--+--+  app                                                                     
++--+--+  app_fuzz                                                                
++--+--+  cosmopolitan                                                            
++--+--+  cpp                                                                     
++--+--+--+  wasm                                                                 
++--+--+--+  wasm3_cpp                                                            
++--+--+--+--+  include                                                           
++--+--+  embedded                                                                
++--+--+--+  arduino                                                              
++--+--+--+--+  lib                                                               
++--+--+--+--+  src                                                               
++--+--+--+  bluepill                                                             
++--+--+--+--+  lib                                                               
++--+--+--+--+--+  wasm3                                                          
++--+--+--+--+  src                                                               
++--+--+--+  esp32-idf                                                            
++--+--+--+  esp32-idf-wasi                                                       
++--+--+--+--+  .old                                                              
++--+--+--+--+  main                                                              
++--+--+--+--+  .old                                                              
++--+--+--+--+  main                                                              
++--+--+--+  esp32-pio                                                            
++--+--+--+--+  lib                                                               
++--+--+--+--+--+  wasm3                                                          
++--+--+--+--+  src                                                               
++--+--+--+  esp8266                                                              
++--+--+--+--+  lib                                                               
++--+--+--+--+  src                                                               
++--+--+--+  fomu                                                                 
++--+--+--+--+  include                                                           
++--+--+--+--+--+  generated                                                      
++--+--+--+--+--+  hw                                                             
++--+--+--+--+  ld                                                                
++--+--+--+--+  src                                                               
++--+--+--+  hifive1                                                              
++--+--+--+--+  lib                                                               
++--+--+--+--+  src                                                               
++--+--+--+  particle                                                             
++--+--+--+--+  lib                                                               
++--+--+--+--+--+  wasm3                                                          
++--+--+--+--+  src                                                               
++--+--+--+  wm_w600                                                              
++--+--+  emscripten                                                              
++--+--+  emscripten_lib                                                          
++--+--+  ios                                                                     
++--+--+--+  wasm3                                                                
++--+--+--+  wasm3.xcodeproj                                                      
++--+--+--+--+  project.xcworkspace                                               
++--+--+--+--+--+  xcshareddata                                                   
++--+--+--+--+  xcshareddata                                                      
++--+--+--+--+--+  xcschemes                                                      
++--+--+--+--+  Assets.xcassets                                                   
++--+--+--+--+--+  AppIcon.appiconset                                             
++--+--+--+--+  Base.lproj                                                        
++--+--+  openwrt                                                                 
++--+--+--+  build                                                                
++--+--+  python                                                                  
++--+  source                                                                     
++--+--+  extensions                                                              
++--+--+  extra                                                                   
++--+  test                                                                       
++--+--+  fuzz                                                                    
++--+--+--+  corpus                                                               
++--+--+  internal                                                                
++--+--+--+  tailcall                                                             
++--+--+  lang                                                                    
++--+--+  self-hosting                                                            
++--+--+  wasi                                                                    
++--+--+--+  brotli                                                               
++--+--+--+  c-ray                                                                
++--+--+--+  coremark                                                             
++--+--+--+  mal                                                                  
++--+--+--+  mandelbrot                                                           
++--+--+--+  raymarcher                                                           
++--+--+--+  simple                                                               
++--+--+--+  smallpt                                                              
++--+--+--+  stream                                                               
++--+--+--+  wasmboy                                                              
++--+--+--+  wasmsynth                                                            
+
+Directory .                                                                      
+    Files:
+        .codespellrc                     TOML configuration for codespell (fix common misspellings)
+        .gitignore                       Patterns for files ignored by git (source control)
+        build.zig                        Build() function in Zig (programming language)
+        build-cross.py                   Program to build and test across many platforms
+        CMakeLists.txt                   Python-like build file for CMake (build system)
+        FileList.toml                    TOML file generating this file          
+        FileList.txt                     This file                               
+        LICENSE                          MIT License, copyright 2019             
+        README.md                        Project overview ReadMe file            
+    Subdirectories:
+        .github/                         Configurations for github.com (repository)
+        docs/                            Documentation in markdown, linked by README.md
+        extra/                           Graphics and development tools          
+        platforms/                                                               
+        source/                                                                  
+        test/                                                                    
+
+Directory ./.github/workflows                                                    
+    Files:
+        publish.yml                                                              
+        tests.yml                        Build and test including run-spec-test.py and run-wasi-test.py
+
+Directory: ./docs, 0 Subdirectories, 10 files.
+    Description: Documentation in markdown, linked by README.md
+    Files: Cookbook.md, Demos.md, Development.md, Diagnostics.md,
+           Hardware.md, Installation.md, Interpreter.md,
+           Performance.md, Testing.md, Troubleshooting.md
+
+Directory ./extra                        Graphics and development tools          
+    Files:
+        button.png                       Live Demo button                        
+        disasm-func.sh                   Utility to disassemble a specific function
+        logo.png                         WASM3 logo                              
+        screenshot-android.png           WASM on phone running CoreMark (benchmark)
+        screenshot-ios.png               WASM on phone running CoreMark (benchmark)
+        testutils.py                     A few python functions useful when testing
+        utils.mk                         Makefile with targets useful to developers
+        wasm-symbol.svg                  WASM3 logo                              
+    Subdirectories:
+        logos/                           Logos of other companies                
+        wapm-package/                                                            
+
+Directory ./extra/logos                  Logos of other companies                
+    Files:
+        blynk.png                        Blynk (IOT and smart home) logo         
+        iden3.svg                        Iden3 (decentralized identify management) logo
+        losant.png                       Losant (enterprise IOT) logo            
+        scailable.png                    Scailable (portable AI/ML pipeline) logo
+        shareup_app.svg                  ShareUp.app (privacy first content collector) logo
+        wasmcloud.png                    WasmCloud (distributed business logic) logo
+        wowcube.png                      WowCube (immersive reality and gaming) logo
+
+Directory: ./extra/wapm-package, 1 Subdirectories, 2 files.
+    Subdirectories: build/
+    Files: README.md, wapm.toml
+
+Directory: ./extra/wapm-package/build, 0 Subdirectories, 1 files.
+    Files: .gitignore
+
+Directory: ./platforms/android, 2 Subdirectories, 8 files.
+    Subdirectories: app/, gradle/
+    Files: .gitignore, build.gradle, gradle.properties, gradlew,
+           gradlew.bat, override.txt, README.md, settings.gradle
+
+Directory: ./platforms/android/app, 1 Subdirectories, 2 files.
+    Subdirectories: src/
+    Files: build.gradle, proguard-rules.pro
+
+Directory: ./platforms/android/app/src/main, 3 Subdirectories, 1 files.
+    Subdirectories: cpp/, java/, res/
+    Files: AndroidManifest.xml
+
+Directory: ./platforms/android/app/src/main/cpp, 0 Subdirectories, 3 files.
+    Files: CMakeLists.txt, jni.c, main.c
+
+Directory: ./platforms/android/app/src/main/java/com/example/wasm3, 0 Subdirectories, 1 files.
+    Files: MainActivity.java
+
+Directory: ./platforms/android/app/src/main/res/drawable, 0 Subdirectories, 1 files.
+    Files: ic_launcher.png
+
+Directory: ./platforms/android/app/src/main/res/layout, 0 Subdirectories, 1 files.
+    Files: activity_main.xml
+
+Directory: ./platforms/android/app/src/main/res/mipmap-anydpi-v26, 0 Subdirectories, 1 files.
+    Files: ic_launcher.xml
+
+Directory: ./platforms/android/app/src/main/res/mipmap-hdpi, 0 Subdirectories, 1 files.
+    Files: ic_launcher.png
+
+Directory: ./platforms/android/app/src/main/res/mipmap-mdpi, 0 Subdirectories, 1 files.
+    Files: ic_launcher.png
+
+Directory: ./platforms/android/app/src/main/res/mipmap-xhdpi, 0 Subdirectories, 1 files.
+    Files: ic_launcher.png
+
+Directory: ./platforms/android/app/src/main/res/mipmap-xxhdpi, 0 Subdirectories, 1 files.
+    Files: ic_launcher.png
+
+Directory: ./platforms/android/app/src/main/res/mipmap-xxxhdpi, 0 Subdirectories, 1 files.
+    Files: ic_launcher.png
+
+Directory: ./platforms/android/app/src/main/res/values, 0 Subdirectories, 4 files.
+    Files: colors.xml, dimens.xml, strings.xml, styles.xml
+
+Directory: ./platforms/android/app/src/main/res/values-w820dp, 0 Subdirectories, 1 files.
+    Files: dimens.xml
+
+Directory: ./platforms/android/gradle/wrapper, 0 Subdirectories, 2 files.
+    Files: gradle-wrapper.jar, gradle-wrapper.properties
+
+Directory: ./platforms/app, 0 Subdirectories, 2 files.
+    Files: main.c, README.md
+
+Directory: ./platforms/app_fuzz, 0 Subdirectories, 1 files.
+    Files: fuzzer.c
+
+Directory: ./platforms/cosmopolitan, 0 Subdirectories, 2 files.
+    Files: .gitignore, build.sh
+
+Directory: ./platforms/cpp, 2 Subdirectories, 4 files.
+    Subdirectories: wasm/, wasm3_cpp/
+    Files: .gitignore, CMakeLists.txt, main.cpp, README.md
+
+Directory: ./platforms/cpp/wasm, 0 Subdirectories, 4 files.
+    Files: Makefile, test_prog.c, test_prog.wasm, test_prog.wasm.h
+
+Directory: ./platforms/cpp/wasm3_cpp, 1 Subdirectories, 1 files.
+    Subdirectories: include/
+    Files: CMakeLists.txt
+
+Directory: ./platforms/cpp/wasm3_cpp/include, 0 Subdirectories, 1 files.
+    Files: wasm3_cpp.h
+
+Directory: ./platforms/embedded/arduino, 2 Subdirectories, 2 files.
+    Subdirectories: lib/, src/
+    Files: .gitignore, platformio.ini
+
+Directory: ./platforms/embedded/arduino/src, 0 Subdirectories, 1 files.
+    Files: main.cpp
+
+Directory: ./platforms/embedded/bluepill, 2 Subdirectories, 2 files.
+    Subdirectories: lib/, src/
+    Files: .gitignore, platformio.ini
+
+Directory: ./platforms/embedded/bluepill/lib/wasm3, 0 Subdirectories, 1 files.
+    Files: library.json
+
+Directory: ./platforms/embedded/bluepill/src, 0 Subdirectories, 1 files.
+    Files: main.cpp
+
+Directory: ./platforms/embedded/esp32-idf, 2 Subdirectories, 4 files.
+    Subdirectories: .old/, main/
+    Files: .gitignore, CMakeLists.txt, README.md, sdkconfig.defaults
+
+Directory: ./platforms/embedded/esp32-idf-wasi, 2 Subdirectories, 4 files.
+    Subdirectories: .old/, main/
+    Files: .gitignore, CMakeLists.txt, README.md, sdkconfig.defaults
+
+Directory: ./platforms/embedded/esp32-idf-wasi/.old, 0 Subdirectories, 2 files.
+    Files: component.mk, Makefile
+
+Directory: ./platforms/embedded/esp32-idf-wasi/main, 0 Subdirectories, 5 files.
+    Files: CMakeLists.txt, m3_api_esp_wasi.c, m3_api_esp_wasi.h,
+           main.cpp, wasi_test.wasm.h
+
+Directory: ./platforms/embedded/esp32-idf/.old, 0 Subdirectories, 2 files.
+    Files: component.mk, Makefile
+
+Directory: ./platforms/embedded/esp32-idf/main, 0 Subdirectories, 3 files.
+    Files: CMakeLists.txt, linker.lf, main.cpp
+
+Directory: ./platforms/embedded/esp32-pio, 2 Subdirectories, 2 files.
+    Subdirectories: lib/, src/
+    Files: .gitignore, platformio.ini
+
+Directory: ./platforms/embedded/esp32-pio/lib/wasm3, 0 Subdirectories, 2 files.
+    Files: library.json, README.md
+
+Directory: ./platforms/embedded/esp32-pio/src, 0 Subdirectories, 3 files.
+    Files: main.cpp, sdkconfig, sdkconfig.h
+
+Directory: ./platforms/embedded/esp8266, 2 Subdirectories, 2 files.
+    Subdirectories: lib/, src/
+    Files: .gitignore, platformio.ini
+
+Directory: ./platforms/embedded/esp8266/src, 0 Subdirectories, 1 files.
+    Files: main.cpp
+
+Directory: ./platforms/embedded/fomu, 3 Subdirectories, 5 files.
+    Subdirectories: include/, ld/, src/
+    Files: .env, .gitignore, gdb_init, Makefile, README.md
+
+Directory: ./platforms/embedded/fomu/include, 2 Subdirectories, 19 files.
+    Subdirectories: generated/, hw/
+    Files: console.h, crc.h, csr-defs.h, irq.h, printf.h, rgb.h,
+           spi.h, spiflash.h, system.h, time.h, toboot-api.h,
+           toboot-internal.h, usb.h, usb-desc.h, usbcdc.h, usbstd.h,
+           webusb-defs.h, xxhash.c, xxhash.h
+
+Directory: ./platforms/embedded/fomu/include/generated, 0 Subdirectories, 2 files.
+    Files: csr.h, mem.h
+
+Directory: ./platforms/embedded/fomu/include/hw, 0 Subdirectories, 2 files.
+    Files: common.h, flags.h
+
+Directory: ./platforms/embedded/fomu/ld, 0 Subdirectories, 3 files.
+    Files: linker.ld, output_format.ld, regions.ld
+
+Directory: ./platforms/embedded/fomu/src, 0 Subdirectories, 8 files.
+    Files: crt0-vexriscv.S, ltoa.c, main.c, rgb.c, time.c, usb-desc.c,
+           usb-dev.c, usb-epfifo.c
+
+Directory: ./platforms/embedded/hifive1, 2 Subdirectories, 3 files.
+    Subdirectories: lib/, src/
+    Files: .gitignore, platformio.ini, README.md
+
+Directory: ./platforms/embedded/hifive1/src, 0 Subdirectories, 1 files.
+    Files: main.c
+
+Directory: ./platforms/embedded/particle, 2 Subdirectories, 3 files.
+    Subdirectories: lib/, src/
+    Files: .gitignore, project.properties, README.md
+
+Directory: ./platforms/embedded/particle/lib/wasm3, 0 Subdirectories, 1 files.
+    Files: library.properties
+
+Directory: ./platforms/embedded/particle/src, 0 Subdirectories, 1 files.
+    Files: main.ino
+
+Directory: ./platforms/embedded/wm_w600, 0 Subdirectories, 5 files.
+    Files: .gitignore, build.sh, main.c, Makefile, README.md
+
+Directory: ./platforms/emscripten, 0 Subdirectories, 2 files.
+    Files: main.c, README.md
+
+Directory: ./platforms/emscripten_lib, 0 Subdirectories, 3 files.
+    Files: main.c, run_native.js, run_wasm3.js
+
+Directory: ./platforms/ios, 2 Subdirectories, 2 files.
+    Subdirectories: wasm3/, wasm3.xcodeproj/
+    Files: .gitignore, README.md
+
+Directory: ./platforms/ios/wasm3, 2 Subdirectories, 6 files.
+    Subdirectories: Assets.xcassets/, Base.lproj/
+    Files: AppDelegate.swift, Bridging-Header.h, icon.png, Info.plist,
+           main.c, ViewController.swift
+
+Directory: ./platforms/ios/wasm3.xcodeproj, 2 Subdirectories, 1 files.
+    Subdirectories: project.xcworkspace/, xcshareddata/
+    Files: project.pbxproj
+
+Directory: ./platforms/ios/wasm3.xcodeproj/project.xcworkspace, 1 Subdirectories, 1 files.
+    Subdirectories: xcshareddata/
+    Files: contents.xcworkspacedata
+
+Directory: ./platforms/ios/wasm3.xcodeproj/project.xcworkspace/xcshareddata, 0 Subdirectories, 2 files.
+    Files: IDEWorkspaceChecks.plist, WorkspaceSettings.xcsettings
+
+Directory: ./platforms/ios/wasm3.xcodeproj/xcshareddata/xcschemes, 0 Subdirectories, 2 files.
+    Files: wasm3.xcscheme, wasm3 Release.xcscheme
+
+Directory: ./platforms/ios/wasm3/Assets.xcassets/AppIcon.appiconset, 0 Subdirectories, 1 files.
+    Files: Contents.json
+
+Directory: ./platforms/ios/wasm3/Base.lproj, 0 Subdirectories, 2 files.
+    Files: LaunchScreen.storyboard, Main.storyboard
+
+Directory: ./platforms/openwrt, 1 Subdirectories, 1 files.
+    Subdirectories: build/
+    Files: README.md
+
+Directory: ./platforms/openwrt/build, 0 Subdirectories, 1 files.
+    Files: Makefile
+
+Directory: ./platforms/python, 0 Subdirectories, 1 files.
+    Files: README.md
+
+Directory: ./source, 2 Subdirectories, 34 files.
+    Subdirectories: extensions/, extra/
+    Files: CMakeLists.txt, m3_api_libc.c, m3_api_libc.h,
+           m3_api_meta_wasi.c, m3_api_tracer.c, m3_api_tracer.h,
+           m3_api_uvwasi.c, m3_api_wasi.c, m3_api_wasi.h, m3_bind.c,
+           m3_bind.h, m3_code.c, m3_code.h, m3_compile.c,
+           m3_compile.h, m3_config.h, m3_config_platforms.h,
+           m3_core.c, m3_core.h, m3_env.c, m3_env.h, m3_exception.h,
+           m3_exec.c, m3_exec.h, m3_exec_defs.h, m3_function.c,
+           m3_function.h, m3_info.c, m3_info.h, m3_math_utils.h,
+           m3_module.c, m3_parse.c, wasm3.h, wasm3_defs.h
+
+Directory: ./source/extensions, 0 Subdirectories, 2 files.
+    Files: m3_extensions.c, wasm3_ext.h
+
+Directory: ./source/extra, 0 Subdirectories, 5 files.
+    Files: coremark_minimal.wasm.h, fib32.wasm.h, fib32_tail.wasm.h,
+           fib64.wasm.h, wasi_core.h
+
+Directory: ./test, 5 Subdirectories, 2 files.
+    Subdirectories: fuzz/, internal/, lang/, self-hosting/, wasi/
+    Files: run-spec-test.py, run-wasi-test.py
+
+Directory: ./test/fuzz/corpus, 0 Subdirectories, 5 files.
+    Files: fib.c.wasm, fib32.wasm, fib32_tail.wasm, fib64.wasm,
+           fib64_tail.wasm
+
+Directory: ./test/internal, 1 Subdirectories, 1 files.
+    Subdirectories: tailcall/
+    Files: m3_test.c
+
+Directory: ./test/internal/tailcall, 0 Subdirectories, 2 files.
+    Files: build.sh, ops.c
+
+Directory: ./test/lang, 0 Subdirectories, 14 files.
+    Files: fib.c, fib.js, fib.lua, fib.py, fib.walt, fib.c.wasm,
+           fib.min.js, fib32.wasm, fib32.wat, fib32_tail.wasm,
+           fib32_tail.wat, fib64.wasm, fib64.wat, README.md
+
+Directory: ./test/self-hosting, 0 Subdirectories, 1 files.
+    Files: wasm3-fib.wasm
+
+Directory: ./test/wasi/brotli, 0 Subdirectories, 5 files.
+    Files: alice29.txt, alice29.txt.compressed, alice29_small.txt,
+           brotli.wasm, README.md
+
+Directory: ./test/wasi/c-ray, 0 Subdirectories, 7 files.
+    Files: c-ray.wasm, c-ray-f.c, README.md, scene, scene.jpg,
+           sphfract, sphfract.jpg
+
+Directory: ./test/wasi/coremark, 0 Subdirectories, 3 files.
+    Files: coremark.wasm, coremark-minimal.wasm, README.md
+
+Directory: ./test/wasi/mal, 0 Subdirectories, 7 files.
+    Files: .gitattributes, core.mal, env.mal, mal.mal, mal.wasm,
+           README.md, test-fib.mal
+
+Directory: ./test/wasi/mandelbrot, 0 Subdirectories, 8 files.
+    Files: colors.h, doubledouble.h, image.png, mandel.c, mandel.wasm,
+           mandel_dd.c, mandel_dd.wasm, README.md
+
+Directory: ./test/wasi/raymarcher, 0 Subdirectories, 2 files.
+    Files: raymarcher.cpp, raymarcher.wasm
+
+Directory: ./test/wasi/simple, 0 Subdirectories, 7 files.
+    Files: 0.txt, README.md, test.c, test.wasm, test-opt.wasm,
+           wasm_api.h, wasm_api.syms
+
+Directory: ./test/wasi/smallpt, 0 Subdirectories, 7 files.
+    Files: image.jpg, README.md, smallpt.cpp, smallpt.wasm,
+           smallpt-ex.cpp, smallpt-ex.wasm, smallpt-ex-mv.wasm
+
+Directory: ./test/wasi/stream, 0 Subdirectories, 2 files.
+    Files: stream.c, stream.wasm
+
+Directory: ./test/wasi/wasmboy, 0 Subdirectories, 4 files.
+    Files: .gitignore, image.png, README.md, wasmerboy.wasm
+
+Directory: ./test/wasi/wasmsynth, 0 Subdirectories, 6 files.
+    Files: hondarribia.wasm, image.png, README.md, shuffle-chill.wasm,
+           wasm-song.wasm, webchip-music.wasm
