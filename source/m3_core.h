@@ -162,14 +162,14 @@ M3CodePageHeader;
 #define d_m3Reg0SlotAlias                   60000
 #define d_m3Fp0SlotAlias                    (d_m3Reg0SlotAlias + 2)
 
-#define d_m3MaxSaneTypesCount               100000
-#define d_m3MaxSaneFunctionsCount           100000
-#define d_m3MaxSaneImportsCount             10000
-#define d_m3MaxSaneExportsCount             10000
-#define d_m3MaxSaneGlobalsCount             100000
-#define d_m3MaxSaneElementSegments          100000
+#define d_m3MaxSaneTypesCount               1000000
+#define d_m3MaxSaneFunctionsCount           1000000
+#define d_m3MaxSaneImportsCount             100000
+#define d_m3MaxSaneExportsCount             100000
+#define d_m3MaxSaneGlobalsCount             1000000
+#define d_m3MaxSaneElementSegments          10000000
 #define d_m3MaxSaneDataSegments             100000
-#define d_m3MaxSaneTableSize                100000
+#define d_m3MaxSaneTableSize                10000000
 #define d_m3MaxSaneUtf8Length               10000
 #define d_m3MaxSaneFunctionArgRetCount      1000    // still insane, but whatever
 
