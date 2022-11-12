@@ -39,8 +39,8 @@ Wasm3 can also be used as a library for:
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/perl.svg" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/nim.svg" width="18" height="18" /> Nim](https://github.com/beef331/wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
-
 ## Status
 
 `wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/master/test/core) and is able to run many `WASI` apps.
