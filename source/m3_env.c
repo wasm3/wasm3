@@ -187,7 +187,11 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
         {
             runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->stack);
         }
-        else m3_Free (runtime);
+        else
+        {
+            m3_Free (runtime);
+            runtime = NULL;
+        }
     }
 
     return runtime;
