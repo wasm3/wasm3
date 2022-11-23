@@ -14,7 +14,7 @@ pub fn build(b: *std.build.Builder) !void {
         wasm3.linkSystemLibrary("wasi-emulated-process-clocks");
     }
 
-    wasm3.addIncludeDir("source");
+    wasm3.addIncludePath("source");
     wasm3.addCSourceFiles(&.{
         "source/m3_api_libc.c",
         "source/m3_api_meta_wasi.c",
