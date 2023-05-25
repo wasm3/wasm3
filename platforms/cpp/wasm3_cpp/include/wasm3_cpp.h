@@ -11,7 +11,11 @@
 #include <iterator>
 #include <cassert>
 
+extern "C"
+{
 #include "wasm3.h"
+}
+
 
 
 namespace wasm3 {
@@ -135,9 +139,9 @@ namespace wasm3 {
     } // namespace detail
     /** @endcond */
 
-    class module;
-    class runtime;
-    class function;
+    class wasm_module;
+    class wasm_runtime;
+    class wasm_function;
 
     /**
      * Exception thrown for wasm3 errors.
@@ -165,9 +169,9 @@ namespace wasm3 {
      *
      * Runtimes, modules are owned by an environment.
      */
-    class environment {
+    class wasm_environment {
     public:
-        environment() {
+        wasm_environment() {
             m_env.reset(m3_NewEnvironment(), m3_FreeEnvironment);
             if (m_env == nullptr) {
                 throw std::bad_alloc();
@@ -180,7 +184,7 @@ namespace wasm3 {
          * @param stack_size_bytes  size of the WASM stack for this runtime
          * @return runtime object
          */
-        runtime new_runtime(uint32_t stack_size_bytes);
+        wasm_runtime new_runtime(uint32_t stack_size_bytes);
 
         /**
          * Parse a WASM module from file
@@ -191,7 +195,7 @@ namespace wasm3 {
          * @param in  file (WASM binary)
          * @return module object
          */
-        module parse_module(std::istream &in);
+        wasm_module parse_module(std::istream &in);
 
         /**
          * Parse a WASM module from binary data
@@ -200,7 +204,7 @@ namespace wasm3 {
          * @param size  size of the binary
          * @return module object
          */
-        module parse_module(const uint8_t *data, size_t size);
+        wasm_module parse_module(const uint8_t *data, size_t size);
 
     protected:
         std::shared_ptr<struct M3Environment> m_env;
@@ -209,13 +213,13 @@ namespace wasm3 {
     /**
      * Wrapper for the runtime, where modules are loaded and executed.
      */
-    class runtime {
+    class wasm_runtime {
     public:
         /**
          * Load the module into runtime
          * @param mod  module parsed by environment::parse_module
          */
-        void load(module &mod);
+        void load(wasm_module &mod);
 
         /**
          * Get a function handle by name
@@ -224,12 +228,12 @@ namespace wasm3 {
          * @param name  name of a function, c-string
          * @return function object
          */
-        function find_function(const char *name);
+        wasm_function find_function(const char *name);
 
     protected:
-        friend class environment;
+        friend class wasm_environment;
 
-        runtime(const std::shared_ptr<M3Environment> &env, uint32_t stack_size_bytes)
+        wasm_runtime(const std::shared_ptr<M3Environment> &env, uint32_t stack_size_bytes)
                 : m_env(env) {
             m_runtime.reset(m3_NewRuntime(env.get(), stack_size_bytes, nullptr), &m3_FreeRuntime);
             if (m_runtime == nullptr) {
@@ -249,7 +253,7 @@ namespace wasm3 {
      * Functions can be linked to the loaded module.
      * Once constructed, modules can be loaded into the runtime.
      */
-    class module {
+    class wasm_module {
     public:
         /**
          * Link an external function.
@@ -270,12 +274,18 @@ namespace wasm3 {
         template<typename Func>
         void link_optional(const char *module, const char *function_name, Func *function);
 
+    public:
+
+        auto get_module() -> std::shared_ptr<M3Module>
+        {
+            return m_module;
+        }
 
     protected:
-        friend class environment;
-        friend class runtime;
+        friend class wasm_environment;
+        friend class wasm_runtime;
 
-        module(const std::shared_ptr<M3Environment> &env, std::istream &in_wasm) {
+        wasm_module(const std::shared_ptr<M3Environment> &env, std::istream &in_wasm) {
             in_wasm.unsetf(std::ios::skipws);
             std::copy(std::istream_iterator<uint8_t>(in_wasm),
                       std::istream_iterator<uint8_t>(),
@@ -283,7 +293,7 @@ namespace wasm3 {
             parse(env.get(), m_moduleRawData.data(), m_moduleRawData.size());
         }
 
-        module(const std::shared_ptr<M3Environment> &env, const uint8_t *data, size_t size) : m_env(env) {
+        wasm_module(const std::shared_ptr<M3Environment> &env, const uint8_t *data, size_t size) : m_env(env) {
             m_moduleRawData = std::vector<uint8_t>{data, data + size};
             parse(env.get(), m_moduleRawData.data(), m_moduleRawData.size());
         }
@@ -305,6 +315,7 @@ namespace wasm3 {
             m_loaded = true;
         }
 
+
         std::shared_ptr<M3Environment> m_env;
         std::shared_ptr<M3Module> m_module;
         bool m_loaded = false;
@@ -315,7 +326,7 @@ namespace wasm3 {
     /**
      * Handle of a function. Can be obtained from runtime::find_function method by name.
      */
-    class function {
+    class wasm_function {
     public:
         /**
          * Call the function with the provided arguments, expressed as strings.
@@ -374,9 +385,9 @@ namespace wasm3 {
         }
 
     protected:
-        friend class runtime;
+        friend class wasm_runtime;
 
-        function(const std::shared_ptr<M3Runtime> &runtime, const char *name) : m_runtime(runtime) {
+        wasm_function(const std::shared_ptr<M3Runtime> &runtime, const char *name) : m_runtime(runtime) {
             M3Result err = m3_FindFunction(&m_func, runtime.get(), name);
             detail::check_error(err);
             assert(m_func != nullptr);
@@ -386,34 +397,34 @@ namespace wasm3 {
         M3Function *m_func = nullptr;
     };
 
-    inline runtime environment::new_runtime(uint32_t stack_size_bytes) {
-        return runtime(m_env, stack_size_bytes);
+    inline wasm_runtime wasm_environment::new_runtime(uint32_t stack_size_bytes) {
+        return wasm_runtime(m_env, stack_size_bytes);
     }
 
-    inline module environment::parse_module(std::istream &in) {
-        return module(m_env, in);
+    inline wasm_module wasm_environment::parse_module(std::istream &in) {
+        return wasm_module(m_env, in);
     }
 
-    inline module environment::parse_module(const uint8_t *data, size_t size) {
-        return module(m_env, data, size);
+    inline wasm_module wasm_environment::parse_module(const uint8_t *data, size_t size) {
+        return wasm_module(m_env, data, size);
     }
 
-    inline void runtime::load(module &mod) {
+    inline void wasm_runtime::load(wasm_module &mod) {
         mod.load_into(m_runtime.get());
     }
 
-    inline function runtime::find_function(const char *name) {
-        return function(m_runtime, name);
+    inline wasm_function wasm_runtime::find_function(const char *name) {
+        return wasm_function(m_runtime, name);
     }
 
     template<typename Func>
-    void module::link(const char *module, const char *function_name, Func *function) {
+    void wasm_module::link(const char *module, const char *function_name, Func *function) {
         M3Result ret = detail::m3_wrapper<Func>::link(m_module.get(), module, function_name, function);
         detail::check_error(ret);
     }
 
     template<typename Func>
-    void module::link_optional(const char *module, const char *function_name, Func *function) {
+    void wasm_module::link_optional(const char *module, const char *function_name, Func *function) {
         M3Result ret = detail::m3_wrapper<Func>::link(m_module.get(), module, function_name, function);
         if (ret == m3Err_functionLookupFailed) {
             return;
