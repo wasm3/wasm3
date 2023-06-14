@@ -181,11 +181,12 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
         runtime->environment = i_environment;
         runtime->userdata = i_userdata;
 
-        runtime->stack = m3_Malloc ("Wasm Stack", i_stackSizeInBytes + 4*sizeof (m3slot_t)); // TODO: more precise stack checks
+        runtime->originStack = m3_Malloc ("Wasm Stack", i_stackSizeInBytes + 4*sizeof (m3slot_t)); // TODO: more precise stack checks
 
-        if (runtime->stack)
+        if (runtime->originStack)
         {
-            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->stack);
+            runtime->stack = runtime->originStack;
+            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->originStack);
         }
         else m3_Free (runtime);
     }
@@ -233,7 +234,7 @@ void  Runtime_Release  (IM3Runtime i_runtime)
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
-    m3_Free (i_runtime->stack);
+    m3_Free (i_runtime->originStack);
     m3_Free (i_runtime->memory.mallocated);
 }
 
@@ -317,7 +318,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     }
     else result = m3Err_mallocFailedCodePage;
 
-    runtime.stack = NULL;        // prevent free(stack) in ReleaseRuntime
+    runtime.originStack = NULL;        // prevent free(stack) in ReleaseRuntime
     Runtime_Release (& runtime);
     i_module->runtime = savedRuntime;
 
