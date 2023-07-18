@@ -198,8 +198,10 @@ M3Result repl_load_hex  (u32 fsize)
                 hex_idx = 0;
             }
         }
-        if (!fgets(hex, 3, stdin)) // Consume a newline
+        if (!fgets(hex, 3, stdin)) { // Consume a newline
+            free(wasm);
             return "cannot read EOL";
+        }
     }
 
     IM3Module module;
