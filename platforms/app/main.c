@@ -447,6 +447,7 @@ M3Result repl_dump  ()
             return "cannot open file";
         }
         if (fwrite (mem, 1, len, f) != len) {
+            fclose (f);
             return "cannot write file";
         }
         fclose (f);
