@@ -291,6 +291,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
+    M3Result            m3_GetTableFunction         (IM3Function *          o_function,
+                                                     IM3Module              i_module,
+                                                     uint32_t               i_index);
 
     uint32_t            m3_GetArgCount              (IM3Function i_function);
     uint32_t            m3_GetRetCount              (IM3Function i_function);

@@ -751,6 +751,33 @@ _           (CompileFunction (function))
     return result;
 }
 
+
+M3Result  m3_GetTableFunction  (IM3Function * o_function, IM3Module i_module, uint32_t i_index)
+{
+    M3Result result = m3Err_none;
+
+    if (i_index >= i_module->table0Size)
+    {
+        _throw ("function index out of range");
+    }
+
+    IM3Function function = i_module->table0[i_index];
+
+    if (function)
+    {
+        if (not function->compiled)
+        {
+_           (CompileFunction (function))
+        }
+    }
+
+    * o_function = function;
+
+    _catch:
+    return result;
+}
+
+
 static
 M3Result checkStartFunction(IM3Module i_module)
 {
