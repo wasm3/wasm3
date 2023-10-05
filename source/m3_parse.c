@@ -184,6 +184,8 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
             {
 _               (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
                 io_module->memoryImported = true;
+                io_module->memoryImport = import;
+                import = clearImport;
             }
             break;
 

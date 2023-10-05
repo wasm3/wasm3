@@ -112,6 +112,7 @@ typedef struct M3Module
     u32                     table0Size;
 
     M3MemoryInfo            memoryInfo;
+    M3ImportInfo            memoryImport;
     bool                    memoryImported;
     const char*             memoryExportName;
 
