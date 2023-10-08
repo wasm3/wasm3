@@ -110,6 +110,7 @@ typedef struct M3Module
 
     IM3Function *           table0;
     u32                     table0Size;
+    const char*             table0ExportName;
 
     M3MemoryInfo            memoryInfo;
     M3ImportInfo            memoryImport;
