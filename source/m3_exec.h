@@ -149,8 +149,9 @@ d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 #define d_m3CommutativeOpMacro_f(TYPE, NAME, MACRO, ...)    d_m3CommutativeOpMacro  (_fp0, _fp0, TYPE, NAME, MACRO, ##__VA_ARGS__)
 #define d_m3OpMacro_f(TYPE, NAME, MACRO, ...)               d_m3OpMacro             (_fp0, _fp0, TYPE, NAME, MACRO, ##__VA_ARGS__)
 
-#define M3_FUNC(RES, A, B, OP)  (RES) = OP((A), (B))    // Accept functions: res = OP(a,b)
-#define M3_OPER(RES, A, B, OP)  (RES) = ((A) OP (B))    // Accept operators: res = a OP b
+#define M3_FUNC(RES, A, B, OP)  (RES) = OP((A), (B))        // Accept functions: res = OP(a,b)
+#define M3_OPER(RES, A, B, OP)  (RES) = ((A) OP (B))        // Accept operators: res = a OP b
+#define M3_OFOP(RES, A, B, OP)  (void)OP((A), (B), &(RES))  // Accept builtins: OP(a, b, &res)
 
 #define d_m3CommutativeOpFunc_i(TYPE, NAME, OP)     d_m3CommutativeOpMacro_i    (TYPE, NAME, M3_FUNC, OP)
 #define d_m3OpFunc_i(TYPE, NAME, OP)                d_m3OpMacro_i               (TYPE, NAME, M3_FUNC, OP)
@@ -161,6 +162,9 @@ d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 #define d_m3Op_i(TYPE, NAME, OP)                    d_m3OpMacro_i               (TYPE, NAME, M3_OPER, OP)
 #define d_m3CommutativeOp_f(TYPE, NAME, OP)         d_m3CommutativeOpMacro_f    (TYPE, NAME, M3_OPER, OP)
 #define d_m3Op_f(TYPE, NAME, OP)                    d_m3OpMacro_f               (TYPE, NAME, M3_OPER, OP)
+
+#define d_m3CommutativeOverflowOp_i(TYPE, NAME, OP) d_m3CommutativeOpMacro_i    (TYPE, NAME, M3_OFOP, OP)
+#define d_m3OverflowOp_i(TYPE, NAME, OP)            d_m3OpMacro_i               (TYPE, NAME, M3_OFOP, OP)
 
 // compare needs to be distinct for fp 'cause the result must be _r0
 #define d_m3CompareOp_f(TYPE, NAME, OP)             d_m3OpMacro                 (_r0, _fp0, TYPE, NAME, M3_OPER, OP)
@@ -193,10 +197,18 @@ d_m3CompareOp_f (f32, LessThanOrEqual,      <=)     d_m3CompareOp_f (f64, LessTh
 d_m3CompareOp_f (f32, GreaterThanOrEqual,   >=)     d_m3CompareOp_f (f64, GreaterThanOrEqual,   >=)
 #endif
 
-d_m3CommutativeOp_i (i32, Add,              +)      d_m3CommutativeOp_i (i64, Add,              +)
-d_m3CommutativeOp_i (i32, Multiply,         *)      d_m3CommutativeOp_i (i64, Multiply,         *)
+// d_m3CommutativeOp_i (i32, Add,              +)      d_m3CommutativeOp_i (i64, Add,              +)
+// d_m3CommutativeOp_i (i32, Multiply,         *)      d_m3CommutativeOp_i (i64, Multiply,         *)
 
-d_m3Op_i (i32, Subtract,                    -)      d_m3Op_i (i64, Subtract,                    -)
+// d_m3Op_i (i32, Subtract,                    -)      d_m3Op_i (i64, Subtract,                    -)
+
+d_m3CommutativeOverflowOp_i (i32, Add,      __builtin_add_overflow)
+d_m3CommutativeOverflowOp_i (i64, Add,      __builtin_add_overflow)
+d_m3CommutativeOverflowOp_i (i32, Multiply, __builtin_mul_overflow)
+d_m3CommutativeOverflowOp_i (i64, Multiply, __builtin_mul_overflow)
+
+d_m3OverflowOp_i            (i32, Subtract, __builtin_sub_overflow)
+d_m3OverflowOp_i            (i64, Subtract, __builtin_sub_overflow)
 
 #define OP_SHL_32(X,N) ((X) << ((u32)(N) % 32))
 #define OP_SHL_64(X,N) ((X) << ((u64)(N) % 64))
