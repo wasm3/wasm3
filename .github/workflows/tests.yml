@@ -59,6 +59,7 @@ jobs:
   linux-alpine:
     runs-on: ubuntu-latest
     container: alpine:3.19
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v4
@@ -78,6 +79,7 @@ jobs:
 
   linux-alpine-s390x:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v4
@@ -88,7 +90,6 @@ jobs:
       with:
         image: s390x/alpine:3.19
         options: --volume=${{ github.workspace }}:/work --workdir=/work
-        shell: bash
         run: |
           set -e
           apk add build-base cmake python3 git --update-cache
@@ -183,6 +184,7 @@ jobs:
 
   cygwin-build:
     runs-on: windows-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@main
