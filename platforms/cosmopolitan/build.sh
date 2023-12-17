@@ -1,5 +1,5 @@
 
-COSMOPOLITAN_VERSION=1.0
+COSMOPOLITAN_VERSION=3.1.3
 COSMOPOLITAN_URL=https://github.com/jart/cosmopolitan/releases/download/$COSMOPOLITAN_VERSION/cosmopolitan-amalgamation-$COSMOPOLITAN_VERSION.zip
 
 SOURCE_DIR=../../source
