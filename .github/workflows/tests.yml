@@ -30,7 +30,7 @@ jobs:
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install ${{ matrix.config.install }}
       if: ${{ matrix.config.install }}
       run: |
@@ -58,10 +58,10 @@ jobs:
 
   linux-alpine:
     runs-on: ubuntu-latest
-    container: alpine:3.10
+    container: alpine:3.19
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Prepare
       run: apk add build-base cmake python3 git --update-cache
     - name: Configure
@@ -76,15 +76,32 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
-  big-endian-i32-constant:
+  linux-alpine-s390x:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Get the qemu container
+    - uses: actions/checkout@v4
+    - name: Setup multiarch/qemu-user-static
       run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    - name: Run tests
-      run: docker run --rm --interactive --mount type=bind,source=$(pwd),target=/host s390x/alpine sh -c "apk add build-base cmake git --update-cache && cd /host && mkdir build && cd build && cmake .. && cd .. && cmake --build build && echo wasm3 built && echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm && echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm && echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37"
+    - name: Run test in VM
+      uses: addnab/docker-run-action@v3
+      with:
+        image: s390x/alpine:3.19
+        options: --volume=${{ github.workspace }}:/work --workdir=/work
+        shell: bash
+        run: |
+          set -e
+          apk add build-base cmake python3 git --update-cache
+          echo "------------ Build Wasm3 ------------"
+          mkdir build && cd build && cmake .. && cd ..
+          cmake --build build
+          echo "------------ Test i32 const ------------"
+          echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm
+          echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
+          echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
+          echo "------------ Run tests ------------"
+          cd test && python3 run-spec-test.py && cd ..
+          cd test && python3 run-wasi-test.py && cd ..
 
   macos:
     runs-on: macos-latest
@@ -99,7 +116,7 @@ jobs:
         - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Configure
       run: |
         mkdir build
@@ -141,7 +158,7 @@ jobs:
         shell: cmd
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Configure
       run: |
         mkdir build
@@ -182,7 +199,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup environment
       env:
         WASI_VERSION: 11
@@ -243,7 +260,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: List Xcode versions
       run: ls /Applications | grep Xcode
     - name: Select Xcode 12
@@ -258,11 +275,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: seanmiddleditch/gha-setup-ninja@master
     - name: Set up JDK 11
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v4
       with:
+        distribution: 'zulu'
         java-version: 11
     - name: Build
       run: |
@@ -275,16 +293,16 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         path: wasm3
     - name: Checkout pywasm3
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: wasm3/pywasm3
         path: pywasm3
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
     - name: Update and Build Python module
       run: |
         rm -rf ./pywasm3/wasm3
@@ -301,11 +319,11 @@ jobs:
         pytest
 
   cosmopolitan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build αcτµαlly pδrταblε εxεcµταblε
       run: |
         cd platforms/cosmopolitan
@@ -340,7 +358,7 @@ jobs:
         python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.com"
 
   cross-qemu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: cross-qemu-${{ matrix.config.target }}
     timeout-minutes: 10
 
@@ -371,7 +389,7 @@ jobs:
         - {target: ppc64 (u64 slots),   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static,    cflags: -Dd_m3Use32BitSlots=0  }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install QEMU
       run: |
         sudo apt update
@@ -402,9 +420,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -431,9 +449,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -462,9 +480,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -486,7 +504,7 @@ jobs:
     if: "github.event_name == 'push'"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Particle CLI
       run: sudo npm install -g particle-cli
     - name: Log in
@@ -505,7 +523,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build for ESP32 (IDF v4.0)
       run: |
         . $IDF_PATH/export.sh
@@ -532,7 +550,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Configure
         run: |
           cd platforms/cpp
@@ -554,7 +572,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build
       run: |
         mkdir build
@@ -572,7 +590,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build
       run: |
         mkdir build
@@ -601,7 +619,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install sponge
       run: |
         sudo apt update
@@ -622,7 +640,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
     - name: Install codespell
       run: |
         pip install codespell
