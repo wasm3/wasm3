@@ -15,8 +15,7 @@ A fast WebAssembly interpreter and the most universal WASM runtime.
 
 
 [![Twitter](https://img.shields.io/twitter/follow/wasm3_engine?style=flat-square&color=1da1f2&label=twitter&logo=twitter)](https://twitter.com/wasm3_engine) 
-[![Discord](https://img.shields.io/discord/671415645073702925?style=flat-square&logo=discord&color=7289da&label=discord)](https://discord.gg/qmZjgnd) 
-[![Telegram](https://img.shields.io/badge/telegram-chat-0088cc?style=flat-square&logo=telegram)](https://t.me/joinchat/DD8s3xVG8Vj_LxRDm52eTQ)
+[![Discord](https://img.shields.io/discord/671415645073702925?style=flat-square&logo=discord&color=7289da&label=discord)](https://discord.gg/qmZjgnd)
 
 ## Getting Started
 
@@ -31,16 +30,17 @@ Here's a small [getting started guide](https://wapm.io/package/vshymanskyy/wasm3
 
 Wasm3 can also be used as a library for:
 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/python.svg" width="18" height="18" /> Python3](https://github.com/wasm3/pywasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/zig.svg" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3) │
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/python.svg" width="18" height="18" /> Python3](https://github.com/wasm3/pywasm3) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/Veykril/wasm3-rs) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/zig.svg" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3) │
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/perl.svg" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/nim.svg" width="18" height="18" /> Nim](https://github.com/beef331/wasm3) │ 
-[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/nim.svg" width="18" height="18" /> Nim](https://github.com/beef331/wasm3) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
+
 ## Status
 
 `wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/master/test/core) and is able to run many `WASI` apps.
@@ -48,16 +48,16 @@ Wasm3 can also be used as a library for:
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 `wasm3` runs on a wide range of architectures (`x86`, `x86_64`, `ARM`, `RISC-V`, `PowerPC`, `MIPS`, `Xtensa`, `ARC32`, ...) and [platforms](/platforms):
-- <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/linux.svg" width="18" height="18" /> Linux,
-<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/windows.svg" width="18" height="18" /> Windows,
-<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> OS X,
-<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/freebsd.svg" width="18" height="18" /> FreeBSD,
-<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/android.svg" width="18" height="18" /> Android,
-<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/apple.svg" width="18" height="18" /> iOS
+- <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/linux.svg" width="18" height="18" /> Linux,
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/windows.svg" width="18" height="18" /> Windows,
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/apple.svg" width="18" height="18" /> OS X,
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/freebsd.svg" width="18" height="18" /> FreeBSD,
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/android.svg" width="18" height="18" /> Android,
+<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/apple.svg" width="18" height="18" /> iOS
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> OpenWrt, Yocto, Buildroot (routers, modems, etc.)
-- <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi, Orange Pi and other SBCs
+- <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi, Orange Pi and other SBCs
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/cpu.svg" width="18" height="18" /> MCUs: Arduino, ESP8266, ESP32, Particle, ... [see full list](./docs/Hardware.md)
-- <img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/firefoxbrowser.svg" width="18" height="18" /> Browsers. Yes, using WebAssembly itself!
+- <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/firefoxbrowser.svg" width="18" height="18" /> Browsers. Yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
 ## Features
@@ -83,7 +83,7 @@ In many situations, speed is not the main concern. Runtime executable size, memo
 
 **Why would you want to run WASM on embedded devices?**
 
-Wasm3 started as a research project and remains so by many means. Evaluating the engine in different environments is part of the research. Given that we have `Lua`, `JS`, `Python`, `Lisp`, `...` running on MCUs, `WebAssembly` is actually a promising alternative. It provides toolchain decoupling as well as a completely sandboxed, well-defined, predictable environment. Among practical use cases we can list `edge computing`, `scripting`, `plugin systems`, running `IoT rules`, `smart contracts`, etc.
+Wasm3 started as a research project and remains so by any means. Evaluating the engine in different environments is part of the research. Given that we have `Lua`, `JS`, `Python`, `Lisp`, `...` running on MCUs, `WebAssembly` is a promising alternative. It provides toolchain decoupling as well as a completely sandboxed, well-defined, predictable environment. Among practical use cases we can list `edge computing`, `scripting`, `plugin systems`, running `IoT rules`, `smart contracts`, etc.
 
 ## Used by
 
@@ -96,7 +96,7 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 [<img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/NuttX_logo.png" height="32" />](https://github.com/apache/incubator-nuttx-apps/tree/master/interpreters/wasm3)　
 [<img src="/extra/logos/losant.png" height="28" />](https://github.com/Losant/eea-examples)　
 [<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
-[<img src="https://www.balena.io/avatar.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
+[<img src="https://assets-global.website-files.com/636ab6ba0e1bd250e3aaedaf/636e155e93894cd4d030c4d7_balena_logo_dark.svg" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
 [<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
 [<img src="/extra/logos/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup)　
 [<img src="https://wasm4.org/img/logo.png" height="32" />](https://wasm4.org)
