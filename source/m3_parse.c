@@ -184,6 +184,8 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
             {
 _               (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
                 io_module->memoryImported = true;
+                io_module->memoryImport = import;
+                import = clearImport;
             }
             break;
 
@@ -244,6 +246,7 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
             if (func->numNames < d_m3MaxDuplicateFunctionImpl)
             {
                 func->names[func->numNames++] = utf8;
+                func->export_name = utf8;
                 utf8 = NULL; // ownership transferred to M3Function
             }
         }
@@ -254,6 +257,18 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
             m3_Free (global->name);
             global->name = utf8;
             utf8 = NULL; // ownership transferred to M3Global
+        }
+        else if (exportKind == d_externalKind_memory)
+        {
+            m3_Free (io_module->memoryExportName);
+            io_module->memoryExportName = utf8;
+            utf8 = NULL; // ownership transferred to M3Module
+        }
+        else if (exportKind == d_externalKind_table)
+        {
+            m3_Free (io_module->table0ExportName);
+            io_module->table0ExportName = utf8;
+            utf8 = NULL; // ownership transferred to M3Module
         }
 
         m3_Free (utf8);

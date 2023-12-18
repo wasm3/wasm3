@@ -679,7 +679,8 @@ M3Result  PushConst  (IM3Compilation o, u64 i_word, u8 i_type)
         {
             if (IsSlotAllocated (o, slot) and IsSlotAllocated (o, slot + 1))
             {
-                u64 constant = * (u64 *) & o->constants [slot - o->slotFirstConstIndex];
+                u64 constant;
+                memcpy (&constant, &o->constants [slot - o->slotFirstConstIndex], sizeof(constant));
 
                 if (constant == i_word)
                 {
@@ -698,13 +699,17 @@ _                   (Push (o, i_type, slot));
 
             if (IsSlotAllocated (o, slot))
             {
-                u64 constant;
+                bool matches;
                 if (is64BitType) {
-                    constant = * (u64 *) & o->constants [i];
+                    u64 constant;
+                    memcpy (&constant, &o->constants [i], sizeof(constant));
+                    matches = (constant == i_word);
                 } else {
-                    constant = * (u32 *) & o->constants [i];
+                    u32 constant;
+                    memcpy (&constant, &o->constants [i], sizeof(constant));
+                    matches = (constant == i_word);
                 }
-                if (constant == i_word)
+                if (matches)
                 {
                     matchFound = true;
 _                   (Push (o, i_type, slot));
@@ -739,15 +744,11 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
 
             d_m3Assert(constTableIndex < d_m3MaxConstantTableSize);
 
-            if (is64BitType)
-            {
-                u64 * constant = (u64 *) & o->constants [constTableIndex];
-                * constant = i_word;
-            }
-            else
-            {
-                u32 * constant = (u32 *) & o->constants [constTableIndex];
-                * constant = (u32) i_word;
+            if (is64BitType) {
+                memcpy (& o->constants [constTableIndex], &i_word, sizeof(i_word));
+            } else {
+                u32 word32 = i_word;
+                memcpy (& o->constants [constTableIndex], &word32, sizeof(word32));
             }
 
 _           (Push (o, i_type, slot));
@@ -933,7 +934,7 @@ M3Result  FindReferencedLocalWithinCurrentBlock  (IM3Compilation o, u16 * o_pres
     M3Result result = m3Err_none;
 
     IM3CompilationScope scope = & o->block;
-    i16 startIndex = scope->blockStackIndex;
+    u16 startIndex = scope->blockStackIndex;
 
     while (scope->opcode == c_waOp_block)
     {
@@ -1874,7 +1875,7 @@ _   (ReadBlockType (o, & blockType));
 
                     if (IsConstantSlot (o, slot))
                     {
-                        u16 newSlot;
+                        u16 newSlot = c_slotUnused;
 _                       (AllocateSlots (o, & newSlot, type));
 _                       (CopyStackIndexToSlot (o, newSlot, i));
                         o->wasmStack [i] = newSlot;
@@ -2805,14 +2806,17 @@ M3Result  ReserveConstants  (IM3Compilation o)
     while (wa < o->wasmEnd)
     {
         u8 code = * wa++;
+        u16 addSlots = 0;
 
         if (code == c_waOp_i32_const or code == c_waOp_f32_const)
-            numConstantSlots += 1;
+            addSlots = 1;
         else if (code == c_waOp_i64_const or code == c_waOp_f64_const)
-            numConstantSlots += GetTypeNumSlots (c_m3Type_i64);
+            addSlots = GetTypeNumSlots (c_m3Type_i64);
 
-        if (numConstantSlots >= d_m3MaxConstantTableSize)
+        if (numConstantSlots + addSlots >= d_m3MaxConstantTableSize)
             break;
+
+        numConstantSlots += addSlots;
     }
 
     // if constants overflow their reserved stack space, the compiler simply emits op_Const

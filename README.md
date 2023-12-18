@@ -6,11 +6,11 @@
 
 [![WAPM](https://wapm.io/package/vshymanskyy/wasm3/badge.svg)](https://wapm.io/package/vshymanskyy/wasm3) 
 [![GitHub issues](https://img.shields.io/github/issues-raw/wasm3/wasm3?style=flat-square&label=issues&color=success)](https://github.com/wasm3/wasm3/issues) 
-[![Tests status](https://img.shields.io/github/workflow/status/wasm3/wasm3/tests/main?style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions) 
+[![Tests status](https://img.shields.io/github/actions/workflow/status/wasm3/wasm3/tests.yml?branch=main&style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions) 
 [![Fuzzing Status](https://img.shields.io/badge/oss--fuzz-fuzzing-success?style=flat-square)](https://bugs.chromium.org/p/oss-fuzz/issues/list?can=1&q=proj:wasm3) 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3)
 
-The fastest WebAssembly interpreter, and the most universal runtime.  
+A fast WebAssembly interpreter and the most universal WASM runtime.  
 <sub>Based on [**CoreMark 1.0**](./docs/Performance.md) and [**independent**](https://00f.net/2021/02/22/webassembly-runtimes-benchmarks) benchmarks. Your mileage may vary.</sub>
 
 
@@ -39,8 +39,8 @@ Wasm3 can also be used as a library for:
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/perl.svg" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
+[<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/nim.svg" width="18" height="18" /> Nim](https://github.com/beef331/wasm3) │ 
 [<img src="https://cdn.rawgit.com/simple-icons/simple-icons/develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
-
 ## Status
 
 `wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/master/test/core) and is able to run many `WASI` apps.
@@ -87,11 +87,13 @@ Wasm3 started as a research project and remains so by many means. Evaluating the
 
 ## Used by
 
-[<img src="https://wasmcloud.dev/images/logo.png" height="32" />](https://wasmcloud.dev)　
+[<img src="/extra/logos/wasmcloud.png" height="32" />](https://wasmcloud.dev)　
 [<img src="/extra/logos/wowcube.png" height="32" />](https://wowcube.com)　
+[<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Siemens_AG_logo.svg/1024px-Siemens_AG_logo.svg.png" height="22" />](https://github.com/siemens/dtasm/tree/main/runtime/dtasm3)　
 [<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
 [<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　
 [<img src="/extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
+[<img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/NuttX_logo.png" height="32" />](https://github.com/apache/incubator-nuttx-apps/tree/master/interpreters/wasm3)　
 [<img src="/extra/logos/losant.png" height="28" />](https://github.com/Losant/eea-examples)　
 [<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
 [<img src="https://www.balena.io/avatar.png" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　

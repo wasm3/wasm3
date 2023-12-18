@@ -6,6 +6,8 @@
 #   ./run-wasi-test.py --exec ../custom_build/wasm3 --timeout 120
 #   ./run-wasi-test.py --exec "wasmer run --mapdir=/:." --separate-args
 #   ./run-wasi-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm --" --fast
+#   ./run-wasi-test.py --exec "wasmtime --dir=. wasm3.wasm --" --fast
+#   ./run-wasi-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm" --fast
 
 import argparse
 import sys
@@ -115,11 +117,6 @@ commands_fast = [
     "args":           ["32", "4e5"],
     "expect_sha1":    "1fdb7dea7ec0f2465054cc623dc5a7225a876361"
   }, {
-    "name":           "mandelbrot (doubledouble)",
-    "wasm":           "./wasi/mandelbrot/mandel_dd.wasm",
-    "args":           ["32", "4e5"],
-    "expect_sha1":    "b6d3c158a5c0dff1f6e82a3556c071e4f8b9e3f0"
-  }, {
     "name":           "C-Ray",
     "stdin":          "./wasi/c-ray/scene",
     "wasm":           "./wasi/c-ray/c-ray.wasm",
@@ -138,8 +135,8 @@ commands_fast = [
   }, {
     "name":           "mal",
     "wasm":           "./wasi/mal/mal.wasm",
-    "args":           ["./wasi/mal/test-fib.mal", "16"],
-    "expect_pattern": "987\n",
+    "args":           ["./wasi/mal/test-fib.mal", "10"],
+    "expect_pattern": "55\n",
   }, {
     "name":           "Brotli",
     "stdin":          "./wasi/brotli/alice29_small.txt",

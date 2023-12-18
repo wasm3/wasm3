@@ -47,10 +47,10 @@ d_m3BeginExternC
 
 # if d_m3EnableOpProfiling
                                     d_m3RetSig  profileOp   (d_m3OpSig, cstr_t i_operationName);
-#   define nextOp()                 return profileOp (d_m3OpAllArgs, __FUNCTION__)
+#   define nextOp()                 M3_MUSTTAIL return profileOp (d_m3OpAllArgs, __FUNCTION__)
 # elif d_m3EnableOpTracing
                                     d_m3RetSig  debugOp     (d_m3OpSig, cstr_t i_operationName);
-#   define nextOp()                 return debugOp (d_m3OpAllArgs, __FUNCTION__)
+#   define nextOp()                 M3_MUSTTAIL return debugOp (d_m3OpAllArgs, __FUNCTION__)
 # else
 #   define nextOp()                 nextOpDirect()
 # endif
@@ -108,8 +108,11 @@ d_m3BeginExternC
 
 #endif
 
-
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+d_m3RetSig  Call  (d_m3OpSig, cstr_t i_operationName)
+# else
 d_m3RetSig  Call  (d_m3OpSig)
+# endif
 {
     m3ret_t possible_trap = m3_Yield ();
     if (M3_UNLIKELY(possible_trap)) return possible_trap;
@@ -537,7 +540,12 @@ d_m3Op  (Call)
 
     m3stack_t sp = _sp + stackOffset;
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+# endif
+
     _mem = memory->mallocated;
 
     if (M3_LIKELY(not r))
@@ -575,7 +583,13 @@ d_m3Op  (CallIndirect)
 
                 if (M3_LIKELY(not r))
                 {
+
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+# endif
+
                     _mem = memory->mallocated;
 
                     if (M3_LIKELY(not r))
@@ -1302,12 +1316,14 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
     if (m3MemCheck(                                     \
         operand + sizeof (SRC_TYPE) <= _mem->length     \
     )) {                                                \
-        u8* src8 = m3MemData(_mem) + operand;           \
-        SRC_TYPE value;                                 \
-        memcpy(&value, src8, sizeof(value));            \
-        M3_BSWAP_##SRC_TYPE(value);                     \
-        REG = (DEST_TYPE)value;                         \
-        d_m3TraceLoad(DEST_TYPE, operand, REG);         \
+        {                                               \
+            u8* src8 = m3MemData(_mem) + operand;       \
+            SRC_TYPE value;                             \
+            memcpy(&value, src8, sizeof(value));        \
+            M3_BSWAP_##SRC_TYPE(value);                 \
+            REG = (DEST_TYPE)value;                     \
+            d_m3TraceLoad(DEST_TYPE, operand, REG);     \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }                                                       \
@@ -1321,12 +1337,14 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     if (m3MemCheck(                                     \
         operand + sizeof (SRC_TYPE) <= _mem->length     \
     )) {                                                \
-        u8* src8 = m3MemData(_mem) + operand;           \
-        SRC_TYPE value;                                 \
-        memcpy(&value, src8, sizeof(value));            \
-        M3_BSWAP_##SRC_TYPE(value);                     \
-        REG = (DEST_TYPE)value;                         \
-        d_m3TraceLoad(DEST_TYPE, operand, REG);         \
+        {                                               \
+            u8* src8 = m3MemData(_mem) + operand;       \
+            SRC_TYPE value;                             \
+            memcpy(&value, src8, sizeof(value));        \
+            M3_BSWAP_##SRC_TYPE(value);                 \
+            REG = (DEST_TYPE)value;                     \
+            d_m3TraceLoad(DEST_TYPE, operand, REG);     \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }
@@ -1367,11 +1385,13 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     if (m3MemCheck(                                     \
         operand + sizeof (DEST_TYPE) <= _mem->length    \
     )) {                                                \
-        d_m3TraceStore(SRC_TYPE, operand, REG);         \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        DEST_TYPE val = (DEST_TYPE) REG;                \
-        M3_BSWAP_##DEST_TYPE(val);                      \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(SRC_TYPE, operand, REG);     \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            DEST_TYPE val = (DEST_TYPE) REG;            \
+            M3_BSWAP_##DEST_TYPE(val);                  \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }                                                       \
@@ -1386,11 +1406,13 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     if (m3MemCheck(                                     \
         operand + sizeof (DEST_TYPE) <= _mem->length    \
     )) {                                                \
-        d_m3TraceStore(SRC_TYPE, operand, value);       \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        DEST_TYPE val = (DEST_TYPE) value;              \
-        M3_BSWAP_##DEST_TYPE(val);                      \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(SRC_TYPE, operand, value);   \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            DEST_TYPE val = (DEST_TYPE) value;          \
+            M3_BSWAP_##DEST_TYPE(val);                  \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }                                                       \
@@ -1405,11 +1427,13 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     if (m3MemCheck(                                     \
         operand + sizeof (DEST_TYPE) <= _mem->length    \
     )) {                                                \
-        d_m3TraceStore(SRC_TYPE, operand, value);       \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        DEST_TYPE val = (DEST_TYPE) value;              \
-        M3_BSWAP_##DEST_TYPE(val);                      \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(SRC_TYPE, operand, value);   \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            DEST_TYPE val = (DEST_TYPE) value;          \
+            M3_BSWAP_##DEST_TYPE(val);                  \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }
@@ -1426,11 +1450,13 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
     if (m3MemCheck(                                     \
         operand + sizeof (TYPE) <= _mem->length         \
     )) {                                                \
-        d_m3TraceStore(TYPE, operand, REG);             \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        TYPE val = (TYPE) REG;                          \
-        M3_BSWAP_##TYPE(val);                           \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(TYPE, operand, REG);         \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            TYPE val = (TYPE) REG;                      \
+            M3_BSWAP_##TYPE(val);                       \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }
