@@ -513,7 +513,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
     - name: Build for ESP32 (IDF v4.0)
       run: |
         . $IDF_PATH/export.sh
