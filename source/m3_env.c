@@ -675,8 +675,7 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
                          const IM3TaggedValue      i_value)
 {
     if (not i_global) return m3Err_globalLookupFailed;
-    // TODO: if (not g->isMutable) return m3Err_globalNotMutable;
-
+    if (not i_global->isMutable) return m3Err_globalNotMutable;
     if (i_global->type != i_value->type) return m3Err_globalTypeMismatch;
 
     switch (i_value->type) {
