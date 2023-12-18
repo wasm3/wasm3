@@ -297,8 +297,12 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
         if (not result)
         {
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+            m3ret_t r = RunCode (m3code, stack, NULL, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
             m3ret_t r = RunCode (m3code, stack, NULL, d_m3OpDefaultArgs);
-
+# endif
+            
             if (r == 0)
             {                                                                               m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
                 if (SizeOfType (i_type) == sizeof (u32))
@@ -568,7 +572,11 @@ _           (CompileFunction (function));
         startFunctionTmp = io_module->startFunction;
         io_module->startFunction = -1;
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
         result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
 
         if (result)
         {
@@ -875,7 +883,11 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -920,7 +932,12 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
+
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -965,7 +982,12 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
+    
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;

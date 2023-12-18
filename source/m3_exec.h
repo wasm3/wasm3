@@ -108,8 +108,11 @@ d_m3BeginExternC
 
 #endif
 
-
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+d_m3RetSig  Call  (d_m3OpSig, cstr_t i_operationName)
+# else
 d_m3RetSig  Call  (d_m3OpSig)
+# endif
 {
     m3ret_t possible_trap = m3_Yield ();
     if (M3_UNLIKELY(possible_trap)) return possible_trap;
@@ -537,7 +540,12 @@ d_m3Op  (Call)
 
     m3stack_t sp = _sp + stackOffset;
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+# endif
+
     _mem = memory->mallocated;
 
     if (M3_LIKELY(not r))
@@ -575,7 +583,13 @@ d_m3Op  (CallIndirect)
 
                 if (M3_LIKELY(not r))
                 {
+
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+# endif
+
                     _mem = memory->mallocated;
 
                     if (M3_LIKELY(not r))
