@@ -257,7 +257,7 @@ jobs:
     - name: Build (iPhone 11)
       run: |
         cd platforms/ios
-        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=14.4'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=16.2'
 
   android:
     runs-on: ubuntu-latest
@@ -508,10 +508,9 @@ jobs:
         particle compile --followSymlinks argon
 
   esp32-idf:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
     timeout-minutes: 10
-    if: false
 
     steps:
     - uses: actions/checkout@v4
