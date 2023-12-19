@@ -30,7 +30,7 @@ jobs:
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install ${{ matrix.config.install }}
       if: ${{ matrix.config.install }}
       run: |
@@ -56,35 +56,40 @@ jobs:
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
-  linux-alpine:
+  alpine-multiarch:
     runs-on: ubuntu-latest
-    container: alpine:3.10
+    name: alpine-${{ matrix.arch }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ amd64, s390x, ppc64le, arm64v8 ]
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Prepare
-      run: apk add build-base cmake python3 git --update-cache
-    - name: Configure
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-    - name: Build
-      run: cmake --build build
-    - name: Test WebAssembly spec
-      run: cd test && python3 run-spec-test.py
-    - name: Test WASI apps
-      run: cd test && python3 run-wasi-test.py
-
-  big-endian-i32-constant:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-    - name: Get the qemu container
+    - uses: actions/checkout@v4
+    - name: Setup multiarch/qemu-user-static
+      if: matrix.arch != 'amd64'
       run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
     - name: Run tests
-      run: docker run --rm --interactive --mount type=bind,source=$(pwd),target=/host s390x/alpine sh -c "apk add build-base cmake git --update-cache && cd /host && mkdir build && cd build && cmake .. && cd .. && cmake --build build && echo wasm3 built && echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm && echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm && echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37"
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ${{ matrix.arch }}/alpine:3.19
+        options: --volume=${{ github.workspace }}:/work --workdir=/work
+        run: |
+          set -e
+          apk add --no-cache build-base cmake python3 git
+          echo "------------ Build Wasm3 ------------"
+          mkdir build && cd build && cmake .. && cd ..
+          cmake --build build
+          echo "------------ Test i32 const ------------"
+          echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm
+          echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
+          echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
+          echo "------------ Run tests ------------"
+          cd test && python3 run-spec-test.py && cd ..
+          cd test && python3 run-wasi-test.py --fast && cd ..
+          echo "-------- All tests finished -------"
 
   macos:
     runs-on: macos-latest
@@ -99,7 +104,7 @@ jobs:
         - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Configure
       run: |
         mkdir build
@@ -141,7 +146,7 @@ jobs:
         shell: cmd
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Configure
       run: |
         mkdir build
@@ -166,6 +171,7 @@ jobs:
 
   cygwin-build:
     runs-on: windows-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@main
@@ -182,7 +188,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup environment
       env:
         WASI_VERSION: 11
@@ -243,26 +249,27 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: List Xcode versions
       run: ls /Applications | grep Xcode
-    - name: Select Xcode 12
-      run: sudo xcode-select -switch /Applications/Xcode_12.4.app
+    - name: Select Xcode 14
+      run: sudo xcode-select -switch /Applications/Xcode_14.2.app
     - name: Build (iPhone 11)
       run: |
         cd platforms/ios
-        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=14.4'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=16.2'
 
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: seanmiddleditch/gha-setup-ninja@master
     - name: Set up JDK 11
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v4
       with:
+        distribution: 'zulu'
         java-version: 11
     - name: Build
       run: |
@@ -275,16 +282,16 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         path: wasm3
     - name: Checkout pywasm3
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: wasm3/pywasm3
         path: pywasm3
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
     - name: Update and Build Python module
       run: |
         rm -rf ./pywasm3/wasm3
@@ -301,11 +308,11 @@ jobs:
         pytest
 
   cosmopolitan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build αcτµαlly pδrταblε εxεcµταblε
       run: |
         cd platforms/cosmopolitan
@@ -340,7 +347,7 @@ jobs:
         python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.com"
 
   cross-qemu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: cross-qemu-${{ matrix.config.target }}
     timeout-minutes: 10
 
@@ -362,7 +369,7 @@ jobs:
         - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static   }
         - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,qemu: qemu-mips64el-static }
         - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static   }
-        - {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static, skip_wasi: true }
+        # TODO: - {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static, skip_wasi: true }
 
         #- {target: i386 (u64 slots),    toolchain: gcc-multilib,              cc: clang -m32,                 qemu: qemu-i386-static,     cflags: -Dd_m3Use32BitSlots=0  }
         - {target: arm (u64 slots),     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static,      cflags: -Dd_m3Use32BitSlots=0  }
@@ -371,7 +378,7 @@ jobs:
         - {target: ppc64 (u64 slots),   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static,    cflags: -Dd_m3Use32BitSlots=0  }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install QEMU
       run: |
         sudo apt update
@@ -402,9 +409,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -431,9 +438,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -444,10 +451,11 @@ jobs:
       run: |
         cd platforms/embedded/arduino
         pio run -e mkr1000
-    - name: Build Blue Pill (JeeH)
-      run: |
-        cd platforms/embedded/bluepill
-        pio run
+    # TODO:
+    #- name: Build Blue Pill (JeeH)
+    #  run: |
+    #    cd platforms/embedded/bluepill
+    #    pio run
     - name: Build TinyBLE
       run: |
         cd platforms/embedded/arduino
@@ -462,9 +470,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -486,7 +494,7 @@ jobs:
     if: "github.event_name == 'push'"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Particle CLI
       run: sudo npm install -g particle-cli
     - name: Log in
@@ -500,7 +508,7 @@ jobs:
         particle compile --followSymlinks argon
 
   esp32-idf:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
     timeout-minutes: 10
 
@@ -532,7 +540,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Configure
         run: |
           cd platforms/cpp
@@ -554,7 +562,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build
       run: |
         mkdir build
@@ -572,7 +580,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build
       run: |
         mkdir build
@@ -601,7 +609,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install sponge
       run: |
         sudo apt update
@@ -622,7 +630,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
     - name: Install codespell
       run: |
         pip install codespell

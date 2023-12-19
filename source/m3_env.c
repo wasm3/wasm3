@@ -181,11 +181,12 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
         runtime->environment = i_environment;
         runtime->userdata = i_userdata;
 
-        runtime->stack = m3_Malloc ("Wasm Stack", i_stackSizeInBytes + 4*sizeof (m3slot_t)); // TODO: more precise stack checks
+        runtime->originStack = m3_Malloc ("Wasm Stack", i_stackSizeInBytes + 4*sizeof (m3slot_t)); // TODO: more precise stack checks
 
-        if (runtime->stack)
+        if (runtime->originStack)
         {
-            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->stack);
+            runtime->stack = runtime->originStack;
+            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->originStack);
         }
         else m3_Free (runtime);
     }
@@ -233,7 +234,7 @@ void  Runtime_Release  (IM3Runtime i_runtime)
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
-    m3_Free (i_runtime->stack);
+    m3_Free (i_runtime->originStack);
     m3_Free (i_runtime->memory.mallocated);
 }
 
@@ -297,8 +298,12 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
         if (not result)
         {
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+            m3ret_t r = RunCode (m3code, stack, NULL, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
             m3ret_t r = RunCode (m3code, stack, NULL, d_m3OpDefaultArgs);
-
+# endif
+            
             if (r == 0)
             {                                                                               m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
                 if (SizeOfType (i_type) == sizeof (u32))
@@ -317,7 +322,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     }
     else result = m3Err_mallocFailedCodePage;
 
-    runtime.stack = NULL;        // prevent free(stack) in ReleaseRuntime
+    runtime.originStack = NULL;        // prevent free(stack) in ReleaseRuntime
     Runtime_Release (& runtime);
     i_module->runtime = savedRuntime;
 
@@ -568,7 +573,11 @@ _           (CompileFunction (function));
         startFunctionTmp = io_module->startFunction;
         io_module->startFunction = -1;
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
         result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
 
         if (result)
         {
@@ -666,8 +675,7 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
                          const IM3TaggedValue      i_value)
 {
     if (not i_global) return m3Err_globalLookupFailed;
-    // TODO: if (not g->isMutable) return m3Err_globalNotMutable;
-
+    if (not i_global->isMutable) return m3Err_globalNotMutable;
     if (i_global->type != i_value->type) return m3Err_globalTypeMismatch;
 
     switch (i_value->type) {
@@ -750,6 +758,31 @@ _           (CompileFunction (function))
 
     return result;
 }
+
+
+M3Result  m3_GetTableFunction  (IM3Function * o_function, IM3Module i_module, uint32_t i_index)
+{
+_try {
+    if (i_index >= i_module->table0Size)
+    {
+        _throw ("function index out of range");
+    }
+
+    IM3Function function = i_module->table0[i_index];
+
+    if (function)
+    {
+        if (not function->compiled)
+        {
+_           (CompileFunction (function))
+        }
+    }
+
+    * o_function = function;
+}   _catch:
+    return result;
+}
+
 
 static
 M3Result checkStartFunction(IM3Module i_module)
@@ -875,7 +908,11 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -920,7 +957,12 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
+
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -965,7 +1007,12 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
+    
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
