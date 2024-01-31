@@ -2,19 +2,17 @@ const std = @import("std");
 
 pub fn build(b: *std.build.Builder) !void {
     const target = b.standardTargetOptions(.{});
-    const mode = b.standardReleaseOptions();
 
-    const wasm3 = b.addExecutable("wasm3", null);
-    wasm3.setTarget(target);
-    wasm3.setBuildMode(mode);
-    wasm3.install();
+    const wasm3 = b.addExecutable(.{ .name = "wasm3" });
     wasm3.linkLibC();
+
+    b.installArtifact(wasm3);
 
     if (target.getCpuArch() == .wasm32 and target.getOsTag() == .wasi) {
         wasm3.linkSystemLibrary("wasi-emulated-process-clocks");
     }
 
-    wasm3.addIncludePath("source");
+    wasm3.addIncludePath(.{ .path = "source" });
     wasm3.addCSourceFiles(&.{
         "source/m3_api_libc.c",
         "source/m3_api_meta_wasi.c",
