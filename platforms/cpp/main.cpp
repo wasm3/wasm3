@@ -5,6 +5,26 @@
 #include "wasm3_cpp.h"
 #include "wasm/test_prog.wasm.h"
 
+typedef float f32;
+typedef double f64;
+
+struct Vec4 {
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 w;
+};
+
+struct Struct3Floats { f32 x[3]; };
+struct Struct5Floats { f32 x[5]; };
+
+struct MixedStruct { 
+    uint32_t a;
+    f32 b;
+    f64 c;
+    uint64_t d;
+};
+
 int sum(int a, int b)
 {
     return a + b;
@@ -78,6 +98,80 @@ int main(void)
             counter_add_fn.call(42);
             value = counter_get_fn.call<int32_t>();
             std::cout << "counter after adding value: " << value << std::endl;
+        }
+    }
+    catch(wasm3::error &e) {
+        std::cerr << "WASM3 error: " << e.what() << std::endl;
+        return 1;
+    }
+
+    /** 
+     * Wasm module with multivalue support
+     * https://github.com/WebAssembly/multi-value/blob/master/proposals/multi-value/Overview.md
+     */
+    try {
+        wasm3::environment env;
+        wasm3::runtime runtime = env.new_runtime(1024);
+        const char* file_name = "wasm_multivalue/test_prog_multivalue.wasm";
+        std::ifstream wasm_file(file_name, std::ios::binary | std::ios::in);
+        if (!wasm_file.is_open()) {
+            throw std::runtime_error("Failed to open wasm file");
+        }
+
+        wasm3::module mod = env.parse_module(wasm_file);
+        runtime.load(mod);
+        {
+            wasm3::function vec4_add_fn = runtime.find_function("vec4_add");
+            wasm3::function vec4_create_fn = runtime.find_function("vec4_create");
+            wasm3::function mixed_type_fn = runtime.find_function("mixed_type");
+
+            // return as tuple with structured binding
+            auto [x,y,z,w] = vec4_create_fn.call_tuple<f32, f32, f32, f32>();
+            std::cout << "Vec4: " << x << ", " << y << ", " << z << ", " << w << std::endl;
+
+            // return multivalue mapped to struct
+            auto vec = vec4_create_fn.call_mapped<Vec4>();
+            std::cout << "Vec4: " << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << std::endl;
+
+            // if the provided struct is too small or big, a "argument count mismatch" error is thrown,
+            // this prevents OOB access or uninitialized values.
+            try {
+                auto vec5 = vec4_create_fn.call_mapped<Struct5Floats>();
+                return 1; // should not be reached, throws
+            } catch(wasm3::error &e) {
+                std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
+            }
+
+            try {
+                auto vec3 = vec4_create_fn.call_mapped<Struct3Floats>();
+                return 1; // should not be reached, throws
+            } catch(wasm3::error &e) {
+                std::cerr << "Expected WASM3 error: " << e.what() << std::endl;
+            }
+
+            // with arguments
+            {
+                auto [x,y,z,w] = vec4_add_fn.call_tuple<f32, f32, f32, f32>(
+                    1.0f, 2.0f, 3.0f, 4.0f,
+                    0.5f, 0.25f, 0.125f, 0.0625f
+                );
+                std::cout << "Vec4 Sum: " << x << ", " << y << ", " << z << ", " << w << std::endl;
+
+                auto vec = vec4_add_fn.call_mapped<Vec4>(
+                    1.0f, 2.0f, 3.0f, 4.0f,
+                    0.5f, 0.25f, 0.125f, 0.0625f
+                );
+                std::cout << "Vec4 Sum: " << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << std::endl;
+            }
+
+            // multivalue with mixed types
+            {
+                auto [a,b,c,d] = mixed_type_fn.call_tuple<uint32_t, f32, f64, uint64_t>();
+                std::cout << "Data: " << a << ", " << b << ", " << c << ", " << d << std::endl;
+
+                auto data = mixed_type_fn.call_mapped<MixedStruct>();
+                std::cout << "Data: " << data.a << ", " << data.b << ", " << data.c << ", " << data.d << std::endl;
+            }
         }
     }
     catch(wasm3::error &e) {
