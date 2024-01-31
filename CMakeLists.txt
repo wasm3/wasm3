@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.11)
 
+# Enable folder support
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # Detect WasiEnv
 if(DEFINED ENV{WASI_CC} OR DEFINED WASI_SDK_PREFIX)
   set(WASIENV           1)
@@ -134,7 +137,7 @@ elseif(WASIENV)
 
 elseif(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces -Dd_m3HasUBSan -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
 
   string(REGEX REPLACE "/W[0-4]" "/W0" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 

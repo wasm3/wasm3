@@ -84,6 +84,11 @@ M3Result link_all  (IM3Module module)
     if (res) return res;
 #endif
 
+#if defined(d_m3HasUBSan)
+    res = m3_LinkUBSan(module);
+    if (res) return res;
+#endif
+
 #if defined(GAS_LIMIT)
     res = m3_LinkRawFunction (module, "metering", "usegas", "v(i)", &metering_usegas);
     if (!res) {
