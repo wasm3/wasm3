@@ -385,10 +385,21 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
+#if defined(M3_BIG_ENDIAN) && defined(M3_WASM2C_ABI)
+        if (memory->mallocated && memory->mallocated->length > numPageBytes) {
+            memmove (m3MemData (memory->mallocated), m3MemData (memory->mallocated) + (memory->mallocated->length - numPageBytes), numPageBytes);
+        }
+#endif
         void* newMem = m3_Realloc ("Wasm Linear Memory", memory->mallocated, numBytes, numPreviousBytes);
         _throwifnull(newMem);
 
         memory->mallocated = (M3MemoryHeader*)newMem;
+#if defined(M3_BIG_ENDIAN) && defined(M3_WASM2C_ABI)
+        if (memory->mallocated && memory->mallocated->length < numPageBytes) {
+            memmove (m3MemData (memory->mallocated) + (numPageBytes - memory->mallocated->length), m3MemData (memory->mallocated), memory->mallocated->length);
+            memset (m3MemData (memory->mallocated), 0, numPageBytes - memory->mallocated->length);
+        }
+#endif
 
 # if d_m3LogRuntime
         M3MemoryHeader * oldMallocated = memory->mallocated;
@@ -469,8 +480,15 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
         {
+#if defined(M3_BIG_ENDIAN) && defined(M3_WASM2C_ABI)
+            u8 * dest = m3MemData (io_memory->mallocated) + (io_memory->mallocated->length - segmentOffset - segment->size);
+#else
             u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
+#endif
             memcpy (dest, segment->data, segment->size);
+#if defined(M3_BIG_ENDIAN) && defined(M3_WASM2C_ABI)
+            for (u8 *start = dest, *end = dest + segment->size - 1; start < end; start++, end--) { u8 tmp = *start; *start = *end; *end = tmp; }
+#endif
         } else {
             _throw ("data segment out of bounds");
         }
