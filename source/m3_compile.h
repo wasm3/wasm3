@@ -59,7 +59,7 @@ typedef struct M3CompilationScope
     pc_t                            patches;
     i32                             depth;
     u16                             exitStackIndex;
-    i16                             blockStackIndex;
+    u16                             blockStackIndex;
 //    u16                             topSlot;
     IM3FuncType                     type;
     m3opcode_t                      opcode;

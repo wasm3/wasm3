@@ -126,7 +126,7 @@ M3Result repl_load  (const char* fn)
     if (fsize < 8) {
         result = "file is too small";
         goto on_error;
-    } else if (fsize > 64*1024*1024) {
+    } else if (fsize > 256*1024*1024) {
         result = "file is too big";
         goto on_error;
     }
@@ -198,8 +198,10 @@ M3Result repl_load_hex  (u32 fsize)
                 hex_idx = 0;
             }
         }
-        if (!fgets(hex, 3, stdin)) // Consume a newline
+        if (!fgets(hex, 3, stdin)) { // Consume a newline
+            free(wasm);
             return "cannot read EOL";
+        }
     }
 
     IM3Module module;
@@ -445,6 +447,7 @@ M3Result repl_dump  ()
             return "cannot open file";
         }
         if (fwrite (mem, 1, len, f) != len) {
+            fclose (f);
             return "cannot write file";
         }
         fclose (f);

@@ -21,6 +21,7 @@ d_m3BeginExternC
 # define d_m3BaseOpAllArgs              _pc, _sp, _mem, _r0
 # define d_m3BaseOpDefaultArgs          0
 # define d_m3BaseClearRegisters         _r0 = 0;
+# define d_m3BaseCstr                   ""
 
 # define d_m3ExpOpSig(...)              d_m3BaseOpSig, __VA_ARGS__
 # define d_m3ExpOpArgs(...)             d_m3BaseOpArgs, __VA_ARGS__
@@ -42,18 +43,30 @@ d_m3BeginExternC
 #   define d_m3ClearRegisters       d_m3BaseClearRegisters
 # endif
 
-typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
 
 #define d_m3RetSig                  static inline m3ret_t vectorcall
-#define d_m3Op(NAME)                M3_NO_UBSAN d_m3RetSig op_##NAME (d_m3OpSig)
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig, cstr_t i_operationName);
+#    define d_m3Op(NAME)                M3_NO_UBSAN d_m3RetSig op_##NAME (d_m3OpSig, cstr_t i_operationName)
 
-#define nextOpImpl()                ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
-#define jumpOpImpl(PC)              ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
+#    define nextOpImpl()            ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs, __FUNCTION__)
+#    define jumpOpImpl(PC)          ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs, __FUNCTION__)
+# else
+    typedef m3ret_t (vectorcall * IM3Operation) (d_m3OpSig);
+#    define d_m3Op(NAME)                M3_NO_UBSAN d_m3RetSig op_##NAME (d_m3OpSig)
 
-#define nextOpDirect()              return nextOpImpl()
-#define jumpOpDirect(PC)            return jumpOpImpl((pc_t)(PC))
+#    define nextOpImpl()            ((IM3Operation)(* _pc))(_pc + 1, d_m3OpArgs)
+#    define jumpOpImpl(PC)          ((IM3Operation)(*  PC))( PC + 1, d_m3OpArgs)
+# endif
 
+#define nextOpDirect()              M3_MUSTTAIL return nextOpImpl()
+#define jumpOpDirect(PC)            M3_MUSTTAIL return jumpOpImpl((pc_t)(PC))
+
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+d_m3RetSig  RunCode  (d_m3OpSig, cstr_t i_operationName)
+# else
 d_m3RetSig  RunCode  (d_m3OpSig)
+# endif
 {
     nextOpDirect();
 }
