@@ -40,6 +40,8 @@ void  m3_FreeModule  (IM3Module i_module)
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free (i_module->globals);
+        m3_Free (i_module->memoryExportName);
+        m3_Free (i_module->table0ExportName);
 
         m3_Free (i_module);
     }
