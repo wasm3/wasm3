@@ -492,7 +492,7 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 
 M3Result  ParseSection_Name  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
     cstr_t name;
 
