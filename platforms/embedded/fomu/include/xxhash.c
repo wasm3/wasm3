@@ -65,7 +65,7 @@
 /*!XXH_ACCEPT_NULL_INPUT_POINTER :
  * If input pointer is NULL, xxHash default behavior is to dereference it, triggering a segfault.
  * When this macro is enabled, xxHash actively checks input for null pointer.
- * It it is, result for null input pointers is the same as a null-length input.
+ * If it is, result for null input pointers is the same as a null-length input.
  */
 #ifndef XXH_ACCEPT_NULL_INPUT_POINTER   /* can be defined externally */
 #  define XXH_ACCEPT_NULL_INPUT_POINTER 0
