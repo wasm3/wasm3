@@ -1078,18 +1078,21 @@ M3Result  ResolveBlockResults  (IM3Compilation o, IM3CompilationScope i_targetBl
     if (numValues)
     {
         u16 endIndex = GetStackTopIndex (o) + 1;
+        u16 numRemValues = numValues;
 
+        // The last result is taken from _fp0. See PushBlockResults.
         if (not isLoop and IsFpType (GetStackTopType (o)))
         {
 _           (CopyStackTopToRegister (o, false));
             --endIndex;
+            --numRemValues;
         }
 
         // TODO: tempslot affects maxStackSlots, so can grow unnecess each time.
         u16 tempSlot = o->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
         AlignSlotToType (& tempSlot, c_m3Type_i64);
 
-_       (CopyStackSlotsR (o, slotRecords, endIndex - numValues, endIndex, tempSlot));
+_       (CopyStackSlotsR (o, slotRecords, endIndex - numRemValues, endIndex, tempSlot));
 
         if (d_m3LogWasmStack) dump_type_stack (o);
     }
