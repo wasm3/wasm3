@@ -29,8 +29,15 @@ _   (ReadLEB_u7 (& flag, io_bytes, i_end));                   // really a u1
 _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
     o_memory->maxPages = 0;
-    if (flag)
+    if (flag & (1u << 0))
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
+
+    o_memory->pageSize = 0;
+    if (flag & (1u << 3)) {
+        u32 logPageSize;
+_       (ReadLEB_u32 (& logPageSize, io_bytes, i_end));
+        o_memory->pageSize = 1u << logPageSize;
+    }
 
     _catch: return result;
 }

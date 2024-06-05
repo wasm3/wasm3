@@ -21,6 +21,7 @@ typedef struct M3MemoryInfo
 {
     u32     initPages;
     u32     maxPages;
+    u32     pageSize;
 }
 M3MemoryInfo;
 
@@ -31,6 +32,7 @@ typedef struct M3Memory
 
     u32                     numPages;
     u32                     maxPages;
+    u32                     pageSize;
 }
 M3Memory;
 
