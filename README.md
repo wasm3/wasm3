@@ -18,13 +18,6 @@ A fast WebAssembly interpreter and the most universal WASM runtime.
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/wasm3_engine)](https://twitter.com/wasm3_engine) 
 [![Discord](https://img.shields.io/discord/671415645073702925?style=social&logo=discord&color=7289da&label=discord)](https://discord.gg/qmZjgnd)
 
-## Getting Started
-
-Here's a small [getting started guide](https://wapm.io/package/vshymanskyy/wasm3). Click here to start:
-
-[![LIVE DEMO](extra/button.png)](https://webassembly.sh/?run-command=wasm3)
-
-
 ## Installation
 
 **Please follow the [installation instructions](./docs/Installation.md).**
