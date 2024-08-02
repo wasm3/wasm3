@@ -1039,7 +1039,7 @@ _           (CopyStackIndexToSlot (o, targetSlot, i_stackIndex));               
 
         }
 
-_       (CopyStackSlotsR (o, i_targetSlotStackIndex + 1, i_stackIndex + 1, i_endStackIndex, i_tempSlot));
+_       (CopyStackSlotsR (o, i_targetSlotStackIndex + numSlots, i_stackIndex + numSlots, i_endStackIndex, i_tempSlot));
 
         // restore the stack state
         o->wasmStack [i_stackIndex] = srcSlot;
