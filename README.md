@@ -7,7 +7,6 @@
 # <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
 [![StandWithUkraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md) 
-[![WAPM](https://wapm.io/package/vshymanskyy/wasm3/badge.svg)](https://wapm.io/package/vshymanskyy/wasm3) 
 [![GitHub issues](https://img.shields.io/github/issues-raw/wasm3/wasm3?style=flat-square&label=issues&color=success)](https://github.com/wasm3/wasm3/issues) 
 [![Tests status](https://img.shields.io/github/actions/workflow/status/wasm3/wasm3/tests.yml?branch=main&style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions) 
 [![Fuzzing Status](https://img.shields.io/badge/oss--fuzz-fuzzing-success?style=flat-square)](https://bugs.chromium.org/p/oss-fuzz/issues/list?can=1&q=proj:wasm3) 
@@ -16,9 +15,8 @@
 A fast WebAssembly interpreter and the most universal WASM runtime.  
 <sub>Based on [**CoreMark 1.0**](./docs/Performance.md) and [**independent**](https://00f.net/2021/02/22/webassembly-runtimes-benchmarks) benchmarks. Your mileage may vary.</sub>
 
-
-[![Twitter](https://img.shields.io/twitter/follow/wasm3_engine?style=flat-square&color=1da1f2&label=twitter&logo=twitter)](https://twitter.com/wasm3_engine) 
-[![Discord](https://img.shields.io/discord/671415645073702925?style=flat-square&logo=discord&color=7289da&label=discord)](https://discord.gg/qmZjgnd)
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/wasm3_engine)](https://twitter.com/wasm3_engine) 
+[![Discord](https://img.shields.io/discord/671415645073702925?style=social&logo=discord&color=7289da&label=discord)](https://discord.gg/qmZjgnd)
 
 ## Getting Started
 
@@ -52,7 +50,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 `wasm3` runs on a wide range of architectures (`x86`, `x86_64`, `ARM`, `RISC-V`, `PowerPC`, `MIPS`, `Xtensa`, `ARC32`, ...) and [platforms](/platforms):
 - <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/linux.svg" width="18" height="18" /> Linux,
-<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/windows.svg" width="18" height="18" /> Windows,
+<img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/Windows_logo_-_2021_%28Black%29.svg" width="18" height="18" /> Windows,
 <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/apple.svg" width="18" height="18" /> OS X,
 <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/freebsd.svg" width="18" height="18" /> FreeBSD,
 <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/android.svg" width="18" height="18" /> Android,
@@ -72,11 +70,13 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | ☑ Sign-extension operators                   | ☑ Wasm and WASI self-hosting       |
 | ☑ Multi-value                                | ☑ Gas metering                     |
 | ☑ Bulk memory operations (partial support)   | ☑ Linear memory limit (< 64KiB)    |
-| ☐ Multiple memories                          |
-| ☐ Reference types                            |
+| ⏳ Custom page size                           |
+| ⏳ Multiple memories                          |
+| ⏳ Reference types                            |
 | ☐ Tail call optimization                     |
 | ☐ Fixed-width SIMD                           |
 | ☐ Exception handling                         |
+| ☐ Stack Switching                            |
 
 ## Motivation
 
