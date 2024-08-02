@@ -254,10 +254,10 @@ jobs:
       run: ls /Applications | grep Xcode
     - name: Select Xcode 16
       run: sudo xcode-select -switch /Applications/Xcode_16.0.app
-    - name: Build (iPhone 11)
+    - name: Build (iPhone 14)
       run: |
         cd platforms/ios
-        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=17.0'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=18.0'
 
   android:
     runs-on: ubuntu-latest
