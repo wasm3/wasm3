@@ -1,6 +1,6 @@
 # Wasm3
 
-[Wasm3](https://github.com/wasm3/wasm3) is the fastest WebAssembly interpreter, and the most universal runtime.  
+[Wasm3](https://github.com/wasm3/wasm3) is a fast WebAssembly interpreter, and the most universal runtime.
 It's packaged into a `WebAssembly` package, so you can finally run `WebAssembly` on `WebAssembly` 😆
 
 ## Running on WebAssembly.sh
