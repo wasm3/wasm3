@@ -56,7 +56,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 ## Features
 
-| Webassembly [Core Proposals][WasmProps]  | Extra |
+| Webassembly [Proposals][WasmProps]  | Extra |
 | --- | --- |
 | ☑ Import/Export of Mutable Globals           | ☑ Structured execution tracing     |
 | ☑ Non-trapping float-to-int conversions      | ☑ Big-Endian systems support       |
@@ -115,4 +115,4 @@ Wasm3 started as a research project and remains so by any means. Evaluating the 
 This project is released under The MIT License (MIT)
 
 
-[WasmProps]: https://github.com/WebAssembly/proposals/blob/master/finished-proposals.md  "WebAssembly Finished Proposals"
+[WasmProps]: https://github.com/WebAssembly/proposals/blob/main/README.md  "WebAssembly Finished Proposals"
