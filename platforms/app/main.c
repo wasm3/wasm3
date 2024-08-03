@@ -153,7 +153,7 @@ M3Result repl_load  (const char* fn)
     m3_SetModuleName(module, modname_from_fn(fn));
 
     result = link_all (module);
-    if (result) goto on_error;
+    if (result) goto on_error_after_load;
 
     if (wasm_bins_qty < MAX_MODULES) {
         wasm_bins[wasm_bins_qty++] = wasm;
@@ -163,6 +163,8 @@ M3Result repl_load  (const char* fn)
 
 on_error:
     m3_FreeModule(module);
+
+on_error_after_load:
     if (wasm) free(wasm);
     if (f) fclose(f);
 
