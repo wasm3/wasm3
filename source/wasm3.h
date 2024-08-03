@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include "wasm3_defs.h"
 
