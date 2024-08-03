@@ -339,7 +339,9 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
     if (not i_module->memoryImported)
     {
         u32 maxPages = i_module->memoryInfo.maxPages;
+        u32 pageSize = i_module->memoryInfo.pageSize;
         io_runtime->memory.maxPages = maxPages ? maxPages : 65536;
+        io_runtime->memory.pageSize = pageSize ? pageSize : d_m3DefaultMemPageSize;
 
         result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
     }
@@ -359,7 +361,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 #if 0 // Temporary fix for memory allocation
     if (memory->mallocated) {
         memory->numPages = i_numPages;
-        memory->mallocated->end = memory->wasmPages + (memory->numPages * c_m3MemPageSize);
+        memory->mallocated->end = memory->wasmPages + (memory->numPages * io_runtime->memory.pageSize);
         return result;
     }
 
@@ -368,7 +370,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
     if (numPagesToAlloc <= memory->maxPages)
     {
-        size_t numPageBytes = numPagesToAlloc * d_m3MemPageSize;
+        size_t numPageBytes = numPagesToAlloc * io_runtime->memory.pageSize;
 
 #if d_m3MaxLinearMemoryPages > 0
         _throwif("linear memory limitation exceeded", numPagesToAlloc > d_m3MaxLinearMemoryPages);
@@ -381,7 +383,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
 
-        size_t numPreviousBytes = memory->numPages * d_m3MemPageSize;
+        size_t numPreviousBytes = memory->numPages * io_runtime->memory.pageSize;
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
