@@ -575,6 +575,28 @@ jobs:
     - name: Test
       run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
+  unit-tests:
+    name: wasm3 unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure
+        run: |
+          cd test/internal/unit
+          mkdir build
+          cd build
+          cmake ..
+      - name: Build
+        run: |
+          cd test/internal/unit
+          cmake --build build
+      - name: Run
+        run: |
+          cd test/internal/unit/build
+          ./wasm3_test_unit
+
   with-logs:
     name: maintenance (debug logs)
     runs-on: ubuntu-latest
