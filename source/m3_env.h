@@ -121,6 +121,7 @@ typedef struct M3Module
 
     //bool                    hasWasmCodeCopy;
 
+    struct M3Module *       prev;
     struct M3Module *       next;
 }
 M3Module;

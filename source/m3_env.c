@@ -617,6 +617,10 @@ _   (InitElements (io_module));
 #endif
 
     io_module->next = io_runtime->modules;
+    if (io_runtime->modules)
+    {
+        io_runtime->modules->prev = io_module;
+    }
     io_runtime->modules = io_module;
     return result; // ok
 
