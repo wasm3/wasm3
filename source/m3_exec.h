@@ -708,18 +708,24 @@ d_m3Op  (MemGrow)
     IM3Runtime runtime          = m3MemRuntime(_mem);
     IM3Memory memory            = & runtime->memory;
 
-    u32 numPagesToGrow = (u32) _r0;
-    _r0 = memory->numPages;
+    i32 numPagesToGrow = _r0;
+    if (numPagesToGrow >= 0) {
+        _r0 = memory->numPages;
 
-    if (M3_LIKELY(numPagesToGrow))
+        if (M3_LIKELY(numPagesToGrow))
+        {
+            u32 requiredPages = memory->numPages + numPagesToGrow;
+
+            M3Result r = ResizeMemory (runtime, requiredPages);
+            if (r)
+                _r0 = -1;
+
+            _mem = memory->mallocated;
+        }
+    }
+    else
     {
-        u32 requiredPages = memory->numPages + numPagesToGrow;
-
-        M3Result r = ResizeMemory (runtime, requiredPages);
-        if (r)
-            _r0 = -1;
-
-        _mem = memory->mallocated;
+        _r0 = -1;
     }
 
     nextOp ();
