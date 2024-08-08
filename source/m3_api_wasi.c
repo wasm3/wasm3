@@ -48,11 +48,11 @@
 #  endif
 #  define HAS_IOVEC
 #elif defined(_WIN32)
-#  include <Windows.h>
+#  include <windows.h>
 #  include <io.h>
 // See http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx
 #  define SystemFunction036 NTAPI SystemFunction036
-#  include <NTSecAPI.h>
+#  include <ntsecapi.h>
 #  undef SystemFunction036
 #  define ssize_t SSIZE_T
 
