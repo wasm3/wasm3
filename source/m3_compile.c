@@ -398,17 +398,21 @@ M3Result  AllocateConstantSlots  (IM3Compilation o, u16 * o_slot, u8 i_type)
 // TOQUE: this usage count system could be eliminated. real world code doesn't frequently trigger it.  just copy to multiple
 // unique slots.
 static inline
-M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot)
+M3Result  IncrementSlotUsageCount  (IM3Compilation o, u16 i_slot, u8 i_type)
 {                                                                                       d_m3Assert (i_slot < d_m3MaxFunctionSlots);
     M3Result result = m3Err_none;                                                       d_m3Assert (o->m3Slots [i_slot] > 0);
 
     // OPTZ (memory): 'm3Slots' could still be fused with 'typeStack' if 4 bits were used to indicate: [0,1,2,many]. The many-case
     // would scan 'wasmStack' to determine the actual usage count
-    if (o->m3Slots [i_slot] < 0xFF)
+    for (u16 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slot)
     {
-        o->m3Slots [i_slot]++;
+        if (o->m3Slots [i_slot] < 0xFF)
+        {
+            o->m3Slots [i_slot]++;
+        }
+        else result = "slot usage count overflow";
     }
-    else result = "slot usage count overflow";
+
 
     return result;
 }
@@ -951,14 +955,13 @@ M3Result  FindReferencedLocalWithinCurrentBlock  (IM3Compilation o, u16 * o_pres
     {
         if (o->wasmStack [i] == i_localSlot)
         {
+            u8 type = GetStackTypeFromBottom (o, i);                    d_m3Assert (type != c_m3Type_none)
             if (* o_preservedSlotNumber == i_localSlot)
             {
-                u8 type = GetStackTypeFromBottom (o, i);                    d_m3Assert (type != c_m3Type_none)
-
 _               (AllocateSlots (o, o_preservedSlotNumber, type));
             }
             else
-_               (IncrementSlotUsageCount (o, * o_preservedSlotNumber));
+_               (IncrementSlotUsageCount (o, * o_preservedSlotNumber, type));
 
             o->wasmStack [i] = * o_preservedSlotNumber;
         }
