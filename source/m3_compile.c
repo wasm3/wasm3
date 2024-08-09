@@ -1635,11 +1635,11 @@ _       (Pop (o));
 
     u16 argTop = topSlot + (numArgs + numRets) * c_ioSlotCount;
 
+    TouchSlot (o, argTop - 1);
+
     while (numArgs--)
     {
-        argTop -= c_ioSlotCount;
-_       (CopyStackTopToSlot (o, argTop));
-        MarkSlotsAllocated (o, argTop, c_ioSlotCount);
+_       (CopyStackTopToSlot (o, argTop -= c_ioSlotCount));
 _       (Pop (o));
     }
 
