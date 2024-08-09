@@ -10,3 +10,5 @@
     i32.const 0
   )
   (export "_start" (func 0)))
+
+(assert_return (invoke "_start") (i32.const 0))
