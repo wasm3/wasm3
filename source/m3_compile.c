@@ -1637,7 +1637,9 @@ _       (Pop (o));
 
     while (numArgs--)
     {
-_       (CopyStackTopToSlot (o, argTop -= c_ioSlotCount));
+        argTop -= c_ioSlotCount;
+_       (CopyStackTopToSlot (o, argTop));
+        MarkSlotsAllocated (o, argTop, c_ioSlotCount);
 _       (Pop (o));
     }
 
