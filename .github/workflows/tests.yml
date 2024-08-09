@@ -31,6 +31,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Install ${{ matrix.config.install }}
       if: ${{ matrix.config.install }}
       run: |
@@ -55,6 +59,8 @@ jobs:
         python3 run-spec-test.py --spec=v1.1
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
+    - name: Test for regressions
+      run: cd test && python3 run-wast.py --wast regression
 
   alpine-multiarch:
     runs-on: ubuntu-latest
@@ -68,6 +74,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Setup multiarch/qemu-user-static
       if: matrix.arch != 'amd64'
       run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
@@ -89,6 +99,7 @@ jobs:
           echo "------------ Run tests ------------"
           cd test && python3 run-spec-test.py && cd ..
           cd test && python3 run-wasi-test.py --fast && cd ..
+          cd test && python3 run-wast.py --wast regression && cd ..
           echo "-------- All tests finished -------"
 
   macos:
@@ -105,6 +116,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      #uses: mwilliamson/setup-wabt-action@v3
+      #with:
+      #  wabt-version: "1.0.36"
+      #
+      # TODO: enable when it works on OS X 14: https://github.com/mwilliamson/setup-wabt-action/pull/4
+      run: |
+        version=1.0.36
+        osver=14
+        sw_vers
+        wget -O wabt.tar.gz "https://github.com/WebAssembly/wabt/releases/download/${version}/wabt-$version-macos-$osver.tar.gz"
+        tar xzf wabt.tar.gz
+        echo $PWD/wabt-$version/bin >>"$GITHUB_PATH"
     - name: Configure
       run: |
         mkdir build
@@ -121,6 +145,8 @@ jobs:
         python3 run-spec-test.py --spec=v1.1
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
+    - name: Test for regressions
+      run: cd test && python3 run-wast.py --wast regression
 
   windows:
     runs-on: windows-latest
@@ -147,6 +173,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Configure
       run: |
         mkdir build
@@ -168,6 +198,10 @@ jobs:
       run: |
         cd test
         python run-wasi-test.py
+    - name: Test for regressions
+      run: |
+        cd test
+        python run-wast.py --wast regression
 
   cygwin-build:
     runs-on: windows-latest
@@ -189,6 +223,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Setup environment
       env:
         WASI_VERSION: 11
@@ -226,6 +264,11 @@ jobs:
         source $HOME/.wasmer/wasmer.sh
         cd test
         python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm --" --fast
+    - name: Test for regressions (in Wasmer)
+      run: |
+        source $HOME/.wasmer/wasmer.sh
+        cd test
+        python3 run-wast.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --repl" --wast regression
 
     - name: Configure (native)
       run: |
@@ -243,6 +286,10 @@ jobs:
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm"
+    - name: Test for regressions (in Wasm3, self-hosting)
+      run: |
+        cd test
+        python3 run-wast.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --repl" --wast regression
 
   ios:
     runs-on: macos-latest
@@ -292,15 +339,15 @@ jobs:
         path: pywasm3
     - name: Set up Python
       uses: actions/setup-python@v5
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Update and Build Python module
       run: |
         rm -rf ./pywasm3/wasm3
         cp -r wasm3/source ./pywasm3/wasm3
         pip install ./pywasm3
-    - name: Install WABT
-      run: |
-        sudo apt update
-        sudo apt install wabt
     - name: Test
       run: |
         pip install pytest
@@ -313,6 +360,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Build αcτµαlly pδrταblε εxεcµταblε
       run: |
         cd platforms/cosmopolitan
@@ -332,6 +383,10 @@ jobs:
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "./wasm3-lin.com"
+    - name: Test for regressions
+      run: |
+        cd test
+        python3 run-wast.py --exec "./wasm3-lin.com --repl" --wast regression
     - name: Install Wine64
       run: |
         sudo apt update
@@ -345,6 +400,10 @@ jobs:
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.com"
+    - name: Test for regressions (in Wine)
+      run: |
+        cd test
+        python3 run-wast.py --exec "wine ./wasm3-win.com --repl" --wast regression
 
   cross-qemu:
     runs-on: ubuntu-latest
@@ -379,6 +438,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install WABT
+      uses: mwilliamson/setup-wabt-action@v3
+      with:
+        wabt-version: "1.0.36"
     - name: Install QEMU
       run: |
         sudo apt update
@@ -403,6 +466,10 @@ jobs:
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "${{ matrix.config.qemu }} ../build/wasm3"
+    - name: Test for regressions
+      run: |
+        cd test
+        python3 run-wast.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl" --wast regression
 
   platformio:
     runs-on: ubuntu-latest
