@@ -10,12 +10,14 @@
 #   ./run-wasi-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm" --fast
 
 import argparse
+import os.path
 import sys
 import subprocess
 import hashlib
 import fnmatch
 
-sys.path.append('../extra')
+scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+sys.path.append(os.path.join(scriptDir, '..', 'extra'))
 
 from testutils import *
 from pprint import pprint
