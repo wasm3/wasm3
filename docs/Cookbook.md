@@ -262,8 +262,8 @@ Create `swap.wat`:
 ```wat
 (module
   (func (export "swap") (param i32 i32) (result i32 i32)
-    (get_local 1)
-    (get_local 0)
+    (local.get 1)
+    (local.get 0)
   )
 )
 ```
