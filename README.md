@@ -27,6 +27,7 @@ Wasm3 can also be used as a library for:
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/python.svg" width="18" height="18" /> Python3](https://github.com/wasm3/pywasm3) │ 
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/wasm3/wasm3-rs) │ 
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
+[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/d.svg" width="18" height="18" /> D](https://github.com/kassane/wasm3-d) │ 
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/zig.svg" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3) │
 [<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/perl.svg" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
