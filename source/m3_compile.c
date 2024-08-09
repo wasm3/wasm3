@@ -2902,8 +2902,8 @@ _   (ReserveConstants (o));
     // start tracking the max stack used (Push() also updates this value) so that op_Entry can precisely detect stack overflow
     o->maxStackSlots = o->slotMaxAllocatedIndexPlusOne = o->slotFirstDynamicIndex;
 
-    o->block.blockStackIndex = o->stackFirstDynamicIndex = o->stackIndex;                           m3log (compile, "start stack index: %d",
-                                                                                                          (u32) o->stackFirstDynamicIndex);
+    o->block.blockStackIndex = o->stackFirstDynamicIndex = o->stackIndex;                           m3log (compile, "start stack index: %u; max stack slots: %u",
+                                                                                                           (u32) o->stackFirstDynamicIndex, (u32) o->maxStackSlots);
 _   (EmitOp (o, op_Entry));
     EmitPointer (o, io_function);
 
@@ -2915,7 +2915,7 @@ _   (CompileBlockStatements (o));
     io_function->compiled = pc;
     io_function->maxStackSlots = o->maxStackSlots;
 
-    u16 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;                           m3log (compile, "unique constant slots: %d; unused slots: %d",
+    u16 numConstantSlots = o->slotMaxConstIndex - o->slotFirstConstIndex;                           m3log (compile, "unique constant slots: %u; unused slots: %u",
                                                                                                            numConstantSlots, o->slotFirstDynamicIndex - o->slotMaxConstIndex);
     io_function->numConstantBytes = numConstantSlots * sizeof (m3slot_t);
 
