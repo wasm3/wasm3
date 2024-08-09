@@ -71,7 +71,7 @@ typedef struct M3Function
     u16                     numRetAndArgSlots;
 
     u16                     numLocals;                              // not including args
-    u16                     numLocalBytes;
+    u32                     numLocalBytes;
 
     bool                    ownsWasmCode;
 
