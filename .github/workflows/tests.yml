@@ -253,7 +253,7 @@ jobs:
     - name: List Xcode versions
       run: ls /Applications | grep Xcode
     - name: Select Xcode 16
-      run: sudo xcode-select -switch /Applications/Xcode_16.0.app
+      run: sudo xcode-select -switch /Applications/Xcode_16.1.app
     - name: Build (iPhone 14)
       run: |
         cd platforms/ios
