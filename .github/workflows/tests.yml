@@ -257,7 +257,7 @@ jobs:
     - name: Build (iPhone 14)
       run: |
         cd platforms/ios
-        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=18.0'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=18.1'
 
   android:
     runs-on: ubuntu-latest
