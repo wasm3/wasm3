@@ -10,9 +10,10 @@
 
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 5
-#define M3_VERSION_REV   0
-#define M3_VERSION       "0.5.0"
+#define M3_VERSION_REV   1
+#define M3_VERSION       "0.5.1"
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
