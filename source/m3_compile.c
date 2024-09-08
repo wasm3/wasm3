@@ -419,6 +419,9 @@ void DeallocateSlot (IM3Compilation o, i16 i_slot, u8 i_type)
                                                                                         d_m3Assert (i_slot < o->slotMaxAllocatedIndexPlusOne);
     for (u16 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slot)
     {                                                                                   d_m3Assert (o->m3Slots [i_slot]);
+        if (i_slot < 0 || i_slot >= o->slotMaxAllocatedIndexPlusOne) {
+            continue; // Prevent out-of-bounds access
+        }
         -- o->m3Slots [i_slot];
     }
 }
@@ -596,6 +599,9 @@ M3Result  Pop  (IM3Compilation o)
         {
             u32 regSelect = IsFpRegisterSlotAlias (slot);
             DeallocateRegister (o, regSelect);
+        }
+        else if (slot < 0 || slot >= o->slotMaxAllocatedIndexPlusOne) {
+            return m3Err_functionStackUnderrun; // Return error for invalid slot indices
         }
         else if (slot >= o->slotFirstDynamicIndex)
         {
