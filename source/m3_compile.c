@@ -489,7 +489,12 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_registerType)
 _       (AllocateSlots (o, & slot, type));
         o->wasmStack [stackIndex] = slot;
 
-_       (EmitOp (o, c_setSetOps [type]));
+        // Ensure type is within the valid range
+        if (type < sizeof(c_setSetOps) / sizeof(c_setSetOps[0])) {
+_           (EmitOp (o, c_setSetOps [type]));
+        } else 
+            _throw(m3Err_functionStackOverflow);
+
         EmitSlotOffset (o, slot);
     }
 
