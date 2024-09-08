@@ -712,7 +712,7 @@ _onfatal:
         {
             M3ErrorInfo info;
             m3_GetErrorInfo (runtime, &info);
-            if (strlen(info.message)) {
+            if (info.message && strlen(info.message)) {
                 fprintf (stderr, " (%s)", info.message);
             }
         }
