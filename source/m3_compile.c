@@ -419,9 +419,6 @@ void DeallocateSlot (IM3Compilation o, i16 i_slot, u8 i_type)
                                                                                         d_m3Assert (i_slot < o->slotMaxAllocatedIndexPlusOne);
     for (u16 i = 0; i < GetTypeNumSlots (i_type); ++i, ++i_slot)
     {                                                                                   d_m3Assert (o->m3Slots [i_slot]);
-        if (i_slot < 0 || i_slot >= o->slotMaxAllocatedIndexPlusOne) {
-            continue; // Prevent out-of-bounds access
-        }
         -- o->m3Slots [i_slot];
     }
 }
