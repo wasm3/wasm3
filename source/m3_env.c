@@ -231,10 +231,8 @@ void  Runtime_Release  (IM3Runtime i_runtime)
 {
     ForEachModule (i_runtime, _FreeModule, NULL);                   d_m3Assert (i_runtime->numActiveCodePages == 0);
 
-    if (i_runtime->environment) {
-        Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
-        Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
-    }
+    Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesOpen);
+    Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
     m3_Free (i_runtime->originStack);
     m3_Free (i_runtime->memory.mallocated);
