@@ -337,8 +337,7 @@ void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 }
 
 static inline 
-M3Result
-MarkSlotsAllocated  (IM3Compilation o, u16 i_slot, u16 i_numSlots)
+M3Result MarkSlotsAllocated  (IM3Compilation o, u16 i_slot, u16 i_numSlots)
 {
     if (i_slot + i_numSlots > d_m3MaxFunctionSlots)
         return m3Err_functionStackOverflow;
