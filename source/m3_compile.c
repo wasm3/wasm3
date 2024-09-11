@@ -337,17 +337,22 @@ void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 }
 
 static inline
-void  MarkSlotsAllocated  (IM3Compilation o, u16 i_slot, u16 i_numSlots)
+M3Result MarkSlotsAllocated  (IM3Compilation o, u16 i_slot, u16 i_numSlots)
 {
+    if (i_slot + i_numSlots > d_m3MaxFunctionSlots)
+        return m3Err_functionStackOverflow;
+
     while (i_numSlots--)
         MarkSlotAllocated (o, i_slot++);
+    
+    return m3Err_none;
 }
 
 static inline
-void  MarkSlotsAllocatedByType  (IM3Compilation o, u16 i_slot, u8 i_type)
+M3Result MarkSlotsAllocatedByType  (IM3Compilation o, u16 i_slot, u8 i_type)
 {
     u16 numSlots = GetTypeNumSlots (i_type);
-    MarkSlotsAllocated (o, i_slot, numSlots);
+    return MarkSlotsAllocated (o, i_slot, numSlots);
 }
 
 
@@ -365,7 +370,7 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 i = i_startSlot;
     while (i + searchOffset < i_endSlot)
     {
-        if (o->m3Slots [i] == 0 and o->m3Slots [i + searchOffset] == 0)
+        if (i + searchOffset < d_m3MaxFunctionSlots and o->m3Slots [i] == 0 and o->m3Slots [i + searchOffset] == 0)
         {
             MarkSlotsAllocated (o, i, numSlots);
 
@@ -1647,7 +1652,7 @@ _       (Pop (o));
         u8 type = GetFuncTypeResultType (i_type, i++);
 
 _       (Push (o, type, topSlot));
-        MarkSlotsAllocatedByType (o, topSlot, type);
+_       (MarkSlotsAllocatedByType (o, topSlot, type));
 
         topSlot += c_ioSlotCount;
     }
@@ -2737,7 +2742,7 @@ _           (PopType (o, type));
         Push (o, type, slot);
 
         if (slot >= o->slotFirstDynamicIndex && slot != c_slotUnused)
-            MarkSlotsAllocatedByType (o, slot, type);
+_           (MarkSlotsAllocatedByType (o, slot, type));
     }
 
     //--------------------------------------------------------
