@@ -597,6 +597,9 @@ M3Result  Pop  (IM3Compilation o)
             u32 regSelect = IsFpRegisterSlotAlias (slot);
             DeallocateRegister (o, regSelect);
         }
+        else if (slot < 0 || slot >= o->slotMaxAllocatedIndexPlusOne) {
+            return m3Err_functionStackUnderrun; // Return error for invalid slot indices
+        }
         else if (slot >= o->slotFirstDynamicIndex)
         {
             DeallocateSlot (o, slot, type);
