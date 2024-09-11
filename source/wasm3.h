@@ -233,7 +233,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes);
 
-    // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
+    // Only modules not loaded into a M3Runtime can be freed. A module is considered unloaded if
     // a. m3_LoadModule has not yet been called on that module. Or,
     // b. m3_LoadModule returned a result.
     void                m3_FreeModule               (IM3Module i_module);
