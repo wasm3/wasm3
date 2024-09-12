@@ -228,6 +228,12 @@ message("Release flags: ${CMAKE_C_FLAGS_RELEASE}")
 
 message("----")
 
+# Test
+
+include(CTest)
+
+add_subdirectory(test)
+
 # Install
 
 include(GNUInstallDirs)
