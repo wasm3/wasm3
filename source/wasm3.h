@@ -251,12 +251,18 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     // Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
     // Return values should be written into _sp [0] to _sp [num_returns - 1]
     typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem);
-
+    typedef const int (* M3LinkFuncBlock)(const char *, const char *);
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,
                                                      const char * const     i_functionName,
                                                      const char * const     i_signature,
                                                      M3RawCall              i_function);
+    M3Result            m3_LinkRawFunctionBlock     (IM3Module              io_module,
+                                                     const char * const     i_moduleName,
+                                                     const char * const     i_functionName,
+                                                     const char * const     i_signature,
+                                                     M3RawCall              i_function,
+                                                     M3LinkFuncBlock        block);
 
     M3Result            m3_LinkRawFunctionEx        (IM3Module              io_module,
                                                      const char * const     i_moduleName,
