@@ -337,7 +337,10 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
 # define m3ApiReturnType(TYPE)                 TYPE* raw_return = ((TYPE*) (_sp++));
 # define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME = ((TYPE*) (_sp++));
-# define m3ApiGetArg(TYPE, NAME)               TYPE NAME = * ((TYPE *) (_sp++));
+# define m3ApiGetArg(TYPE, NAME)               TYPE NAME = \
+    (sizeof(TYPE) >= sizeof(uint32_t)) ? \
+    (*((TYPE *)(_sp++))) : \
+    ((TYPE)(*((uint32_t *)(_sp++))))
 # define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 # define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
