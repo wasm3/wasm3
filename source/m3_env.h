@@ -8,6 +8,7 @@
 #ifndef m3_env_h
 #define m3_env_h
 
+#include "m3_core.h"
 #include "wasm3.h"
 #include "m3_code.h"
 #include "m3_compile.h"
@@ -17,15 +18,32 @@ d_m3BeginExternC
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
+// dynamic array guy macros
+// might extract these into a separate header
+#define da_realloc(TYPE, ARR) do {                                                          \
+    (ARR)->entries = m3_ReallocArray(TYPE, (ARR)->entries, (ARR)->cap * 2 + 1, (ARR)->cap); \
+    (ARR)->cap = (ARR)->cap * 2 + 1;                                                        \
+} while(0)
+
+#define da_push(TYPE, ARR, VAL) do {        \
+    if ((ARR)->count >= (ARR)->cap) {       \
+        da_realloc(TYPE, ARR);              \
+    }                                       \
+    (ARR)->entries[(ARR)->count++] = (VAL); \
+} while(0)
+
+#define da_free(ARR) m3_Free((ARR)->entries)
+
+// Parser output
 typedef struct M3MemoryInfo
 {
-    u32     initPages;
-    u32     maxPages;
-    u32     pageSize;
+    u32                     initPages;
+    u32                     maxPages;
+    u32                     pageSize;
 }
 M3MemoryInfo;
 
-
+// Instance
 typedef struct M3Memory
 {
     M3MemoryHeader *        mallocated;
@@ -34,10 +52,36 @@ typedef struct M3Memory
     u32                     maxPages;
     u32                     pageSize;
 }
-M3Memory;
+M3Memory, * IM3Memory;
 
-typedef M3Memory *          IM3Memory;
+typedef struct M3Memories
+{
+    M3Memory *              entries;
 
+    u32                     count;
+    u32                     cap;
+}
+M3Memories;
+
+// map of module memidx to runtime memories index
+typedef struct M3MemoryTableEntry {
+    u32                     internalIndex;
+    M3MemoryInfo            memoryInfo;
+
+    bool                    imported;
+    M3ImportInfo            import;
+
+    bool                    exported;
+    cstr_t                  exportName;
+} M3MemoryTableEntry;
+
+typedef struct M3MemoryTable
+{
+    M3MemoryTableEntry *    entries;
+    u32                     count;
+    u32                     cap;
+}
+M3MemoryTable;
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
@@ -48,6 +92,7 @@ typedef struct M3DataSegment
 
     u32                     initExprSize;
     u32                     memoryRegion;
+    u32                     memIdx;
     u32                     size;
 }
 M3DataSegment;
@@ -114,10 +159,7 @@ typedef struct M3Module
     u32                     table0Size;
     const char*             table0ExportName;
 
-    M3MemoryInfo            memoryInfo;
-    M3ImportInfo            memoryImport;
-    bool                    memoryImported;
-    const char*             memoryExportName;
+    M3MemoryTable           memoryTable;
 
     //bool                    hasWasmCodeCopy;
 
@@ -130,6 +172,7 @@ M3Result                    Module_AddGlobal            (IM3Module io_module, IM
 M3Result                    Module_PreallocFunctions    (IM3Module io_module, u32 i_totalFunctions);
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
+IM3Memory                   Module_GetMemory            (IM3Module i_module, u32 i_memoryIndex);
 
 void                        Module_GenerateNames        (IM3Module i_module);
 
@@ -158,6 +201,7 @@ void                        Environment_AddFuncType     (IM3Environment i_enviro
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
+// What other runtimes usually call a "Store"
 typedef struct M3Runtime
 {
     M3Compilation           compilation;
@@ -180,7 +224,7 @@ typedef struct M3Runtime
 
     void *                  userdata;
 
-    M3Memory                memory;
+    M3Memories              memories;
     u32                     memoryLimit;
 
 #if d_m3EnableStrace >= 2
@@ -203,7 +247,7 @@ M3Runtime;
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void                        Runtime_Release             (IM3Runtime io_runtime);
 
-M3Result                    ResizeMemory                (IM3Runtime io_runtime, u32 i_numPages);
+M3Result                    ResizeMemory                (IM3Runtime io_runtime, u32 i_numPages, u32 i_internalIndex);
 
 typedef void *              (* ModuleVisitor)           (IM3Module i_module, void * i_info);
 void *                      ForEachModule               (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info);

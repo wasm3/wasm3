@@ -143,6 +143,7 @@ d_m3ErrorConst  (tooManyMemorySections,         "only one memory per module is s
 d_m3ErrorConst  (tooManyArgsRets,               "too many arguments or return values")
 
 // link errors
+d_m3ErrorConst  (memoryExportMissing,           "attempting to import missing exported memory")
 d_m3ErrorConst  (moduleNotLinked,               "attempting to use module that is not loaded")
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
 d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
@@ -212,13 +213,19 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 
+    uint8_t *           m3_FindMemory               (IM3Runtime             i_runtime,
+                                                     uint32_t *             o_memorySizeInBytes,
+                                                     const char * const     i_memoryName);
+
     // Wasm currently only supports one memory region. i_memoryIndex should be zero.
-    uint8_t *           m3_GetMemory                (IM3Runtime             i_runtime,
+    // ^ Not true anymore :)
+    uint8_t *           m3_GetMemory                (IM3Module              i_module,
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
     // This is used internally by Raw Function helpers
-    uint32_t            m3_GetMemorySize            (IM3Runtime             i_runtime);
+    uint32_t            m3_GetMemorySize            (IM3Module              i_module,
+                                                     uint32_t               i_memoryIndex);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
@@ -250,7 +257,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     // Arguments and return values are passed in and out through the stack pointer _sp.
     // Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
     // Return values should be written into _sp [0] to _sp [num_returns - 1]
-    typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem);
+    typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp);
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,
@@ -332,18 +339,23 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //  raw function definition helpers
 //-------------------------------------------------------------------------------------------------------------------------------
 
-# define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)_mem + (uint32_t)(offset))
-# define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)_mem)
+// FIXME: these currently only work properly if you only have 1 memory
+// Although they probably don't exactly make sense to use on secondary memories
+# define m3ApiGetMem() (void *)(runtime->memories.entries[0].mallocated + 1)
+
+# define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)m3ApiGetMem() + (uint32_t)(offset))
+# define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)m3ApiGetMem())
 
 # define m3ApiReturnType(TYPE)                 TYPE* raw_return = ((TYPE*) (_sp++));
 # define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME = ((TYPE*) (_sp++));
 # define m3ApiGetArg(TYPE, NAME)               TYPE NAME = * ((TYPE *) (_sp++));
 # define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
-# define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
-# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < _mem) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+# define m3ApiIsNullPtr(addr)       ((void*)(addr) <= m3ApiGetMem())
+// FIXME:
+# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < m3ApiGetMem()) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(m3ApiGetMem())+m3_GetMemorySize(runtime->modules, 0)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
 
-# define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
+# define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp)
 # define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}
 # define m3ApiMultiValueReturn(NAME, VALUE)   { *NAME = (VALUE); }
 # define m3ApiTrap(VALUE)                     { return VALUE; }

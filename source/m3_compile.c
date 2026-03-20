@@ -1734,41 +1734,48 @@ _   (EmitOp         (o, op_CallIndirect));
 static
 M3Result  Compile_Memory_Size  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+_try {
+    u32 memidx;
+_   (ReadLEB_u32 (& memidx, & o->wasm, o->wasmEnd));
 
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i32));
 
 _   (EmitOp     (o, op_MemSize));
 
-_   (PushRegister (o, c_m3Type_i32));
+    u32 internalIndex = o->module->memoryTable.entries[memidx].internalIndex;
+    EmitConstant32(o, internalIndex);
 
+_   (PushRegister (o, c_m3Type_i32));
+}
     _catch: return result;
 }
 
 static
 M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
 {
+_try {
     M3Result result;
 
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    u32 memidx;
+_   (ReadLEB_u32 (& memidx, & o->wasm, o->wasmEnd));
 
 _   (CopyStackTopToRegister (o, false));
 _   (PopType (o, c_m3Type_i32));
 
 _   (EmitOp     (o, op_MemGrow));
 
-_   (PushRegister (o, c_m3Type_i32));
+    u32 internalIndex = o->module->memoryTable.entries[memidx].internalIndex;
+    EmitConstant32(o, internalIndex);
 
+_   (PushRegister (o, c_m3Type_i32));
+}
     _catch: return result;
 }
 
 static
 M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
 {
+_try {
     M3Result result = m3Err_none;
 
     u32 sourceMemoryIdx, targetMemoryIdx;
@@ -1785,10 +1792,18 @@ _   (ReadLEB_u32 (& targetMemoryIdx, & o->wasm, o->wasmEnd));
 _   (CopyStackTopToRegister (o, false));
 
 _   (EmitOp  (o, op));
+
+    if (i_opcode == c_waOp_memoryCopy) {
+        u32 internalSrcIndex = o->module->memoryTable.entries[sourceMemoryIdx].internalIndex;
+        EmitConstant32(o, internalSrcIndex);
+    }
+    u32 internalDestIndex = o->module->memoryTable.entries[targetMemoryIdx].internalIndex;
+    EmitConstant32(o, internalDestIndex);
+
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
 _   (EmitSlotNumOfStackTopAndPop (o));
-
+}
     _catch: return result;
 }
 
@@ -2201,8 +2216,14 @@ M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
     u32 alignHint, memoryOffset;
+    u32 memidx = 0;
 
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
+
+    if (alignHint >= powl(2, 6)) {
+_       (ReadLEB_u32(& memidx, & o->wasm, o->wasmEnd));
+    }
+
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
@@ -2213,6 +2234,9 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
 _   (Compile_Operator (o, i_opcode));
 
+    // compute internal memidx
+    u32 internalIndex = o->module->memoryTable.entries[memidx].internalIndex;
+    EmitConstant32(o, internalIndex);
     EmitConstant32 (o, memoryOffset);
 }
     _catch: return result;

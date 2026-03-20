@@ -437,20 +437,23 @@ M3Result repl_compile  ()
     return m3_CompileModule(runtime->modules);
 }
 
+// NOTE: Currently only dumps 0th memory of each module
 M3Result repl_dump  ()
 {
-    uint32_t len;
-    uint8_t* mem = m3_GetMemory(runtime, &len, 0);
-    if (mem) {
-        FILE* f = fopen ("wasm3_dump.bin", "wb");
-        if (!f) {
-            return "cannot open file";
-        }
-        if (fwrite (mem, 1, len, f) != len) {
+    for (IM3Module module = runtime->modules; module != NULL; module = module->next) {
+        uint32_t len;
+        uint8_t* mem = m3_GetMemory(module, &len, 0);
+        if (mem) {
+            FILE* f = fopen ("wasm3_dump.bin", "wb");
+            if (!f) {
+                return "cannot open file";
+            }
+            if (fwrite (mem, 1, len, f) != len) {
+                fclose (f);
+                return "cannot write file";
+            }
             fclose (f);
-            return "cannot write file";
         }
-        fclose (f);
     }
     return m3Err_none;
 }
