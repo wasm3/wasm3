@@ -36,6 +36,7 @@ _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
     if (flag & (1u << 3)) {
         u32 logPageSize;
 _       (ReadLEB_u32 (& logPageSize, io_bytes, i_end));
+        _throwif("invalid page size shift", logPageSize > 31);
         o_memory->pageSize = 1u << logPageSize;
     }
 
@@ -459,7 +460,7 @@ _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                            
 
     _throwif (m3Err_tooManyMemorySections, numMemories != 1);
 
-    ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
+_   (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
 
     _catch: return result;
 }
