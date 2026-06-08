@@ -350,11 +350,11 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
         if (entry->imported) {
             // Map imported memories to exported ones
             u32 internalIndex = 0;
-            for (IM3Module module = i_module; module != NULL; module = i_module->next) {
-                if (strcmp(module->name, entry->import.moduleUtf8) == 0) {
+            for (IM3Module module = io_runtime->modules; module != NULL; module = module->next) {
+                if (!strcmp(module->name, entry->import.moduleUtf8)) {
                     for (u32 i = 0; i < module->memoryTable.count; i++) {
                         if (module->memoryTable.entries[i].exported) {
-                            if (strcmp(module->memoryTable.entries[i].exportName, entry->import.fieldUtf8)) {
+                            if (!strcmp(module->memoryTable.entries[i].exportName, entry->import.fieldUtf8)) {
                                 internalIndex = module->memoryTable.entries[i].internalIndex;
                                 goto _break;
                             }
