@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <ctype.h>
 
@@ -152,7 +153,7 @@ M3Result repl_load  (const char* fn)
 
     m3_SetModuleName(module, modname_from_fn(fn));
 
-    result = link_all (module);
+    // result = link_all (module);
     if (result) goto on_error;
 
     if (wasm_bins_qty < MAX_MODULES) {
@@ -211,7 +212,7 @@ M3Result repl_load_hex  (u32 fsize)
     result = m3_LoadModule (runtime, module);
     if (result) return result;
 
-    result = link_all (module);
+    // result = link_all (module);
 
     return result;
 }
@@ -461,6 +462,12 @@ M3Result repl_dump  ()
 void repl_free  ()
 {
     if (runtime) {
+        for (IM3Module mod = runtime->modules; mod != NULL; mod = mod->next) {
+            if (strcmp(".unnamed", m3_GetModuleName(mod))) {
+                free((void *)mod->name);
+            }
+        }
+
         m3_FreeRuntime (runtime);
         runtime = NULL;
     }
@@ -677,6 +684,14 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_load(argv[1]);
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(atol(argv[1]));
+        } else if (!strcmp(":register", argv[0])) {
+            if (argc == 2) {
+                size_t name_size = strlen(argv[1]) + 1;
+                char *modname_buf = malloc(name_size);
+                memcpy(modname_buf, argv[1], name_size);
+                modname_buf[name_size - 1] = '\0';
+                m3_SetModuleName(runtime->modules, modname_buf);
+            }
         } else if (!strcmp(":get-global", argv[0])) {
             result = repl_global_get(argv[1]);
         } else if (!strcmp(":set-global", argv[0])) {
