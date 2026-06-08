@@ -95,13 +95,16 @@ d_m3BeginExternC
 #endif
 
 #ifdef DEBUG
-  #define d_outOfBounds newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
-                        _rt, "memory size: %zu; access offset: %zu",      \
-                        memory->length, operand))
+  #define d_outOfBounds newTrap (m3Err_trapOutOfBoundsMemoryAccess)
+#   define d_outOfBoundsMemOp(OFFSET, SIZE) newTrap (m3Err_trapOutOfBoundsMemoryAccess)
 
-#   define d_outOfBoundsMemOp(OFFSET, SIZE) newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
-                      _rt, "memory size: %zu; access offset: %zu; size: %u",     \
-                      memory->length, OFFSET, SIZE))
+//   #define d_outOfBounds newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
+//                         _rt, "memory size: %zu; access offset: %zu",      \
+//                         memory->length, operand))
+// 
+// #   define d_outOfBoundsMemOp(OFFSET, SIZE) newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
+//                       _rt, "memory size: %zu; access offset: %zu; size: %u",     \
+//                       memory->length, OFFSET, SIZE))
 #else
   #define d_outOfBounds newTrap (m3Err_trapOutOfBoundsMemoryAccess)
 
