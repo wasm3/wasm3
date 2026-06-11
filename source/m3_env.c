@@ -494,6 +494,10 @@ M3Result  InitDataSegments  (IM3Module io_module)
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
+
+        // skip passive regions
+        if (segment->memoryRegion == 1) continue;
+
         IM3Memory memory = & io_module->runtime->memories.entries[io_module->memoryTable.entries[segment->memIdx].internalIndex];
         _throwif("unallocated linear memory", !(memory->mallocated));
 

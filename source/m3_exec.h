@@ -740,6 +740,33 @@ d_m3Op  (MemGrow)
 }
 
 
+d_m3Op  (MemInit)
+{
+    u32 size = (u32) _r0;
+
+    M3DataSegment *srcData = immediate(void *);
+    u32 dstIdx = immediate(u32);
+    M3MemoryHeader *dstMem = m3MemGet(dstIdx);
+
+    u64 source = slot (u32);
+    u64 destination = slot (u32);
+
+    if (M3_LIKELY(destination + size <= dstMem->length))
+    {
+        if (M3_LIKELY(source + size <= srcData->size))
+        {
+            u8 * dst = m3MemData (dstMem) + destination;
+            u8 * src = m3MemData (srcData->data) + source;
+            memmove (dst, src, size);
+
+            nextOp ();
+        }
+        else d_outOfBoundsMemOp (source, size);
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+
 d_m3Op  (MemCopy)
 {
     u32 size = (u32) _r0;
@@ -751,7 +778,6 @@ d_m3Op  (MemCopy)
 
     u64 source = slot (u32);
     u64 destination = slot (u32);
-    
 
     if (M3_LIKELY(destination + size <= dstMem->length))
     {

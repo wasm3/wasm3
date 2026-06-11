@@ -11,6 +11,7 @@
 #include <time.h>
 #include <ctype.h>
 
+#include "m3_core.h"
 #include "wasm3.h"
 #include "m3_api_libc.h"
 
@@ -65,6 +66,42 @@ m3ApiRawFunction(metering_usegas)
 
 #endif // GAS_LIMIT
 
+#include "m3_exception.h"
+
+M3Result link_spec_test() {
+    M3Result result = m3Err_none;
+
+    IM3Module module = m3_AllocStruct(M3Module);
+
+    module->name = "spectest";
+
+    char *memname = m3_Malloc(char, 7);
+    strcpy(memname, "memory");
+
+    M3MemoryTableEntry *spectest_memory = m3_AllocStruct(M3MemoryTableEntry);
+    *spectest_memory = (M3MemoryTableEntry){
+        .exported = true,
+        .memoryInfo = {
+            .initPages = 1,
+            .maxPages = 2,
+            .pageSize = d_m3DefaultMemPageSize,
+        },
+        .exportName = memname,
+    };
+
+    module->memoryTable = (M3MemoryTable){
+        .cap = 1,
+        .count = 1,
+        .entries = spectest_memory,
+    };
+
+    const char *spectest = "spectest";
+
+_   (m3_LoadModule(runtime, module));
+
+_catch:
+    return result;
+}
 
 M3Result link_all  (IM3Module module)
 {
@@ -153,7 +190,7 @@ M3Result repl_load  (const char* fn)
 
     m3_SetModuleName(module, modname_from_fn(fn));
 
-    // result = link_all (module);
+    result = link_all (module);
     if (result) goto on_error;
 
     if (wasm_bins_qty < MAX_MODULES) {
@@ -212,7 +249,7 @@ M3Result repl_load_hex  (u32 fsize)
     result = m3_LoadModule (runtime, module);
     if (result) return result;
 
-    // result = link_all (module);
+    result = link_all (module);
 
     return result;
 }
@@ -463,7 +500,9 @@ void repl_free  ()
 {
     if (runtime) {
         for (IM3Module mod = runtime->modules; mod != NULL; mod = mod->next) {
-            if (strcmp(".unnamed", m3_GetModuleName(mod))) {
+            cstr_t modname = m3_GetModuleName(mod);
+            if (strcmp(".unnamed", modname)
+            &&  strcmp("spectest", modname)) {
                 free((void *)mod->name);
             }
         }
@@ -632,6 +671,9 @@ int  main  (int i_argc, const char* i_argv[])
 
     result = repl_init(argStackSize);
     if (result) FATAL("repl_init: %s", result);
+
+    result = link_spec_test();
+    if (result) FATAL("link_spec_test: %s", result);
 
     if (argFile) {
         result = repl_load(argFile);

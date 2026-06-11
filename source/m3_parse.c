@@ -439,12 +439,13 @@ _       (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
 _           (ReadLEB_u32 (& segment->memIdx, & i_bytes, i_end));
         } else segment->memIdx = 0;
 
-
-        segment->initExpr = i_bytes;
-_       (Parse_InitExpr (io_module, & i_bytes, i_end));
-        segment->initExprSize = (u32) (i_bytes - segment->initExpr);
-
-        _throwif (m3Err_wasmMissingInitExpr, segment->initExprSize <= 1);
+        // Init expr only for active data segments
+        if (segment->memoryRegion != 1) {
+            segment->initExpr = i_bytes;
+_           (Parse_InitExpr (io_module, & i_bytes, i_end));
+            segment->initExprSize = (u32) (i_bytes - segment->initExpr);
+            _throwif (m3Err_wasmMissingInitExpr, segment->initExprSize <= 1);
+        }
 
 _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
