@@ -14,7 +14,7 @@ All the classes are located in `wasm3` namespace.
 
 `environment::environment()` — create a new WASM3 environment. Runtimes, modules are owned by an environment.
 
-`runtime environment::new_runtime(size_t stack_size_bytes)` — create new runtime inside the environment.
+`runtime environment::new_runtime(uint32_t stack_size_bytes)` — create new runtime inside the environment.
 
 `module environment::parse_module(std::istream &in)` or `module environment::parse_module(const uint8_t *data, size_t size)` — parse a WASM binary module.
 
@@ -32,9 +32,9 @@ All the classes are located in `wasm3` namespace.
 
 Before loading a module, you may need to link some external functions to it:
 
-`template <auto Fn> void module::link<Fn>(const char *mod, const char *func)` — link a function `Fn` to module named `mod` under the name `func`. To link to any module, use `mod="*"`. 
+`template <Func> void module::link(const char *mod, const char *function_name, Func *function)` — link a function `function` to module named `mod` under the name `function_name`. To link to any module, use `mod="*"`. 
 
-`Fn` has to be either a non-member function or a static member function. At the moment WASM3 doesn't pass any context along with the external function call, so binding non-static member functions is not possible.
+`function` has to be either a non-member function or a static member function.
 
 Currently, the following types of arguments can be passed to functions linked this way:
 
@@ -52,9 +52,30 @@ If the module doesn't reference an imported function named `func`, an exception 
 
 `function` object can be obtained from a `runtime`, looking up the function by name. Function objects are used to call WebAssembly functions.
 
-`template <typename Ret> Ret function::call()` — call a WebAssembly function which doesn't take any arguments. The return value of the function is automatically converted to the type `Ret`. Note that you need to specify the return type when using this template function, and the type has to match the type returned by the WebAssembly function.
+`template <typename Ret = void, typename ...Args> Ret function::call(Args...)` — calls a WebAssembly function with or without arguments and a return value.<br>
+The return value of the function, if not `void`, is automatically converted to the type `Ret`.<br> 
+Note that you always need to specify the matching return type when using this template with a non-void function.<br> 
+Examples:
+```cpp
+// WASM signature: [] → []
+func.call();
 
-`template <typename Ret, typename ...Args> Ret function::call(Args...)` — same as above, but also allows passing arguments to the WebAssembly function. Note that due to a limitation of WASM3 API, the arguments are first converted to strings, and then passed to WASM3. The strings are then converted to the appropriate types based on the WebAssembly function signature. This conversion is limited to the following types: `int32_t`, `int64_t`, `float`, `double`.
+// WASM signature: [i32, i32] → []
+func.call(42, 43); // implicit argument types
+
+// WASM signature: [i32, i64] → []
+func.call<void, int32_t, int64_t>(42, 43); // explicit argument types require the return type
+
+// WASM signature: [] → [i32]
+auto result = func.call<int32_t>();
+
+// WASM signature: [i32, i32] → [i64]
+auto result = func.call<int64_t>(42, 43); // implicit argument types
+
+// WASM signature: [i32, i64] → [i64]
+auto result = func.call<int64_t, int32_t, int64_t>(42, 43); // explicit argument types
+
+```
 
 `template <typename Ret, typename ...Args> Ret function::call_argv(Args...)` — same as above, except that this function takes arguments as C strings (`const char*`).
 

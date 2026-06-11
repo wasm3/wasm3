@@ -11,10 +11,16 @@
 #include <ctype.h>
 
 #include "wasm3.h"
-#include "m3_api_defs.h"
-#include "m3_api_wasi.h"
 #include "m3_api_libc.h"
+
+#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
+#include "m3_api_wasi.h"
+#define LINK_WASI
+#endif
+
+#if defined(d_m3HasTracer)
 #include "m3_api_tracer.h"
+#endif
 
 // TODO: remove
 #include "m3_env.h"
@@ -31,15 +37,12 @@
 
 #define FATAL(msg, ...) { fprintf(stderr, "Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
-#if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
-#define LINK_WASI
-#endif
 
-IM3Environment env;
-IM3Runtime runtime;
+static IM3Environment env;
+static IM3Runtime runtime;
 
-u8* wasm_bins[MAX_MODULES];
-int wasm_bins_qty = 0;
+static u8* wasm_bins[MAX_MODULES];
+static int wasm_bins_qty = 0;
 
 #if defined(GAS_LIMIT)
 
@@ -53,7 +56,7 @@ m3ApiRawFunction(metering_usegas)
 
     current_gas -= gas;
 
-    if (UNLIKELY(current_gas < 0)) {
+    if (M3_UNLIKELY(current_gas < 0)) {
         m3ApiTrap("[trap] Out of gas");
     }
     m3ApiSuccess();
@@ -95,11 +98,13 @@ M3Result link_all  (IM3Module module)
 
 const char* modname_from_fn(const char* fn)
 {
-	const char* off = strrchr(fn, '/');
-	if (off) return off+1;
-	off = strrchr(fn, '\\');
-	if (off) return off+1;
-	return fn;
+    const char* sep = "/\\:*?";
+    char c;
+    while ((c = *sep++)) {
+        const char* off = strrchr(fn, c) + 1;
+        fn = (fn < off) ? off : fn;
+    }
+    return fn;
 }
 
 M3Result repl_load  (const char* fn)
@@ -121,7 +126,7 @@ M3Result repl_load  (const char* fn)
     if (fsize < 8) {
         result = "file is too small";
         goto on_error;
-    } else if (fsize > 64*1024*1024) {
+    } else if (fsize > 256*1024*1024) {
         result = "file is too big";
         goto on_error;
     }
@@ -193,8 +198,10 @@ M3Result repl_load_hex  (u32 fsize)
                 hex_idx = 0;
             }
         }
-        if (!fgets(hex, 3, stdin)) // Consume a newline
+        if (!fgets(hex, 3, stdin)) { // Consume a newline
+            free(wasm);
             return "cannot read EOL";
+        }
     }
 
     IM3Module module;
@@ -257,6 +264,11 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 
     if (!strcmp(name, "_start")) {
 #if defined(LINK_WASI)
+        // Strip wasm file path
+        if (argc > 0) {
+            argv[0] = modname_from_fn(argv[0]);
+        }
+
         m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
         wasi_ctx->argc = argc;
         wasi_ctx->argv = argv;
@@ -392,11 +404,11 @@ M3Result repl_global_get  (const char* name)
     if (err) return err;
 
     switch (tagged.type) {
-	case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32\n", tagged.value.i32);  break;
-	case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64\n", tagged.value.i64);  break;
-	case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32\n", tagged.value.f32);  break;
-	case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64\n", tagged.value.f64);  break;
-	default:            return m3Err_invalidTypeId;
+    case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32\n", tagged.value.i32);  break;
+    case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64\n", tagged.value.i64);  break;
+    case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32\n", tagged.value.f32);  break;
+    case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64\n", tagged.value.f64);  break;
+    default:            return m3Err_invalidTypeId;
     }
     return m3Err_none;
 }
@@ -410,18 +422,22 @@ M3Result repl_global_set  (const char* name, const char* value)
     };
 
     switch (tagged.type) {
-	case c_m3Type_i32:  tagged.value.i32 = strtoul(value, NULL, 10);  	break;
-	case c_m3Type_i64:  tagged.value.i64 = strtoull(value, NULL, 10);  	break;
-	case c_m3Type_f32:  tagged.value.f32 = strtod(value, NULL); 		break;
-	case c_m3Type_f64:  tagged.value.f64 = strtod(value, NULL);			break;
-	default:            return m3Err_invalidTypeId;
+    case c_m3Type_i32:  tagged.value.i32 = strtoul(value, NULL, 10);    break;
+    case c_m3Type_i64:  tagged.value.i64 = strtoull(value, NULL, 10);   break;
+    case c_m3Type_f32:  tagged.value.f32 = strtod(value, NULL);         break;
+    case c_m3Type_f64:  tagged.value.f64 = strtod(value, NULL);         break;
+    default:            return m3Err_invalidTypeId;
     }
 
     return m3_SetGlobal (g, &tagged);
 }
 
+M3Result repl_compile  ()
+{
+    return m3_CompileModule(runtime->modules);
+}
 
-M3Result repl_dump()
+M3Result repl_dump  ()
 {
     uint32_t len;
     uint8_t* mem = m3_GetMemory(runtime, &len, 0);
@@ -431,6 +447,7 @@ M3Result repl_dump()
             return "cannot open file";
         }
         if (fwrite (mem, 1, len, f) != len) {
+            fclose (f);
             return "cannot write file";
         }
         fclose (f);
@@ -438,7 +455,7 @@ M3Result repl_dump()
     return m3Err_none;
 }
 
-void repl_free()
+void repl_free  ()
 {
     if (runtime) {
         m3_FreeRuntime (runtime);
@@ -451,7 +468,7 @@ void repl_free()
     }
 }
 
-M3Result repl_init(unsigned stack)
+M3Result repl_init  (unsigned stack)
 {
     repl_free();
     runtime = m3_NewRuntime (env, stack, NULL);
@@ -534,7 +551,9 @@ void print_usage() {
     puts("Options:");
     puts("  --func <function>     function to run       default: _start");
     puts("  --stack-size <size>   stack size in bytes   default: 64KB");
+    puts("  --compile             disable lazy compilation");
     puts("  --dump-on-trap        dump wasm memory");
+    puts("  --gas-limit           set gas limit");
 }
 
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
@@ -548,6 +567,7 @@ int  main  (int i_argc, const char* i_argv[])
 
     bool argRepl = false;
     bool argDumpOnTrap = false;
+    bool argCompile = false;
     const char* argFile = NULL;
     const char* argFunc = "_start";
     unsigned argStackSize = 64*1024;
@@ -572,6 +592,8 @@ int  main  (int i_argc, const char* i_argv[])
             argRepl = true;
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
+        } else if (!strcmp("--compile", arg)) {
+            argCompile = true;
         } else if (!strcmp("--stack-size", arg)) {
             const char* tmp = "65536";
             ARGV_SET(tmp);
@@ -604,6 +626,10 @@ int  main  (int i_argc, const char* i_argv[])
     if (argFile) {
         result = repl_load(argFile);
         if (result) FATAL("repl_load: %s", result);
+
+        if (argCompile) {
+            repl_compile();
+        }
 
         if (argFunc and not argRepl) {
             if (!strcmp(argFunc, "_start")) {
@@ -654,6 +680,8 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_global_set(argv[1], argv[2]);
         } else if (!strcmp(":dump", argv[0])) {
             result = repl_dump();
+        } else if (!strcmp(":compile", argv[0])) {
+            result = repl_compile();
         } else if (!strcmp(":invoke", argv[0])) {
             unescape(argv[1]);
             result = repl_invoke(argv[1], argc-2, (const char**)(argv+2));

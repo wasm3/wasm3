@@ -10,9 +10,10 @@
 
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 5
-#define M3_VERSION_REV   0
-#define M3_VERSION       "0.5.0"
+#define M3_VERSION_REV   1
+#define M3_VERSION       "0.5.1"
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -20,6 +21,9 @@
 #include <stdarg.h>
 
 #include "wasm3_defs.h"
+
+// Constants
+#define M3_BACKTRACE_TRUNCATED      (IM3BacktraceFrame)(SIZE_MAX)
 
 #if defined(__cplusplus)
 extern "C" {
@@ -63,8 +67,6 @@ typedef struct M3BacktraceInfo
 }
 M3BacktraceInfo, * IM3BacktraceInfo;
 
-// Constants
-#define M3_BACKTRACE_TRUNCATED      (void*)(SIZE_MAX)
 
 typedef enum M3ValueType
 {
@@ -110,9 +112,13 @@ M3ImportContext, * IM3ImportContext;
 // -------------------------------------------------------------------------------------------------------------------------------
 
 # if defined(M3_IMPLEMENT_ERROR_STRINGS)
-#   define d_m3ErrorConst(LABEL, STRING)        M3Result m3Err_##LABEL = { STRING };
+#   if defined(__cplusplus)
+#     define d_m3ErrorConst(LABEL, STRING)      extern const M3Result m3Err_##LABEL = { STRING };
+#   else
+#     define d_m3ErrorConst(LABEL, STRING)      const M3Result m3Err_##LABEL = { STRING };
+#   endif
 # else
-#   define d_m3ErrorConst(LABEL, STRING)        extern M3Result m3Err_##LABEL;
+#   define d_m3ErrorConst(LABEL, STRING)        extern const M3Result m3Err_##LABEL;
 # endif
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -139,6 +145,7 @@ d_m3ErrorConst  (tooManyMemorySections,         "only one memory per module is s
 d_m3ErrorConst  (tooManyArgsRets,               "too many arguments or return values")
 
 // link errors
+d_m3ErrorConst  (moduleNotLinked,               "attempting to use module that is not loaded")
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
 d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
 d_m3ErrorConst  (functionImportMissing,         "missing imported function")
@@ -148,7 +155,7 @@ d_m3ErrorConst  (malformedFunctionSignature,    "malformed function signature")
 // compilation errors
 d_m3ErrorConst  (noCompiler,                    "no compiler found for opcode")
 d_m3ErrorConst  (unknownOpcode,                 "unknown opcode")
-d_m3ErrorConst  (restictedOpcode,               "restricted opcode")
+d_m3ErrorConst  (restrictedOpcode,              "restricted opcode")
 d_m3ErrorConst  (functionStackOverflow,         "compiling function overran its stack height limit")
 d_m3ErrorConst  (functionStackUnderrun,         "compiling function underran the stack")
 d_m3ErrorConst  (mallocFailedCodePage,          "memory allocation failed when acquiring a new M3 code page")
@@ -191,6 +198,11 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     IM3Environment      m3_NewEnvironment           (void);
 
     void                m3_FreeEnvironment          (IM3Environment i_environment);
+
+    typedef M3Result (* M3SectionHandler) (IM3Module i_module, const char* name, const uint8_t * start, const uint8_t * end);
+
+    void                m3_SetCustomSectionHandler  (IM3Environment i_environment,    M3SectionHandler i_handler);
+
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  execution context
@@ -288,6 +300,9 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
+    M3Result            m3_GetTableFunction         (IM3Function *          o_function,
+                                                     IM3Module              i_module,
+                                                     uint32_t               i_index);
 
     uint32_t            m3_GetArgCount              (IM3Function i_function);
     uint32_t            m3_GetRetCount              (IM3Function i_function);
@@ -303,15 +318,15 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_GetResultsVL             (IM3Function i_function, va_list o_rets);
     M3Result            m3_GetResults               (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[]);
 
-    // These two function can be used when you wish to manually push and retrieve from the Wasm3 call stack.
+    // These functions can be used when you wish to manually push and retrieve from the Wasm3 call stack.
     // Arguments and return values are 64-bit aligned, so simply treat the result of m3_GetStack (...) as a u64 array.
     // Arguments should be written starting at 'stack_pointer [m3_GetRetCount (...)]'.
     // Return values start at 'stack_pointer [0]'
     uint64_t *          m3_GetStack                 (IM3Runtime             i_runtime);
     M3Result            m3_CallDirect               (IM3Function            i_function);
 
-	void  				m3_RebaseStack				(IM3Runtime 			i_runtime,
-													 uint64_t * 			i_newStackBase);
+    void                m3_RebaseStack              (IM3Runtime             i_runtime,
+                                                     uint64_t *             i_newStackBase);
 
     void                m3_GetErrorInfo             (IM3Runtime i_runtime, M3ErrorInfo* o_info);
     void                m3_ResetErrorInfo           (IM3Runtime i_runtime);
@@ -337,17 +352,19 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 # define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)_mem + (uint32_t)(offset))
 # define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)_mem)
 
-# define m3ApiReturnType(TYPE)      TYPE* raw_return = ((TYPE*) (_sp++));
-# define m3ApiGetArg(TYPE, NAME)    TYPE NAME = * ((TYPE *) (_sp++));
-# define m3ApiGetArgMem(TYPE, NAME) TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
+# define m3ApiReturnType(TYPE)                 TYPE* raw_return = ((TYPE*) (_sp++));
+# define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME = ((TYPE*) (_sp++));
+# define m3ApiGetArg(TYPE, NAME)               TYPE NAME = * ((TYPE *) (_sp++));
+# define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 # define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
-# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(m3ApiIsNullPtr(addr) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < _mem) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
 
 # define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
-# define m3ApiReturn(VALUE)         { *raw_return = (VALUE); return m3Err_none; }
-# define m3ApiTrap(VALUE)           { return VALUE; }
-# define m3ApiSuccess()             { return m3Err_none; }
+# define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}
+# define m3ApiMultiValueReturn(NAME, VALUE)   { *NAME = (VALUE); }
+# define m3ApiTrap(VALUE)                     { return VALUE; }
+# define m3ApiSuccess()                       { return m3Err_none; }
 
 # if defined(M3_BIG_ENDIAN)
 #  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))

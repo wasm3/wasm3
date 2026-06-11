@@ -6,6 +6,7 @@
 //
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <irq.h>
 #include <usb.h>
@@ -34,9 +35,9 @@ void uart_print(const char *str) {
     uart_write(str, strlen(str));
 }
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "extra/fib32.wasm.h"
 
 #define FATAL(func, msg) {              \
   uart_print("Fatal: " func ": ");      \
@@ -59,7 +60,7 @@ bool run_wasm()
     if (!runtime) FATAL("m3_NewRuntime", "failed");
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) FATAL("m3_ParseModule", result);
 
     result = m3_LoadModule (runtime, module);
@@ -72,11 +73,11 @@ bool run_wasm()
     uart_print("Running...\n");
 
     result = m3_CallV (f, 24);
-    if (result) FATAL("m3_Call: %s", result);
+    if (result) FATAL("m3_Call", result);
 
     uint32_t value = 0;
     result = m3_GetResultsV (f, &value);
-    if (result) FATAL("m3_GetResults: %s", result);
+    if (result) FATAL("m3_GetResults", result);
 
     char buff[32];
     ltoa(value, buff, 10);

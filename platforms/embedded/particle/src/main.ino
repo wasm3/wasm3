@@ -16,6 +16,7 @@
 // Redefine puts
 int puts(const char* s) {
     Serial.println(s);
+    return 1;
 }
 
 void run_wasm()
@@ -34,7 +35,7 @@ void run_wasm()
     if (!runtime) FATAL("m3_NewRuntime", "failed");
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) FATAL("m3_ParseModule", result);
 
     result = m3_LoadModule (runtime, module);
@@ -65,9 +66,9 @@ void setup()
   Serial.println();
   Serial.println("Wasm3 v" M3_VERSION " on Particle, build " __DATE__ " " __TIME__);
 
-  u32 start = millis();
+  uint32_t start = millis();
   run_wasm();
-  u32 end = millis();
+  uint32_t end = millis();
 
   Serial.print("Elapsed: ");
   Serial.print(end - start);

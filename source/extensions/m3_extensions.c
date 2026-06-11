@@ -22,12 +22,7 @@ M3Result  m3Ext_ReserveFunctions  (IM3Module                i_module,
     {                                                       d_m3Assert (i_module->table0Size == 0);
         if (i_module->table0Size == 0)
         {
-            i_module->numReservedFunctions = i_numFunctions;
-
-            u32 totalFunctions = i_module->numFunctions + i_numFunctions;
-
-            i_module->functions = m3_ReallocArray (M3Function, i_module->functions, totalFunctions, i_module->numFunctions);
-            _throwifnull (i_module->functions);
+_           (Module_PreallocFunctions (i_module, i_module->numFunctions + i_numFunctions));
         }
         else _throw ("ReserveFunctions must come before LoadModule");
     }
@@ -59,14 +54,13 @@ M3Result  m3Ext_InjectFunction  (IM3Module                 i_module,
                                  const uint8_t * const     i_wasmBytes,
                                  bool                      i_doCompilation)
 {
-    M3Result result = m3Err_none;                                       d_m3Assert (io_functionIndex);
+                                                                        d_m3Assert (io_functionIndex);
+    IM3FuncType ftype = NULL;
 
-	IM3FuncType ftype = NULL;
-	
-	_try {
-	if (not i_module)
-		_throw (m3Err_nullArgument);
-	
+    _try {
+    if (not i_module)
+        _throw (m3Err_nullArgument);
+
     IM3Function function = NULL;
 _   (SignatureToFuncType (& ftype, i_signature));
 

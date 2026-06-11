@@ -48,6 +48,7 @@ typedef struct M3Function
     bytes_t                 wasmEnd;
 
     cstr_t                  names[d_m3MaxDuplicateFunctionImpl];
+    cstr_t                  export_name;                            // should be a part of "names"
     u16                     numNames;                               // maximum of d_m3MaxDuplicateFunctionImpl
 
     IM3FuncType             funcType;

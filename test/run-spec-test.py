@@ -489,8 +489,6 @@ for fn in jsonFiles:
 
     print(f"Running {fn}")
 
-    wasm3.init()
-
     for cmd in data["commands"]:
         test = dotdict()
         test.line = int(cmd["line"])
@@ -506,6 +504,9 @@ for fn in jsonFiles:
 
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
+
+                wasm3.init()
+
                 res = wasm3.load(wasm_fn)
                 if res:
                     warning(res)

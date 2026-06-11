@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 
 # Detect WasiEnv
-if(DEFINED ENV{WASI_CC})
+if(DEFINED ENV{WASI_CC} OR DEFINED WASI_SDK_PREFIX)
   set(WASIENV           1)
 endif()
 
@@ -38,7 +38,6 @@ endif()
 if(CLANG OR CLANG_SUFFIX)
   set(CMAKE_C_COMPILER   "clang${CLANG_SUFFIX}")
   set(CMAKE_CXX_COMPILER "clang++${CLANG_SUFFIX}")
-  set(CMAKE_C_FLAGS      "${CMAKE_C_FLAGS} -fuse-ld=lld")
 
   if(BUILD_FUZZ)
     set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
@@ -48,6 +47,10 @@ if(CLANG OR CLANG_SUFFIX)
     set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=fuzzer,address")
   endif()
+endif()
+
+if(WASIENV)
+  set(OUT_FILE           "wasm3.wasm")
 endif()
 
 if(CLANG_CL)
@@ -129,7 +132,7 @@ elseif(WASIENV)
   #-flto -Wl,--lto-O3
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
 
-elseif(WIN32 AND NOT MINGW)
+elseif(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
 
@@ -161,6 +164,8 @@ else()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
   if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     # TODO: Place clang-specific options here
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fp-model precise")
   elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wjump-misses-init")
   endif()
@@ -169,7 +174,11 @@ else()
   set(CMAKE_C_FLAGS_RELEASE "-O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector") #-fno-inline
 
   if(BUILD_NATIVE)
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
+    if(APPLE AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native")
+    elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
+    endif()
   endif()
 
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
@@ -179,6 +188,8 @@ else()
 
 endif()
 
+target_link_libraries(${OUT_FILE} m3)
+
 if(BUILD_WASI MATCHES "simple")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
 elseif(BUILD_WASI MATCHES "metawasi")
@@ -187,8 +198,8 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   include(FetchContent)
   FetchContent_Declare(
     uvwasi
-    GIT_REPOSITORY https://github.com/vshymanskyy/uvwasi.git
-    GIT_TAG b063d686848c32a26119513056874f051c74258a
+    GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
+    GIT_TAG         v0.0.18
   )
 
   FetchContent_GetProperties(uvwasi)
@@ -210,10 +221,15 @@ else()
 endif()
 
 add_subdirectory(source)
-target_link_libraries(${OUT_FILE} m3)
 
 message("Flags:         ${CMAKE_C_FLAGS}")
 message("Debug flags:   ${CMAKE_C_FLAGS_DEBUG}")
 message("Release flags: ${CMAKE_C_FLAGS_RELEASE}")
 
 message("----")
+
+# Install
+
+include(GNUInstallDirs)
+
+install(TARGETS ${OUT_FILE} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

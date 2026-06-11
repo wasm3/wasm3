@@ -21,6 +21,7 @@ typedef struct M3MemoryInfo
 {
     u32     initPages;
     u32     maxPages;
+    u32     pageSize;
 }
 M3MemoryInfo;
 
@@ -31,6 +32,7 @@ typedef struct M3Memory
 
     u32                     numPages;
     u32                     maxPages;
+    u32                     pageSize;
 }
 M3Memory;
 
@@ -62,7 +64,8 @@ typedef struct M3Global
 
     union
     {
-        i64 intValue;
+        i32 i32Value;
+        i64 i64Value;
 #if d_m3HasFloat
         f64 f64Value;
         f32 f32Value;
@@ -95,11 +98,8 @@ typedef struct M3Module
 
     u32                     numFuncImports;
     u32                     numFunctions;
+    u32                     allFunctions;           // allocated functions count
     M3Function *            functions;
-
-#   if d_m3EnableExtensions
-    u32                     numReservedFunctions;
-#   endif
 
     i32                     startFunction;
 
@@ -116,9 +116,12 @@ typedef struct M3Module
 
     IM3Function *           table0;
     u32                     table0Size;
+    const char*             table0ExportName;
 
     M3MemoryInfo            memoryInfo;
+    M3ImportInfo            memoryImport;
     bool                    memoryImported;
+    const char*             memoryExportName;
 
     bool                    hasWasmCodeCopy;
 
@@ -130,6 +133,7 @@ IM3Module                   m3_NewModule                (IM3Environment i_enviro
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
 
+M3Result                    Module_PreallocFunctions    (IM3Module io_module, u32 i_totalFunctions);
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
 IM3Function                 Module_GetFunction          (IM3Module i_module, u32 i_functionIndex);
 
@@ -148,6 +152,8 @@ typedef struct M3Environment
     IM3FuncType             retFuncTypes [c_m3Type_unknown];    // these 'point' to elements in the linked list above.
                                                                 // the number of elements must match the basic types as per M3ValueType
     M3CodePage *            pagesReleased;
+
+    M3SectionHandler        customSectionHandler;
 }
 M3Environment;
 
@@ -173,7 +179,8 @@ typedef struct M3Runtime
     IM3Module               modules;        // linked list of imported modules
 
     void *                  stack;
-//    u32                     stackSize;
+    void *                  originStack;
+    u32                     stackSize;
     u32                     numStackSlots;
     IM3Function             lastCalled;     // last function that successfully executed
 
@@ -194,6 +201,8 @@ typedef struct M3Runtime
 #if d_m3RecordBacktraces
     M3BacktraceInfo         backtrace;
 #endif
+
+	u32						newCodePageSequence;
 }
 M3Runtime;
 

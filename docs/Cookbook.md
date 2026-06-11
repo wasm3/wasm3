@@ -73,6 +73,13 @@ $ wasm3 hello.wasm
 Hello, world!
 ```
 
+
+### Go WASI app
+
+Go currently does not provide the WASI interface.  
+For reference see [this issue](https://github.com/golang/go/issues/31105).
+
+
 ### Zig WASI app
 
 Create `hello.zig`:
@@ -88,6 +95,26 @@ pub fn main() !void {
 Build and run:
 ```sh
 $ zig build-exe -O ReleaseSmall -target wasm32-wasi hello.zig
+
+$ wasm3 hello.wasm
+Hello, world!
+```
+
+### Zig C-code WASI app
+
+Create `hello.c`:
+```c
+#include <stdio.h>
+
+int main() {
+   printf("Hello, %s!\n", "world");
+   return 0;
+}
+```
+
+Build and run:
+```sh
+$ zig build-exe -O ReleaseSmall -target wasm32-wasi hello.c -lc
 
 $ wasm3 hello.wasm
 Hello, world!
@@ -143,6 +170,32 @@ $ wasicc -O3 hello.c -o hello.wasm
 $ wasm3 hello.wasm
 Hello World!
 ```
+
+Useful `clang` options:
+
+- **-nostdlib** Do not use the standard system startup files or libraries when linking
+
+- **-Wl,--no-entry** Do not output any entry point
+
+- **-Wl,--export=\<value\>** Force a symbol to be exported, e.g. **-Wl,--export=foo** to export foo function
+
+- **-Wl,--export-all** Export all symbols (normally combined with --no-gc-sections)
+
+- **-Wl,--initial-memory=\<value\>** Initial size of the linear memory, which must be a multiple of 65536
+
+- **-Wl,--max-memory=\<value\>** Maximum size of the linear memory, which must be a multiple of 65536
+
+- **-z stack-size=\<vlaue\>** The auxiliary stack size, which is an area of linear memory, and must be smaller than initial memory size.
+
+- **-Wl,--strip-all** Strip all symbols
+
+- **-Wl,--shared-memory** Use shared linear memory
+
+- **-Wl,--allow-undefined** Allow undefined symbols in linked binary
+
+- **-Wl,--allow-undefined-file=\<value\>** Allow symbols listed in \<file\> to be undefined in linked binary
+
+- **-pthread** Support POSIX threads in generated code
 
 Limitations:
 - `setjmp/longjmp` and `C++ exceptions` are not available
@@ -209,8 +262,8 @@ Create `swap.wat`:
 ```wat
 (module
   (func (export "swap") (param i32 i32) (result i32 i32)
-    (get_local 1)
-    (get_local 0)
+    (local.get 1)
+    (local.get 0)
   )
 )
 ```

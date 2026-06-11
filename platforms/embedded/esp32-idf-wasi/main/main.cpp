@@ -11,7 +11,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
+#include "m3_env.h"
 
 #include "m3_api_esp_wasi.h"
 #include "wasi_test.wasm.h"
@@ -33,7 +34,7 @@ static void run_wasm(void)
     if (!runtime) FATAL("m3_NewRuntime failed");
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) FATAL("m3_ParseModule: %s", result);
 
     result = m3_LoadModule (runtime, module);
@@ -49,13 +50,19 @@ static void run_wasm(void)
     printf("Running...\n");
 
     const char* i_argv[2] = { "test.wasm", NULL };
-    result = m3_CallArgv (f, 1, i_argv);
+
+    m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+    wasi_ctx->argc = 1;
+    wasi_ctx->argv = i_argv;
+
+    result = m3_CallV (f);
+
     if (result) FATAL("m3_Call: %s", result);
 }
 
 extern "C" void app_main(void)
 {
-    printf("\nWasm3 v" M3_VERSION " on ESP32, build " __DATE__ " " __TIME__ "\n");
+    printf("\nWasm3 v" M3_VERSION " on " CONFIG_IDF_TARGET ", build " __DATE__ " " __TIME__ "\n");
 
     clock_t start = clock();
     run_wasm();

@@ -5,9 +5,9 @@
 //  All rights reserved.
 //
 
-#include "m3/wasm3.h"
+#include "wasm3.h"
 
-#include "m3/extra/fib32.wasm.h"
+#include "extra/fib32.wasm.h"
 
 #include <stdio.h>
 #include <jee.h>
@@ -32,7 +32,7 @@ void run_wasm()
     if (!runtime) FATAL("m3_NewRuntime", "failed");
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) FATAL("m3_ParseModule", result);
 
     result = m3_LoadModule (runtime, module);
@@ -49,9 +49,14 @@ void run_wasm()
 
     uint32_t value = 0;
     result = m3_GetResultsV (f, &value);
-    if (result) FATAL("m3_GetResults: %s", result);
+    if (result) FATAL("m3_GetResults", result);
 
-    printf("Result: %d\n", value);
+    char buff[32];
+    itoa(value, buff, 10);
+
+    puts("Result: ");
+    puts(buff);
+    puts("\n");
 }
 
 PinC<13> led;

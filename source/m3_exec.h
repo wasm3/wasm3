@@ -22,6 +22,9 @@
 //  and the second operand (the top of the stack) is in a register
 //------------------------------------------------------------------------------------------------------
 
+#ifndef M3_COMPILE_OPCODES
+#  error "Opcodes should only be included in one compilation unit"
+#endif
 
 #include "m3_math_utils.h"
 #include "m3_compile.h"
@@ -44,10 +47,10 @@ d_m3BeginExternC
 
 # if d_m3EnableOpProfiling
                                     d_m3RetSig  profileOp   (d_m3OpSig, cstr_t i_operationName);
-#   define nextOp()                 return profileOp (d_m3OpAllArgs, __FUNCTION__)
+#   define nextOp()                 M3_MUSTTAIL return profileOp (d_m3OpAllArgs, __FUNCTION__)
 # elif d_m3EnableOpTracing
                                     d_m3RetSig  debugOp     (d_m3OpSig, cstr_t i_operationName);
-#   define nextOp()                 return debugOp (d_m3OpAllArgs, __FUNCTION__)
+#   define nextOp()                 M3_MUSTTAIL return debugOp (d_m3OpAllArgs, __FUNCTION__)
 # else
 #   define nextOp()                 nextOpDirect()
 # endif
@@ -83,8 +86,8 @@ d_m3BeginExternC
 #endif
 
 #if d_m3EnableStrace >= 3
-    #define d_m3TraceLoad(TYPE,offset,val)      d_m3TracePrint("load." #TYPE " %d 0x%x = %" PRI##TYPE, offset, offset, val)
-    #define d_m3TraceStore(TYPE,offset,val)     d_m3TracePrint("store." #TYPE " %d 0x%x , %" PRI##TYPE, offset, offset, val)
+    #define d_m3TraceLoad(TYPE,offset,val)      d_m3TracePrint("load." #TYPE "  0x%x = %" PRI##TYPE, offset, val)
+    #define d_m3TraceStore(TYPE,offset,val)     d_m3TracePrint("store." #TYPE " 0x%x , %" PRI##TYPE, offset, val)
 #else
     #define d_m3TraceLoad(TYPE,offset,val)
     #define d_m3TraceStore(TYPE,offset,val)
@@ -105,11 +108,14 @@ d_m3BeginExternC
 
 #endif
 
-
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+d_m3RetSig  Call  (d_m3OpSig, cstr_t i_operationName)
+# else
 d_m3RetSig  Call  (d_m3OpSig)
+# endif
 {
     m3ret_t possible_trap = m3_Yield ();
-    if (UNLIKELY(possible_trap)) return possible_trap;
+    if (M3_UNLIKELY(possible_trap)) return possible_trap;
 
     nextOpDirect();
 }
@@ -146,8 +152,8 @@ d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 #define d_m3CommutativeOpMacro_f(TYPE, NAME, MACRO, ...)    d_m3CommutativeOpMacro  (_fp0, _fp0, TYPE, NAME, MACRO, ##__VA_ARGS__)
 #define d_m3OpMacro_f(TYPE, NAME, MACRO, ...)               d_m3OpMacro             (_fp0, _fp0, TYPE, NAME, MACRO, ##__VA_ARGS__)
 
-#define M3_FUNC(RES, A, B, OP)  (RES) = OP((A), (B))    // Accept functions: res = OP(a,b)
-#define M3_OPER(RES, A, B, OP)  (RES) = ((A) OP (B))    // Accept operators: res = a OP b
+#define M3_FUNC(RES, A, B, OP)  (RES) = OP((A), (B))        // Accept functions: res = OP(a,b)
+#define M3_OPER(RES, A, B, OP)  (RES) = ((A) OP (B))        // Accept operators: res = a OP b
 
 #define d_m3CommutativeOpFunc_i(TYPE, NAME, OP)     d_m3CommutativeOpMacro_i    (TYPE, NAME, M3_FUNC, OP)
 #define d_m3OpFunc_i(TYPE, NAME, OP)                d_m3OpMacro_i               (TYPE, NAME, M3_FUNC, OP)
@@ -190,10 +196,17 @@ d_m3CompareOp_f (f32, LessThanOrEqual,      <=)     d_m3CompareOp_f (f64, LessTh
 d_m3CompareOp_f (f32, GreaterThanOrEqual,   >=)     d_m3CompareOp_f (f64, GreaterThanOrEqual,   >=)
 #endif
 
-d_m3CommutativeOp_i (i32, Add,              +)      d_m3CommutativeOp_i (i64, Add,              +)
-d_m3CommutativeOp_i (i32, Multiply,         *)      d_m3CommutativeOp_i (i64, Multiply,         *)
+#define OP_ADD_32(A,B) (i32)((u32)(A) + (u32)(B))
+#define OP_ADD_64(A,B) (i64)((u64)(A) + (u64)(B))
+#define OP_SUB_32(A,B) (i32)((u32)(A) - (u32)(B))
+#define OP_SUB_64(A,B) (i64)((u64)(A) - (u64)(B))
+#define OP_MUL_32(A,B) (i32)((u32)(A) * (u32)(B))
+#define OP_MUL_64(A,B) (i64)((u64)(A) * (u64)(B))
 
-d_m3Op_i (i32, Subtract,                    -)      d_m3Op_i (i64, Subtract,                    -)
+d_m3CommutativeOpFunc_i (i32, Add,      OP_ADD_32)  d_m3CommutativeOpFunc_i (i64, Add,      OP_ADD_64)
+d_m3CommutativeOpFunc_i (i32, Multiply, OP_MUL_32)  d_m3CommutativeOpFunc_i (i64, Multiply, OP_MUL_64)
+
+d_m3OpFunc_i (i32, Subtract,            OP_SUB_32)  d_m3OpFunc_i (i64, Subtract,            OP_SUB_64)
 
 #define OP_SHL_32(X,N) ((X) << ((u32)(N) % 32))
 #define OP_SHL_64(X,N) ((X) << ((u64)(N) % 64))
@@ -281,8 +294,8 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
 
 // clz(0), ctz(0) results are undefined for rest platforms, fix it
 #if (defined(__i386__) || defined(__x86_64__)) && !(defined(__AVX2__) || (defined(__ABM__) && defined(__BMI__)))
-    #define OP_CLZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
-    #define OP_CTZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
+    #define OP_CLZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
+    #define OP_CTZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
     // for 64-bit instructions branchless approach more preferable
     #define OP_CLZ_64(x) (__builtin_clzll((x) | (1LL <<  0)) + OP_EQZ(x))
     #define OP_CTZ_64(x) (__builtin_ctzll((x) | (1LL << 63)) + OP_EQZ(x))
@@ -294,10 +307,10 @@ d_m3UnaryOp_i (i64, EqualToZero, OP_EQZ)
     #define OP_CLZ_64(x) __builtin_clzll(x)
     #define OP_CTZ_64(x) __builtin_ctzll(x)
 #else
-    #define OP_CLZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
-    #define OP_CTZ_32(x) (UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
-    #define OP_CLZ_64(x) (UNLIKELY((x) == 0) ? 64 : __builtin_clzll(x))
-    #define OP_CTZ_64(x) (UNLIKELY((x) == 0) ? 64 : __builtin_ctzll(x))
+    #define OP_CLZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_clz(x))
+    #define OP_CTZ_32(x) (M3_UNLIKELY((x) == 0) ? 32 : __builtin_ctz(x))
+    #define OP_CLZ_64(x) (M3_UNLIKELY((x) == 0) ? 64 : __builtin_clzll(x))
+    #define OP_CTZ_64(x) (M3_UNLIKELY((x) == 0) ? 64 : __builtin_ctzll(x))
 #endif
 
 d_m3UnaryOp_i (u32, Clz, OP_CLZ_32)
@@ -534,10 +547,15 @@ d_m3Op  (Call)
 
     m3stack_t sp = _sp + stackOffset;
 
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
+# endif
+
     _mem = memory->mallocated;
 
-    if (LIKELY(not r))
+    if (M3_LIKELY(not r))
         nextOp ();
     else
     {
@@ -559,23 +577,29 @@ d_m3Op  (CallIndirect)
 
     m3ret_t r = m3Err_none;
 
-    if (LIKELY(tableIndex < module->table0Size))
+    if (M3_LIKELY(tableIndex < module->table0Size))
     {
         IM3Function function = module->table0 [tableIndex];
 
-        if (LIKELY(function))
+        if (M3_LIKELY(function))
         {
-            if (LIKELY(type == function->funcType))
+            if (M3_LIKELY(type == function->funcType))
             {
-                if (UNLIKELY(not function->compiled))
+                if (M3_UNLIKELY(not function->compiled))
                     r = CompileFunction (function);
 
-                if (LIKELY(not r))
+                if (M3_LIKELY(not r))
                 {
+
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+# endif
+
                     _mem = memory->mallocated;
 
-                    if (LIKELY(not r))
+                    if (M3_LIKELY(not r))
                         nextOpDirect ();
                     else
                     {
@@ -590,7 +614,7 @@ d_m3Op  (CallIndirect)
     }
     else r = m3Err_trapTableIndexOutOfRange;
 
-    if (UNLIKELY(r))
+    if (M3_UNLIKELY(r))
         newTrap (r);
     else forwardTrap (r);
 }
@@ -648,7 +672,7 @@ d_m3Op  (CallRawFunction)
     runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
-    if (UNLIKELY(possible_trap)) {
+    if (M3_UNLIKELY(possible_trap)) {
         d_m3TracePrint("%s -> %s", outbuff, (char*)possible_trap);
     } else {
         switch (GetSingleRetType(ftype)) {
@@ -661,7 +685,7 @@ d_m3Op  (CallRawFunction)
     }
 #endif
 
-    if (UNLIKELY(possible_trap)) {
+    if (M3_UNLIKELY(possible_trap)) {
         _mem = memory->mallocated;
         pushBacktraceFrame ();
     }
@@ -684,18 +708,24 @@ d_m3Op  (MemGrow)
     IM3Runtime runtime          = m3MemRuntime(_mem);
     IM3Memory memory            = & runtime->memory;
 
-    u32 numPagesToGrow = (u32) _r0;
-    _r0 = memory->numPages;
+    i32 numPagesToGrow = _r0;
+    if (numPagesToGrow >= 0) {
+        _r0 = memory->numPages;
 
-    if (numPagesToGrow)
+        if (M3_LIKELY(numPagesToGrow))
+        {
+            u32 requiredPages = memory->numPages + numPagesToGrow;
+
+            M3Result r = ResizeMemory (runtime, requiredPages);
+            if (r)
+                _r0 = -1;
+
+            _mem = memory->mallocated;
+        }
+    }
+    else
     {
-        u32 requiredPages = memory->numPages + numPagesToGrow;
-
-        M3Result r = ResizeMemory (runtime, requiredPages);
-        if (r)
-            _r0 = -1;
-
-        _mem = memory->mallocated;
+        _r0 = -1;
     }
 
     nextOp ();
@@ -708,9 +738,9 @@ d_m3Op  (MemCopy)
     u64 source = slot (u32);
     u64 destination = slot (u32);
 
-    if (destination + size <= _mem->length)
+    if (M3_LIKELY(destination + size <= _mem->length))
     {
-        if (source + size <= _mem->length)
+        if (M3_LIKELY(source + size <= _mem->length))
         {
             u8 * dst = m3MemData (_mem) + destination;
             u8 * src = m3MemData (_mem) + source;
@@ -730,7 +760,7 @@ d_m3Op  (MemFill)
     u32 byte = slot (u32);
     u64 destination = slot (u32);
 
-    if (destination + size <= _mem->length)
+    if (M3_LIKELY(destination + size <= _mem->length))
     {
         u8 * mem8 = m3MemData (_mem) + destination;
         memset (mem8, (u8) byte, size);
@@ -753,7 +783,7 @@ d_m3Op  (Compile)
 
     m3ret_t result = m3Err_none;
 
-    if (UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
+    if (M3_UNLIKELY(not function->compiled)) // check to see if function was compiled since this operation was emitted.
         result = CompileFunction (function);
 
     if (not result)
@@ -781,7 +811,7 @@ d_m3Op  (Entry)
 #if d_m3SkipStackCheck
     if (true)
 #else
-    if (LIKELY ((void *) (_sp + function->maxStackSlots) < _mem->maxStack))
+    if (M3_LIKELY ((void *) (_sp + function->maxStackSlots) < _mem->maxStack))
 #endif
     {
 #if defined(DEBUG)
@@ -821,7 +851,7 @@ d_m3Op  (Entry)
         }
 #endif
 
-        if (UNLIKELY(r)) {
+        if (M3_UNLIKELY(r)) {
             _mem = memory->mallocated;
             fillBacktraceFrame ();
         }
@@ -1283,7 +1313,7 @@ d_m3Op  (SetGlobal_f64)
 #if d_m3SkipMemoryBoundsCheck
 #  define m3MemCheck(x) true
 #else
-#  define m3MemCheck(x) LIKELY(x)
+#  define m3MemCheck(x) M3_LIKELY(x)
 #endif
 
 // memcpy here is to support non-aligned access on some platforms.
@@ -1299,12 +1329,14 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
     if (m3MemCheck(                                     \
         operand + sizeof (SRC_TYPE) <= _mem->length     \
     )) {                                                \
-        u8* src8 = m3MemData(_mem) + operand;           \
-        SRC_TYPE value;                                 \
-        memcpy(&value, src8, sizeof(value));            \
-        M3_BSWAP_##SRC_TYPE(value);                     \
-        REG = (DEST_TYPE)value;                         \
-        d_m3TraceLoad(DEST_TYPE, operand, REG);         \
+        {                                               \
+            u8* src8 = m3MemData(_mem) + operand;       \
+            SRC_TYPE value;                             \
+            memcpy(&value, src8, sizeof(value));        \
+            M3_BSWAP_##SRC_TYPE(value);                 \
+            REG = (DEST_TYPE)value;                     \
+            d_m3TraceLoad(DEST_TYPE, operand, REG);     \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }                                                       \
@@ -1318,12 +1350,14 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     if (m3MemCheck(                                     \
         operand + sizeof (SRC_TYPE) <= _mem->length     \
     )) {                                                \
-        u8* src8 = m3MemData(_mem) + operand;           \
-        SRC_TYPE value;                                 \
-        memcpy(&value, src8, sizeof(value));            \
-        M3_BSWAP_##SRC_TYPE(value);                     \
-        REG = (DEST_TYPE)value;                         \
-        d_m3TraceLoad(DEST_TYPE, operand, REG);         \
+        {                                               \
+            u8* src8 = m3MemData(_mem) + operand;       \
+            SRC_TYPE value;                             \
+            memcpy(&value, src8, sizeof(value));        \
+            M3_BSWAP_##SRC_TYPE(value);                 \
+            REG = (DEST_TYPE)value;                     \
+            d_m3TraceLoad(DEST_TYPE, operand, REG);     \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }
@@ -1364,11 +1398,13 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     if (m3MemCheck(                                     \
         operand + sizeof (DEST_TYPE) <= _mem->length    \
     )) {                                                \
-        d_m3TraceStore(SRC_TYPE, operand, REG);         \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        DEST_TYPE val = (DEST_TYPE) REG;                \
-        M3_BSWAP_##DEST_TYPE(val);                      \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(SRC_TYPE, operand, REG);     \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            DEST_TYPE val = (DEST_TYPE) REG;            \
+            M3_BSWAP_##DEST_TYPE(val);                  \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }                                                       \
@@ -1383,11 +1419,13 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     if (m3MemCheck(                                     \
         operand + sizeof (DEST_TYPE) <= _mem->length    \
     )) {                                                \
-        d_m3TraceStore(SRC_TYPE, operand, value);       \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        DEST_TYPE val = (DEST_TYPE) value;              \
-        M3_BSWAP_##DEST_TYPE(val);                      \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(SRC_TYPE, operand, value);   \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            DEST_TYPE val = (DEST_TYPE) value;          \
+            M3_BSWAP_##DEST_TYPE(val);                  \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }                                                       \
@@ -1402,11 +1440,13 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     if (m3MemCheck(                                     \
         operand + sizeof (DEST_TYPE) <= _mem->length    \
     )) {                                                \
-        d_m3TraceStore(SRC_TYPE, operand, value);       \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        DEST_TYPE val = (DEST_TYPE) value;              \
-        M3_BSWAP_##DEST_TYPE(val);                      \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(SRC_TYPE, operand, value);   \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            DEST_TYPE val = (DEST_TYPE) value;          \
+            M3_BSWAP_##DEST_TYPE(val);                  \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }
@@ -1423,11 +1463,13 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
     if (m3MemCheck(                                     \
         operand + sizeof (TYPE) <= _mem->length         \
     )) {                                                \
-        d_m3TraceStore(TYPE, operand, REG);             \
-        u8* mem8 = m3MemData(_mem) + operand;           \
-        TYPE val = (TYPE) REG;                          \
-        M3_BSWAP_##TYPE(val);                           \
-        memcpy(mem8, &val, sizeof(val));                \
+        {                                               \
+            d_m3TraceStore(TYPE, operand, REG);         \
+            u8* mem8 = m3MemData(_mem) + operand;       \
+            TYPE val = (TYPE) REG;                      \
+            M3_BSWAP_##TYPE(val);                       \
+            memcpy(mem8, &val, sizeof(val));            \
+        }                                               \
         nextOp ();                                      \
     } else d_outOfBounds;                               \
 }
@@ -1472,16 +1514,6 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 # endif
 
 # if d_m3EnableOpProfiling
-
-typedef struct M3ProfilerSlot
-{
-    cstr_t      opName;
-    u64         hitCount;
-}
-M3ProfilerSlot;
-
-void  ProfileHit  (cstr_t i_operationName);
-
 d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
 {
     ProfileHit (i_operationName);

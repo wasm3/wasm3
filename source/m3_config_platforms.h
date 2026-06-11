@@ -66,12 +66,34 @@
 # if defined(M3_COMPILER_MSVC)
 #  define M3_WEAK //__declspec(selectany)
 #  define M3_NO_UBSAN
-# elif defined(__MINGW32__)
+#  define M3_NOINLINE
+# elif defined(__MINGW32__) || defined(__CYGWIN__)
 #  define M3_WEAK //__attribute__((selectany))
 #  define M3_NO_UBSAN
+#  define M3_NOINLINE   __attribute__((noinline))
 # else
 #  define M3_WEAK       __attribute__((weak))
 #  define M3_NO_UBSAN   //__attribute__((no_sanitize("undefined")))
+// Workaround for Cosmopolitan noinline conflict: https://github.com/jart/cosmopolitan/issues/310
+#  if defined(noinline)
+#    define M3_NOINLINE   noinline
+#  else
+#    define M3_NOINLINE   __attribute__((noinline))
+#  endif
+# endif
+
+# if !defined(M3_HAS_TAIL_CALL)
+#  if defined(__EMSCRIPTEN__)
+#   define M3_HAS_TAIL_CALL 0
+#  else
+#   define M3_HAS_TAIL_CALL 1
+#  endif
+# endif
+
+# if M3_HAS_TAIL_CALL && M3_COMPILER_HAS_ATTRIBUTE(musttail)
+#   define M3_MUSTTAIL __attribute__((musttail))
+# else
+#   define M3_MUSTTAIL
 # endif
 
 # ifndef M3_MIN
@@ -86,6 +108,8 @@
 #define M3_COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 #if defined(__AVR__)
+
+#include <inttypes.h>
 
 # define PRIu64         "llu"
 # define PRIi64         "lli"
@@ -110,30 +134,30 @@ typedef int8_t          i8;
 
 # if defined (M3_COMPILER_MSVC)
 #   define vectorcall   // For MSVC, better not to specify any call convention
+# elif defined(__x86_64__)
+#   define vectorcall
+//# elif defined(__riscv) && (__riscv_xlen == 64)
+//#   define vectorcall
 # elif defined(__MINGW32__)
 #   define vectorcall
 # elif defined(WIN32)
 #   define vectorcall   __vectorcall
 # elif defined (ESP8266)
 #   include <c_types.h>
-#   define op_section   //ICACHE_FLASH_ATTR
+#   define vectorcall   //ICACHE_FLASH_ATTR
 # elif defined (ESP32)
 #   if defined(M3_IN_IRAM)  // the interpreter is in IRAM, attribute not needed
-#     define op_section
+#     define vectorcall
 #   else
 #     include "esp_system.h"
-#     define op_section   IRAM_ATTR
+#     define vectorcall   IRAM_ATTR
 #   endif
 # elif defined (FOMU)
-#   define op_section   __attribute__((section(".ramtext")))
+#   define vectorcall   __attribute__((section(".ramtext")))
 # endif
 
 #ifndef vectorcall
 #define vectorcall
-#endif
-
-#ifndef op_section
-#define op_section
 #endif
 
 
@@ -143,7 +167,7 @@ typedef int8_t          i8;
 
 # ifndef d_m3MaxFunctionStackHeight
 #  if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_AMEBA) || defined(TEENSYDUINO)
-#    define d_m3MaxFunctionStackHeight          128
+#    define d_m3MaxFunctionStackHeight          256
 #  endif
 # endif
 
@@ -163,6 +187,9 @@ typedef int8_t          i8;
 
 # if defined(ARDUINO) || defined(PARTICLE) || defined(PLATFORMIO) || defined(__MBED__) || \
      defined(ESP8266) || defined(ESP32) || defined(BLUE_PILL) || defined(WM_W600) || defined(FOMU)
+# ifndef d_m3CascadedOpcodes
+#   define d_m3CascadedOpcodes                  0
+# endif
 #  ifndef d_m3VerboseErrorMessages
 #    define d_m3VerboseErrorMessages            0
 #  endif
@@ -170,7 +197,7 @@ typedef int8_t          i8;
 #   define d_m3MaxConstantTableSize             64
 # endif
 #  ifndef d_m3MaxFunctionStackHeight
-#    define d_m3MaxFunctionStackHeight          64
+#    define d_m3MaxFunctionStackHeight          128
 #  endif
 #  ifndef d_m3CodePageAlignSize
 #    define d_m3CodePageAlignSize               1024
@@ -180,7 +207,7 @@ typedef int8_t          i8;
 /*
  * Arch-specific defaults
  */
-#if defined(__riscv) && __riscv_xlen == 64
+#if defined(__riscv) && (__riscv_xlen == 64)
 #  ifndef d_m3Use32BitSlots
 #    define d_m3Use32BitSlots                   0
 #  endif

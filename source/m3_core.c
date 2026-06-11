@@ -6,6 +6,7 @@
 //
 
 #define M3_IMPLEMENT_ERROR_STRINGS
+#include "m3_config.h"
 #include "wasm3.h"
 
 #include "m3_core.h"
@@ -24,6 +25,29 @@ M3Result m3_Yield ()
     return m3Err_none;
 }
 
+#if d_m3LogTimestamps
+
+#include <time.h>
+
+#define SEC_TO_US(sec) ((sec)*1000000)
+#define NS_TO_US(ns)    ((ns)/1000)
+
+static uint64_t initial_ts = -1;
+
+uint64_t m3_GetTimestamp()
+{
+    if (initial_ts == -1) {
+        initial_ts = 0;
+        initial_ts = m3_GetTimestamp();
+    }
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    uint64_t us = SEC_TO_US((uint64_t)ts.tv_sec) + NS_TO_US((uint64_t)ts.tv_nsec);
+    return us - initial_ts;
+}
+
+#endif
+
 #if d_m3FixedHeap
 
 static u8 fixedHeap[d_m3FixedHeap];
@@ -37,7 +61,7 @@ static u8* fixedHeapLast = NULL;
 #   define HEAP_ALIGN_PTR(P)
 #endif
 
-void *  m3_Malloc  (size_t i_size)
+void *  m3_Malloc_Impl  (size_t i_size)
 {
     u8 * ptr = fixedHeapPtr;
 
@@ -52,28 +76,23 @@ void *  m3_Malloc  (size_t i_size)
     memset (ptr, 0x0, i_size);
     fixedHeapLast = ptr;
 
-    //printf("== alloc %d => %p\n", i_size, ptr);
-
     return ptr;
 }
 
-void  m3_FreeImpl  (void * i_ptr)
+void  m3_Free_Impl  (void * i_ptr)
 {
     // Handle the last chunk
     if (i_ptr && i_ptr == fixedHeapLast) {
         fixedHeapPtr = fixedHeapLast;
         fixedHeapLast = NULL;
-        //printf("== free %p\n", io_ptr);
     } else {
         //printf("== free %p [failed]\n", io_ptr);
     }
 }
 
-void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+void *  m3_Realloc_Impl  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
-    //printf("== realloc %p => %d\n", io_ptr, i_newSize);
-
-    if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
+    if (M3_UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
     void * newPtr;
 
@@ -87,7 +106,7 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
         }
         newPtr = i_ptr;
     } else {
-        newPtr = m3_Malloc(i_newSize);
+        newPtr = m3_Malloc_Impl(i_newSize);
         if (!newPtr) {
             return NULL;
         }
@@ -105,28 +124,23 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 #else
 
-void *  m3_Malloc  (size_t i_size)
+void *  m3_Malloc_Impl  (size_t i_size)
 {
-    void * ptr = calloc (i_size, 1);
-
-//    printf("== alloc %d => %p\n", (u32) i_size, ptr);
-
-    return ptr;
+    return calloc (i_size, 1);
 }
 
-void  m3_FreeImpl  (void * io_ptr)
+void  m3_Free_Impl  (void * io_ptr)
 {
-//    if (io_ptr) printf("== free %p\n", io_ptr);
     free (io_ptr);
 }
 
-void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
+void *  m3_Realloc_Impl  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 {
-    if (UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
+    if (M3_UNLIKELY(i_newSize == i_oldSize)) return i_ptr;
 
     void * newPtr = realloc (i_ptr, i_newSize);
 
-    if (LIKELY(newPtr))
+    if (M3_LIKELY(newPtr))
     {
         if (i_newSize > i_oldSize) {
             memset ((u8 *) newPtr + i_oldSize, 0x0, i_newSize - i_oldSize);
@@ -140,7 +154,7 @@ void *  m3_Realloc  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 void *  m3_CopyMem  (const void * i_from, size_t i_size)
 {
-    void * ptr = m3_Malloc(i_size);
+    void * ptr = m3_Malloc("CopyMem", i_size);
     if (ptr) {
         memcpy (ptr, i_from, i_size);
     }
@@ -320,8 +334,8 @@ M3Result  Read_opcode  (m3opcode_t * o_value, bytes_t  * io_bytes, cbytes_t i_en
     {
         m3opcode_t opcode = * ptr++;
 
-#ifndef d_m3EnableExtendedOpcodes
-        if (UNLIKELY(opcode == 0xFC))
+#if d_m3CascadedOpcodes == 0
+        if (M3_UNLIKELY(opcode == c_waOp_extended))
         {
             if (ptr < i_end)
             {
@@ -484,7 +498,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 
             if (end <= i_end)
             {
-                char * utf8 = (char *)m3_Malloc (utf8Length + 1);
+                char * utf8 = (char *)m3_Malloc ("UTF8", utf8Length + 1);
 
                 if (utf8)
                 {
@@ -550,7 +564,7 @@ u32  FindModuleOffset  (IM3Runtime i_runtime, pc_t i_pc)
 void  PushBacktraceFrame  (IM3Runtime io_runtime, pc_t i_pc)
 {
     // don't try to push any more frames if we've already had an alloc failure
-    if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
+    if (M3_UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
     M3BacktraceFrame * newFrame = m3_AllocStruct(M3BacktraceFrame);
@@ -575,7 +589,7 @@ void  FillBacktraceFunctionInfo  (IM3Runtime io_runtime, IM3Function i_function)
 {
     // If we've had an alloc failure then the last frame doesn't refer to the
     // frame we want to fill in the function info for.
-    if (UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
+    if (M3_UNLIKELY (io_runtime->backtrace.lastFrame == M3_BACKTRACE_TRUNCATED))
         return;
 
     if (!io_runtime->backtrace.lastFrame)

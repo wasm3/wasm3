@@ -32,7 +32,7 @@ void run_wasm()
     if (!runtime) FATAL("m3_NewRuntime failed");
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) FATAL("m3_ParseModule: %s", result);
 
     result = m3_LoadModule (runtime, module);

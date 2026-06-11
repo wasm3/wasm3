@@ -12,6 +12,6 @@ Install Xcode, then open and build the project as usual.
 You can also build the project from command line:
 
 ```sh
-xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=13.3'
+xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 11,OS=16.2'
 ```
 

@@ -13,19 +13,15 @@
 // general --------------------------------------------------------------------
 
 # ifndef d_m3CodePageAlignSize
-#   define d_m3CodePageAlignSize                4096
-# endif
-
-# ifndef d_m3EnableCodePageRefCounting
-#   define d_m3EnableCodePageRefCounting        0
+#   define d_m3CodePageAlignSize                32*1024
 # endif
 
 # ifndef d_m3MaxFunctionStackHeight
-#   define d_m3MaxFunctionStackHeight           2000    // TODO: comment on upper limit
+#   define d_m3MaxFunctionStackHeight           2000    // max: 32768
 # endif
 
 # ifndef d_m3MaxLinearMemoryPages
-#   define d_m3MaxLinearMemoryPages             32768
+#   define d_m3MaxLinearMemoryPages             65536
 # endif
 
 # ifndef d_m3MaxFunctionSlots
@@ -40,8 +36,8 @@
 #   define d_m3MaxDuplicateFunctionImpl         3
 # endif
 
-# ifndef d_m3EnableExtendedOpcodes
-#   define d_m3EnableExtendedOpcodes            1
+# ifndef d_m3CascadedOpcodes                            // Cascaded opcodes are slightly faster at the expense of some memory
+#   define d_m3CascadedOpcodes                  1       // Adds ~3Kb to operations table in m3_compile.c
 # endif
 
 # ifndef d_m3VerboseErrorMessages
@@ -87,9 +83,13 @@
 #   define d_m3EnableOpTracing                  0       // only works with DEBUG
 # endif
 
+# ifndef d_m3EnableWasiTracing
+#  define d_m3EnableWasiTracing                 0
+# endif
+
 # ifndef d_m3EnableStrace
 #   define d_m3EnableStrace                     0       // 1 - trace exported function calls
-                                                        // 2 - trace all calls (structured) - requires DEBUG
+                                                        // 2 - trace all calls (structured)
                                                         // 3 - all calls + loops + memory operations
 # endif
 
@@ -128,6 +128,13 @@
 #   define d_m3LogNativeStack                   0       // track the memory usage of the C-stack
 # endif
 
+# ifndef d_m3LogHeapOps
+#   define d_m3LogHeapOps                       0       // track heap usage
+# endif
+
+# ifndef d_m3LogTimestamps
+#   define d_m3LogTimestamps                    0       // track timestamps on heap logs
+# endif
 
 // other ----------------------------------------------------------------------
 
@@ -146,5 +153,7 @@
 # ifndef d_m3SkipMemoryBoundsCheck
 #   define d_m3SkipMemoryBoundsCheck            0       // skip memory bounds checks
 # endif
+
+#define d_m3EnableCodePageRefCounting           0       // not supported currently
 
 #endif // m3_config_h

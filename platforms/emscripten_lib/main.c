@@ -35,7 +35,7 @@ void load(IM3Runtime runtime, uint8_t* wasm, size_t fsize) {
     M3Result result = m3Err_none;
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, wasm, fsize);
+    result = m3_ParseModule (env, &module, wasm, fsize, false);
     if (result) return;
 
     result = m3_LoadModule (runtime, module);

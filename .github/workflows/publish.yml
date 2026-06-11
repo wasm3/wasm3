@@ -9,7 +9,7 @@ env:
   draft: true
 
 jobs:
-  build-windows:
+  wasm3-windows:
     runs-on: windows-latest
     name: ${{ matrix.config.target }}
     timeout-minutes: 10
@@ -45,8 +45,43 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-cosmopolitan:
-    runs-on: ubuntu-20.04
+  wasm3-linux-x64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup musl
+      run: |
+        sudo apt update
+        sudo apt install musl-tools
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v1.9
+      with:
+        cmake-version: '3.16.x'
+    - name: Configure
+      env:
+        CC: musl-gcc
+        LDFLAGS: "-static -s"
+      run: |
+        mkdir build
+        cd build
+        cmake --version
+        cmake ..
+    - name: Build
+      run: |
+        cmake --build build --verbose
+        cp ./build/wasm3 ./wasm3-linux-x64.elf
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: ${{ env.draft }}
+        files: "*.elf"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  wasm3-cosmopolitan:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
@@ -67,9 +102,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-wasi:
+  wasm3-wasi:
     runs-on: ubuntu-latest
-    name: wasm3-wasi
     timeout-minutes: 10
 
     env:
@@ -114,9 +148,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-android:
+  wasm3-android-coremark:
     runs-on: ubuntu-latest
-    name: wasm3-android-coremark
     timeout-minutes: 10
 
     steps:
@@ -128,7 +161,9 @@ jobs:
         java-version: 1.8
     - name: Install NDK
       run: |
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.0.7026061"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --uninstall "cmake;3.18.1"
+        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "cmake;3.10.2.4988404"
     - name: Build
       run: |
         cd platforms/android

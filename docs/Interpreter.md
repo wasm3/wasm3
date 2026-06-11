@@ -62,7 +62,7 @@ This rough information might not be immediately intelligible without referencing
 
 * Bytecode/opcodes are translated into more efficient "operations" during a compilation pass, generating pages of meta-machine code
     * M3 trades some space for time. Opcodes map to up to 3 different operations depending on the number of source operands and commutative-ness.
-* Commonly occurring sequences of operations can can also be optimized into a "fused" operation.  This *sometimes* results in improved performance.
+* Commonly occurring sequences of operations can also be optimized into a "fused" operation.  This *sometimes* results in improved performance.
     * the modern CPU pipeline is a mysterious beast
 * In M3/Wasm, the stack machine model is translated into a more direct and efficient "register file" approach.
 
@@ -128,14 +128,14 @@ m3`op_u64_Or_sr:
 
    With Gestalt, I resolved this problem with fibers (built with Boost Context).  M3 execution occurs in a fiber so that control can effortlessly switch to the "main" fiber.  No explicit saving of state is necessary since that's the whole purpose of a fiber.
 
-   More simplistically, the interpreter runtime can also periodically call back to the client (in the either the Loop or LoopContinue operation).  This is necessary, regardless, to detect hangs and break out of infinite loops.
+   More simplistically, the interpreter runtime can also periodically call back to the client (in either the Loop or LoopContinue operation).  This is necessary, regardless, to detect hangs and break out of infinite loops.
 
 
 ## The M3 strategy for other languages (is rad)
 
-The Gestalt M3 interpreter works slightly differently than this Wasm version. With Gestalt, blocks of all kind (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
+The Gestalt M3 interpreter works slightly differently than this Wasm version. With Gestalt, blocks of all kinds (if/else/try), not just loops, unwind the native stack.  (This somewhat degrades raw x86 performance.)
 
-But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert dererence opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit/return pathway.
+But, this adds a really beautiful property to the interpreter.  The lexical scoping of a block in the language source code maps directly into the interpreter. All opcodes/operations end up having an optional prologue/epilogue structure.  This made things like reference-counting objects in Gestalt effortless. Without this property, the compiler itself would have to track scope and insert reference opcodes intentionally.  Instead, the "CreateObject" operation is also the "DestroyObject" operation on the exit/return pathway.
 
 Here's some pseudocode to make this more concrete:
 
@@ -162,5 +162,5 @@ Likewise, a "defer" function (like in Go) becomes absolutely effortless to imple
 
 After the Wasm3 project was posted to Hacker News (https://news.ycombinator.com/item?id=22024758), I finally discovered precedent for this tail-call interpreter design.  It has previously been called "threaded code". See the "Continuation-passing style" section: http://www.complang.tuwien.ac.at/forth/threaded-code.html).
 
-If this style of interpreter was discussed back in the 70's, why hasn't it been more popular?  I suspect because there was no benefit until more recently.  Older calling conventions only used the stack to pass arguments, older CPUs didn't have branch prediction and compiler tail-call optimization maybe weren't ubiqutous.
+If this style of interpreter was discussed back in the 70's, why hasn't it been more popular?  I suspect because there was no benefit until more recently.  Older calling conventions only used the stack to pass arguments, older CPUs didn't have branch prediction and compiler tail-call optimization maybe weren't ubiquitous.
 

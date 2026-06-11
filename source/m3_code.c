@@ -5,31 +5,44 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include <limits.h>
 #include "m3_code.h"
-
+#include "m3_env.h"
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
 
-IM3CodePage  NewCodePage  (u32 i_minNumLines)
+IM3CodePage  NewCodePage  (IM3Runtime i_runtime, u32 i_minNumLines)
 {
-    static u32 s_sequence = 0;
-
     IM3CodePage page;
 
+    // check multiplication overflow
+    if (i_minNumLines > UINT_MAX / sizeof (code_t)) {
+        return NULL;
+    }
     u32 pageSize = sizeof (M3CodePageHeader) + sizeof (code_t) * i_minNumLines;
 
+    // check addition overflow
+    if (pageSize < sizeof (M3CodePageHeader)) {
+        return NULL;
+    }
+
     pageSize = (pageSize + (d_m3CodePageAlignSize-1)) & ~(d_m3CodePageAlignSize-1); // align
-    page = (IM3CodePage)m3_Malloc (pageSize);
+    // check alignment overflow
+    if (pageSize == 0) {
+        return NULL;
+    }
+
+    page = (IM3CodePage)m3_Malloc ("M3CodePage", pageSize);
 
     if (page)
     {
-        page->info.sequence = ++s_sequence;
+        page->info.sequence = ++i_runtime->newCodePageSequence;
         page->info.numLines = (pageSize - sizeof (M3CodePageHeader)) / sizeof (code_t);
 
 #if d_m3RecordBacktraces
         u32 pageSizeBt = sizeof (M3CodeMappingPage) + sizeof (M3CodeMapEntry) * page->info.numLines;
-        page->info.mapping = (M3CodeMappingPage *)m3_Malloc (pageSizeBt);
+        page->info.mapping = (M3CodeMappingPage *)m3_Malloc ("M3CodeMappingPage", pageSizeBt);
 
         if (page->info.mapping)
         {
@@ -86,18 +99,18 @@ void  EmitWord_impl  (IM3CodePage i_page, void * i_word)
 
 void  EmitWord32  (IM3CodePage i_page, const u32 i_word)
 {                                                                       d_m3Assert (i_page->info.lineIndex+1 <= i_page->info.numLines);
-    * ((u32 *) & i_page->code [i_page->info.lineIndex++]) = i_word;
+    memcpy (& i_page->code[i_page->info.lineIndex++], & i_word, sizeof(i_word));
 }
 
 void  EmitWord64  (IM3CodePage i_page, const u64 i_word)
 {
 #if M3_SIZEOF_PTR == 4
                                                                         d_m3Assert (i_page->info.lineIndex+2 <= i_page->info.numLines);
-    * ((u64 *) & i_page->code [i_page->info.lineIndex]) = i_word;
+    memcpy (& i_page->code[i_page->info.lineIndex], & i_word, sizeof(i_word));
     i_page->info.lineIndex += 2;
 #else
                                                                         d_m3Assert (i_page->info.lineIndex+1 <= i_page->info.numLines);
-    * ((u64 *) & i_page->code [i_page->info.lineIndex]) = i_word;
+    memcpy (& i_page->code[i_page->info.lineIndex], & i_word, sizeof(i_word));
     i_page->info.lineIndex += 1;
 #endif
 }

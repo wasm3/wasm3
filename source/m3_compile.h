@@ -31,10 +31,15 @@ enum
 
     c_waOp_getGlobal            = 0x23,
 
+    c_waOp_store_f32            = 0x38,
+    c_waOp_store_f64            = 0x39,
+
     c_waOp_i32_const            = 0x41,
     c_waOp_i64_const            = 0x42,
     c_waOp_f32_const            = 0x43,
     c_waOp_f64_const            = 0x44,
+
+    c_waOp_extended             = 0xfc,
 
     c_waOp_memoryCopy           = 0xfc0a,
     c_waOp_memoryFill           = 0xfc0b
@@ -54,7 +59,7 @@ typedef struct M3CompilationScope
     pc_t                            patches;
     i32                             depth;
     u16                             exitStackIndex;
-    i16                             blockStackIndex;
+    u16                             blockStackIndex;
 //    u16                             topSlot;
     IM3FuncType                     type;
     m3opcode_t                      opcode;
@@ -148,6 +153,26 @@ u8 GetSingleRetType(IM3FuncType ftype) {
     return (ftype && ftype->numRets) ? ftype->types[0] : (u8)c_m3Type_none;
 }
 
+static const u16 c_m3RegisterUnallocated = 0;
+static const u16 c_slotUnused = 0xffff;
+
+static inline
+bool  IsRegisterAllocated  (IM3Compilation o, u32 i_register)
+{
+    return (o->regStackIndexPlusOne [i_register] != c_m3RegisterUnallocated);
+}
+
+static inline
+bool  IsStackPolymorphic  (IM3Compilation o)
+{
+    return o->block.isPolymorphic;
+}
+
+static inline bool  IsRegisterSlotAlias        (u16 i_slot)    { return (i_slot >= d_m3Reg0SlotAlias and i_slot != c_slotUnused); }
+static inline bool  IsFpRegisterSlotAlias      (u16 i_slot)    { return (i_slot == d_m3Fp0SlotAlias);  }
+static inline bool  IsIntRegisterSlotAlias     (u16 i_slot)    { return (i_slot == d_m3Reg0SlotAlias); }
+
+
 #ifdef DEBUG
     #define M3OP(...)       { __VA_ARGS__ }
     #define M3OP_RESERVED   { "reserved" }
@@ -167,22 +192,14 @@ u8 GetSingleRetType(IM3FuncType ftype) {
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
-u16         GetTypeNumSlots             (u8 i_type);
-void        AlignSlotToType             (u16 * io_slotIndex, u8 i_type);
-
-bool        IsRegisterAllocated         (IM3Compilation o, u32 i_register);
-bool        IsRegisterSlotAlias         (u16 i_slot);
-bool        IsFpRegisterSlotAlias       (u16 i_slot);
-bool        IsIntRegisterSlotAlias      (u16 i_slot);
-
-bool        IsStackPolymorphic          (IM3Compilation o);
+u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 
 M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 
 M3Result    CompileBlockStatements      (IM3Compilation io);
 M3Result    CompileFunction             (IM3Function io_function);
 
-u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
+M3Result    CompileRawFunction          (IM3Module io_module, IM3Function io_function, const void * i_function, const void * i_userdata);
 
 d_m3EndExternC
 

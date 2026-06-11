@@ -7,7 +7,6 @@
 
 #include "m3_env.h"
 #include "m3_compile.h"
-#include "m3_exec.h"
 #include "m3_exception.h"
 #include "m3_info.h"
 
@@ -30,8 +29,15 @@ _   (ReadLEB_u7 (& flag, io_bytes, i_end));                   // really a u1
 _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
     o_memory->maxPages = 0;
-    if (flag)
+    if (flag & (1u << 0))
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
+
+    o_memory->pageSize = 0;
+    if (flag & (1u << 3)) {
+        u32 logPageSize;
+_       (ReadLEB_u32 (& logPageSize, io_bytes, i_end));
+        o_memory->pageSize = 1u << logPageSize;
+    }
 
     _catch: return result;
 }
@@ -39,7 +45,6 @@ _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
 
 M3Result  ParseSection_Type  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
 {
-    M3Result result = m3Err_none;
     IM3FuncType ftype = NULL;
 
 _try {
@@ -101,7 +106,7 @@ _               (NormalizeType (& retType, wasmType));
 
             Environment_AddFuncType (io_module->environment, & ftype);
             io_module->funcTypes [i] = ftype;
-            ftype = NULL; // ownership transfered to environment
+            ftype = NULL; // ownership transferred to environment
         }
     }
 
@@ -128,7 +133,7 @@ _   (ReadLEB_u32 (& numFunctions, & i_bytes, i_end));                           
 
     _throwif("too many functions", numFunctions > d_m3MaxSaneFunctionsCount);
 
-    // TODO: prealloc functions
+_   (Module_PreallocFunctions(io_module, io_module->numFunctions + numFunctions));
 
     for (u32 i = 0; i < numFunctions; ++i)
     {
@@ -152,6 +157,9 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 _   (ReadLEB_u32 (& numImports, & i_bytes, i_end));                                 m3log (parse, "** Import [%d]", numImports);
 
     _throwif("too many imports", numImports > d_m3MaxSaneImportsCount);
+
+    // Most imports are functions, so we won't waste much space anyway (if any)
+_   (Module_PreallocFunctions(io_module, numImports));
 
     for (u32 i = 0; i < numImports; ++i)
     {
@@ -183,6 +191,8 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
             {
 _               (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
                 io_module->memoryImported = true;
+                io_module->memoryImport = import;
+                import = clearImport;
             }
             break;
 
@@ -243,6 +253,7 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
             if (func->numNames < d_m3MaxDuplicateFunctionImpl)
             {
                 func->names[func->numNames++] = utf8;
+                func->export_name = utf8;
                 utf8 = NULL; // ownership transferred to M3Function
             }
         }
@@ -253,6 +264,18 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
             m3_Free (global->name);
             global->name = utf8;
             utf8 = NULL; // ownership transferred to M3Global
+        }
+        else if (exportKind == d_externalKind_memory)
+        {
+            m3_Free (io_module->memoryExportName);
+            io_module->memoryExportName = utf8;
+            utf8 = NULL; // ownership transferred to M3Module
+        }
+        else if (exportKind == d_externalKind_table)
+        {
+            m3_Free (io_module->table0ExportName);
+            io_module->table0ExportName = utf8;
+            utf8 = NULL; // ownership transferred to M3Module
         }
 
         m3_Free (utf8);
@@ -307,9 +330,7 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
     M3Result result = m3Err_none;
 
     u32 numSegments;
-    result = ReadLEB_u32 (& numSegments, & i_bytes, i_end);                         m3log (parse, "** Element [%d]", numSegments);
-
-    _throwif ("error parsing Element section", result);
+_   (ReadLEB_u32 (& numSegments, & i_bytes, i_end));                         m3log (parse, "** Element [%d]", numSegments);
 
     _throwif ("too many element segments", numSegments > d_m3MaxSaneElementSegments);
 
@@ -476,17 +497,11 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 }
 
 
-M3Result  ParseSection_Custom  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
+M3Result  ParseSection_Name  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     M3Result result;
 
     cstr_t name;
-_   (Read_utf8 (& name, & i_bytes, i_end));
-                                                                                    m3log (parse, "** Custom: '%s'", name);
-    if (strcmp (name, "name") != 0)
-        i_bytes = i_end;
-
-    m3_Free (name);
 
     while (i_bytes < i_end)
     {
@@ -528,6 +543,25 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
 
         i_bytes = start + payloadLength;
     }
+
+    _catch: return result;
+}
+
+
+M3Result  ParseSection_Custom  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
+{
+    M3Result result;
+
+    cstr_t name;
+_   (Read_utf8 (& name, & i_bytes, i_end));
+                                                                                    m3log (parse, "** Custom: '%s'", name);
+    if (strcmp (name, "name") == 0) {
+_       (ParseSection_Name(io_module, i_bytes, i_end));
+    } else if (io_module->environment->customSectionHandler) {
+_       (io_module->environment->customSectionHandler(io_module, name, i_bytes, i_end));
+    }
+
+    m3_Free (name);
 
     _catch: return result;
 }
@@ -577,10 +611,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 
 M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes, bool i_copyBytes)
 {
-    M3Result result;                                                             m3log (parse, "load module: %d bytes", i_numBytes);
-
-    IM3Module module = m3_NewModule (i_environment);
-
+    IM3Module module = m3_NewModule (i_environment);                                m3log (parse, "load module: %d bytes", i_numBytes);
 _try {
     _throwifnull (module);
 
@@ -590,6 +621,7 @@ _try {
     {
         pos = m3_CopyMem (i_bytes, i_numBytes);
         _throwifnull (pos);
+        module->hasWasmCodeCopy = true;
     }
 
     const u8 * end = pos + i_numBytes;
