@@ -1777,21 +1777,22 @@ static
 M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
-    u32 sourceIdx, targetMemoryIdx;
+    u32 sourceIdx, destMemoryIdx;
     IM3Operation op;
-
-_   (ReadLEB_u32 (& targetMemoryIdx, & o->wasm, o->wasmEnd));
 
     switch (i_opcode) {
     case c_waOp_memoryInit:
 _       (ReadLEB_u32 (& sourceIdx, & o->wasm, o->wasmEnd));
+_       (ReadLEB_u32 (& destMemoryIdx, & o->wasm, o->wasmEnd));
         op = op_MemInit;
         break;
     case c_waOp_memoryCopy:
+_       (ReadLEB_u32 (& destMemoryIdx, & o->wasm, o->wasmEnd));
 _       (ReadLEB_u32 (& sourceIdx, & o->wasm, o->wasmEnd));
         op = op_MemCopy;
         break;
     case c_waOp_memoryFill:
+_       (ReadLEB_u32 (& destMemoryIdx, & o->wasm, o->wasmEnd));
         op = op_MemFill;
         break;
     default:
@@ -1810,10 +1811,8 @@ _   (EmitOp  (o, op));
         EmitPointer(o, srcDataPtr);
     }
 
-    if (i_opcode != c_waOp_dataDrop) {
-        u32 internalDestIndex = o->module->memoryTable.entries[targetMemoryIdx].internalIndex;
-        EmitConstant32(o, internalDestIndex);
-    }
+    u32 internalDestIndex = o->module->memoryTable.entries[destMemoryIdx].internalIndex;
+    EmitConstant32(o, internalDestIndex);
 
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
@@ -1825,10 +1824,12 @@ _   (EmitSlotNumOfStackTopAndPop (o));
 static
 M3Result Compile_Data_Drop(IM3Compilation o, m3opcode_t i_opcode) {
 _try {
-    // consume the dataidx immediate and don't bother with emitting anything
-    // Maybe emit nop?
-    u32 dataidx;  
-_   (ReadLEB_u32 (& dataidx, & o->wasm, o->wasmEnd));
+    u32 dataIdx;  
+_   (ReadLEB_u32 (& dataIdx, & o->wasm, o->wasmEnd));
+
+_   (EmitOp(o, op_DataDrop));
+    const M3DataSegment * srcDataPtr = &o->module->dataSegments[dataIdx];
+    EmitPointer(o, srcDataPtr);
 }
     _catch: return result;
 }

@@ -744,7 +744,7 @@ d_m3Op  (MemInit)
 {
     u32 size = (u32) _r0;
 
-    M3DataSegment *srcData = immediate(void *);
+    M3DataSegment *srcData = immediate(M3DataSegment *);
     u32 dstIdx = immediate(u32);
     M3MemoryHeader *dstMem = m3MemGet(dstIdx);
 
@@ -756,7 +756,7 @@ d_m3Op  (MemInit)
         if (M3_LIKELY(source + size <= srcData->size))
         {
             u8 * dst = m3MemData (dstMem) + destination;
-            u8 * src = m3MemData (srcData->data) + source;
+            const u8 * src = srcData->data + source;
             memmove (dst, src, size);
 
             nextOp ();
@@ -764,6 +764,16 @@ d_m3Op  (MemInit)
         else d_outOfBoundsMemOp (source, size);
     }
     else d_outOfBoundsMemOp (destination, size);
+}
+
+
+d_m3Op(DataDrop)
+{
+    M3DataSegment *data = immediate(M3DataSegment *);
+    data->size = 0;
+    data->data = NULL;
+
+    nextOp();
 }
 
 
