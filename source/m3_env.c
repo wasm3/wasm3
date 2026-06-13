@@ -435,8 +435,6 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages, u32 i_internalIn
         memory->mallocated->length =  numPageBytes;
         memory->mallocated->runtime = io_runtime;
 
-        // memory->mallocated->maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
-
         m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
     }
     else result = m3Err_wasmMemoryOverflow;

@@ -2584,8 +2584,6 @@ const M3OpInfo c_operationsFC [] =
     M3OP_F( "i64.trunc_s:sat/f64",  0,  i_64,   d_convertOpList (i64_TruncSat_f64), Compile_Convert ),  // 0x06
     M3OP_F( "i64.trunc_u:sat/f64",  0,  i_64,   d_convertOpList (u64_TruncSat_f64), Compile_Convert ),  // 0x07
 
-    // M3OP_RESERVED, M3OP_RESERVED,
-
     M3OP( "memory.init",            0,  none,   d_emptyOpList,                      Compile_Memory_CopyFill ), // 0x08
     M3OP( "data.drop",              0,  none,   d_emptyOpList,                      Compile_Data_Drop       ), // 0x09
     M3OP( "memory.copy",            0,  none,   d_emptyOpList,                      Compile_Memory_CopyFill ), // 0x0a
@@ -2652,9 +2650,8 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
 
         IM3OpInfo opinfo = GetOpInfo (opcode);
 
-        // TODO: unimplemented FC opcodes break shit (immediates get parsed as opcodes)
-        // if (memcmp(opinfo, &(M3OpInfo)M3OP_RESERVED, sizeof(M3OpInfo))) 
-        //     _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' is reserved", opcode));
+        if (!memcmp(opinfo, &(M3OpInfo)M3OP_RESERVED, sizeof(M3OpInfo))) 
+            _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' is reserved", opcode));
 
         if (opinfo == NULL)
             _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
