@@ -511,8 +511,6 @@ for fn in jsonFiles:
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
 
-                # wasm3.init()
-
                 res = wasm3.load(wasm_fn)
                 if res:
                     warning(res)

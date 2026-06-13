@@ -5,6 +5,7 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include "m3_core.h"
 #include "m3_env.h"
 #include "m3_compile.h"
 #include "m3_exception.h"
@@ -27,10 +28,10 @@ M3Result  ParseType_Memory  (M3MemoryInfo * o_memory, bytes_t * io_bytes, cbytes
 
     u8 flag;
 
-_   (ReadLEB_u7 (& flag, io_bytes, i_end));                   // really a u1
+_   (Read_u8 (& flag, io_bytes, i_end));
 _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
-    o_memory->maxPages = 0;
+    o_memory->maxPages = -1; // max u32
     if (flag & (1u << 0))
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
 

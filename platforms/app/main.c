@@ -75,6 +75,7 @@ M3Result link_spec_test() {
 
     module->name = "spectest";
 
+    // might want to have exportName be unmanaged idk
     char *memname = m3_Malloc(char, 7);
     strcpy(memname, "memory");
 
@@ -94,8 +95,6 @@ M3Result link_spec_test() {
         .count = 1,
         .entries = spectest_memory,
     };
-
-    const char *spectest = "spectest";
 
 _   (m3_LoadModule(runtime, module));
 
@@ -672,9 +671,6 @@ int  main  (int i_argc, const char* i_argv[])
     result = repl_init(argStackSize);
     if (result) FATAL("repl_init: %s", result);
 
-    result = link_spec_test();
-    if (result) FATAL("link_spec_test: %s", result);
-
     if (argFile) {
         result = repl_load(argFile);
         if (result) FATAL("repl_load: %s", result);
@@ -717,6 +713,7 @@ int  main  (int i_argc, const char* i_argv[])
         result = m3Err_none;
         if (!strcmp(":init", argv[0])) {
             result = repl_init(argStackSize);
+            result = link_spec_test(); // idk
         } else if (!strcmp(":version", argv[0])) {
             print_version();
         } else if (!strcmp(":exit", argv[0])) {
