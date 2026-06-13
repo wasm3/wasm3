@@ -344,6 +344,15 @@ void  dump_type_stack  (IM3Compilation o)
      -- the number for the dynamic stack values represents the slot number.
      -- if the slot index points to arg, local or constant it's denoted with a lowercase 'a', 'l' or 'c'
 
+	 TODO: document this better! I don't understand it anymore.
+	 
+	 
+	 stack  |          |0   : >|1   |2
+	 stack  |          |ia2 : >|i18 |ic9
+	                     \
+	                      \  \_ : denotes the barrier between the fixed and dynamic part of the stack
+						   \___ : i = int, a = arg
+	 
      */
 
     // for the assert at end of dump:
@@ -362,7 +371,7 @@ void  dump_type_stack  (IM3Compilation o)
         for (u16 i = 0; i < o->stackIndex; ++i)
         {
             if (i > 0 and i == o->stackFirstDynamicIndex)
-                printf ("#");
+                printf (": ");
 
             if (i == o->block.blockStackIndex)
                 printf (">");

@@ -641,6 +641,19 @@ _catch:
     return result;
 }
 
+
+IM3Global  m3_FindGlobalByIndex  (IM3Module             io_module,
+								  uint32_t 		    	i_globalIndex)
+{
+	IM3Global global = NULL;
+	
+	if (i_globalIndex < io_module->numGlobals)
+		global = & io_module->globals [i_globalIndex];
+	
+	return global;
+}
+
+
 IM3Global  m3_FindGlobal  (IM3Module               io_module,
                            const char * const      i_globalName)
 {
@@ -670,8 +683,9 @@ IM3Global  m3_FindGlobal  (IM3Module               io_module,
     return NULL;
 }
 
+
 M3Result  m3_GetGlobal  (IM3Global                 i_global,
-                         IM3TaggedValue            o_value)
+						 IM3TypedValue             o_value)
 {
     if (not i_global) return m3Err_globalLookupFailed;
 
@@ -689,8 +703,9 @@ M3Result  m3_GetGlobal  (IM3Global                 i_global,
     return m3Err_none;
 }
 
+
 M3Result  m3_SetGlobal  (IM3Global                 i_global,
-                         const IM3TaggedValue      i_value)
+                         const IM3TypedValue       i_value)
 {
     if (not i_global) return m3Err_globalLookupFailed;
     if (not i_global->isMutable) return m3Err_globalNotMutable;
@@ -1107,7 +1122,7 @@ M3Result  m3_GetResultsV  (IM3Function i_function, ...)
 {
     va_list ap;
     va_start(ap, i_function);
-    M3Result r = m3_GetResultsVL(i_function, ap);
+    M3Result r = m3_GetResultsVL (i_function, ap);
     va_end(ap);
     return r;
 }

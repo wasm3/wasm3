@@ -11,10 +11,14 @@
 #include "m3_bind.h"
 #include "m3_exception.h"
 
+IM3Module  w3x_NewModule  (IM3Environment         i_environment)
+{
+	return Module_NewModule (i_environment);
+}
 
 
-M3Result  m3Ext_ReserveFunctions  (IM3Module                i_module,
-                                   uint32_t                 i_numFunctions)
+M3Result  w3x_ReserveFunctions  (IM3Module                i_module,
+								 uint32_t                 i_numFunctions)
 {
     M3Result result = m3Err_none;
 
@@ -48,16 +52,18 @@ i32  Module_HasFuncType  (IM3Module i_module, IM3FuncType i_funcType)
 }
 
 
-M3Result  m3Ext_InjectFunction  (IM3Module                 i_module,
-                                 int32_t *                 io_functionIndex,
-                                 const char * const        i_signature,
-                                 const uint8_t * const     i_wasmBytes,
-                                 bool                      i_doCompilation)
+M3Result  w3x_InjectFunction  (IM3Module                 i_module,
+							   int32_t *                 io_functionIndex,
+							   const char * const        i_signature,
+							   const uint8_t * const     i_wasmBytes,
+							   const uint32_t			 i_numWasmBytes,
+							   bool                      i_doCompilation)
 {
                                                                         d_m3Assert (io_functionIndex);
     IM3FuncType ftype = NULL;
 
     _try {
+	
     if (not i_module)
         _throw (m3Err_nullArgument);
 
@@ -67,11 +73,13 @@ _   (SignatureToFuncType (& ftype, i_signature));
     i32 index = * io_functionIndex;
 
     bytes_t bytes = i_wasmBytes;
-    bytes_t end = i_wasmBytes + 5;
+    bytes_t end = i_wasmBytes + i_numWasmBytes;
 
     u32 size;
 _   (ReadLEB_u32 (& size, & bytes, end));
-    end = bytes + size;
+	bytes_t calculatedEnd = bytes + size;								_throwif (m3Err_wasmOverrun, calculatedEnd > end);
+																		_throwif (m3Err_wasmUnderrun, calculatedEnd < end);
+    end = calculatedEnd;
 
     if (index >= 0)
     {
@@ -87,13 +95,13 @@ _   (ReadLEB_u32 (& size, & bytes, end));
         i32 funcTypeIndex = Module_HasFuncType (i_module, ftype);
         if (funcTypeIndex < 0)
         {
-            // add slot to function type table in the module
+            // add new slot to function type table in the module
             funcTypeIndex = i_module->numFuncTypes++;
             i_module->funcTypes = m3_ReallocArray (IM3FuncType, i_module->funcTypes, i_module->numFuncTypes, funcTypeIndex);
             _throwifnull (i_module->funcTypes);
 
-            // add functype object to the environment
-            Environment_AddFuncType (i_module->environment, & ftype);
+            // add functype object to the environment & module table
+            Environment_AddFuncType (i_module->environment, & ftype); // potentially frees incoming fttype & returns preexisting duplicate
             i_module->funcTypes [funcTypeIndex] = ftype;
             ftype = NULL; // prevent freeing below
         }
@@ -108,7 +116,10 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
     function->compiled = NULL;
 
     if (function->ownsWasmCode)
-        m3_Free (function->wasm);
+	{
+		m3_Free (function->wasm);
+		function->ownsWasmCode = false;
+	}
 
     size_t numBytes = end - i_wasmBytes;
     function->wasm = m3_CopyMem (i_wasmBytes, numBytes);
@@ -125,13 +136,14 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
 _   (CompileFunction (function));
 
 	} _catch:
-    m3_Free (ftype);
+	
+    m3_Free (ftype); // freed unless Environment_AddFuncType was called
 
     return result;
 }
 
 
-M3Result  m3Ext_AddFunctionToTable  (IM3Function            i_function,
+M3Result  w3x_AddFunctionToTable  (IM3Function            i_function,
                                   uint32_t *            o_elementIndex,
                                   uint32_t              i_tableIndex)
 {

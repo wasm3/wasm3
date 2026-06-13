@@ -156,10 +156,10 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
     u32 numImports;
 _   (ReadLEB_u32 (& numImports, & i_bytes, i_end));                                 m3log (parse, "** Import [%d]", numImports);
 
-    _throwif("too many imports", numImports > d_m3MaxSaneImportsCount);
+    _throwif ("too many imports", numImports > d_m3MaxSaneImportsCount);
 
     // Most imports are functions, so we won't waste much space anyway (if any)
-_   (Module_PreallocFunctions(io_module, numImports));
+_   (Module_PreallocFunctions (io_module, numImports));
 
     for (u32 i = 0; i < numImports; ++i)
     {
@@ -611,7 +611,8 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
 
 M3Result  m3_ParseModule  (IM3Environment i_environment, IM3Module * o_module, cbytes_t i_bytes, u32 i_numBytes, bool i_copyBytes)
 {
-    IM3Module module = m3_NewModule (i_environment);                                m3log (parse, "load module: %d bytes", i_numBytes);
+    IM3Module module = Module_NewModule (i_environment);                                m3log (parse, "load module: %d bytes", i_numBytes);
+	
 _try {
     _throwifnull (module);
 

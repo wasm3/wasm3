@@ -28,24 +28,25 @@ extern "C" {
 //-------------------------------------------------------------------------------------------------------------------------------
 
     // Creates an empty module.
-    IM3Module           m3Ext_NewModule             (IM3Environment         i_environment);
+    IM3Module           w3x_NewModule         	    (IM3Environment         i_environment);
 
     // ReserveFunctions must be called prior to LoadModule.  This reserves extra empty function slots that InjectFunction
     // can rely upon.
-    M3Result            m3Ext_ReserveFunctions      (IM3Module              i_module,
+    M3Result            w3x_ReserveFunctions        (IM3Module              i_module,
                                                      uint32_t               i_numFunctions);
 
     // To append a new function, set io_functionIndex to negative. On return, the new function index will be set.
     // To overwrite an existing function, set io_functionIndex to the desired element. i_signature must match the existing
     // function signature.  TODO: failure result is?
-    M3Result            m3Ext_InjectFunction        (IM3Module              i_module,
+    M3Result            w3x_InjectFunction          (IM3Module              i_module,
                                                      int32_t *              io_functionIndex,
 //                                                   const char * const     i_name,
                                                      const char * const     i_signature,
-                                                     const uint8_t * const  i_wasmBytes,            // i_wasmBytes is copied
+                                                     const uint8_t * const  i_wasmBytes,            // i_wasmBytes are copied
+													 const uint32_t			i_numWasmBytes,
                                                      bool                   i_doCompilation);
 
-    M3Result            m3Ext_AddFunctionToTable    (IM3Function            i_function,
+    M3Result            w3x_AddFunctionToTable      (IM3Function            i_function,
                                                      uint32_t *             o_elementIndex,
                                                      uint32_t               i_tableIndex);          // i_tableIndex must be zero
 

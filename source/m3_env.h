@@ -98,8 +98,9 @@ typedef struct M3Module
 
     u32                     numFuncImports;
     u32                     numFunctions;
-    u32                     allFunctions;           // allocated functions count
+	
     M3Function *            functions;
+	u32                     numAllocatedFunctions;
 
     i32                     startFunction;
 
@@ -129,7 +130,7 @@ typedef struct M3Module
 }
 M3Module;
 
-IM3Module                   m3_NewModule                (IM3Environment i_environment);
+IM3Module                   Module_NewModule            (IM3Environment i_environment);
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
 

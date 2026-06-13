@@ -79,7 +79,7 @@ typedef enum M3ValueType
     c_m3Type_unknown
 } M3ValueType;
 
-typedef struct M3TaggedValue
+typedef struct M3TypedValue
 {
     M3ValueType type;
     union M3ValueUnion
@@ -90,7 +90,9 @@ typedef struct M3TaggedValue
         double      f64;
     } value;
 }
-M3TaggedValue, * IM3TaggedValue;
+M3TypedValue, * IM3TypedValue;
+
+typedef M3TypedValue M3TaggedValue;	// M3TaggedValue deprecated
 
 typedef struct M3ImportInfo
 {
@@ -283,11 +285,14 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     IM3Global           m3_FindGlobal               (IM3Module              io_module,
                                                      const char * const     i_globalName);
 
+	IM3Global           m3_FindGlobalByIndex        (IM3Module              io_module,
+													 uint32_t 		    	i_globalIndex);
+
     M3Result            m3_GetGlobal                (IM3Global              i_global,
-                                                     IM3TaggedValue         o_value);
+													 IM3TypedValue          o_value);
 
     M3Result            m3_SetGlobal                (IM3Global              i_global,
-                                                     const IM3TaggedValue   i_value);
+                                                     const IM3TypedValue    i_value);
 
     M3ValueType         m3_GetGlobalType            (IM3Global              i_global);
 
@@ -300,6 +305,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
                                                      const char * const     i_functionName);
+
     M3Result            m3_GetTableFunction         (IM3Function *          o_function,
                                                      IM3Module              i_module,
                                                      uint32_t               i_index);

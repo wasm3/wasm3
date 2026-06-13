@@ -9,7 +9,7 @@
 #include "m3_exception.h"
 
 
-IM3Module  m3_NewModule  (IM3Environment i_environment)
+IM3Module  Module_NewModule  (IM3Environment i_environment)
 {
     IM3Module module = m3_AllocStruct (M3Module);
 
@@ -95,13 +95,14 @@ _try {
 
 M3Result  Module_PreallocFunctions  (IM3Module io_module, u32 i_totalFunctions)
 {
-_try {
-    if (i_totalFunctions > io_module->allFunctions) {
-        io_module->functions = m3_ReallocArray (M3Function, io_module->functions, i_totalFunctions, io_module->allFunctions);
-        io_module->allFunctions = i_totalFunctions;
-        _throwifnull (io_module->functions);
-    }
-} _catch:
+	_try {
+		if (i_totalFunctions > io_module->numAllocatedFunctions)
+		{
+			io_module->functions = m3_ReallocArray (M3Function, io_module->functions, i_totalFunctions, io_module->numAllocatedFunctions);
+			io_module->numAllocatedFunctions = i_totalFunctions;
+			_throwifnull (io_module->functions);
+		}
+	} _catch:
     return result;
 }
 
@@ -115,11 +116,11 @@ _try {
     if (io_module->runtime) // module loaded, so this must be an InjectFunction call
     {
         // growing the array would invalidate existing IM3Function pointers; require reserved capacity
-        _throwif ("reserved function capacity exceeded", io_module->numFunctions > io_module->allFunctions);
+        _throwif ("reserved function capacity exceeded", io_module->numFunctions > io_module->numAllocatedFunctions);
     }
     else
 #   endif
-_   (Module_PreallocFunctions(io_module, io_module->numFunctions));
+_   (Module_PreallocFunctions (io_module, io_module->numFunctions));
 
     _throwif ("type sig index out of bounds", i_typeIndex >= io_module->numFuncTypes);
 
