@@ -6,6 +6,9 @@
 //
 
 // Allow using opcodes for compilation process
+#include "m3_core.h"
+#include "wasm3.h"
+#include <string.h>
 #define M3_COMPILE_OPCODES
 
 #include "m3_env.h"
@@ -1734,70 +1737,107 @@ _   (EmitOp         (o, op_CallIndirect));
 static
 M3Result  Compile_Memory_Size  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+_try {
+    u32 memidx;
+_   (ReadLEB_u32 (& memidx, & o->wasm, o->wasmEnd));
 
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i32));
 
 _   (EmitOp     (o, op_MemSize));
 
-_   (PushRegister (o, c_m3Type_i32));
+    u32 internalIndex = o->module->memoryTable.entries[memidx].internalIndex;
+    EmitConstant32(o, internalIndex);
 
+_   (PushRegister (o, c_m3Type_i32));
+}
     _catch: return result;
 }
 
 static
 M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result;
-
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+_try {
+    u32 memidx;
+_   (ReadLEB_u32 (& memidx, & o->wasm, o->wasmEnd));
 
 _   (CopyStackTopToRegister (o, false));
 _   (PopType (o, c_m3Type_i32));
 
 _   (EmitOp     (o, op_MemGrow));
 
-_   (PushRegister (o, c_m3Type_i32));
+    u32 internalIndex = o->module->memoryTable.entries[memidx].internalIndex;
+    EmitConstant32(o, internalIndex);
 
+_   (PushRegister (o, c_m3Type_i32));
+}
     _catch: return result;
 }
 
 static
 M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
 {
-    M3Result result = m3Err_none;
-
-    u32 sourceMemoryIdx, targetMemoryIdx;
+_try {
+    u32 sourceIdx, destMemoryIdx;
     IM3Operation op;
-    if (i_opcode == c_waOp_memoryCopy)
-    {
-_       (ReadLEB_u32 (& sourceMemoryIdx, & o->wasm, o->wasmEnd));
-        op = op_MemCopy;
-    }
-    else op = op_MemFill;
 
-_   (ReadLEB_u32 (& targetMemoryIdx, & o->wasm, o->wasmEnd));
+    switch (i_opcode) {
+    case c_waOp_memoryInit:
+_       (ReadLEB_u32 (& sourceIdx, & o->wasm, o->wasmEnd));
+_       (ReadLEB_u32 (& destMemoryIdx, & o->wasm, o->wasmEnd));
+        op = op_MemInit;
+        break;
+    case c_waOp_memoryCopy:
+_       (ReadLEB_u32 (& destMemoryIdx, & o->wasm, o->wasmEnd));
+_       (ReadLEB_u32 (& sourceIdx, & o->wasm, o->wasmEnd));
+        op = op_MemCopy;
+        break;
+    case c_waOp_memoryFill:
+_       (ReadLEB_u32 (& destMemoryIdx, & o->wasm, o->wasmEnd));
+        op = op_MemFill;
+        break;
+    default:
+        return m3Err_unknownOpcode;
+    }
 
 _   (CopyStackTopToRegister (o, false));
 
 _   (EmitOp  (o, op));
+
+    if (i_opcode == c_waOp_memoryCopy) {
+        u32 internalSrcIndex = o->module->memoryTable.entries[sourceIdx].internalIndex;
+        EmitConstant32(o, internalSrcIndex);
+    } else if (i_opcode == c_waOp_memoryInit) {
+        const M3DataSegment * srcDataPtr = &o->module->dataSegments[sourceIdx];
+        EmitPointer(o, srcDataPtr);
+    }
+
+    u32 internalDestIndex = o->module->memoryTable.entries[destMemoryIdx].internalIndex;
+    EmitConstant32(o, internalDestIndex);
+
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
 _   (EmitSlotNumOfStackTopAndPop (o));
-
+}
     _catch: return result;
 }
 
+static
+M3Result Compile_Data_Drop(IM3Compilation o, m3opcode_t i_opcode) {
+_try {
+    u32 dataIdx;  
+_   (ReadLEB_u32 (& dataIdx, & o->wasm, o->wasmEnd));
+
+_   (EmitOp(o, op_DataDrop));
+    const M3DataSegment * srcDataPtr = &o->module->dataSegments[dataIdx];
+    EmitPointer(o, srcDataPtr);
+}
+    _catch: return result;
+}
 
 static
 M3Result  ReadBlockType  (IM3Compilation o, IM3FuncType * o_blockType)
 {
-    M3Result result;
-
+_try {
     i64 type;
 _   (ReadLebSigned (& type, 33, & o->wasm, o->wasmEnd));
 
@@ -1812,7 +1852,7 @@ _       (NormalizeType (&valueType, type));                                m3log
         _throwif("func type out of bounds", type >= o->module->numFuncTypes);
         *o_blockType = o->module->funcTypes[type];                         m3log (compile, d_indent " (type: %s)", get_indention_string (o), SPrintFuncTypeSignature (*o_blockType));
     }
-    _catch: return result;
+} _catch: return result;
 }
 
 static
@@ -2201,8 +2241,14 @@ M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
     u32 alignHint, memoryOffset;
+    u32 memidx = 0;
 
 _   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
+
+    if (alignHint >= powl(2, 6)) {
+_       (ReadLEB_u32(& memidx, & o->wasm, o->wasmEnd));
+    }
+
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
@@ -2213,6 +2259,9 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
 _   (Compile_Operator (o, i_opcode));
 
+    // compute internal memidx
+    u32 internalIndex = o->module->memoryTable.entries[memidx].internalIndex;
+    EmitConstant32(o, internalIndex);
     EmitConstant32 (o, memoryOffset);
 }
     _catch: return result;
@@ -2526,19 +2575,19 @@ const M3OpInfo c_operations [] =
 
 const M3OpInfo c_operationsFC [] =
 {
-    M3OP_F( "i32.trunc_s:sat/f32",0,  i_32,   d_convertOpList (i32_TruncSat_f32),        Compile_Convert ),  // 0x00
-    M3OP_F( "i32.trunc_u:sat/f32",0,  i_32,   d_convertOpList (u32_TruncSat_f32),        Compile_Convert ),  // 0x01
-    M3OP_F( "i32.trunc_s:sat/f64",0,  i_32,   d_convertOpList (i32_TruncSat_f64),        Compile_Convert ),  // 0x02
-    M3OP_F( "i32.trunc_u:sat/f64",0,  i_32,   d_convertOpList (u32_TruncSat_f64),        Compile_Convert ),  // 0x03
-    M3OP_F( "i64.trunc_s:sat/f32",0,  i_64,   d_convertOpList (i64_TruncSat_f32),        Compile_Convert ),  // 0x04
-    M3OP_F( "i64.trunc_u:sat/f32",0,  i_64,   d_convertOpList (u64_TruncSat_f32),        Compile_Convert ),  // 0x05
-    M3OP_F( "i64.trunc_s:sat/f64",0,  i_64,   d_convertOpList (i64_TruncSat_f64),        Compile_Convert ),  // 0x06
-    M3OP_F( "i64.trunc_u:sat/f64",0,  i_64,   d_convertOpList (u64_TruncSat_f64),        Compile_Convert ),  // 0x07
+    M3OP_F( "i32.trunc_s:sat/f32",  0,  i_32,   d_convertOpList (i32_TruncSat_f32), Compile_Convert ),  // 0x00
+    M3OP_F( "i32.trunc_u:sat/f32",  0,  i_32,   d_convertOpList (u32_TruncSat_f32), Compile_Convert ),  // 0x01
+    M3OP_F( "i32.trunc_s:sat/f64",  0,  i_32,   d_convertOpList (i32_TruncSat_f64), Compile_Convert ),  // 0x02
+    M3OP_F( "i32.trunc_u:sat/f64",  0,  i_32,   d_convertOpList (u32_TruncSat_f64), Compile_Convert ),  // 0x03
+    M3OP_F( "i64.trunc_s:sat/f32",  0,  i_64,   d_convertOpList (i64_TruncSat_f32), Compile_Convert ),  // 0x04
+    M3OP_F( "i64.trunc_u:sat/f32",  0,  i_64,   d_convertOpList (u64_TruncSat_f32), Compile_Convert ),  // 0x05
+    M3OP_F( "i64.trunc_s:sat/f64",  0,  i_64,   d_convertOpList (i64_TruncSat_f64), Compile_Convert ),  // 0x06
+    M3OP_F( "i64.trunc_u:sat/f64",  0,  i_64,   d_convertOpList (u64_TruncSat_f64), Compile_Convert ),  // 0x07
 
-    M3OP_RESERVED, M3OP_RESERVED,
-
-    M3OP( "memory.copy",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0a
-    M3OP( "memory.fill",            0,  none,   d_emptyOpList,                           Compile_Memory_CopyFill ), // 0x0b
+    M3OP( "memory.init",            0,  none,   d_emptyOpList,                      Compile_Memory_CopyFill ), // 0x08
+    M3OP( "data.drop",              0,  none,   d_emptyOpList,                      Compile_Data_Drop       ), // 0x09
+    M3OP( "memory.copy",            0,  none,   d_emptyOpList,                      Compile_Memory_CopyFill ), // 0x0a
+    M3OP( "memory.fill",            0,  none,   d_emptyOpList,                      Compile_Memory_CopyFill ), // 0x0b
 
 
 # ifdef DEBUG
@@ -2600,6 +2649,9 @@ _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opco
         }
 
         IM3OpInfo opinfo = GetOpInfo (opcode);
+
+        if (!memcmp(opinfo, &(M3OpInfo)M3OP_RESERVED, sizeof(M3OpInfo))) 
+            _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' is reserved", opcode));
 
         if (opinfo == NULL)
             _throw (ErrorCompile (m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));

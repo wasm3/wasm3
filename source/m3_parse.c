@@ -5,10 +5,13 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include "m3_core.h"
 #include "m3_env.h"
 #include "m3_compile.h"
 #include "m3_exception.h"
 #include "m3_info.h"
+#include "wasm3.h"
+#include <string.h>
 
 
 M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
@@ -25,10 +28,10 @@ M3Result  ParseType_Memory  (M3MemoryInfo * o_memory, bytes_t * io_bytes, cbytes
 
     u8 flag;
 
-_   (ReadLEB_u7 (& flag, io_bytes, i_end));                   // really a u1
+_   (Read_u8 (& flag, io_bytes, i_end));
 _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
-    o_memory->maxPages = 0;
+    o_memory->maxPages = -1; // max u32
     if (flag & (1u << 0))
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
 
@@ -189,9 +192,12 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
 
             case d_externalKind_memory:
             {
-_               (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
-                io_module->memoryImported = true;
-                io_module->memoryImport = import;
+                M3MemoryTableEntry new = {
+                    .imported = true,
+                    .import = import,
+                };
+_               (ParseType_Memory (& new.memoryInfo, & i_bytes, i_end));
+                da_push(M3MemoryTableEntry, &io_module->memoryTable, new);
                 import = clearImport;
             }
             break;
@@ -267,8 +273,11 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         }
         else if (exportKind == d_externalKind_memory)
         {
-            m3_Free (io_module->memoryExportName);
-            io_module->memoryExportName = utf8;
+            // Parsing the memory section creates the corresponding entries
+            M3MemoryTableEntry *entry = &io_module->memoryTable.entries[index];
+            entry->exported = true;
+            entry->exportName = utf8;
+
             utf8 = NULL; // ownership transferred to M3Module
         }
         else if (exportKind == d_externalKind_table)
@@ -427,12 +436,17 @@ _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                        
         M3DataSegment * segment = & io_module->dataSegments [i];
 
 _       (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
+        if (segment->memoryRegion == 2) {
+_           (ReadLEB_u32 (& segment->memIdx, & i_bytes, i_end));
+        } else segment->memIdx = 0;
 
-        segment->initExpr = i_bytes;
-_       (Parse_InitExpr (io_module, & i_bytes, i_end));
-        segment->initExprSize = (u32) (i_bytes - segment->initExpr);
-
-        _throwif (m3Err_wasmMissingInitExpr, segment->initExprSize <= 1);
+        // Init expr only for active data segments
+        if (segment->memoryRegion != 1) {
+            segment->initExpr = i_bytes;
+_           (Parse_InitExpr (io_module, & i_bytes, i_end));
+            segment->initExprSize = (u32) (i_bytes - segment->initExpr);
+            _throwif (m3Err_wasmMissingInitExpr, segment->initExprSize <= 1);
+        }
 
 _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
@@ -448,18 +462,22 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
 }
 
 
+// Parses non-imported memories
 M3Result  ParseSection_Memory  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
 
-    // TODO: MVP; assert no memory imported
-
     u32 numMemories;
 _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                             m3log (parse, "** Memory [%d]", numMemories);
 
-    _throwif (m3Err_tooManyMemorySections, numMemories != 1);
+    for (u32 i = 0; i < numMemories; i++) {
+        M3MemoryInfo memoryInfo;
+        ParseType_Memory (& memoryInfo, & i_bytes, i_end);
 
-    ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
+        da_push(M3MemoryTableEntry, & io_module->memoryTable, ((M3MemoryTableEntry) {
+            .memoryInfo = memoryInfo,
+        }));
+    }
 
     _catch: return result;
 }

@@ -578,6 +578,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
+    void *_mem = m3ApiGetMem();
     const void* mem_check = copy_iov_to_host(runtime, _mem, iovs, wasi_iovs, iovs_len);
     if (mem_check != m3Err_none) {
         return mem_check;
@@ -617,6 +618,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
 
 #if defined(HAS_IOVEC)
     struct iovec iovs[iovs_len];
+    void *_mem = m3ApiGetMem();
     const void* mem_check = copy_iov_to_host(runtime, _mem, iovs, wasi_iovs, iovs_len);
     if (mem_check != m3Err_none) {
         return mem_check;

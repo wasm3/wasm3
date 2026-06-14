@@ -244,6 +244,9 @@ class Wasm3():
         self.loaded = fn
         return res
 
+    def register(self, name):
+        return self._run_cmd(f":register {name}\n")
+
     def invoke(self, cmd):
         return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
 
@@ -476,6 +479,7 @@ else:
     jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"))
     jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "sign-extension-ops", "*.json"))
     jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "nontrapping-float-to-int-conversions", "*.json"))
+    jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "multi-memory", "*.json"))
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
@@ -488,6 +492,8 @@ for fn in jsonFiles:
     wasm_module = ""
 
     print(f"Running {fn}")
+
+    wasm3.init()
 
     for cmd in data["commands"]:
         test = dotdict()
@@ -504,8 +510,6 @@ for fn in jsonFiles:
 
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
-
-                wasm3.init()
 
                 res = wasm3.load(wasm_fn)
                 if res:
@@ -564,6 +568,9 @@ for fn in jsonFiles:
               test.type == "assert_malformed" or
               test.type == "assert_uninstantiable"):
             pass
+
+        elif test.type == "register":
+            wasm3.register(cmd["as"])
 
         # Others - report as skipped
         else:

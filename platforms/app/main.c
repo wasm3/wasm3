@@ -7,9 +7,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <ctype.h>
 
+#include "m3_core.h"
 #include "wasm3.h"
 #include "m3_api_libc.h"
 
@@ -64,6 +66,41 @@ m3ApiRawFunction(metering_usegas)
 
 #endif // GAS_LIMIT
 
+#include "m3_exception.h"
+
+M3Result link_spec_test() {
+    M3Result result = m3Err_none;
+
+    IM3Module module = m3_AllocStruct(M3Module);
+
+    module->name = "spectest";
+
+    // might want to have exportName be unmanaged idk
+    char *memname = m3_Malloc(char, 7);
+    strcpy(memname, "memory");
+
+    M3MemoryTableEntry *spectest_memory = m3_AllocStruct(M3MemoryTableEntry);
+    *spectest_memory = (M3MemoryTableEntry){
+        .exported = true,
+        .memoryInfo = {
+            .initPages = 1,
+            .maxPages = 2,
+            .pageSize = d_m3DefaultMemPageSize,
+        },
+        .exportName = memname,
+    };
+
+    module->memoryTable = (M3MemoryTable){
+        .cap = 1,
+        .count = 1,
+        .entries = spectest_memory,
+    };
+
+_   (m3_LoadModule(runtime, module));
+
+_catch:
+    return result;
+}
 
 M3Result link_all  (IM3Module module)
 {
@@ -437,20 +474,23 @@ M3Result repl_compile  ()
     return m3_CompileModule(runtime->modules);
 }
 
+// NOTE: Currently only dumps 0th memory of each module
 M3Result repl_dump  ()
 {
-    uint32_t len;
-    uint8_t* mem = m3_GetMemory(runtime, &len, 0);
-    if (mem) {
-        FILE* f = fopen ("wasm3_dump.bin", "wb");
-        if (!f) {
-            return "cannot open file";
-        }
-        if (fwrite (mem, 1, len, f) != len) {
+    for (IM3Module module = runtime->modules; module != NULL; module = module->next) {
+        uint32_t len;
+        uint8_t* mem = m3_GetMemory(module, &len, 0);
+        if (mem) {
+            FILE* f = fopen ("wasm3_dump.bin", "wb");
+            if (!f) {
+                return "cannot open file";
+            }
+            if (fwrite (mem, 1, len, f) != len) {
+                fclose (f);
+                return "cannot write file";
+            }
             fclose (f);
-            return "cannot write file";
         }
-        fclose (f);
     }
     return m3Err_none;
 }
@@ -458,6 +498,14 @@ M3Result repl_dump  ()
 void repl_free  ()
 {
     if (runtime) {
+        for (IM3Module mod = runtime->modules; mod != NULL; mod = mod->next) {
+            cstr_t modname = m3_GetModuleName(mod);
+            if (strcmp(".unnamed", modname)
+            &&  strcmp("spectest", modname)) {
+                free((void *)mod->name);
+            }
+        }
+
         m3_FreeRuntime (runtime);
         runtime = NULL;
     }
@@ -665,6 +713,7 @@ int  main  (int i_argc, const char* i_argv[])
         result = m3Err_none;
         if (!strcmp(":init", argv[0])) {
             result = repl_init(argStackSize);
+            result = link_spec_test(); // idk
         } else if (!strcmp(":version", argv[0])) {
             print_version();
         } else if (!strcmp(":exit", argv[0])) {
@@ -674,6 +723,14 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_load(argv[1]);
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(atol(argv[1]));
+        } else if (!strcmp(":register", argv[0])) {
+            if (argc == 2) {
+                size_t name_size = strlen(argv[1]) + 1;
+                char *modname_buf = malloc(name_size);
+                memcpy(modname_buf, argv[1], name_size);
+                modname_buf[name_size - 1] = '\0';
+                m3_SetModuleName(runtime->modules, modname_buf);
+            }
         } else if (!strcmp(":get-global", argv[0])) {
             result = repl_global_get(argv[1]);
         } else if (!strcmp(":set-global", argv[0])) {
