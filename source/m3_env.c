@@ -342,15 +342,24 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
 
 static
-bool  LinkTableEntry(IM3Module modules, M3MemoryTableEntry *entry) {
-    for (IM3Module module = modules; module != NULL; module = module->next) {
-        if (strcmp(module->name, entry->import.moduleUtf8)) continue;
-        for (u32 i = 0; i < module->memoryTable.count; i++) {
-            if (!module->memoryTable.entries[i].exported) continue;
-            if (strcmp(module->memoryTable.entries[i].exportName, entry->import.fieldUtf8)) continue;
-            entry->internalIndex = module->memoryTable.entries[i].internalIndex;
-            return true;
-        }
+bool  FindExportIdx  (IM3Module i_module, const char *i_name, u32 *o_idx) {
+    for (u32 i = 0; i < i_module->memoryTable.count; i++) {
+        if (!i_module->memoryTable.entries[i].exported) continue;
+        if (strcmp(i_module->memoryTable.entries[i].exportName, i_name)) continue;
+        *o_idx = i_module->memoryTable.entries[i].internalIndex;
+        return true;
+    }
+
+    return false;
+}
+
+
+static
+bool  LinkTableEntry  (IM3Module i_modules, M3MemoryTableEntry *o_entry) {
+    for (IM3Module module = i_modules; module != NULL; module = module->next) {
+        if (strcmp(module->name, o_entry->import.moduleUtf8)) continue;
+        if (!FindExportIdx(module, o_entry->import.fieldUtf8, &o_entry->internalIndex)) continue;
+        return true;
     }
     return false;
 }
