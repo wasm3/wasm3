@@ -340,6 +340,22 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     return result;
 }
 
+
+static
+bool  LinkTableEntry(IM3Module modules, M3MemoryTableEntry *entry) {
+    for (IM3Module module = modules; module != NULL; module = module->next) {
+        if (strcmp(module->name, entry->import.moduleUtf8)) continue;
+        for (u32 i = 0; i < module->memoryTable.count; i++) {
+            if (!module->memoryTable.entries[i].exported) continue;
+            if (strcmp(module->memoryTable.entries[i].exportName, entry->import.fieldUtf8)) continue;
+            entry->internalIndex = module->memoryTable.entries[i].internalIndex;
+            return true;
+        }
+    }
+    return false;
+}
+
+
 M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 {
     M3Result result = m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
@@ -348,24 +364,8 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
     for (u32 i = 0; i < i_module->memoryTable.count; i++) {
         M3MemoryTableEntry *entry = &i_module->memoryTable.entries[i];
         if (entry->imported) {
-            // Map imported memories to exported ones
-            u32 internalIndex = 0;
-            for (IM3Module module = io_runtime->modules; module != NULL; module = module->next) {
-                if (!strcmp(module->name, entry->import.moduleUtf8)) {
-                    for (u32 i = 0; i < module->memoryTable.count; i++) {
-                        if (module->memoryTable.entries[i].exported) {
-                            if (!strcmp(module->memoryTable.entries[i].exportName, entry->import.fieldUtf8)) {
-                                internalIndex = module->memoryTable.entries[i].internalIndex;
-                                goto _break;
-                            }
-                        }
-                    }
-                }
-            }
+            if (LinkTableEntry(io_runtime->modules, entry)) continue;
             return m3Err_memoryExportMissing;
-            _break:;
-            entry->internalIndex = internalIndex;
-            continue;
         }
 
         u32 maxPages = entry->memoryInfo.maxPages;
