@@ -484,11 +484,11 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
-        if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
+        if (segmentOffset >= 0 and (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
         {
             u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
             memcpy (dest, segment->data, segment->size);
-            segment->offset = -segmentOffset;                   // save for m3_GetDataSegmentOffset, negated for validation
+            segment->offset = segmentOffset;
         } else {
             _throw ("data segment out of bounds");
         }

@@ -160,13 +160,13 @@ int  main  (int argc, const char  * argv [])
         };
         
         // will partially fail (compilation) because module isn't attached to a runtime yet.
-        result = w3x_InjectFunction (module, & functionIndex, "i()", wasm, true);     expect (result != m3Err_none)
+        result = w3x_InjectFunction (module, & functionIndex, "i()", wasm, 5, true);    expect (result != m3Err_none)
                                                                                         expect (functionIndex >= 0)
 
         result = m3_LoadModule (runtime, module);                                       expect (result == m3Err_none)
 
         // try again
-        result = w3x_InjectFunction (module, & functionIndex, "i()", wasm, true);        expect (result == m3Err_none)
+        result = w3x_InjectFunction (module, & functionIndex, "i()", wasm, 5, true);    expect (result == m3Err_none)
 
         IM3Function function = m3_GetFunctionByIndex (module, functionIndex);           expect (function)
         

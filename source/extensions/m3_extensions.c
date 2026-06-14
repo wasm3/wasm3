@@ -192,19 +192,29 @@ M3Result  m3_GetFunctionIndex  (IM3Function         i_function,
 }
 
 
-M3Result            m3_GetDataSegmentOffset     (IM3Module              i_module,
-                                                 uint32_t               i_index)
+M3Result            w3x_GetDataSegmentInfo      (IM3Module              i_module,
+												 uint32_t *				o_offset,
+												 uint32_t *				o_size,
+												 uint32_t               i_dataSegmentIndex)
 {
     M3Result result = m3Err_none;                                       d_m3Assert (i_module);
 
+	* o_offset = * o_size = 0;
+	
     if (i_module)
     {
-        d_m3Assert (false); // TODO: finish
+		if (i_dataSegmentIndex < i_module->numDataSegments)
+		{
+			M3DataSegment * segment = & i_module->dataSegments [i_dataSegmentIndex];
+			
+			* o_offset = segment->offset;
+			* o_size   = segment->size;
+		}
+		else _throw (m3Err_indexOutOfBounds);
     }
     else _throw (m3Err_nullArgument);
 
     _catch: return result;
-
 }
 
 

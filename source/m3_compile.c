@@ -1695,7 +1695,7 @@ _           (EmitOp     (o, op));
             _throw (ErrorCompile (m3Err_functionImportMissing, o, "'%s.%s'", GetFunctionImportModuleName (function), m3_GetFunctionName (function)));
         }
     }
-    else _throw (m3Err_functionLookupFailed);
+    else _throw (ErrorCompile (m3Err_functionLookupFailed, o, "index: %d", functionIndex));
 
     } _catch: return result;
 }

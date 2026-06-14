@@ -33,7 +33,7 @@ IM3CodePage  NewCodePage  (IM3Runtime i_runtime, u32 i_minNumLines)
         return NULL;
     }
 
-    page = (IM3CodePage)m3_Malloc ("M3CodePage", pageSize);
+    page = (IM3CodePage) m3_Malloc ("M3CodePage", pageSize);
 
     if (page)
     {

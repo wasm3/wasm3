@@ -426,7 +426,7 @@ _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                        
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
 
-_       (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
+_       (ReadLEB_u32 (& segment->memoryIndex, & i_bytes, i_end));					_throwif (m3Err_tooManyMemorySections, segment->memoryIndex != 0);
 
         segment->initExpr = i_bytes;
 _       (Parse_InitExpr (io_module, & i_bytes, i_end));
@@ -436,7 +436,7 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 
 _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         segment->data = i_bytes;                                                    m3log (parse, "    segment [%u]  memory: %u;  expr-size: %d;  size: %d",
-                                                                                       i, segment->memoryRegion, segment->initExprSize, segment->size);
+                                                                                       i, segment->memoryIndex, segment->initExprSize, segment->size);
         i_bytes += segment->size;
 
         _throwif("data segment underflow", i_bytes > i_end);
@@ -457,7 +457,7 @@ M3Result  ParseSection_Memory  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
     u32 numMemories;
 _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                             m3log (parse, "** Memory [%d]", numMemories);
 
-    _throwif (m3Err_tooManyMemorySections, numMemories != 1);
+    _throwif (m3Err_tooManyMemorySections, numMemories > 1);
 
     ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
 

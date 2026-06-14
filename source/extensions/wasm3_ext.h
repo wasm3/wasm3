@@ -57,8 +57,10 @@ extern "C" {
     M3Result            m3_GetFunctionIndex         (IM3Function            i_function,
                                                      uint32_t *             o_index);
 
-    M3Result            m3_GetDataSegmentOffset     (IM3Module              i_module,
-                                                     uint32_t               i_index);
+    M3Result            w3x_GetDataSegmentInfo      (IM3Module              i_module,
+													 uint32_t *				o_offset,
+													 uint32_t *				o_size,
+                                                     uint32_t               i_dataSegmentIndex);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 

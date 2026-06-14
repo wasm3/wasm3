@@ -51,7 +51,7 @@ typedef struct M3DataSegment
         u32                 initExprSize;       // after the segment is processed,
         i32                 offset;             // it's offset is written here
     };
-    u32                     memoryRegion;
+    u32                     memoryIndex;
     u32                     size;
 }
 M3DataSegment;

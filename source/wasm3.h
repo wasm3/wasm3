@@ -130,6 +130,7 @@ d_m3ErrorConst  (none,                          NULL)
 // general errors
 d_m3ErrorConst  (mallocFailed,                  "memory allocation failed")
 d_m3ErrorConst  (nullArgument,                  "null pointer argument provided")
+d_m3ErrorConst  (indexOutOfBounds,              "index out of bounds")
 
 // parse errors
 d_m3ErrorConst  (incompatibleWasmVersion,       "incompatible Wasm binary version")
@@ -241,7 +242,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
                                                      IM3Module *            o_module,
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes,
-                                                     bool                   i_copyWasmBytes);
+                                                     bool                   i_copyWasmBytes); // implicitly = false for v0.5.0 & earlier
 
     // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
     // a. m3_LoadModule has not yet been called on that module. Or,
