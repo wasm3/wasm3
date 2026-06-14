@@ -93,11 +93,15 @@ void  Function_Release  (IM3Function i_function)
             m3_Free (i_function->names[i]);
         }
     }
+	i_function->numNames = 0;
 
     FreeImportInfo (& i_function->import);
 
     if (i_function->ownsWasmCode)
-        m3_Free (i_function->wasm);
+	{
+		m3_Free (i_function->wasm);
+		i_function->ownsWasmCode = false;
+	}
 
     // Function_FreeCompiledCode (func);
 
@@ -137,7 +141,7 @@ void  Function_FreeCompiledCode (IM3Function i_function)
 cstr_t  m3_GetFunctionName  (IM3Function i_function)
 {
     u16 numNames = 0;
-    cstr_t *names = GetFunctionNames(i_function, &numNames);
+    cstr_t * names = GetFunctionNames (i_function, &numNames);
     if (numNames > 0)
         return names[0];
     else

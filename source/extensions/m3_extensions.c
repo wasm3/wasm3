@@ -51,16 +51,141 @@ i32  Module_HasFuncType  (IM3Module i_module, IM3FuncType i_funcType)
     return -1;
 }
 
+uint32_t  w3x_GetNumFunctions  (IM3Module				i_module)
+{
+	return (i_module) ? i_module->numFunctions : 0;
+}
+
+
+M3Result            w3x_AllocateFunction        (IM3Module              i_module,
+												 int32_t *              io_functionIndex,
+												 const char * const     i_name,
+												 const char * const     i_signature)
+{																						d_m3Assert (io_functionIndex);
+	IM3FuncType ftype = NULL;
+
+	_try {
+	
+	if (not i_module)
+		_throw (m3Err_nullArgument);
+
+	IM3Function function = NULL;
+_   (SignatureToFuncType (& ftype, i_signature));
+
+	i32 index = * io_functionIndex;
+
+	if (index >= 0)
+	{
+		_throwif ("function index out of bounds", index >= i_module->numFunctions);
+
+		function = & i_module->functions [index];
+
+		if (not AreFuncTypesEqual (ftype, function->funcType))
+			_throw ("function type mismatch");
+	}
+	else
+	{
+		i32 funcTypeIndex = Module_HasFuncType (i_module, ftype);
+		if (funcTypeIndex < 0)
+		{
+			// add new slot to function type table in the module
+			funcTypeIndex = i_module->numFuncTypes++;
+			i_module->funcTypes = m3_ReallocArray (IM3FuncType, i_module->funcTypes, i_module->numFuncTypes, funcTypeIndex);
+			_throwifnull (i_module->funcTypes);
+
+			// add functype object to the environment & module table
+			Environment_AddFuncType (i_module->environment, & ftype); // potentially frees incoming fttype & returns preexisting duplicate
+			i_module->funcTypes [funcTypeIndex] = ftype;
+			ftype = NULL; // prevent freeing below
+		}
+
+		index = (i32) i_module->numFunctions;
+_       (Module_AddFunction (i_module, funcTypeIndex, NULL));
+		function = Module_GetFunction (i_module, index);
+
+		* io_functionIndex = index;
+	}
+
+	function->compiled = NULL;
+		
+	Function_Release (function);
+	
+	if (i_name)
+	{
+		cstr_t name = m3_Malloc ("function name", strlen (i_name) + 1);			_throwif (m3Err_mallocFailed, not name);
+		strcpy ((char *) name, i_name);
+
+		function->names [0] = name;
+		function->numNames = 1;
+	}
+
+	} _catch:
+	
+	m3_Free (ftype); // freed unless Environment_AddFuncType was called
+
+	return result;
+}
+
+
+M3Result			w3x_AttachFunctionCode		(IM3Module				i_module,
+												 int32_t				i_functionIndex,
+												 const uint8_t * const  i_wasmBytes,
+												 const uint32_t			i_numWasmBytes,
+												 bool                   i_doCompilation)
+{
+	_try {																				_throwif (m3Err_nullArgument, not i_module);
+		IM3Function function = Module_GetFunction (i_module, (u32) i_functionIndex);	_throwif (m3Err_functionLookupFailed, not function);
+		
+		bytes_t bytes = i_wasmBytes;
+		bytes_t end = i_wasmBytes + i_numWasmBytes;
+
+		u32 size;
+	_   (ReadLEB_u32 (& size, & bytes, end));
+		bytes_t calculatedEnd = bytes + size;											_throwif (m3Err_wasmOverrun, calculatedEnd > end);
+																						_throwif (m3Err_wasmUnderrun, calculatedEnd < end);
+		end = calculatedEnd;
+
+		size_t numBytes = end - i_wasmBytes;
+		function->wasm = m3_CopyMem (i_wasmBytes, numBytes);
+		_throwifnull (function->wasm);
+
+		function->wasmEnd = function->wasm + numBytes;
+		function->ownsWasmCode = true;
+
+		function->module = i_module;
+		
+		if (i_doCompilation)
+		{
+			_throwif ("module must be loaded into runtime to compile function", not i_module->runtime);
+			
+	_   	(CompileFunction (function));
+		}
+
+	} _catch:
+
+	return result;
+}
+
+
 
 M3Result  w3x_InjectFunction  (IM3Module                 i_module,
 							   int32_t *                 io_functionIndex,
+							   const char * const     	 i_name,
 							   const char * const        i_signature,
 							   const uint8_t * const     i_wasmBytes,
 							   const uint32_t			 i_numWasmBytes,
 							   bool                      i_doCompilation)
-{
-                                                                        d_m3Assert (io_functionIndex);
-    IM3FuncType ftype = NULL;
+{																						d_m3Assert (io_functionIndex);
+	_try {
+_		(w3x_AllocateFunction (i_module, io_functionIndex, i_name, i_signature));
+_		(w3x_AttachFunctionCode (i_module, * io_functionIndex, i_wasmBytes, i_numWasmBytes, i_doCompilation));
+
+	} _catch:
+	
+	return result;
+
+/*
+	IM3FuncType ftype = NULL;
 
     _try {
 	
@@ -130,16 +255,19 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
 
     function->module = i_module;
 
-    if (i_doCompilation and not i_module->runtime)
-        _throw ("module must be loaded into runtime to compile function");
-
-_   (CompileFunction (function));
+    if (i_doCompilation)
+	{
+		_throwif (not i_module->runtime, "module must be loaded into runtime to compile function");
+		
+_   	(CompileFunction (function));
+	}
 
 	} _catch:
 	
     m3_Free (ftype); // freed unless Environment_AddFuncType was called
 
     return result;
+ */
 }
 
 

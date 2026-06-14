@@ -35,16 +35,31 @@ extern "C" {
     M3Result            w3x_ReserveFunctions        (IM3Module              i_module,
                                                      uint32_t               i_numFunctions);
 
+	uint32_t			w3x_GetNumFunctions			(IM3Module				i_module);
+
     // To append a new function, set io_functionIndex to negative. On return, the new function index will be set.
     // To overwrite an existing function, set io_functionIndex to the desired element. i_signature must match the existing
     // function signature.  TODO: failure result is?
     M3Result            w3x_InjectFunction          (IM3Module              i_module,
                                                      int32_t *              io_functionIndex,
-//                                                   const char * const     i_name,
+													 const char * const     i_name,
                                                      const char * const     i_signature,
                                                      const uint8_t * const  i_wasmBytes,            // i_wasmBytes are copied
 													 const uint32_t			i_numWasmBytes,
                                                      bool                   i_doCompilation);
+
+    M3Result            w3x_AllocateFunction        (IM3Module              i_module,
+                                                     int32_t *              o_functionIndex,
+													 const char * const     i_name,					// only assigned if (d_m3LogCompile == 1)
+                                                     const char * const     i_signature);
+
+
+	M3Result			w3x_AttachFunctionCode	    (IM3Module				i_module,
+													 int32_t				i_functionIndex,
+                                                     const uint8_t * const  i_wasmBytes,
+													 const uint32_t			i_numWasmBytes,
+                                                     bool                   i_doCompilation);
+
 
     M3Result            w3x_AddFunctionToTable      (IM3Function            i_function,
                                                      uint32_t *             o_elementIndex,
@@ -61,6 +76,11 @@ extern "C" {
 													 uint32_t *				o_offset,
 													 uint32_t *				o_size,
                                                      uint32_t               i_dataSegmentIndex);
+
+
+	M3Result            m3_GenerateModuleWasm       (IM3Module *             	o_module,
+													 const uint8_t * const *	o_wasmBytes,
+													 uint32_t *             	o_numWasmBytes);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 
