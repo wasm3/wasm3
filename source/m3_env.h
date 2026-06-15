@@ -78,6 +78,7 @@ typedef struct M3Global
     u8                      type;
     bool                    imported;
     bool                    isMutable;
+	bool					wasApiModified;
 }
 M3Global;
 

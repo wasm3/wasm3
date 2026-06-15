@@ -499,7 +499,7 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 
 M3Result  ParseSection_Name  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
     cstr_t name;
 
@@ -512,12 +512,10 @@ _       (ReadLEB_u7 (& nameType, & i_bytes, i_end));
 _       (ReadLEB_u32 (& payloadLength, & i_bytes, i_end));
 
         bytes_t start = i_bytes;
-        if (nameType == 1)
+        if (nameType == c_m3Type_i32)
         {
             u32 numNames;
-_           (ReadLEB_u32 (& numNames, & i_bytes, i_end));
-
-            _throwif("too many names", numNames > d_m3MaxSaneFunctionsCount);
+_           (ReadLEB_u32 (& numNames, & i_bytes, i_end));				_throwif ("too many names", numNames > d_m3MaxSaneFunctionsCount);
 
             for (u32 i = 0; i < numNames; ++i)
             {
@@ -527,10 +525,10 @@ _               (Read_utf8 (& name, & i_bytes, i_end));
 
                 if (index < io_module->numFunctions)
                 {
-                    IM3Function func = &(io_module->functions [index]);
+                    IM3Function func = & (io_module->functions [index]);
                     if (func->numNames == 0)
                     {
-                        func->names[0] = name;        m3log (parse, "    naming function%5d:  %s", index, name);
+                        func->names[0] = name;        					m3log (parse, "    naming function%5d:  %s", index, name);
                         func->numNames = 1;
                         name = NULL; // transfer ownership
                     }
@@ -556,7 +554,7 @@ M3Result  ParseSection_Custom  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
 _   (Read_utf8 (& name, & i_bytes, i_end));
                                                                                     m3log (parse, "** Custom: '%s'", name);
     if (strcmp (name, "name") == 0) {
-_       (ParseSection_Name(io_module, i_bytes, i_end));
+_       (ParseSection_Name (io_module, i_bytes, i_end));
     } else if (io_module->environment->customSectionHandler) {
 _       (io_module->environment->customSectionHandler(io_module, name, i_bytes, i_end));
     }

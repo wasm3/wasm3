@@ -78,8 +78,13 @@ extern "C" {
                                                      uint32_t               i_dataSegmentIndex);
 
 
-	M3Result            m3_GenerateModuleWasm       (IM3Module *             	o_module,
-													 const uint8_t * const *	o_wasmBytes,
+	// Serializes a live module back into a valid Wasm binary.  Data segments are snapshotted from the
+	// runtime's linear memory and the code section is rebuilt from each function's wasm, so functions
+	// injected after load are captured. Globals modified through the m3_SetGlobal api will also be captured
+	// and the original parsed init_expr will be ignored.
+	// On success *o_wasmBytes is a heap buffer owned by the caller (free with m3_Free).
+	M3Result            w3x_GenerateModuleWasm      (IM3Module              	i_module,				// module must be loaded into a runtime
+													 uint8_t **             	o_wasmBytes,
 													 uint32_t *             	o_numWasmBytes);
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -91,18 +96,6 @@ extern "C" {
 
 //-------------------------------------------------------------------------------------------------------------------------------
 
-#if 0
-    M3Result            m3_SetStackGlobalIndex      (IM3Module              io_module,
-                                                     uint32_t               i_index);
-
-    M3Result            m3_StackAllocate            (IM3Module              io_module,
-                                                     uint32_t *             o_location,
-                                                     const uint8_t * const  i_bytes,
-                                                     uint32_t               i_size);
-
-    M3Result            m3_PopStack                 (IM3Module              io_module,
-                                                     uint32_t               i_size);
-#endif
 
 #if defined(__cplusplus)
 }

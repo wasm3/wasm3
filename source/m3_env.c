@@ -707,9 +707,9 @@ M3Result  m3_GetGlobal  (IM3Global                 i_global,
 M3Result  m3_SetGlobal  (IM3Global                 i_global,
                          const IM3TypedValue       i_value)
 {
-    if (not i_global) return m3Err_globalLookupFailed;
-    if (not i_global->isMutable) return m3Err_globalNotMutable;
-    if (i_global->type != i_value->type) return m3Err_globalTypeMismatch;
+    if (not i_global)						return m3Err_globalLookupFailed;
+    if (not i_global->isMutable)			return m3Err_globalNotMutable;
+    if (i_global->type != i_value->type)	return m3Err_globalTypeMismatch;
 
     switch (i_value->type) {
     case c_m3Type_i32: i_global->i32Value = i_value->value.i32; break;
@@ -718,8 +718,10 @@ M3Result  m3_SetGlobal  (IM3Global                 i_global,
     case c_m3Type_f32: i_global->f32Value = i_value->value.f32; break;
     case c_m3Type_f64: i_global->f64Value = i_value->value.f64; break;
 # endif
-    default: return m3Err_invalidTypeId;
+    default:								return m3Err_invalidTypeId;
     }
+	
+	i_global->wasApiModified |= true;
 
     return m3Err_none;
 }
