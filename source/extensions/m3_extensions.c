@@ -141,7 +141,7 @@ M3Result			w3x_AttachFunctionCode		(IM3Module				i_module,
 		bytes_t end = i_wasmBytes + i_numWasmBytes;
 
 		u32 size;
-	_   (ReadLEB_u32 (& size, & bytes, end));
+_   	(ReadLEB_u32 (& size, & bytes, end));
 		bytes_t calculatedEnd = bytes + size;											_throwif (m3Err_wasmOverrun, calculatedEnd > end);
 																						_throwif (m3Err_wasmUnderrun, calculatedEnd < end);
 		end = calculatedEnd;
@@ -159,7 +159,7 @@ M3Result			w3x_AttachFunctionCode		(IM3Module				i_module,
 		{
 			_throwif ("module must be loaded into runtime to compile function", not i_module->runtime);
 			
-	_   	(CompileFunction (function));
+_		   	(CompileFunction (function));
 		}
 
 	} _catch:
@@ -489,7 +489,7 @@ _   (Bytes_PushByte (io_buf, 0x0B));                            // end
 }
 
 
-M3Result  w3x_GenerateModuleWasm  (IM3Module i_module, uint8_t ** o_wasmBytes, uint32_t * o_numWasmBytes)
+M3Result  w3x_GenerateWasmModule  (IM3Module i_module, uint8_t ** o_wasmBytes, uint32_t * o_numWasmBytes)
 {
 	M3Result result = m3Err_none;
 	
@@ -761,8 +761,18 @@ _       (Bytes_PushLEB_u32 (& sec, numDefined));
         for (u32 i = i_module->numFuncImports; i < i_module->numFunctions; ++i)
         {
             IM3Function func = & i_module->functions [i];
-            _throwif ("function missing wasm code", not func->wasm or func->wasmEnd <= func->wasm);
-_           (Bytes_Push (& sec, func->wasm, (u32) (func->wasmEnd - func->wasm)));
+
+			if (func->wasm and func->wasmEnd)
+			{
+_	           (Bytes_Push (& sec, func->wasm, (u32) (func->wasmEnd - func->wasm)));
+			}
+			else
+			{
+				// dummy/empty function
+_				(Bytes_PushLEB_u32	(& sec, 2));
+_				(Bytes_PushLEB_u32	(& sec, 0)); 	// 0 locals
+_				(Bytes_PushByte		(& sec, 0x0B));	// end opcode
+			}
         }
 
 _       (Bytes_PushSection (& out, 10, & sec));

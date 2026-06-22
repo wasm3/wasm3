@@ -189,6 +189,7 @@ d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
 d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
+d_m3ErrorConst  (trapUnsupportedInstruction,    "[trap] unsupported instruction")
 
 
 //-------------------------------------------------------------------------------------------------------------------------------

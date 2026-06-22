@@ -243,7 +243,7 @@ int  main  (int argc, const char  * argv [])
 
         // generate a wasm snapshot of the live module
         u8 * gen = NULL; u32 genLen = 0;
-        result = w3x_GenerateModuleWasm (module, & gen, & genLen);                   expect (result == m3Err_none)
+        result = w3x_GenerateWasmModule (module, & gen, & genLen);                   expect (result == m3Err_none)
                                                                                     expect (gen and genLen)
         // sanity: header
         expect (gen [0] == 0x00 and gen [1] == 0x61 and gen [2] == 0x73 and gen [3] == 0x6d)
@@ -310,7 +310,7 @@ int  main  (int argc, const char  * argv [])
             result = m3_LoadModule (r, module);                                     expect (result == m3Err_none)
 
             u8 * gen = NULL; u32 genLen = 0;
-            result = w3x_GenerateModuleWasm (module, & gen, & genLen);              expect (result == m3Err_none)
+            result = w3x_GenerateWasmModule (module, & gen, & genLen);              expect (result == m3Err_none)
             if (not result)
             {
                 FILE * o = fopen ("/tmp/gen_real.wasm", "wb");

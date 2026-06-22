@@ -1256,7 +1256,7 @@ d_m3Op  (Const64)
 
 d_m3Op  (Unsupported)
 {
-    newTrap ("unsupported instruction executed");
+    newTrap (m3Err_trapUnsupportedInstruction);
 }
 
 d_m3Op  (Unreachable)

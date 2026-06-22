@@ -84,14 +84,18 @@ static M3_NOINLINE
 void  EmitConstant32  (IM3Compilation o, const u32 i_immediate)
 {
     if (o->page)
+	{																		m3log (emit, "const32: %ud", i_immediate);
         EmitWord32 (o->page, i_immediate);
+	}
 }
 
 static M3_NOINLINE
 void  EmitSlotOffset  (IM3Compilation o, const i32 i_offset)
 {
     if (o->page)
+	{   																 	m3log (emit, "slot: [%d]", i_offset);
         EmitWord32 (o->page, i_offset);
+	}
 }
 
 static M3_NOINLINE
@@ -100,7 +104,9 @@ pc_t  EmitPointer  (IM3Compilation o, const void * const i_pointer)
     pc_t ptr = GetPagePC (o->page);
 
     if (o->page)
+	{																		m3log (emit, "ptr: %p", i_pointer);
         EmitWord (o->page, i_pointer);
+	}
 
     return ptr;
 }
@@ -1207,7 +1213,7 @@ M3Result  Compile_ExtendedOpcode  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
     u8 opcode;
-_   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
+_   (Read_u8 (& opcode, & o->wasm, o->wasmEnd));             	m3log (compile, d_indent " (FC: %" PRIi32 ")", get_indention_string (o), opcode);
 
     i_opcode = (i_opcode << 8) | opcode;
 
@@ -1296,7 +1302,7 @@ M3Result  Compile_SetLocal  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result;
 
     u32 localIndex;
-_   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));             //  printf ("--- set local: %d \n", localSlot);
+_   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));           				m3log (compile, d_indent " (index = %u)", get_indention_string (o), localIndex);
 
     if (localIndex < GetFunctionNumArgsAndLocals (o->function))
     {
@@ -1324,7 +1330,7 @@ M3Result  Compile_GetLocal  (IM3Compilation o, m3opcode_t i_opcode)
 _try {
 
     u32 localIndex;
-_   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));
+_   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));						m3log (compile, d_indent " (index = %u)", get_indention_string (o), localIndex);
 
     if (localIndex >= GetFunctionNumArgsAndLocals (o->function))
         _throw ("local index out of bounds");
@@ -1916,10 +1922,11 @@ _   (CompileBlock (o, i_blockType, c_waOp_else));
 _   (EmitOp (o, op_Branch));
     EmitPointer (o, GetPagePC (savedPage));
 } _catch:
-    if(o->page != savedPage) {
+	
+    if (o->page != savedPage)
         ReleaseCompilationCodePage (o);
-    }
-    o->page = savedPage;
+
+	o->page = savedPage;
     return result;
 }
 
@@ -1945,9 +1952,7 @@ _   (EmitSlotNumOfStackTopAndPop (o));
     pc_t * pc = (pc_t *) ReservePointer (o);
 
     IM3FuncType blockType;
-_   (ReadBlockType (o, & blockType));
-
-//  dump_type_stack (o);
+_   (ReadBlockType (o, & blockType));					//  dump_type_stack (o);
 
     u16 stackIndex = o->stackIndex;
 
@@ -1967,9 +1972,7 @@ _       (CompileElseBlock (o, pc, blockType));
         {
             // rewind to the if's end to create a fake else block
             o->wasm--;
-            o->stackIndex = stackIndex;
-
-//          dump_type_stack (o);
+            o->stackIndex = stackIndex;					// dump_type_stack (o);
 
 _           (CompileElseBlock (o, pc, blockType));
         }
@@ -2583,6 +2586,7 @@ M3Result  CompileBlockStatements  (IM3Compilation o)
             o->numEmits = 0;
         }
 # endif
+		
         m3opcode_t opcode;
         o->lastOpcodeStart = o->wasm;
 _       (Read_opcode (& opcode, & o->wasm, o->wasmEnd));                log_opcode (o, opcode);
@@ -2624,7 +2628,7 @@ _           (Compile_Operator (o, opcode));
             break;
         }
     }
-    _throwif(m3Err_wasmMalformed, !(validEnd));
+    _throwif (m3Err_wasmMalformed, not validEnd);
 
 _catch:
     return result;

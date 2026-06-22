@@ -66,6 +66,7 @@ typedef struct M3Function
 
 # if defined (DEBUG) || d_m3EnableExtensions
     u32                     index;
+//	bool					isClone;
 # endif
 
     u16                     maxStackSlots;

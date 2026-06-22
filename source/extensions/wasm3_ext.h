@@ -82,10 +82,17 @@ extern "C" {
 	// runtime's linear memory and the code section is rebuilt from each function's wasm, so functions
 	// injected after load are captured. Globals modified through the m3_SetGlobal api will also be captured
 	// and the original parsed init_expr will be ignored.
+	//
 	// On success *o_wasmBytes is a heap buffer owned by the caller (free with m3_Free).
-	M3Result            w3x_GenerateModuleWasm      (IM3Module              	i_module,				// module must be loaded into a runtime
-													 uint8_t **             	o_wasmBytes,
-													 uint32_t *             	o_numWasmBytes);
+	M3Result            w3x_GenerateWasmModule      (IM3Module              i_module,	// module must be loaded into a runtime
+													 uint8_t **             o_wasmBytes,
+													 uint32_t *             o_numWasmBytes);
+
+	// NullifyFunction is a special use case for cleaning up unused functions in a module to reduce binary cruft before
+	// GenerateModuleWasm is used.  The function index is maintained, but an minimal/empty function of type 'void ()'
+	// is emitted into the .wasm binary.
+//	M3Result			w3x_NullifyFunction		    (IM3Function			i_function);
+
 
 //-------------------------------------------------------------------------------------------------------------------------------
 
