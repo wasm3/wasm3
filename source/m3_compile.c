@@ -1923,9 +1923,9 @@ _   (EmitOp (o, op_Branch));
     EmitPointer (o, GetPagePC (savedPage));
 } _catch:
 	
-    if (o->page != savedPage)
-        ReleaseCompilationCodePage (o);
-
+	if (o->page != savedPage) {
+		ReleaseCompilationCodePage (o);
+	}
 	o->page = savedPage;
     return result;
 }
