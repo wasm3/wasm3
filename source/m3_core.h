@@ -220,7 +220,7 @@ void        m3_Abort                (const char* message);
 void *      m3_Malloc_Impl          (size_t i_size);
 void *      m3_Realloc_Impl         (void * i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3_Free_Impl            (void * i_ptr);
-void *      m3_CopyMem              (const void * i_from, size_t i_size);
+void *      m3_CopyMem              (const uint8_t * const i_from, size_t i_size);
 
 #if d_m3LogHeapOps
 
