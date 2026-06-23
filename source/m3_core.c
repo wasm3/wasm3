@@ -152,13 +152,13 @@ void *  m3_Realloc_Impl  (void * i_ptr, size_t i_newSize, size_t i_oldSize)
 
 #endif
 
-void *  m3_CopyMem  (const uint8_t * const i_from, size_t i_size)
+bytes_t  m3_CopyMem  (cbytes_t i_from, size_t i_size)
 {
     void * ptr = m3_Malloc ("CopyMem", i_size);
     if (ptr) {
         memcpy (ptr, i_from, i_size);
     }
-    return ptr;
+    return (bytes_t) ptr;
 }
 
 //--------------------------------------------------------------------------------------------

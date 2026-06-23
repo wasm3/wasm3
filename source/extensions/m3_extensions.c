@@ -130,7 +130,7 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
 
 M3Result			w3x_AttachFunctionCode		(IM3Module				i_module,
 												 int32_t				i_functionIndex,
-												 const uint8_t * const  i_wasmBytes,
+												 cbytes_t				i_wasmBytes,
 												 const uint32_t			i_numWasmBytes,
 												 bool                   i_doCompilation)
 {
