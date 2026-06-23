@@ -2923,7 +2923,7 @@ _   (CompileBlockStatements (o));
 
     if (numConstantSlots)
     {
-        io_function->constants = m3_CopyMem (o->constants, io_function->numConstantBytes);
+        io_function->constants = m3_CopyMem ((cbytes_t) o->constants, io_function->numConstantBytes);
         _throwifnull(io_function->constants);
     }
 
