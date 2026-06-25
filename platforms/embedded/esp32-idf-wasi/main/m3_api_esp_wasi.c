@@ -5,8 +5,6 @@
 //  Copyright © 2019 Volodymyr Shymanskyy. All rights reserved.
 //
 
-#define _POSIX_C_SOURCE 200809L
-
 #include "m3_api_esp_wasi.h"
 
 #include "m3_env.h"

@@ -346,6 +346,8 @@ if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"
       "conversions.wast:* f32.convert_i64_u(9007199791611905)",
       "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
       "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
+      "conversions.wast:* i64.trunc_f64_u(4895412794951729151)",
+      "conversions.wast:* i64.trunc_sat_f64_u(4895412794951729151)",
     ])
 elif wasm3_ver in Blacklist(["* on mips* GCC *"]):
     warning("MIPS has NaN representation issues, skipping some tests", True)

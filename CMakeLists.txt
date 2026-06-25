@@ -91,11 +91,11 @@ include(CheckIPOSupported)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED YES)
-set(CMAKE_C_EXTENSIONS NO)
+set(CMAKE_C_EXTENSIONS YES)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
-set(CMAKE_CXX_EXTENSIONS NO)
+set(CMAKE_CXX_EXTENSIONS YES)
 
 
 file(GLOB app_srcs "${APP_DIR}/*.c")
@@ -196,18 +196,22 @@ elseif(BUILD_WASI MATCHES "metawasi")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
 elseif(BUILD_WASI MATCHES "uvwasi")
   include(FetchContent)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "" FORCE)
+
+  FetchContent_Declare(
+    libuv
+    GIT_REPOSITORY https://github.com/libuv/libuv.git
+    GIT_TAG        v1.52.1
+  )
   FetchContent_Declare(
     uvwasi
     GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
-    GIT_TAG         v0.0.18
+    GIT_TAG         v0.0.23
   )
-
-  FetchContent_GetProperties(uvwasi)
-  if(NOT uvwasi_POPULATED)
-    FetchContent_Populate(uvwasi)
-    include_directories("${uvwasi_SOURCE_DIR}/include")
-    add_subdirectory(${uvwasi_SOURCE_DIR} ${uvwasi_BINARY_DIR} EXCLUDE_FROM_ALL)
-  endif()
+  FetchContent_MakeAvailable(libuv)
+  FetchContent_MakeAvailable(uvwasi)
+  include_directories("${uvwasi_SOURCE_DIR}/include")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasUVWASI")
   target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
 endif()
