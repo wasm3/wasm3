@@ -109,10 +109,38 @@ double rint( double arg ) {
   return (double)lrint(arg);
 }
 
-//TODO
 static inline
 uint64_t strtoull(const char* str, char** endptr, int base) {
-  return 0;
+  uint64_t result = 0;
+  const char* p = str;
+
+  while (*p == ' ' || *p == '\t') p++;
+
+  if (base == 0) {
+    if (*p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) {
+      base = 16; p += 2;
+    } else if (*p == '0') {
+      base = 8; p++;
+    } else {
+      base = 10;
+    }
+  } else if (base == 16 && *p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) {
+    p += 2;
+  }
+
+  while (*p) {
+    int digit;
+    if (*p >= '0' && *p <= '9') digit = *p - '0';
+    else if (*p >= 'a' && *p <= 'f') digit = *p - 'a' + 10;
+    else if (*p >= 'A' && *p <= 'F') digit = *p - 'A' + 10;
+    else break;
+    if (digit >= base) break;
+    result = result * base + digit;
+    p++;
+  }
+
+  if (endptr) *endptr = (char*)p;
+  return result;
 }
 
 #endif
