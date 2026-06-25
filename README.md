@@ -24,17 +24,17 @@ A fast WebAssembly interpreter and the most universal WASM runtime.
 
 Wasm3 can also be used as a library for:
 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/python.svg" width="18" height="18" /> Python3](https://github.com/wasm3/pywasm3) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/rust.svg" width="18" height="18" /> Rust](https://github.com/wasm3/wasm3-rs) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/cplusplus.svg" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/d.svg" width="18" height="18" /> D](https://github.com/kassane/wasm3-d) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/go.svg" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/zig.svg" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3) │
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/perl.svg" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/swift.svg" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/dotnet.svg" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/nim.svg" width="18" height="18" /> Nim](https://github.com/beef331/wasm3) │ 
-[<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/arduino.svg" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
+[<img src="https://cdn.simpleicons.org/python/363636/d1d1d1" width="18" height="18" /> Python3](https://github.com/wasm3/pywasm3) │ 
+[<img src="https://cdn.simpleicons.org/rust/363636/d1d1d1" width="18" height="18" /> Rust](https://github.com/wasm3/wasm3-rs) │ 
+[<img src="https://cdn.simpleicons.org/cplusplus/363636/d1d1d1" width="18" height="18" /> C/C++](https://github.com/wasm3/wasm3) │ 
+[<img src="https://cdn.simpleicons.org/d/363636/d1d1d1" width="18" height="18" /> D](https://github.com/kassane/wasm3-d) │ 
+[<img src="https://cdn.simpleicons.org/go/363636/d1d1d1" width="18" height="18" /> GoLang](https://github.com/matiasinsaurralde/go-wasm3) │ 
+[<img src="https://cdn.simpleicons.org/zig/363636/d1d1d1" width="18" height="18" /> Zig](https://github.com/alichay/zig-wasm3) │
+[<img src="https://cdn.simpleicons.org/perl/363636/d1d1d1" width="18" height="18" /> Perl](https://metacpan.org/pod/Wasm::Wasm3)  
+[<img src="https://cdn.simpleicons.org/swift/363636/d1d1d1" width="18" height="18" /> Swift](https://github.com/shareup/wasm-interpreter-apple) │ 
+[<img src="https://cdn.simpleicons.org/dotnet/363636/d1d1d1" width="18" height="18" /> .Net](https://github.com/tana/Wasm3DotNet) │ 
+[<img src="https://cdn.simpleicons.org/nim/363636/d1d1d1" width="18" height="18" /> Nim](https://github.com/beef331/wasm3) │ 
+[<img src="https://cdn.simpleicons.org/arduino/363636/d1d1d1" width="18" height="18" /> Arduino, PlatformIO, Particle](https://github.com/wasm3/wasm3-arduino) │ [QuickJS](https://github.com/saghul/txiki.js)
 
 ## Status
 
@@ -43,16 +43,16 @@ Wasm3 can also be used as a library for:
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 `wasm3` runs on a wide range of architectures (`x86`, `x86_64`, `ARM`, `RISC-V`, `PowerPC`, `MIPS`, `Xtensa`, `ARC32`, ...) and [platforms](/platforms):
-- <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/linux.svg" width="18" height="18" /> Linux,
+- <img src="https://cdn.simpleicons.org/linux/363636/d1d1d1" width="18" height="18" /> Linux,
 <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/Windows_logo_-_2021_%28Black%29.svg" width="18" height="18" /> Windows,
-<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/apple.svg" width="18" height="18" /> OS X,
-<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/freebsd.svg" width="18" height="18" /> FreeBSD,
-<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/android.svg" width="18" height="18" /> Android,
-<img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/apple.svg" width="18" height="18" /> iOS
+<img src="https://cdn.simpleicons.org/apple/363636/d1d1d1" width="18" height="18" /> OS X,
+<img src="https://cdn.simpleicons.org/freebsd/363636/d1d1d1" width="18" height="18" /> FreeBSD,
+<img src="https://cdn.simpleicons.org/android/363636/d1d1d1" width="18" height="18" /> Android,
+<img src="https://cdn.simpleicons.org/apple/363636/d1d1d1" width="18" height="18" /> iOS
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> OpenWrt, Yocto, Buildroot (routers, modems, etc.)
-- <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/raspberrypi.svg" width="18" height="18" /> Raspberry Pi, Orange Pi and other SBCs
+- <img src="https://cdn.simpleicons.org/raspberrypi/363636/d1d1d1" width="18" height="18" /> Raspberry Pi, Orange Pi and other SBCs
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/cpu.svg" width="18" height="18" /> MCUs: Arduino, ESP8266, ESP32, Particle, ... [see full list](./docs/Hardware.md)
-- <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/icons/firefoxbrowser.svg" width="18" height="18" /> Browsers. Yes, using WebAssembly itself!
+- <img src="https://cdn.simpleicons.org/firefoxbrowser/363636/d1d1d1" width="18" height="18" /> Browsers. Yes, using WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
 ## Features
