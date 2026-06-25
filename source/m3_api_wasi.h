@@ -11,6 +11,7 @@
 #include "m3_core.h"
 
 #if defined(d_m3HasUVWASI)
+#define _XOPEN_SOURCE 700
 #include "uvwasi.h"
 #endif
 
