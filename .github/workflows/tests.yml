@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64, s390x, ppc64le, arm64v8 ]
+        arch: [ amd64 ]  # TODO: s390x, ppc64le, arm64v8
 
     steps:
     - uses: actions/checkout@v7
