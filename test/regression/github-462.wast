@@ -5,3 +5,6 @@
     i32.const 0
   )
   (export "_start" (func 0)))
+
+;; This module can be parsed, but not executed, due to the import that
+;; isn't supported by run-wast.py.
