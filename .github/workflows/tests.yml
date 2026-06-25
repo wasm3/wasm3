@@ -78,7 +78,7 @@ jobs:
         options: --volume=${{ github.workspace }}:/work --workdir=/work
         run: |
           set -e
-          apk add --no-cache build-base cmake python3 git
+          apk add --no-cache build-base cmake python3 git linux-headers
           echo "------------ Build Wasm3 ------------"
           mkdir build && cd build && cmake .. && cd ..
           cmake --build build
@@ -250,14 +250,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - name: List Xcode versions
-      run: ls /Applications | grep Xcode
-    - name: Select Xcode 16
-      run: sudo xcode-select -switch /Applications/Xcode_16.1.app
-    - name: Build (iPhone 14)
+    - name: Show selected Xcode
+      run: |
+        xcodebuild -version
+        xcode-select -p
+        ls /Applications | grep Xcode
+    - name: Build
       run: |
         cd platforms/ios
-        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=18.1'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination "generic/platform=iOS Simulator"
 
   android:
     runs-on: ubuntu-latest
