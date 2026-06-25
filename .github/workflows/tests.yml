@@ -2,6 +2,8 @@ name: tests
 
 on:
   push:
+    branches:
+    - "**"
     paths-ignore: ['**.md', '**.svg', '**.png']
   pull_request:
     paths-ignore: ['**.md', '**.svg', '**.png']
@@ -205,7 +207,7 @@ jobs:
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "1.0.2"
+      run: curl https://get.wasmer.io -sSfL | sh -s "7.1.0"
     - name: Configure
       run: |
         mkdir build-wasi

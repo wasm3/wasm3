@@ -27,138 +27,138 @@ jobs:
       LDFLAGS: -s
 
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
 
-      - name: Configure
-        env:
-          CFLAGS: ${{ matrix.config.cflags }}
-        run: |
-          mkdir build
-          cd build
-          cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
+    - name: Configure
+      env:
+        CFLAGS: ${{ matrix.config.cflags }}
+      run: |
+        mkdir build
+        cd build
+        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
 
-      - name: Build
-        run: |
-          cmake --build build --config Release
-          cp ./build/Release/wasm3.exe ./${{ matrix.config.target }}.exe
+    - name: Build
+      run: |
+        cmake --build build --config Release
+        cp ./build/Release/wasm3.exe ./${{ matrix.config.target }}.exe
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.config.target }}
-          path: ./${{ matrix.config.target }}.exe
-          if-no-files-found: error
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.config.target }}
+        path: ./${{ matrix.config.target }}.exe
+        if-no-files-found: error
 
   linux-x64:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
 
-      - name: Setup musl
-        run: |
-          sudo apt update
-          sudo apt install musl-tools
+    - name: Setup musl
+      run: |
+        sudo apt update
+        sudo apt install musl-tools
 
-      - name: Configure
-        env:
-          CC: musl-gcc
-          LDFLAGS: "-static -s"
-        run: |
-          mkdir build
-          cd build
-          cmake --version
-          cmake ..
+        # Add musl-gcc include paths
+        sudo cp -a /usr/include/linux /usr/include/x86_64-linux-musl/
+        sudo cp -a /usr/include/asm-generic /usr/include/x86_64-linux-musl/
+        sudo cp -a /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/
 
-      - name: Build
-        run: |
-          cmake --build build --verbose
-          cp ./build/wasm3 ./wasm3-linux-x64.elf
+    - name: Configure
+      env:
+        CC: musl-gcc
+        LDFLAGS: "-static -s"
+      run: |
+        mkdir build
+        cd build
+        cmake --version
+        cmake ..
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: wasm3-linux-x64
-          path: ./wasm3-linux-x64.elf
-          if-no-files-found: error
+    - name: Build
+      run: |
+        cmake --build build --verbose
+        cp ./build/wasm3 ./wasm3-linux-x64.elf
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-linux-x64
+        path: ./wasm3-linux-x64.elf
+        if-no-files-found: error
 
   cosmopolitan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
 
-      - name: Build αcτµαlly pδrταblε εxεcµταblε
-        run: |
-          cd platforms/cosmopolitan
-          ./build.sh
-          cp ./wasm3.com ../../wasm3-cosmopolitan.com
-          cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
+    - name: Build αcτµαlly pδrταblε εxεcµταblε
+      run: |
+        cd platforms/cosmopolitan
+        ./build.sh
+        cp ./wasm3.com ../../wasm3-cosmopolitan.com
+        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: wasm3-cosmopolitan
-          path: |
-            ./wasm3-cosmopolitan.com
-            ./wasm3-cosmopolitan.com.dbg
-          if-no-files-found: error
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-cosmopolitan
+        path: |
+          ./wasm3-cosmopolitan.com
+          ./wasm3-cosmopolitan.com.dbg
+        if-no-files-found: error
 
   wasi:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    env:
-      LDFLAGS: -s
-
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
+    - name: Setup environment
+      env:
+        WASI_VERSION: 11
+        WASI_VERSION_FULL: "11.0"
+      run: |
+        echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
+        echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
+        echo "WASI_SDK_PATH=${GITHUB_WORKSPACE}/.toolchains/wasi-sdk-${WASI_VERSION_FULL}" >> $GITHUB_ENV
+    - name: Install WASI SDK
+      run: |
+        mkdir -p .toolchains
+        cd .toolchains
+        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
+        tar xvf ${WASI_TAR}
 
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install pip==20.1.1
-          python3 -m pip install --upgrade setuptools wheel
-          pip3 --version
+    - name: Configure, Build wasm3
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-wasi.wasm
 
-      - name: Install Wasienv
-        env:
-          WASMER_RELEASE_TAG: "1.0.2"
-        run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+    - name: Configure, Build wasm3-strace
+      env:
+        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
+      run: |
+        mkdir build-strace
+        cd build-strace
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-strace.wasm
 
-      - name: Configure
-        run: |
-          source $HOME/.wasienv/wasienv.sh
-          mkdir build
-          cd build
-          wasimake cmake ..
-
-      - name: Build
-        run: |
-          source $HOME/.wasienv/wasienv.sh
-          cmake --build build
-          cp ./build/wasm3.wasm ./wasm3-wasi.wasm
-
-      - name: Configure, Build wasm3-strace
-        env:
-          CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
-        run: |
-          source $HOME/.wasienv/wasienv.sh
-          mkdir build-strace
-          cd build-strace
-          wasimake cmake ..
-          cmake --build .
-          cp ./wasm3.wasm ../wasm3-strace.wasm
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: wasm3-wasi
-          path: |
-            ./wasm3-wasi.wasm
-            ./wasm3-strace.wasm
-          if-no-files-found: error
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-wasi
+        path: |
+          ./wasm3-wasi.wasm
+          ./wasm3-strace.wasm
+        if-no-files-found: error
 
   android:
     runs-on: ubuntu-latest
