@@ -457,7 +457,7 @@ M3Result  ParseSection_Memory  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
     u32 numMemories;
 _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                             m3log (parse, "** Memory [%d]", numMemories);
 
-    _throwif (m3Err_tooManyMemorySections, numMemories != 1);
+    _throwif (m3Err_tooManyMemorySections, numMemories > 1);
 
     ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
 
