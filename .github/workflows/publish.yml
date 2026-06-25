@@ -2,14 +2,15 @@ name: publish
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    paths-ignore: ['**.md', '**.svg', '**.png']
+    # tags:
+    #   - "v*.*.*"
 
 env:
   draft: true
 
 jobs:
-  wasm3-windows:
+  windows:
     runs-on: windows-latest
     name: ${{ matrix.config.target }}
     timeout-minutes: 10
@@ -18,163 +19,205 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: wasm3-win-x64,           platform: "-A x64",     toolset: "-T ClangCL"   }
-        - {target: wasm3-win-x86,           platform: "-A Win32",   toolset: "-T ClangCL"   }
-        - {target: wasm3-strace-win-x64,    platform: "-A x64",     toolset: "-T ClangCL",  cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
+        - {target: wasm3-win-x64,         platform: "-A x64",     toolset: "-T ClangCL"   }
+        - {target: wasm3-win-x86,         platform: "-A Win32",   toolset: "-T ClangCL"   }
+        - {target: wasm3-strace-win-x64,  platform: "-A x64",     toolset: "-T ClangCL",  cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     env:
       LDFLAGS: -s
-    steps:
-    - uses: actions/checkout@v2
-    - name: Configure
-      env:
-        CFLAGS: ${{ matrix.config.cflags }}
-      run: |
-        mkdir build
-        cd build
-        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
-    - name: Build
-      run: |
-        cmake --build build --config Release
-        cp ./build/Release/wasm3.exe ./${{ matrix.config.target }}.exe
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: ${{ env.draft }}
-        files: "*.exe"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  wasm3-linux-x64:
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        env:
+          CFLAGS: ${{ matrix.config.cflags }}
+        run: |
+          mkdir build
+          cd build
+          cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ..
+
+      - name: Build
+        run: |
+          cmake --build build --config Release
+          cp ./build/Release/wasm3.exe ./${{ matrix.config.target }}.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.config.target }}
+          path: ./${{ matrix.config.target }}.exe
+          if-no-files-found: error
+
+  linux-x64:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup musl
-      run: |
-        sudo apt update
-        sudo apt install musl-tools
-    - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@v1.9
-      with:
-        cmake-version: '3.16.x'
-    - name: Configure
-      env:
-        CC: musl-gcc
-        LDFLAGS: "-static -s"
-      run: |
-        mkdir build
-        cd build
-        cmake --version
-        cmake ..
-    - name: Build
-      run: |
-        cmake --build build --verbose
-        cp ./build/wasm3 ./wasm3-linux-x64.elf
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: ${{ env.draft }}
-        files: "*.elf"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v7
 
-  wasm3-cosmopolitan:
+      - name: Setup musl
+        run: |
+          sudo apt update
+          sudo apt install musl-tools
+
+      - name: Configure
+        env:
+          CC: musl-gcc
+          LDFLAGS: "-static -s"
+        run: |
+          mkdir build
+          cd build
+          cmake --version
+          cmake ..
+
+      - name: Build
+        run: |
+          cmake --build build --verbose
+          cp ./build/wasm3 ./wasm3-linux-x64.elf
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm3-linux-x64
+          path: ./wasm3-linux-x64.elf
+          if-no-files-found: error
+
+  cosmopolitan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build αcτµαlly pδrταblε εxεcµταblε
-      run: |
-        cd platforms/cosmopolitan
-        ./build.sh
-        cp ./wasm3.com ../../wasm3-cosmopolitan.com
-        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: ${{ env.draft }}
-        files: |
-            *.com
-            *.com.dbg
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v7
 
-  wasm3-wasi:
+      - name: Build αcτµαlly pδrταblε εxεcµταblε
+        run: |
+          cd platforms/cosmopolitan
+          ./build.sh
+          cp ./wasm3.com ../../wasm3-cosmopolitan.com
+          cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm3-cosmopolitan
+          path: |
+            ./wasm3-cosmopolitan.com
+            ./wasm3-cosmopolitan.com.dbg
+          if-no-files-found: error
+
+  wasi:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     env:
       LDFLAGS: -s
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install Python dependencies
-      run: |
-        python3 -m pip install pip==20.1.1
-        python3 -m pip install --upgrade setuptools wheel
-        pip3 --version
-    - name: Install Wasienv
-      env:
-        WASMER_RELEASE_TAG: "1.0.2"
-      run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
-    - name: Configure
-      run: |
-        source $HOME/.wasienv/wasienv.sh
-        mkdir build
-        cd build
-        wasimake cmake ..
-    - name: Build
-      run: |
-        source $HOME/.wasienv/wasienv.sh
-        cmake --build build
-        cp ./build/wasm3.wasm ./wasm3-wasi.wasm
-    - name: Configure, Build wasm3-strace
-      env:
-        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
-      run: |
-        source $HOME/.wasienv/wasienv.sh
-        mkdir build-strace
-        cd build-strace
-        wasimake cmake ..
-        cmake --build .
-        cp ./wasm3.wasm ../wasm3-strace.wasm
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: ${{ env.draft }}
-        files: "*.wasm"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  wasm3-android-coremark:
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install pip==20.1.1
+          python3 -m pip install --upgrade setuptools wheel
+          pip3 --version
+
+      - name: Install Wasienv
+        env:
+          WASMER_RELEASE_TAG: "1.0.2"
+        run: curl https://raw.githubusercontent.com/wasienv/wasienv/master/install.sh | sh
+
+      - name: Configure
+        run: |
+          source $HOME/.wasienv/wasienv.sh
+          mkdir build
+          cd build
+          wasimake cmake ..
+
+      - name: Build
+        run: |
+          source $HOME/.wasienv/wasienv.sh
+          cmake --build build
+          cp ./build/wasm3.wasm ./wasm3-wasi.wasm
+
+      - name: Configure, Build wasm3-strace
+        env:
+          CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
+        run: |
+          source $HOME/.wasienv/wasienv.sh
+          mkdir build-strace
+          cd build-strace
+          wasimake cmake ..
+          cmake --build .
+          cp ./wasm3.wasm ../wasm3-strace.wasm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm3-wasi
+          path: |
+            ./wasm3-wasi.wasm
+            ./wasm3-strace.wasm
+          if-no-files-found: error
+
+  android:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: seanmiddleditch/gha-setup-ninja@master
-    - name: Set up JDK 1.8
-      uses: actions/setup-java@v1
-      with:
-        java-version: 1.8
-    - name: Install NDK
-      run: |
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670"
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --uninstall "cmake;3.18.1"
-        sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "cmake;3.10.2.4988404"
-    - name: Build
-      run: |
-        cd platforms/android
-        ./gradlew build
-    - name: Copy
-      run: |
-        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-coremark.apk
-    - name: Publish
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: ${{ env.draft }}
-        files: "*.apk"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 11
+
+      - name: Build
+        run: |
+          cd platforms/android
+          ./gradlew build
+
+      - name: Copy
+        run: |
+          cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-coremark.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm3-android-coremark
+          path: ./wasm3-android-coremark.apk
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    needs:
+      - windows
+      - linux-x64
+      - cosmopolitan
+      - wasi
+      - android
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          find dist -type f -maxdepth 2 -print
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: ${{ env.draft }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
