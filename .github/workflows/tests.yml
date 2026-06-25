@@ -509,34 +509,34 @@ jobs:
         particle compile --followSymlinks photon
         particle compile --followSymlinks argon
 
-  esp32-idf:
-    if: false
-    runs-on: ubuntu-20.04
-    container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
+  esp-idf:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v7
-    - name: Build for ESP32 (IDF v4.0)
-      run: |
-        . $IDF_PATH/export.sh
-        cd platforms/embedded/esp32-idf
-        export EXTRA_CFLAGS="-Werror"
-        idf.py build
-      shell: bash
-    - name: Test for ESP32 in QEMU
-      run: |
-        cd platforms/embedded/esp32-idf
-        make-flash-img.sh wasm3 flash_img.bin
-        qemu-system-xtensa -machine esp32 -nographic -drive file=flash_img.bin,if=mtd,format=raw -no-reboot | tee out.txt
-        grep "Result: 46368" out.txt
-        grep "Elapsed: " out.txt
-        grep "Restarting..." out.txt
-        test $(($(grep "ets Jun  8 2016" out.txt | wc -l))) -eq 1
     - name: Check that IDF and PIO examples are in sync
       run: |
         diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
+    - name: Install ESP-IDF v6.0
+      uses: espressif/install-esp-idf-action@v1
+      with:
+        version: "v6.0"
+    - name: Build for ESP32
+      run: |
+        cd platforms/embedded/esp32-idf
+        export EXTRA_CFLAGS="-Werror"
+        idf.py build
+        tree
+        esptool.py --chip esp32 elf2image build/wasm3.elf
+    - name: Test
+      uses: tobozo/esp32-qemu-sim@v1
+      with:
+        chip: esp32
+        flash-image: platforms/embedded/esp32-idf/build/wasm3.bin
+        qemu-timeout: "60"
+        timeout-interrupt-regex: "Result: 46368"
 
   cpp:
     runs-on: ubuntu-latest
