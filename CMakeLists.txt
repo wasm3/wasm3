@@ -196,6 +196,13 @@ elseif(BUILD_WASI MATCHES "metawasi")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
 elseif(BUILD_WASI MATCHES "uvwasi")
   include(FetchContent)
+  set(CMAKE_DISABLE_FIND_PACKAGE_LIBUV TRUE)
+  FetchContent_Declare(
+    libuv
+    GIT_REPOSITORY https://github.com/libuv/libuv.git
+    GIT_TAG        v1.52.1
+  )
+  FetchContent_MakeAvailable(libuv)
   FetchContent_Declare(
     uvwasi
     GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
