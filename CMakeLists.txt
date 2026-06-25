@@ -209,7 +209,8 @@ elseif(BUILD_WASI MATCHES "uvwasi")
     GIT_TAG         v0.0.23
   )
   FetchContent_MakeAvailable(uvwasi)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasUVWASI")
+  target_compile_definitions(${OUT_FILE} PRIVATE d_m3HasUVWASI)
+  target_include_directories(${OUT_FILE} PRIVATE "${uvwasi_SOURCE_DIR}/include")
   target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
 endif()
 
