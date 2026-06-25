@@ -91,11 +91,11 @@ include(CheckIPOSupported)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED YES)
-set(CMAKE_C_EXTENSIONS NO)
+set(CMAKE_C_EXTENSIONS YES)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
-set(CMAKE_CXX_EXTENSIONS NO)
+set(CMAKE_CXX_EXTENSIONS YES)
 
 
 file(GLOB app_srcs "${APP_DIR}/*.c")
@@ -196,11 +196,11 @@ elseif(BUILD_WASI MATCHES "metawasi")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
 elseif(BUILD_WASI MATCHES "uvwasi")
   include(FetchContent)
-  set(CMAKE_DISABLE_FIND_PACKAGE_LIBUV TRUE)
+  #set(CMAKE_DISABLE_FIND_PACKAGE_LIBUV TRUE)
   FetchContent_Declare(
     libuv
     GIT_REPOSITORY https://github.com/libuv/libuv.git
-    GIT_TAG        v1.47.0
+    GIT_TAG        v1.52.1
   )
   FetchContent_MakeAvailable(libuv)
   FetchContent_Declare(

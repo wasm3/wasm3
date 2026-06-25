@@ -11,7 +11,6 @@
 #include "m3_core.h"
 
 #if defined(d_m3HasUVWASI)
-#define _POSIX_C_SOURCE 200809L
 #include "uvwasi.h"
 #endif
 
