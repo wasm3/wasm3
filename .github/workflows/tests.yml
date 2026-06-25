@@ -207,7 +207,7 @@ jobs:
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "7.1.0"
+      run: curl https://get.wasmer.io -sSfL | sh -s "v7.1.0"
     - name: Configure
       run: |
         mkdir build-wasi
@@ -531,7 +531,7 @@ jobs:
         tree
         esptool.py --chip esp32 elf2image build/wasm3.elf
     - name: Test
-      uses: tobozo/esp32-qemu-sim@v1
+      uses: tobozo/esp32-qemu-sim@main
       with:
         chip: esp32
         flash-image: platforms/embedded/esp32-idf/build/wasm3.bin
