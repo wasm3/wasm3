@@ -199,15 +199,9 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   FetchContent_Declare(
     uvwasi
     GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
-    GIT_TAG         v0.0.18
+    GIT_TAG         v0.0.23
   )
-
-  FetchContent_GetProperties(uvwasi)
-  if(NOT uvwasi_POPULATED)
-    FetchContent_Populate(uvwasi)
-    include_directories("${uvwasi_SOURCE_DIR}/include")
-    add_subdirectory(${uvwasi_SOURCE_DIR} ${uvwasi_BINARY_DIR} EXCLUDE_FROM_ALL)
-  endif()
+  FetchContent_MakeAvailable(uvwasi)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasUVWASI")
   target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
 endif()
