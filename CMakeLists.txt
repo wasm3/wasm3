@@ -200,7 +200,7 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   FetchContent_Declare(
     libuv
     GIT_REPOSITORY https://github.com/libuv/libuv.git
-    GIT_TAG        v1.52.1
+    GIT_TAG        v1.47.0
   )
   FetchContent_MakeAvailable(libuv)
   FetchContent_Declare(
