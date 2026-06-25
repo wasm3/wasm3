@@ -209,9 +209,9 @@ elseif(BUILD_WASI MATCHES "uvwasi")
     GIT_TAG         v0.0.23
   )
   FetchContent_MakeAvailable(uvwasi)
-  target_compile_definitions(${OUT_FILE} PRIVATE d_m3HasUVWASI)
-  target_include_directories(${OUT_FILE} PRIVATE "${uvwasi_SOURCE_DIR}/include")
-  target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
+  target_compile_definitions(m3 PRIVATE d_m3HasUVWASI)
+  target_include_directories(m3 PRIVATE "${uvwasi_SOURCE_DIR}/include")
+  target_link_libraries(m3 uvwasi_a uv_a)
 endif()
 
 check_ipo_supported(RESULT result)
