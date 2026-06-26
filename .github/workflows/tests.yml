@@ -76,7 +76,7 @@ jobs:
     - name: Run tests
       uses: addnab/docker-run-action@v3
       with:
-        image: ${{ matrix.arch }}/alpine:latest
+        image: ${{ matrix.arch }}/alpine:3.24
         options: --volume=${{ github.workspace }}:/work --workdir=/work
         run: |
           set -e
@@ -511,7 +511,6 @@ jobs:
 
   esp-idf:
     runs-on: ubuntu-latest
-    container: espressif/idf:release-v5.4
     timeout-minutes: 10
 
     steps:
@@ -521,12 +520,19 @@ jobs:
         diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
     - name: Build for ESP32
-      run: |
-        cd platforms/embedded/esp32-idf
-        export EXTRA_CFLAGS="-Werror"
-        idf.py set-target esp32
-        idf.py build
-        idf.py merge-bin
+      uses: addnab/docker-run-action@v3
+      with:
+        image: espressif/idf:release-v5.4
+        options: --volume=${{ github.workspace }}:/work --workdir=/work
+        run: |
+          set -e
+          echo "------------ Build Wasm3 ------------"
+          cd platforms/embedded/esp32-idf
+          export EXTRA_CFLAGS="-Werror"
+          idf.py set-target esp32
+          idf.py build
+          idf.py merge-bin
+          echo "------------ Build OK ---------------"
     - name: Test
       uses: tobozo/esp32-qemu-sim@v2.1.0
       with:
