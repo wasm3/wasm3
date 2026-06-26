@@ -203,7 +203,12 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
 
     if (type == 0x40)
         type = c_m3Type_none;
-    else if (type < c_m3Type_i32 or type > c_m3Type_f64)
+    // Accept v128 (wasm-encoded as 0x7b → -i_convolutedWasmType == 5)
+    // as an opaque slot so modules with v128 in signatures or local
+    // declarations parse. Actual v128 opcodes still hit
+    // m3Err_unknownOpcode at compile time — we just stop refusing
+    // unused SIMD slots that auto-vectorization emits.
+    else if (type < c_m3Type_i32 or type > c_m3Type_v128)
         result = m3Err_invalidTypeId;
 
     * o_type = type;
