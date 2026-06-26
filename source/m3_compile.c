@@ -1545,6 +1545,10 @@ static
 M3Result  Compile_BranchTable  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
+    if (o->typeStack[0] != c_m3Type_i32)
+    {
+        _throw ( ErrorCompile (m3Err_globalTypeMismatch, o, "br_table index not i32") );
+    }
     u32 targetCount;
 _   (ReadLEB_u32 (& targetCount, & o->wasm, o->wasmEnd));
 
@@ -1564,7 +1568,6 @@ _   (EmitOp (o, op_BranchTable));
     EmitConstant32 (o, targetCount);
 
     IM3CodePage continueOpPage = NULL;
-
     ++targetCount; // include default
     for (u32 i = 0; i < targetCount; ++i)
     {
