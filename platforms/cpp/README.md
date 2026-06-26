@@ -52,7 +52,11 @@ If the module doesn't reference an imported function named `func`, an exception 
 
 `function` object can be obtained from a `runtime`, looking up the function by name. Function objects are used to call WebAssembly functions.
 
-`template <typename Ret = void, typename ...Args> Ret function::call(Args...)` — calls a WebAssembly function with or without arguments and a return value.<br>
+---
+
+`template <typename Ret = void, typename ...Args> Ret function::call(Args...)`
+
+Calls a WebAssembly function with or without arguments and a return value.<br>
 The return value of the function, if not `void`, is automatically converted to the type `Ret`.<br> 
 Note that you always need to specify the matching return type when using this template with a non-void function.<br> 
 Examples:
@@ -77,7 +81,58 @@ auto result = func.call<int64_t, int32_t, int64_t>(42, 43); // explicit argument
 
 ```
 
-`template <typename Ret, typename ...Args> Ret function::call_argv(Args...)` — same as above, except that this function takes arguments as C strings (`const char*`).
+---
+
+`template <typename Ret, typename ...Args> Ret function::call_argv(Args...)`
+
+Same as above, except that this function takes arguments as C strings (`const char*`).
+
+---
+
+`template<typename ...Ret, typename ... Args> std::tuple<Ret...> function::call_tuple(Args...)`
+
+Calls a WebAssembly function with or without arguments that returns more than one result (aka. multi-value).<br>
+The result is returned as a `tuple`.<br>
+Return types have to be explicitly set, while argument types must not.
+
+Examples:
+```cpp
+// WASM signature: [] → [f32, i32]
+auto [x,y] = func.call_tuple<f32, int32_t>();
+
+// WASM signature: [f32] → [i32, i32]
+auto [x,y] = func.call_tuple<int32_t, int32_t>(42.0f);
+```
+
+---
+
+`template<typename Ret, typename ... Args> Ret function::call_mapped(Args...)`
+
+Calls a WebAssembly function with or without arguments that returns more than one result (aka. multi-value).<br>
+The result is returned and mapped to a struct.<br>
+
+> Note:<br>
+> This function assumes a tightly packed struct and cannot handle padding.<br>
+> Make sure that all attributes are naturally aligned in both WASM and your program.
+
+Examples:
+```cpp
+// WASM signature: [] → [f32, i32]
+struct Result { f32 a; int32_t b; };
+auto res = func.call_mapped<Result>();
+
+// WASM signature: [f32] → [i32, i32]
+struct Result { int32_t a; int32_t b; };
+auto res = func.call_mapped<Result>(42.0f);
+
+// Examples with errors:
+
+// WASM signature: [] → [f32, f64]
+struct UnalignedResult { f32 a; f64 b; };
+auto res = func.call_mapped<UnalignedResult>(); // throws exception
+// "b" is not naturally aligned and might add padding after "a", use tuples instead.
+
+```
 
 ### Building and running
 

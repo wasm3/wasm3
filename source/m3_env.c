@@ -906,7 +906,7 @@ _   (checkStartFunction(i_function->module))
         case c_m3Type_f32:  *(f32*)(s) = va_arg(i_args, f64);  s += 8; break; // f32 is passed as f64
         case c_m3Type_f64:  *(f64*)(s) = va_arg(i_args, f64);  s += 8; break;
 # endif
-        default: return "unknown argument type";
+        default: return m3Err_argumentTypeUnknown;
         }
     }
 
@@ -955,7 +955,7 @@ _   (checkStartFunction(i_function->module))
         case c_m3Type_f32:  *(f32*)(s) = *(f32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_f64:  *(f64*)(s) = *(f64*)i_argptrs[i];  s += 8; break;
 # endif
-        default: return "unknown argument type";
+        default: return m3Err_argumentTypeUnknown;
         }
     }
 
@@ -1005,7 +1005,7 @@ _   (checkStartFunction(i_function->module))
         case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
 # endif
-        default: return "unknown argument type";
+        default: return m3Err_argumentTypeUnknown;
         }
     }
 
@@ -1029,7 +1029,6 @@ _   (checkStartFunction(i_function->module))
 //    return (u8 *) ((ptr + 7) & ~7);
 //}
 
-
 M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * o_retptrs[])
 {
     IM3FuncType ftype = i_function->funcType;
@@ -1039,7 +1038,7 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
         return m3Err_argumentCountMismatch;
     }
     if (i_function != runtime->lastCalled) {
-        return "function not called";
+        return m3Err_functionNotCalled;
     }
 
     u8* s = (u8*) runtime->stack;
@@ -1074,7 +1073,7 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
     IM3FuncType ftype = i_function->funcType;
 
     if (i_function != runtime->lastCalled) {
-        return "function not called";
+        return m3Err_functionNotCalled;
     }
 
     u8* s = (u8*) runtime->stack;
@@ -1087,11 +1086,54 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
         case c_m3Type_f32:  *va_arg(o_rets, f32*) = *(f32*)(s);  s += 8; break;
         case c_m3Type_f64:  *va_arg(o_rets, f64*) = *(f64*)(s);  s += 8; break;
 # endif
-        default: return "unknown argument type";
+        default: return m3Err_argumentTypeUnknown;
         }
     }
     return m3Err_none;
 }
+
+M3Result  m3_GetResultsBuffer (IM3Function i_function, size_t i_bufferSize, void * o_buffer)
+{
+    IM3FuncType ftype = i_function->funcType;
+    IM3Runtime runtime = i_function->module->runtime;
+
+    if (i_function != runtime->lastCalled) {
+        return m3Err_functionNotCalled;
+    }
+
+    if (o_buffer == NULL) {
+        return m3Err_functionResultNullPtr;
+    }
+
+    char * buffer = (char*)o_buffer;
+    char * bufferEnd = buffer + i_bufferSize;
+    u8* stack = (u8*) runtime->stack;
+
+    for (u32 i = 0; i < ftype->numRets; ++i)
+    {
+        u32 argSize = SizeOfType(d_FuncRetType(ftype, i));
+        
+        if ((buffer + argSize) > bufferEnd) {
+            return m3Err_argumentCountMismatch;
+        }
+
+        if (argSize == sizeof(u32)) {
+            *(u32*)buffer = *(u32*)(stack);
+        } else {
+            *(u64*)buffer = *(u64*)(stack);
+        }
+
+        stack += 8;
+        buffer += argSize;
+    }
+
+    if (buffer != bufferEnd) {
+        return m3Err_argumentCountMismatch;
+    }
+
+    return m3Err_none;
+}
+
 
 void  ReleaseCodePageNoTrack (IM3Runtime i_runtime, IM3CodePage i_codePage)
 {

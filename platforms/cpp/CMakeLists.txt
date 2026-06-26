@@ -22,4 +22,11 @@ add_custom_target(copy_wasm ALL
     ${CMAKE_CURRENT_LIST_DIR}/wasm
     ${CMAKE_BINARY_DIR}/wasm
 )
-add_dependencies(${CMAKE_PROJECT_NAME} copy_wasm)
+
+add_custom_target(copy_wasm_multivalue ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_LIST_DIR}/wasm_multivalue
+    ${CMAKE_BINARY_DIR}/wasm_multivalue
+)
+
+add_dependencies(${CMAKE_PROJECT_NAME} copy_wasm copy_wasm_multivalue)
