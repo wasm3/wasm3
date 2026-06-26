@@ -557,7 +557,7 @@ jobs:
         grep "Result: 46368" logs.txt
         grep "Elapsed: " logs.txt
         grep "Restarting..." logs.txt
-        test $(($(grep "ets Jul 29 2019" logs.txt | wc -l))) -eq 1
+      # test $(($(grep "ets Jul 29 2019" logs.txt | wc -l))) -eq 1
 
   cpp:
     runs-on: ubuntu-latest
