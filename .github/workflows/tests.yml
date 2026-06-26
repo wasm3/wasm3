@@ -524,6 +524,7 @@ jobs:
       with:
         image: espressif/idf:release-v5.4
         options: --volume=${{ github.workspace }}:/work --workdir=/work
+        shell: bash
         run: |
           set -e
           source /opt/esp/idf/export.sh
