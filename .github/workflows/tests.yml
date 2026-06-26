@@ -543,7 +543,7 @@ jobs:
       uses: tobozo/esp32-qemu-sim@v2.1.0
       with:
         chip: esp32
-        flash-image: platforms/embedded/esp32-idf/flash-image.bin
+        flash-image: platforms/embedded/esp32-idf/build/flash-image.bin
         qemu-timeout: "60"
         timeout-interrupt-regex: "Result: 46368"
 
