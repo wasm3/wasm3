@@ -207,7 +207,7 @@ jobs:
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "v1.0.2"  # TODO: update Wasmer
+      run: curl https://get.wasmer.io -sSfL | sh -s "2.0.0"  # TODO: update Wasmer
     - name: Configure
       run: |
         mkdir build-wasi
@@ -529,6 +529,7 @@ jobs:
         export EXTRA_CFLAGS="-Werror"
         idf.py set-target esp32
         idf.py build
+        idf.py merge-bin
     - name: Test
       uses: tobozo/esp32-qemu-sim@main
       with:
