@@ -108,6 +108,7 @@ Wasm3 started as a research project and remains so by any means. Evaluating the 
 [Supported Hardware](./docs/Hardware.md)  
 [Testing & Fuzzing](./docs/Testing.md)  
 [Performance](./docs/Performance.md)  
+[AOT-compiling WASM into native embedded modules](https://github.com/wasm3/embedded-wasm-apps/blob/main/README.md)  
 [Interpreter Architecture](./docs/Interpreter.md)  
 [Logging](./docs/Diagnostics.md)  
 [Awesome WebAssembly Tools](https://github.com/vshymanskyy/awesome-wasm-tools/blob/main/README.md)
