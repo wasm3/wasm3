@@ -154,6 +154,42 @@ _               (CompileRawFunction (io_module, f, i_function, i_userdata));
     return result;
 }
 
+
+M3Result  FindAndLinkFunctionWithBlock      (IM3Module       io_module,
+                                             ccstr_t         i_moduleName,
+                                             ccstr_t         i_functionName,
+                                             ccstr_t         i_signature,
+                                             voidptr_t       i_function,
+                                             voidptr_t       i_userdata,
+                                             M3LinkFuncBlock block)
+{
+_try {
+    _throwif(m3Err_moduleNotLinked, !io_module->runtime);
+
+    const bool wildcardModule = (strcmp (i_moduleName, "*") == 0);
+
+    result = m3Err_functionLookupFailed;
+
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        const IM3Function f = & io_module->functions [i];
+
+        if (f->import.moduleUtf8 and f->import.fieldUtf8)
+        {
+            if ((strcmp (f->import.fieldUtf8, i_functionName) == 0 || block(f->import.fieldUtf8, i_functionName)) and
+               (wildcardModule or strcmp (f->import.moduleUtf8, i_moduleName) == 0))
+            {
+                if (i_signature) {
+_                   (ValidateSignature (f, i_signature));
+                }
+_               (CompileRawFunction (io_module, f, i_function, i_userdata));
+            }
+        }
+    }
+} _catch:
+    return result;
+}
+
 M3Result  m3_LinkRawFunctionEx  (IM3Module            io_module,
                                 const char * const    i_moduleName,
                                 const char * const    i_functionName,
@@ -172,4 +208,15 @@ M3Result  m3_LinkRawFunction  (IM3Module            io_module,
 {
     return FindAndLinkFunction (io_module, i_moduleName, i_functionName, i_signature, (voidptr_t)i_function, NULL);
 }
+
+M3Result  m3_LinkRawFunctionBlock  (IM3Module               io_module,
+                                    const char * const      i_moduleName,
+                                    const char * const      i_functionName,
+                                    const char * const      i_signature,
+                                    M3RawCall               i_function,
+                                    M3LinkFuncBlock         block)
+{
+    return FindAndLinkFunctionWithBlock (io_module, i_moduleName, i_functionName, i_signature, (voidptr_t)i_function, NULL, block);
+}
+
 
