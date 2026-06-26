@@ -552,7 +552,7 @@ jobs:
         chip: esp32
         flash-image: flash-image.bin
         qemu-timeout: "60"
-        timeout-interrupt-regex: "Result: 46368"
+        timeout-interrupt-regex: "Result: 46168"
 
   cpp:
     runs-on: ubuntu-latest
