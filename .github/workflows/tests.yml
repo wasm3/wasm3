@@ -540,19 +540,24 @@ jobs:
           idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB
           chmod -R a+rX build
           echo "------------ Build OK ---------------"
-    - name: Check
+    - name: Check flash image
       run: |
         cp platforms/embedded/esp32-idf/build/flash-image.bin .
         head -c 128 flash-image.bin | hexdump -C
         md5sum flash-image.bin
-    - name: Test
-      # TODO: works, but slow and produces false positives in CI
+    - name: Run in QEMU
       uses: tobozo/esp32-qemu-sim@v2.1.0
       with:
         chip: esp32
         flash-image: flash-image.bin
         qemu-timeout: "60"
-        timeout-interrupt-regex: "Result: 46168"
+        timeout-interrupt-regex: "Result: 46368"
+    - name: Validate output
+      run: |
+        grep "Result: 46368" logs.txt
+        grep "Elapsed: " logs.txt
+        grep "Restarting..." logs.txt
+        test $(($(grep "ets Jul 29 2019" logs.txt | wc -l))) -eq 1
 
   cpp:
     runs-on: ubuntu-latest
