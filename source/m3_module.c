@@ -28,6 +28,21 @@ void  m3_FreeModule  (IM3Module i_module)
 
         Module_FreeFunctions (i_module);
 
+        if (i_module->runtime && i_module->runtime->modules == i_module)
+        {
+            i_module->runtime->modules = i_module->next;
+        }
+
+        if (i_module->prev)
+        {
+            i_module->prev->next = i_module->next;
+        }
+
+        if (i_module->next)
+        {
+            i_module->next->prev = i_module->prev;
+        }
+
         m3_Free (i_module->functions);
         //m3_Free (i_module->imports);
         m3_Free (i_module->funcTypes);
