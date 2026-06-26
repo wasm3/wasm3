@@ -66,27 +66,56 @@ jobs:
         sudo cp -a /usr/include/asm-generic /usr/include/x86_64-linux-musl/
         sudo cp -a /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/
 
-    - name: Configure
+    - name: Configure, Build wasm3
       env:
         CC: musl-gcc
         LDFLAGS: "-static -s"
       run: |
         mkdir build
         cd build
-        cmake --version
         cmake ..
+        cmake --build .
+        cp ./wasm3 ../wasm3-linux-x64.elf
 
-    - name: Build
+    - name: Configure, Build wasm3-strace
+      env:
+        CC: musl-gcc
+        LDFLAGS: "-static -s"
+        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
       run: |
-        cmake --build build --verbose
-        cp ./build/wasm3 ./wasm3-linux-x64.elf
+        mkdir build-strace
+        cd build-strace
+        cmake ..
+        cmake --build .
+        cp ./wasm3 ../wasm3-strace-linux-x64.elf
 
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:
         name: wasm3-linux-x64
-        path: ./wasm3-linux-x64.elf
+        path: |
+          ./wasm3-linux-x64.elf
+          ./wasm3-strace-linux-x64.elf
         if-no-files-found: error
+
+  linux-cross:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Build for all targets
+      run: |
+        python3 build-cross.py --notest --nowasi
+        cd build-cross
+        tar -czvf ../wasm3-linux-other.tar.gz wasm3-linux-*
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-linux-other
+        path: wasm3-linux-other.tar.gz
 
   cosmopolitan:
     runs-on: ubuntu-latest
@@ -196,6 +225,7 @@ jobs:
     needs:
       - windows
       - linux-x64
+      - linux-cross
       - cosmopolitan
       - wasi
       - android

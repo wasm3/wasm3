@@ -207,7 +207,7 @@ jobs:
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "v3.0.2"
+      run: curl https://get.wasmer.io -sSfL | sh -s "v2.0.0"  # TODO: update Wasmer
     - name: Configure
       run: |
         mkdir build-wasi
@@ -522,7 +522,7 @@ jobs:
     - name: Install ESP-IDF
       uses: espressif/install-esp-idf-action@v1
       with:
-        version: "v4.4.8"
+        version: "v5.4.4"
     - name: Build for ESP32
       run: |
         cd platforms/embedded/esp32-idf
