@@ -303,7 +303,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 # else
             m3ret_t r = RunCode (m3code, stack, NULL, d_m3OpDefaultArgs);
 # endif
-            
+
             if (r == 0)
             {                                                                               m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
                 if (SizeOfType (i_type) == sizeof (u32))
@@ -370,7 +370,9 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
     if (numPagesToAlloc <= memory->maxPages)
     {
-        size_t numPageBytes = numPagesToAlloc * io_runtime->memory.pageSize;
+        uint64_t numPageBytes64 = (uint64_t)numPagesToAlloc * io_runtime->memory.pageSize;
+        _throwif("memory size overflow", numPageBytes64 > SIZE_MAX);
+        size_t numPageBytes = (size_t)numPageBytes64;
 
 #if d_m3MaxLinearMemoryPages > 0
         _throwif("linear memory limitation exceeded", numPagesToAlloc > d_m3MaxLinearMemoryPages);
@@ -1014,7 +1016,7 @@ _   (checkStartFunction(i_function->module))
 # else
     result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
 # endif
-    
+
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -1236,4 +1238,3 @@ M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
     return NULL;
 # endif
 }
-

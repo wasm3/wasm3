@@ -293,7 +293,13 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 
     if (fd < 3 || fd >= PREOPEN_CNT) { m3ApiReturn(__WASI_ERRNO_BADF); }
     size_t slen = strlen(preopen[fd].path) + 1;
-    memcpy(path, preopen[fd].path, M3_MIN(slen, path_len));
+    size_t copy_len = M3_MIN(slen, path_len);
+    memcpy(path, preopen[fd].path, copy_len);
+    // Ensure NULL terminator is always written even if path_len < slen,
+    // preventing the guest from reading past the intended buffer boundary.
+    if (copy_len > 0 && copy_len < slen) {
+        path[copy_len - 1] = '\0';
+    }
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
 
