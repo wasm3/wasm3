@@ -207,7 +207,7 @@ jobs:
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "v2.0.0"  # TODO: update Wasmer
+      run: curl https://get.wasmer.io -sSfL | sh -s "v1.0.2"  # TODO: update Wasmer
     - name: Configure
       run: |
         mkdir build-wasi
@@ -529,12 +529,11 @@ jobs:
         export EXTRA_CFLAGS="-Werror"
         idf.py set-target esp32
         idf.py build
-        idf.py merge-bin flash-image.bin
     - name: Test
       uses: tobozo/esp32-qemu-sim@main
       with:
         chip: esp32
-        flash-image: platforms/embedded/esp32-idf/flash-image.bin
+        flash-image: platforms/embedded/esp32-idf/build/merged-binary.bin
         qemu-timeout: "60"
         timeout-interrupt-regex: "Result: 46368"
 

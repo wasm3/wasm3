@@ -69,7 +69,7 @@ def build_target(target):
     elif target['name'] in gcc_targets:
         build_musl(target,
                    cc=f".toolchains/{target['arch']}-cross/bin/{target['arch']}-gcc",
-                   toolchain_src="https://musl.cc",
+                   toolchain_src="https://github.com/vshymanskyy/muslcc-mirror/releases/download/11-20211120",
                    tar_name=f"{target['arch']}-cross.tgz")
     else:
         build_musl(target,
