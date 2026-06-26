@@ -511,6 +511,7 @@ jobs:
 
   esp-idf:
     runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.4
     timeout-minutes: 10
 
     steps:
@@ -519,10 +520,6 @@ jobs:
       run: |
         diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
-    - name: Install ESP-IDF
-      uses: espressif/install-esp-idf-action@v1
-      with:
-        version: "v5.4.4"
     - name: Build for ESP32
       run: |
         cd platforms/embedded/esp32-idf
@@ -531,7 +528,7 @@ jobs:
         idf.py build
         idf.py merge-bin
     - name: Test
-      uses: tobozo/esp32-qemu-sim@main
+      uses: tobozo/esp32-qemu-sim@v2.1.0
       with:
         chip: esp32
         flash-image: platforms/embedded/esp32-idf/build/merged-binary.bin
