@@ -537,7 +537,7 @@ jobs:
                 -D CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y     \
                 -D CONFIG_ESPTOOLPY_FLASHSIZE=\"4MB\"   \
                 build
-          idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB @qemu/qemu_flash_args
+          idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB
           echo "------------ Build OK ---------------"
     - name: Test
       uses: tobozo/esp32-qemu-sim@v2.1.0
