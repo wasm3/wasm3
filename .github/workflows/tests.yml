@@ -532,10 +532,12 @@ jobs:
           cd platforms/embedded/esp32-idf
           export EXTRA_CFLAGS="-Werror"
           idf.py set-target esp32
-          idf.py -D CONFIG_ESPTOOLPY_FLASHFREQ_80M=y \
-                -D CONFIG_ESPTOOLPY_FLASHFREQ=\"80m\" \
+          idf.py -D CONFIG_ESPTOOLPY_FLASHFREQ_80M=y    \
+                -D CONFIG_ESPTOOLPY_FLASHFREQ=\"80m\"   \
+                -D CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y     \
+                -D CONFIG_ESPTOOLPY_FLASHSIZE=\"4MB\"   \
                 build
-          idf.py merge-bin -o flash-image.bin --fill-flash-size
+          idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB @qemu/qemu_flash_args
           echo "------------ Build OK ---------------"
     - name: Test
       uses: tobozo/esp32-qemu-sim@v2.1.0
