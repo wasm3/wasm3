@@ -535,7 +535,7 @@ jobs:
           idf.py -D CONFIG_ESPTOOLPY_FLASHFREQ_80M=y \
                 -D CONFIG_ESPTOOLPY_FLASHFREQ=\"80m\" \
                 build
-          idf.py merge-bin -o flash-image.bin --pad-to-size
+          idf.py merge-bin -o flash-image.bin --fill-flash-size
           echo "------------ Build OK ---------------"
     - name: Test
       uses: tobozo/esp32-qemu-sim@v2.1.0
