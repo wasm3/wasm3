@@ -526,6 +526,7 @@ jobs:
         options: --volume=${{ github.workspace }}:/work --workdir=/work
         run: |
           set -e
+          source /opt/esp/idf/export.sh
           echo "------------ Build Wasm3 ------------"
           cd platforms/embedded/esp32-idf
           export EXTRA_CFLAGS="-Werror"

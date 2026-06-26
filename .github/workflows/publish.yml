@@ -2,9 +2,8 @@ name: publish
 
 on:
   push:
-    paths-ignore: ['**.md', '**.svg', '**.png']
-    # tags:
-    #   - "v*.*.*"
+    tags:
+      - "v*.*.*"
 
 env:
   draft: true
