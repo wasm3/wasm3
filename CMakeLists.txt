@@ -198,6 +198,9 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   include(FetchContent)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "" FORCE)
+  set(LIBUV_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(UVWASI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(INSTALL_UVWASI OFF CACHE BOOL "" FORCE)
 
   FetchContent_Declare(
     libuv
@@ -206,8 +209,8 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   )
   FetchContent_Declare(
     uvwasi
-    GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
-    GIT_TAG         v0.0.23
+    GIT_REPOSITORY  https://github.com/vshymanskyy/uvwasi.git
+    GIT_TAG         master
   )
   FetchContent_MakeAvailable(libuv)
   FetchContent_MakeAvailable(uvwasi)
