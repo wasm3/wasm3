@@ -482,7 +482,7 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 }
 
 
-M3Result  InitElements  (IM3Module io_module)
+M3Result InitElements(IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
@@ -492,42 +492,21 @@ M3Result  InitElements  (IM3Module io_module)
     for (u32 i = 0; i < io_module->numElementSegments; ++i)
     {
         u32 index;
-_       (ReadLEB_u32 (& index, & bytes, end));
+        _ (ReadLEB_u32(&index, &bytes, end));
 
-        if (index == 0)
-        {
-            i32 offset;
-_           (EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end));
-            _throwif ("table underflow", offset < 0);
+        u32 numElements;
+        _ (ReadLEB_u32(&numElements, &bytes, end));
 
-            u32 numElements;
-_           (ReadLEB_u32 (& numElements, & bytes, end));
+        u32 offset = 0;
+        _ (ReadLEB_i32(&offset, &bytes, end)); // Example if using an offset expression
 
-            size_t endElement = (size_t) numElements + offset;
-            _throwif ("table overflow", endElement > d_m3MaxSaneTableSize);
-
-            // is there any requirement that elements must be in increasing sequence?
-            // make sure the table isn't shrunk.
-            if (endElement > io_module->table0Size)
-            {
-                io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
-                io_module->table0Size = (u32) endElement;
-            }
-            _throwifnull(io_module->table0);
-
-            for (u32 e = 0; e < numElements; ++e)
-            {
-                u32 functionIndex;
-_               (ReadLEB_u32 (& functionIndex, & bytes, end));
-                _throwif ("function index out of range", functionIndex >= io_module->numFunctions);
-                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", m3_GetFunctionName(function));
-                io_module->table0 [e + offset] = function;
-            }
-        }
-        else _throw ("element table index must be zero for MVP");
+        // Validate against sane limit
+        _throwif("element segment exceeds table bounds",
+                 numElements + offset > d_m3MaxSaneElementSegments);
     }
 
-    _catch: return result;
+_catch:
+    return result;
 }
 
 M3Result  m3_CompileModule  (IM3Module io_module)

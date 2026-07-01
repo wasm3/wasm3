@@ -15,6 +15,44 @@ M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end
 {
     M3Result result = m3Err_none;
 
+    // Read table element type
+    if (i_bytes >= i_end)
+        return "Unexpected end of section while reading table element type";
+
+    u8 elemType = *i_bytes++;
+    
+    // --- Validate element type ---
+    // Only 'funcref' (0x70) and 'externref' (0x6F) are valid defaultable reference types
+    if (elemType != 0x70 && elemType != 0x6F) {
+        return "Table's type must be defaultable (funcref or externref)";
+    }
+
+    // --- Parse table limits ---
+    // Table limits: flags + min (and optional max)
+    if (i_bytes >= i_end)
+        return "Unexpected end of section while reading table limits";
+
+    u8 flags = *i_bytes++;
+    u32 min = 0;
+    u32 max = 0;
+
+    // Read minimum
+    result = ReadLEB_u32(&min, &i_bytes, i_end);
+    if (result)
+        return result;
+
+    // If max flag set, read max
+    if (flags & 0x01) {
+        result = ReadLEB_u32(&max, &i_bytes, i_end);
+        if (result)
+            return result;
+    }
+
+    // Optionally: store or validate table limits if io_module tracks them
+    // io_module->tableElemType = elemType;
+    // io_module->tableMin = min;
+    // io_module->tableMax = max;
+
     return result;
 }
 
