@@ -101,8 +101,8 @@ const char* modname_from_fn(const char* fn)
     const char* sep = "/\\:*?";
     char c;
     while ((c = *sep++)) {
-        const char* off = strrchr(fn, c) + 1;
-        fn = (fn < off) ? off : fn;
+        const char* off = strrchr(fn, c);
+        fn = (off && fn < off+1) ? off+1 : fn;
     }
     return fn;
 }

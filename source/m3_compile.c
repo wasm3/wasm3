@@ -200,6 +200,14 @@ void  ReleaseCompilationCodePage  (IM3Compilation o)
 static inline
 u16 GetTypeNumSlots (u8 i_type)
 {
+    // v128 is 16 bytes — 4 slots in 32-bit-slot mode, 2 in 64-bit.
+    // (Slot-allocator only; no v128 ops execute.)
+    if (i_type == c_m3Type_v128)
+#       if d_m3Use32BitSlots
+            return 4;
+#       else
+            return 2;
+#       endif
 #   if d_m3Use32BitSlots
         return Is64BitType (i_type) ? 2 : 1;
 #   else
@@ -343,17 +351,22 @@ void  MarkSlotAllocated  (IM3Compilation o, u16 i_slot)
 }
 
 static inline
-void  MarkSlotsAllocated  (IM3Compilation o, u16 i_slot, u16 i_numSlots)
+M3Result MarkSlotsAllocated  (IM3Compilation o, u16 i_slot, u16 i_numSlots)
 {
+    if (i_slot + i_numSlots > d_m3MaxFunctionSlots)
+        return m3Err_functionStackOverflow;
+
     while (i_numSlots--)
         MarkSlotAllocated (o, i_slot++);
+    
+    return m3Err_none;
 }
 
 static inline
-void  MarkSlotsAllocatedByType  (IM3Compilation o, u16 i_slot, u8 i_type)
+M3Result MarkSlotsAllocatedByType  (IM3Compilation o, u16 i_slot, u8 i_type)
 {
     u16 numSlots = GetTypeNumSlots (i_type);
-    MarkSlotsAllocated (o, i_slot, numSlots);
+    return MarkSlotsAllocated (o, i_slot, numSlots);
 }
 
 
@@ -371,7 +384,7 @@ M3Result  AllocateSlotsWithinRange  (IM3Compilation o, u16 * o_slot, u8 i_type, 
     u16 i = i_startSlot;
     while (i + searchOffset < i_endSlot)
     {
-        if (o->m3Slots [i] == 0 and o->m3Slots [i + searchOffset] == 0)
+        if (i + searchOffset < d_m3MaxFunctionSlots and o->m3Slots [i] == 0 and o->m3Slots [i + searchOffset] == 0)
         {
             MarkSlotsAllocated (o, i, numSlots);
 
@@ -495,7 +508,12 @@ M3Result  PreserveRegisterIfOccupied  (IM3Compilation o, u8 i_registerType)
 _       (AllocateSlots (o, & slot, type));
         o->wasmStack [stackIndex] = slot;
 
-_       (EmitOp (o, c_setSetOps [type]));
+        // Ensure type is within the valid range
+        if (type < sizeof(c_setSetOps) / sizeof(c_setSetOps[0])) {
+_           (EmitOp (o, c_setSetOps [type]));
+        } else 
+            _throw(m3Err_functionStackOverflow);
+
         EmitSlotOffset (o, slot);
     }
 
@@ -602,6 +620,9 @@ M3Result  Pop  (IM3Compilation o)
         {
             u32 regSelect = IsFpRegisterSlotAlias (slot);
             DeallocateRegister (o, regSelect);
+        }
+        else if (slot < 0 || slot >= o->slotMaxAllocatedIndexPlusOne) {
+            return m3Err_functionStackUnderrun; // Return error for invalid slot indices
         }
         else if (slot >= o->slotFirstDynamicIndex)
         {
@@ -1653,7 +1674,7 @@ _       (Pop (o));
         u8 type = GetFuncTypeResultType (i_type, i++);
 
 _       (Push (o, type, topSlot));
-        MarkSlotsAllocatedByType (o, topSlot, type);
+_       (MarkSlotsAllocatedByType (o, topSlot, type));
 
         topSlot += c_ioSlotCount;
     }
@@ -2741,7 +2762,7 @@ _           (PopType (o, type));
         Push (o, type, slot);
 
         if (slot >= o->slotFirstDynamicIndex && slot != c_slotUnused)
-            MarkSlotsAllocatedByType (o, slot, type);
+_           (MarkSlotsAllocatedByType (o, slot, type));
     }
 
     //--------------------------------------------------------

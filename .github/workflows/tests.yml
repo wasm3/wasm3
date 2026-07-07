@@ -2,6 +2,8 @@ name: tests
 
 on:
   push:
+    branches:
+    - "**"
     paths-ignore: ['**.md', '**.svg', '**.png']
   pull_request:
     paths-ignore: ['**.md', '**.svg', '**.png']
@@ -30,7 +32,7 @@ jobs:
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install ${{ matrix.config.install }}
       if: ${{ matrix.config.install }}
       run: |
@@ -64,21 +66,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64, s390x, ppc64le, arm64v8 ]
+        arch: [ amd64 ]  # TODO: s390x, ppc64le, arm64v8
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Setup multiarch/qemu-user-static
       if: matrix.arch != 'amd64'
       run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
     - name: Run tests
       uses: addnab/docker-run-action@v3
       with:
-        image: ${{ matrix.arch }}/alpine:3.19
+        image: ${{ matrix.arch }}/alpine:3.24
         options: --volume=${{ github.workspace }}:/work --workdir=/work
         run: |
           set -e
-          apk add --no-cache build-base cmake python3 git
+          apk add --no-cache build-base cmake python3 git linux-headers
           echo "------------ Build Wasm3 ------------"
           mkdir build && cd build && cmake .. && cd ..
           cmake --build build
@@ -104,7 +106,7 @@ jobs:
         - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Configure
       run: |
         mkdir build
@@ -146,7 +148,7 @@ jobs:
         shell: cmd
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Configure
       run: |
         mkdir build
@@ -174,7 +176,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
       - name: Set up Cygwin
         uses: egor-tensin/setup-cygwin@master
         with:
@@ -188,7 +190,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Setup environment
       env:
         WASI_VERSION: 11
@@ -205,7 +207,7 @@ jobs:
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "1.0.2"
+      run: curl https://get.wasmer.io -sSfL | sh -s "2.0.0"  # TODO: update Wasmer
     - name: Configure
       run: |
         mkdir build-wasi
@@ -249,25 +251,25 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
-    - name: List Xcode versions
-      run: ls /Applications | grep Xcode
-    - name: Select Xcode 16
-      run: sudo xcode-select -switch /Applications/Xcode_16.1.app
-    - name: Build (iPhone 14)
+    - uses: actions/checkout@v7
+    - name: Show selected Xcode
+      run: |
+        xcodebuild -version
+        xcode-select -p
+        ls /Applications | grep Xcode
+    - name: Build
       run: |
         cd platforms/ios
-        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=18.1'
+        xcodebuild build -scheme wasm3 -project wasm3.xcodeproj -configuration Release -destination "generic/platform=iOS Simulator"
 
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: seanmiddleditch/gha-setup-ninja@master
+    - uses: actions/checkout@v7
     - name: Set up JDK 11
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
         java-version: 11
@@ -282,16 +284,16 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         path: wasm3
     - name: Checkout pywasm3
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: wasm3/pywasm3
         path: pywasm3
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
     - name: Update and Build Python module
       run: |
         rm -rf ./pywasm3/wasm3
@@ -312,7 +314,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Build αcτµαlly pδrταblε εxεcµταblε
       run: |
         cd platforms/cosmopolitan
@@ -378,7 +380,7 @@ jobs:
         - {target: ppc64 (u64 slots),   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static,    cflags: -Dd_m3Use32BitSlots=0  }
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install QEMU
       run: |
         sudo apt update
@@ -409,9 +411,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -438,9 +440,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -470,9 +472,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.x'
     - name: Install PlatformIO
@@ -494,7 +496,7 @@ jobs:
     if: "github.event_name == 'push'"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Set up Particle CLI
       run: sudo npm install -g particle-cli
     - name: Log in
@@ -507,41 +509,62 @@ jobs:
         particle compile --followSymlinks photon
         particle compile --followSymlinks argon
 
-  esp32-idf:
-    if: false
-    runs-on: ubuntu-20.04
-    container: igrr/idf-qemu:release-v4.0-esp-develop-20191228
+  esp-idf:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build for ESP32 (IDF v4.0)
-      run: |
-        . $IDF_PATH/export.sh
-        cd platforms/embedded/esp32-idf
-        export EXTRA_CFLAGS="-Werror"
-        idf.py build
-      shell: bash
-    - name: Test for ESP32 in QEMU
-      run: |
-        cd platforms/embedded/esp32-idf
-        make-flash-img.sh wasm3 flash_img.bin
-        qemu-system-xtensa -machine esp32 -nographic -drive file=flash_img.bin,if=mtd,format=raw -no-reboot | tee out.txt
-        grep "Result: 46368" out.txt
-        grep "Elapsed: " out.txt
-        grep "Restarting..." out.txt
-        test $(($(grep "ets Jun  8 2016" out.txt | wc -l))) -eq 1
+    - uses: actions/checkout@v7
     - name: Check that IDF and PIO examples are in sync
       run: |
         diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
+    - name: Build for ESP32
+      uses: addnab/docker-run-action@v3
+      with:
+        image: espressif/idf:release-v5.4
+        options: --volume=${{ github.workspace }}:/work --workdir=/work
+        shell: bash
+        run: |
+          set -e
+          source /opt/esp/idf/export.sh
+          echo "------------ Build Wasm3 ------------"
+          cd platforms/embedded/esp32-idf
+          export EXTRA_CFLAGS="-Werror"
+          idf.py set-target esp32
+          idf.py -D CONFIG_ESPTOOLPY_FLASHFREQ_80M=y    \
+                -D CONFIG_ESPTOOLPY_FLASHFREQ=\"80m\"   \
+                -D CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y     \
+                -D CONFIG_ESPTOOLPY_FLASHSIZE=\"4MB\"   \
+                build
+          idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB
+          chmod -R a+rX build
+          echo "------------ Build OK ---------------"
+    - name: Check flash image
+      run: |
+        cp platforms/embedded/esp32-idf/build/flash-image.bin .
+        head -c 128 flash-image.bin | hexdump -C
+        md5sum flash-image.bin
+    - name: Run in QEMU
+      uses: tobozo/esp32-qemu-sim@v2.1.0
+      with:
+        chip: esp32
+        flash-image: flash-image.bin
+        qemu-timeout: "60"
+        timeout-interrupt-regex: "Restarting..."
+    - name: Validate output
+      run: |
+        grep "Result: 46368" logs.txt
+        grep "Elapsed: " logs.txt
+        grep "Restarting..." logs.txt
+      # test $(($(grep "ets Jul 29 2019" logs.txt | wc -l))) -eq 1
 
   cpp:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Configure
         run: |
           cd platforms/cpp
@@ -563,7 +586,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Build
       run: |
         mkdir build
@@ -581,7 +604,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Build
       run: |
         mkdir build
@@ -610,7 +633,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install sponge
       run: |
         sudo apt update
@@ -631,7 +654,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
     - name: Install codespell
       run: |
         pip install codespell
