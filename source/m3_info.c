@@ -82,7 +82,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
 // a central function you can be breakpoint:
 void ExceptionBreakpoint (cstr_t i_exception, cstr_t i_message)
 {
-    printf ("\nexception: '%s' @ %s\n", i_exception, i_message);
+    printf ("exception: '%s' @ %s\n", i_exception, i_message);
     return;
 }
 

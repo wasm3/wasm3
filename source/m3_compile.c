@@ -226,9 +226,20 @@ void  AlignSlotToType  (u16 * io_slot, u8 i_type)
 }
 
 static inline
-i16  GetStackTopIndex  (IM3Compilation o)
+i16  GetStackTopIndex  (IM3Compilation o)					// TODO: make this an exception; it gets hit all the time with malformed code
 {                                                           d_m3Assert (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic (o));
     return o->stackIndex - 1;
+}
+
+static inline
+M3Result  GetStackTopIndexThrows  (IM3Compilation o, i16 * o_stackIndex)
+{
+	*o_stackIndex = o->stackIndex - 1;
+
+	if (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic (o))
+		return m3Err_none;
+	else
+		return m3Err_invalidStackState;
 }
 
 
@@ -774,7 +785,7 @@ _           (PushAllocatedSlotAndEmit (o, i_type));
             if (is64BitType) {
                 memcpy (& o->constants [constTableIndex], &i_word, sizeof(i_word));
             } else {
-                u32 word32 = i_word;
+                u32 word32 = (u32) i_word;
                 memcpy (& o->constants [constTableIndex], &word32, sizeof(word32));
             }
 
@@ -888,7 +899,8 @@ M3Result  CopyStackTopToSlot  (IM3Compilation o, u16 i_destSlot)  // NoPushPop
 {
     M3Result result;
 
-    i16 stackTop = GetStackTopIndex (o);
+	i16 stackTop;
+_	(GetStackTopIndexThrows (o, & stackTop));
 _   (CopyStackIndexToSlot (o, i_destSlot, (u16) stackTop));
 
     _catch: return result;
