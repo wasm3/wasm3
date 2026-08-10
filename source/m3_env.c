@@ -7,11 +7,16 @@
 
 #include <stdarg.h>
 #include <limits.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "m3_env.h"
 #include "m3_compile.h"
+#include "m3_core.h"
 #include "m3_exception.h"
+#include "m3_exec_defs.h"
 #include "m3_info.h"
+#include "wasm3.h"
 
 
 IM3Environment  m3_NewEnvironment  ()
@@ -235,7 +240,11 @@ void  Runtime_Release  (IM3Runtime i_runtime)
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
     m3_Free (i_runtime->originStack);
-    m3_Free (i_runtime->memory.mallocated);
+
+    for (size_t i = 0; i < i_runtime->memories.count; i++) {
+        da_free(& i_runtime->memories);
+    }
+    m3_Free(i_runtime->memories.entries);
 }
 
 
@@ -332,31 +341,65 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 }
 
 
+static
+bool  FindExportIdx  (IM3Module i_module, const char *i_name, u32 *o_idx) {
+    for (u32 i = 0; i < i_module->memoryTable.count; i++) {
+        if (!i_module->memoryTable.entries[i].exported) continue;
+        if (strcmp(i_module->memoryTable.entries[i].exportName, i_name)) continue;
+        *o_idx = i_module->memoryTable.entries[i].internalIndex;
+        return true;
+    }
+
+    return false;
+}
+
+
+static
+bool  LinkTableEntry  (IM3Module i_modules, M3MemoryTableEntry *o_entry) {
+    for (IM3Module module = i_modules; module != NULL; module = module->next) {
+        if (strcmp(module->name, o_entry->import.moduleUtf8)) continue;
+        if (!FindExportIdx(module, o_entry->import.fieldUtf8, &o_entry->internalIndex)) continue;
+        return true;
+    }
+    return false;
+}
+
+
 M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 {
     M3Result result = m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
+    M3Memories *memories = &io_runtime->memories;
 
-    if (not i_module->memoryImported)
-    {
-        u32 maxPages = i_module->memoryInfo.maxPages;
-        u32 pageSize = i_module->memoryInfo.pageSize;
-        io_runtime->memory.maxPages = maxPages ? maxPages : 65536;
-        io_runtime->memory.pageSize = pageSize ? pageSize : d_m3DefaultMemPageSize;
+    for (u32 i = 0; i < i_module->memoryTable.count; i++) {
+        M3MemoryTableEntry *entry = &i_module->memoryTable.entries[i];
+        if (entry->imported) {
+            if (LinkTableEntry(io_runtime->modules, entry)) continue;
+            return m3Err_memoryExportMissing;
+        }
 
-        result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
+        u32 maxPages = entry->memoryInfo.maxPages;
+        u32 pageSize = entry->memoryInfo.pageSize;
+        M3Memory new = {
+            .maxPages = maxPages,
+            .pageSize = pageSize ? pageSize : d_m3DefaultMemPageSize,
+        };
+
+        entry->internalIndex = memories->count;
+        da_push(M3Memory, memories, new);
+
+        result = ResizeMemory (io_runtime, entry->memoryInfo.initPages, entry->internalIndex);
     }
 
     return result;
 }
 
-
-M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
+M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages, u32 i_internalIndex)
 {
     M3Result result = m3Err_none;
 
     u32 numPagesToAlloc = i_numPages;
 
-    M3Memory * memory = & io_runtime->memory;
+    M3Memory * memory = & io_runtime->memories.entries[i_internalIndex];
 
 #if 0 // Temporary fix for memory allocation
     if (memory->mallocated) {
@@ -370,7 +413,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
     if (numPagesToAlloc <= memory->maxPages)
     {
-        size_t numPageBytes = numPagesToAlloc * io_runtime->memory.pageSize;
+        size_t numPageBytes = numPagesToAlloc * memory->pageSize;
 
 #if d_m3MaxLinearMemoryPages > 0
         _throwif("linear memory limitation exceeded", numPagesToAlloc > d_m3MaxLinearMemoryPages);
@@ -383,7 +426,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
 
-        size_t numPreviousBytes = memory->numPages * io_runtime->memory.pageSize;
+        size_t numPreviousBytes = memory->numPages * memory->pageSize;
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
@@ -400,8 +443,6 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         memory->mallocated->length =  numPageBytes;
         memory->mallocated->runtime = io_runtime;
-
-        memory->mallocated->maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
 
         m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
     }
@@ -453,15 +494,19 @@ M3Result  InitGlobals  (IM3Module io_module)
 }
 
 
-M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
+M3Result  InitDataSegments  (IM3Module io_module)
 {
     M3Result result = m3Err_none;
-
-    _throwif ("unallocated linear memory", !(io_memory->mallocated));
 
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
+
+        // skip passive regions
+        if (segment->memoryRegion == 1) continue;
+
+        IM3Memory memory = & io_module->runtime->memories.entries[io_module->memoryTable.entries[segment->memIdx].internalIndex];
+        _throwif("unallocated linear memory", !(memory->mallocated));
 
         i32 segmentOffset;
         bytes_t start = segment->initExpr;
@@ -469,9 +514,9 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
-        if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
+        if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= memory->mallocated->length)
         {
-            u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
+            u8 * dest = m3MemData (memory->mallocated) + segmentOffset;
             memcpy (dest, segment->data, segment->size);
         } else {
             _throw ("data segment out of bounds");
@@ -576,9 +621,9 @@ _           (CompileFunction (function));
         io_module->startFunction = -1;
 
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
-        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime, d_m3OpDefaultArgs);
 # endif
 
         if (result)
@@ -602,11 +647,10 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
     }
 
     io_module->runtime = io_runtime;
-    M3Memory * memory = & io_runtime->memory;
 
 _   (InitMemory (io_runtime, io_module));
 _   (InitGlobals (io_module));
-_   (InitDataSegments (memory, io_module));
+_   (InitDataSegments (io_module));
 _   (InitElements (io_module));
 
     // Start func might use imported functions, which are not liked here yet,
@@ -911,9 +955,9 @@ _   (checkStartFunction(i_function->module))
     }
 
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime, d_m3OpDefaultArgs);
 # endif
     ReportNativeStackUsage ();
 
@@ -960,9 +1004,9 @@ _   (checkStartFunction(i_function->module))
     }
 
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime, d_m3OpDefaultArgs);
 # endif
 
     ReportNativeStackUsage ();
@@ -1010,9 +1054,9 @@ _   (checkStartFunction(i_function->module))
     }
 
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
+    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime, d_m3OpDefaultArgs);
 # endif
     
     ReportNativeStackUsage ();
@@ -1203,28 +1247,52 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
     }
 }
 
-uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
-{
-    uint8_t * memory = NULL;                                                    d_m3Assert (i_memoryIndex == 0);
+uint8_t *  m3_FindMemory(IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, const char * const i_memoryName) {
+    IM3Memory memory = NULL;
 
-    if (i_runtime)
-    {
-        u32 size = (u32) i_runtime->memory.mallocated->length;
-
-        if (o_memorySizeInBytes)
-            * o_memorySizeInBytes = size;
-
-        if (size)
-            memory = m3MemData (i_runtime->memory.mallocated);
+    if (not i_runtime->modules) {
+        return NULL;
     }
 
-    return memory;
+    for (IM3Module module = i_runtime->modules; module != NULL; module = module->next) {
+        for (size_t i = 0; i < module->memoryTable.count; i++) {
+            M3MemoryTableEntry *entry = & module->memoryTable.entries[i];
+            if (!entry->exported) continue;
+            if (strcmp(i_memoryName, entry->exportName) == 0) {
+                IM3Memory memory = &module->runtime->memories.entries[entry->internalIndex];
+                if (o_memorySizeInBytes) *o_memorySizeInBytes = memory->mallocated->length;
+                return m3MemData(memory->mallocated);
+            }
+        }
+    }
+
+    return NULL;
+}
+
+uint8_t *  m3_GetMemory(IM3Module i_module, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex) {
+    if (!i_module) return NULL;
+    if (i_memoryIndex >= i_module->runtime->memories.count) {
+        if (o_memorySizeInBytes) *o_memorySizeInBytes = 0;
+        return NULL;
+    }
+
+    u32 internalIndex = i_module->memoryTable.entries[i_memoryIndex].internalIndex;
+
+    IM3Memory memory = &i_module->runtime->memories.entries[internalIndex];
+    u32 size = memory->mallocated->length;
+
+    if (!size) return NULL;
+
+    if (o_memorySizeInBytes) *o_memorySizeInBytes = size;
+    return m3MemData(memory->mallocated);
 }
 
 
-uint32_t  m3_GetMemorySize  (IM3Runtime i_runtime)
+uint32_t  m3_GetMemorySize  (IM3Module i_module, u32 i_memoryIndex)
 {
-    return i_runtime->memory.mallocated->length;
+    u32 o_memorySizeInBytes;
+    m3_GetMemory(i_module, &o_memorySizeInBytes, i_memoryIndex);
+    return o_memorySizeInBytes;
 }
 
 

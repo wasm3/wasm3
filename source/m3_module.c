@@ -5,6 +5,7 @@
 //  Copyright © 2019 Steven Massey. All rights reserved.
 //
 
+#include "m3_core.h"
 #include "m3_env.h"
 #include "m3_exception.h"
 
@@ -40,10 +41,19 @@ void  m3_FreeModule  (IM3Module i_module)
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free (i_module->globals);
-        m3_Free (i_module->memoryExportName);
-        m3_Free (i_module->table0ExportName);
 
-        FreeImportInfo(&i_module->memoryImport);
+        for (u32 i = 0; i < i_module->memoryTable.count; i++) {
+            M3MemoryTableEntry *entry = &i_module->memoryTable.entries[i];
+            if (entry->exported) {
+                m3_Free(entry->exportName);
+            }
+            if (entry->imported) {
+                FreeImportInfo(&entry->import);
+            }
+        }
+        da_free(&i_module->memoryTable);
+
+        m3_Free (i_module->table0ExportName);
 
         m3_Free (i_module);
     }

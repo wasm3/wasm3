@@ -41,8 +41,10 @@ enum
 
     c_waOp_extended             = 0xfc,
 
+    c_waOp_memoryInit           = 0xfc08,
+    c_waOp_dataDrop             = 0xfc09,
     c_waOp_memoryCopy           = 0xfc0a,
-    c_waOp_memoryFill           = 0xfc0b
+    c_waOp_memoryFill           = 0xfc0b,
 };
 
 
