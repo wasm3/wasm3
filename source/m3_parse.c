@@ -283,6 +283,11 @@ M3Result  ParseSection_Export  (IM3Module io_module, bytes_t i_bytes, cbytes_t  
 {
     M3Result result = m3Err_none;
     const char * utf8 = NULL;
+#if d_m3EnableValidation
+    // We store name pointers + lengths to handle embedded NUL bytes correctly
+    typedef struct { const u8 * ptr; u16 len; } ExportName;
+    ExportName * exportNames = NULL;
+#endif
 
     u32 numExports;
 _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                                 m3log (parse, "** Export [%d]", numExports);
@@ -291,9 +296,6 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
 
 #if d_m3EnableValidation
     // Spec: all export names must be different
-    // We store name pointers + lengths to handle embedded NUL bytes correctly
-    typedef struct { const u8 * ptr; u16 len; } ExportName;
-    ExportName * exportNames = NULL;
     if (numExports > 1)
     {
         exportNames = (ExportName *) m3_Malloc ("exportNames", sizeof(ExportName) * numExports);

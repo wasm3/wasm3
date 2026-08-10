@@ -27,7 +27,7 @@ typedef struct {
     u16         param_count;
     u16         result_count;
     IM3FuncType type;           // block type (for params/results)
-    bool        unreachable;
+    bool        is_unreachable;
 } ValCtrlFrame;
 
 // ---------- Validator context ----------
@@ -62,7 +62,7 @@ static M3Result v_pop (ValCtx * v, u8 * o_type)
 {
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
     if (v->opdTop == f->height) {
-        if (f->unreachable) { *o_type = c_valUnknown; return m3Err_none; }
+        if (f->is_unreachable) { *o_type = c_valUnknown; return m3Err_none; }
         return m3Err_functionStackUnderrun;
     }
     *o_type = v->opd[--v->opdTop];
@@ -92,7 +92,7 @@ static M3Result v_push_ctrl (ValCtx * v, m3opcode_t op, IM3FuncType type)
     f->param_count  = type ? type->numArgs : 0;
     f->result_count = type ? type->numRets : 0;
     f->height       = v->opdTop;
-    f->unreachable  = false;
+    f->is_unreachable = false;
     return m3Err_none;
 }
 
@@ -120,7 +120,7 @@ static void v_unreachable (ValCtx * v)
 {
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
     v->opdTop = f->height;
-    f->unreachable = true;
+    f->is_unreachable = true;
 }
 
 // Label types: loop -> params, block/if/else/func -> results
