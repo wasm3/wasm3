@@ -15,7 +15,31 @@ M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end
 {
     M3Result result = m3Err_none;
 
-    return result;
+    u32 numTables;
+_   (ReadLEB_u32 (& numTables, & i_bytes, i_end));                       m3log (parse, "** Table [%d]", numTables);
+
+    _throwif (m3Err_wasmMalformed, numTables > 1); // MVP: at most one table
+
+    for (u32 i = 0; i < numTables; ++i)
+    {
+        u8 elemType;
+_       (Read_u8 (& elemType, & i_bytes, i_end));
+        // Spec: element type must be funcref (0x70)
+        _throwif (m3Err_wasmMalformed, elemType != 0x70);
+
+        u8 flag;
+_       (ReadLEB_u7 (& flag, & i_bytes, i_end));
+        u32 initSize;
+_       (ReadLEB_u32 (& initSize, & i_bytes, i_end));
+        if (flag & 1) {
+            u32 maxSize;
+_           (ReadLEB_u32 (& maxSize, & i_bytes, i_end));
+            _throwif (m3Err_wasmMalformed, maxSize < initSize);
+        }
+        io_module->hasTable = true;
+    }
+
+    _catch: return result;
 }
 
 
@@ -30,13 +54,27 @@ _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
     o_memory->maxPages = 0;
     if (flag & (1u << 0))
+    {
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
+
+        // Spec: memory limits validation - max must not be less than init
+        _throwif (m3Err_wasmMalformed, o_memory->maxPages < o_memory->initPages);
+    }
 
     o_memory->pageSize = 0;
     if (flag & (1u << 3)) {
         u32 logPageSize;
 _       (ReadLEB_u32 (& logPageSize, io_bytes, i_end));
         o_memory->pageSize = 1u << logPageSize;
+    }
+
+    // Spec: memory limits must be valid within range 2^16 (65536 pages)
+    // Only enforce for standard page size (no custom page size flag)
+    if (!(flag & (1u << 3)))
+    {
+        _throwif (m3Err_wasmMalformed, o_memory->initPages > 65536);
+        if (flag & (1u << 0))
+            _throwif (m3Err_wasmMalformed, o_memory->maxPages > 65536);
     }
 
     _catch: return result;
@@ -184,8 +222,22 @@ _               (Module_AddFunction (io_module, typeIndex, & import))
             break;
 
             case d_externalKind_table:
-//                  result = ParseType_Table (& i_bytes, i_end);
-                break;
+            {
+                // Parse and validate table type (elem type + limits)
+                u8 elemType;
+_               (Read_u8 (& elemType, & i_bytes, i_end));
+                _throwif (m3Err_wasmMalformed, elemType != 0x70); // must be funcref
+                u8 flag;
+_               (ReadLEB_u7 (& flag, & i_bytes, i_end));
+                u32 initSize;
+_               (ReadLEB_u32 (& initSize, & i_bytes, i_end));
+                if (flag & 1) {
+                    u32 maxSize;
+_                   (ReadLEB_u32 (& maxSize, & i_bytes, i_end));
+                }
+                io_module->hasTable = true;
+            }
+            break;
 
             case d_externalKind_memory:
             {
@@ -237,6 +289,16 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
 
     _throwif("too many exports", numExports > d_m3MaxSaneExportsCount);
 
+#if d_m3EnableValidation
+    // Spec: all export names must be different
+    const char ** exportNames = NULL;
+    if (numExports > 1)
+    {
+        exportNames = (const char **) m3_Malloc ("exportNames", sizeof(const char *) * numExports);
+        // If allocation fails, skip uniqueness check but continue parsing
+    }
+#endif
+
     for (u32 i = 0; i < numExports; ++i)
     {
         u8 exportKind;
@@ -245,6 +307,21 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
 _       (Read_utf8 (& utf8, & i_bytes, i_end));
 _       (Read_u8 (& exportKind, & i_bytes, i_end));
 _       (ReadLEB_u32 (& index, & i_bytes, i_end));                                  m3log (parse, "    index: %3d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
+
+#if d_m3EnableValidation
+        // Spec: check export name uniqueness
+        if (exportNames)
+        {
+            for (u32 j = 0; j < i; ++j)
+            {
+                if (exportNames[j] && utf8 && strcmp (exportNames[j], utf8) == 0)
+                {
+                    _throw (m3Err_wasmMalformed);  // duplicate export name
+                }
+            }
+            exportNames[i] = utf8;
+        }
+#endif
 
         if (exportKind == d_externalKind_function)
         {
@@ -283,6 +360,9 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
 
 _catch:
     m3_Free (utf8);
+#if d_m3EnableValidation
+    m3_Free (exportNames);
+#endif
     return result;
 }
 
@@ -296,6 +376,14 @@ _   (ReadLEB_u32 (& startFuncIndex, & i_bytes, i_end));                         
 
     if (startFuncIndex < io_module->numFunctions)
     {
+        // Spec: start function type must be [] -> []
+        IM3Function func = & io_module->functions [startFuncIndex];
+        if (func->funcType)
+        {
+            _throwif (m3Err_wasmMalformed,
+                      func->funcType->numArgs != 0 || func->funcType->numRets != 0);
+        }
+
         io_module->startFunction = startFuncIndex;
     }
     else result = "start function index out of bounds";
@@ -427,6 +515,9 @@ _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                        
         M3DataSegment * segment = & io_module->dataSegments [i];
 
 _       (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
+
+        // Spec: MVP only supports memory index 0
+        _throwif (m3Err_wasmMalformed, segment->memoryRegion != 0);
 
         segment->initExpr = i_bytes;
 _       (Parse_InitExpr (io_module, & i_bytes, i_end));
@@ -579,7 +670,7 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Type,      // 1
         ParseSection_Import,    // 2
         ParseSection_Function,  // 3
-        NULL,                   // 4: TODO Table
+        ParseType_Table,        // 4
         ParseSection_Memory,    // 5
         ParseSection_Global,    // 6
         ParseSection_Export,    // 7

@@ -143,6 +143,10 @@
 #   define d_m3NoFloatDynamic                   1       // if no floats, do not fail until flops are actually executed
 #endif
 
+# ifndef d_m3EnableValidation
+#   define d_m3EnableValidation                 1       // pre-pass bytecode type validation
+# endif
+
 # ifndef d_m3SkipStackCheck
 #   define d_m3SkipStackCheck                   0       // skip stack overrun checks
 # endif
