@@ -6,18 +6,16 @@ import argparse
 import subprocess
 import multiprocessing
 from pathlib import Path
-import time
 import os
 import contextlib
 
 musl_targets = [
-    { "name": "linux-x86_64"    , "arch": "x86_64-linux-musl"           },
-    { "name": "linux-i686"      , "arch": "i686-linux-musl"             , "skip_tests" : True},
+    #{ "name": "linux-x86_64"    , "arch": "x86_64-linux-musl"           },
+    #{ "name": "linux-i686"      , "arch": "i686-linux-musl"             , "skip_tests" : True},
 
     #{ "name": "win-i686"       , "arch": "i686-w64-mingw32"            },
     #{ "name": "win-x64"        , "arch": "x86_64-w64-mingw32"          },
 
-    { "name": "linux-aarch64"   , "arch": "aarch64-linux-musl"          , "runner": "qemu-aarch64-static"   },
     { "name": "linux-armv6"     , "arch": "armv6-linux-musleabihf"      , "runner": "qemu-arm-static"       },
     { "name": "linux-armv7l"    , "arch": "armv7l-linux-musleabihf"     , "runner": "qemu-arm-static"       },
     { "name": "linux-mipsel-sf" , "arch": "mipsel-linux-muslsf"         , "runner": "qemu-mipsel-static"    },
@@ -26,34 +24,58 @@ musl_targets = [
     { "name": "linux-mips"      , "arch": "mips-linux-musl"             , "runner": "qemu-mips-static"      },
     { "name": "linux-mips64el"  , "arch": "mips64el-linux-musl"         , "runner": "qemu-mips64el-static"  },
     { "name": "linux-mips64"    , "arch": "mips64-linux-musl"           , "runner": "qemu-mips64-static"    },
-    { "name": "linux-rv32"      , "arch": "riscv32-linux-musl"          , "runner": "qemu-riscv32-static"   },
-    { "name": "linux-rv64"      , "arch": "riscv64-linux-musl"          , "runner": "qemu-riscv64-static"   },
     { "name": "linux-ppc"       , "arch": "powerpc-linux-musl"          , "runner": "qemu-ppc-static"       },
     { "name": "linux-ppc64"     , "arch": "powerpc64-linux-musl"        , "runner": "qemu-ppc64-static"     },
-    { "name": "linux-s390x"     , "arch": "s390x-linux-musl"            , "runner": "qemu-s390x-static"     },
-    #{ "name": "linux-m68k"      , "arch": "m68k-linux-musl"             , "runner": "qemu-m68k-static"      },
+
+    { "name": "linux-aarch64"   , "arch": "aarch64-unknown-linux-musl"        , "runner": "qemu-aarch64-static"   },
+    { "name": "linux-rv32"      , "arch": "riscv32-unknown-linux-musl"        , "runner": "qemu-riscv32-static"   },
+    { "name": "linux-rv64"      , "arch": "riscv64-unknown-linux-musl"        , "runner": "qemu-riscv64-static"   },
+    { "name": "linux-s390x"     , "arch": "s390x-ibm-linux-musl"              , "runner": "qemu-s390x-static"     },
+    { "name": "linux-loong64"   , "arch": "loongarch64-unknown-linux-musl"    , "runner": "qemu-loong64-static"   },
+
+    #{ "name": "linux-m68k"      , "arch": "m68k-linux-musl"             , "runner": "qemu-m68k-static"       },
     #{ "name": "linux-microblaze", "arch": "microblaze-linux-musl"       , "runner": "qemu-microblaze-static" },
 
-    { "name": "linux-armv7l-vfpv3"      , "arch": "armv7l-linux-musleabihf" , "runner": "qemu-arm-static"       , "cflags": "-march=armv7-a -mfpu=vfpv3 -mthumb -Wa,-mimplicit-it=thumb" },
-    { "name": "linux-mipsel-24kc-sf"    , "arch": "mipsel-linux-muslsf"     , "runner": "qemu-mipsel-static"    , "cflags": "-march=24kc" },
+    #{ "name": "linux-armv7l-vfpv3"      , "arch": "armv7l-linux-musleabihf" , "runner": "qemu-arm-static"       , "cflags": "-march=armv7-a -mfpu=vfpv3 -mthumb -Wa,-mimplicit-it=thumb" },
+    #{ "name": "linux-mipsel-24kc-sf"    , "arch": "mipsel-linux-muslsf"     , "runner": "qemu-mipsel-static"    , "cflags": "-march=24kc" },
 
     { "name": "wasi-sdk-8"      , "arch": "wasi-sdk-8.0"  , "sdk": 8    , "runner": "wasmer" },
     { "name": "wasi-sdk-11"     , "arch": "wasi-sdk-11.0" , "sdk": 11   , "runner": "wasmer" },
     #{ "name": "wasi-sdk-16"     , "arch": "wasi-sdk-16.0" , "sdk": 16   , "runner": "wasmer" },
 ]
 
+gcc_targets = [
+    "linux-armv6"     , "linux-armv7l",
+    "linux-mipsel-sf" , "linux-mipsel",
+    "linux-mips-sf"   , "linux-mips",
+    "linux-mips64el"  , "linux-mips64",
+    "linux-ppc"       , "linux-ppc64",
+    "linux-m68k",
+]
+
 VERBOSE = False
 RETEST = False
 REBUILD = False
+NOTEST = False
+NOWASI = False
 
 def run(cmd):
     subprocess.run(cmd, shell=True, check=True, capture_output=not VERBOSE)
 
 def build_target(target):
     if target['name'].startswith("wasi"):
-        build_wasi(target)
+        if not NOWASI:
+            build_wasi(target)
+    elif target['name'] in gcc_targets:
+        build_musl(target,
+                   cc=f".toolchains/{target['arch']}-cross/bin/{target['arch']}-gcc",
+                   toolchain_src="https://github.com/vshymanskyy/muslcc-mirror/releases/download/11-20211120",
+                   tar_name=f"{target['arch']}-cross.tgz")
     else:
-        build_musl(target)
+        build_musl(target,
+                   cc=f".toolchains/{target['arch']}/bin/{target['arch']}-clang",
+                   toolchain_src="https://github.com/cross-tools/clang-cross/releases/download/20260430",
+                   tar_name=f"{target['arch']}.tar.xz")
 
 def build_wasi(target):
     WASI_VERSION = str(target['sdk'])
@@ -85,16 +107,19 @@ def build_wasi(target):
 
     run_tests(wasm3_binary, target, f"{target['runner']} run --mapdir=/:. ../{wasm3_binary} --".strip())
 
-def build_musl(target):
-    muslcc = f".toolchains/{target['arch']}-cross/bin/{target['arch']}-gcc"
-    if not Path(muslcc).exists():
-        print(f"Downloading {target['name']} toolchain")
-        tar_name = f"{target['arch']}-cross.tgz"
+def build_musl(target, cc, toolchain_src, tar_name):
+    if not Path(cc).exists():
+        url = f"{toolchain_src}/{tar_name}"
+        print(f"Downloading {url}")
         run(f"""
             mkdir -p .toolchains
             cd .toolchains
-            curl -O -C - https://musl.cc/{tar_name}
-            tar xzf {tar_name}
+            curl -O -L -C - {url}
+            """)
+        print(f"Extracting {target['name']} toolchain")
+        run(f"""
+            cd .toolchains
+            tar xf {tar_name}
             rm {tar_name}
             """)
 
@@ -111,7 +136,7 @@ def build_musl(target):
         run(f"""
             mkdir -p {build_dir}
             cd {build_dir}
-            export CC="../../{muslcc}"
+            export CC="../../{cc}"
             export CFLAGS="{target['cflags']}"
             export LDFLAGS="-static -s"
             cmake -GNinja -DBUILD_NATIVE=OFF ../..
@@ -122,7 +147,7 @@ def build_musl(target):
     run_tests(wasm3_binary, target, f"{target['runner']} ../{wasm3_binary}".strip())
 
 def run_tests(wasm3_binary, target, wasm3_cmd):
-    if "skip_tests" in target:
+    if NOTEST or "skip_tests" in target:
         return
 
     test_spec_ok = Path(f"build-cross/{target['name']}/.test-spec-ok")
@@ -162,16 +187,20 @@ if __name__ == '__main__':
     parser.add_argument('-j','--jobs', type=int, metavar='N', default=multiprocessing.cpu_count(), help='parallel builds')
     parser.add_argument('-v','--verbose', action='store_true', help='verbose output')
     parser.add_argument('--retest', action='store_true', help='force tests')
+    parser.add_argument('--notest', action='store_true', help='skip tests')
+    parser.add_argument('--nowasi', action='store_true', help='skip WASI builds')
     parser.add_argument('--rebuild', action='store_true', help='force builds')
     parser.add_argument('--target', metavar='NAME')
     args = parser.parse_args()
 
     if args.target:
-        musl_targets = filter(lambda t: args.target in t['name'] or args.target in t['arch'], musl_targets)
+        musl_targets = filter(lambda t: args.target == t['name'] or args.target == t['arch'], musl_targets)
 
     VERBOSE = args.verbose
     RETEST = args.retest
     REBUILD = args.rebuild
+    NOTEST = args.notest
+    NOWASI = args.nowasi
 
     if args.jobs <= 1:
         for t in musl_targets:

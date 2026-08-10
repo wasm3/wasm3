@@ -473,7 +473,6 @@ _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                            
     for (u32 i = 0; i < numMemories; i++) {
         M3MemoryInfo memoryInfo;
         ParseType_Memory (& memoryInfo, & i_bytes, i_end);
-
         da_push(M3MemoryTableEntry, & io_module->memoryTable, ((M3MemoryTableEntry) {
             .memoryInfo = memoryInfo,
         }));
@@ -517,7 +516,7 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 
 M3Result  ParseSection_Name  (M3Module * io_module, bytes_t i_bytes, cbytes_t i_end)
 {
-    M3Result result;
+    M3Result result = m3Err_none;
 
     cstr_t name;
 

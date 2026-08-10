@@ -10,14 +10,15 @@
 
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 5
-#define M3_VERSION_REV   1
-#define M3_VERSION       "0.5.1"
+#define M3_VERSION_REV   2
+#define M3_VERSION       "0.5.2"
 
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include "wasm3_defs.h"
 
@@ -74,6 +75,17 @@ typedef enum M3ValueType
     c_m3Type_i64    = 2,
     c_m3Type_f32    = 3,
     c_m3Type_f64    = 4,
+
+    // Opaque 16-byte slot used purely so wasm3 can PARSE modules
+    // whose function signatures or local-variable declarations
+    // mention v128 (the SIMD value type, wasm-encoded as 0x7B).
+    // Actual v128 OPCODES still error at compile-time with
+    // m3Err_unknownOpcode — we only avoid the parse-time
+    // m3Err_invalidTypeId rejection. LLVM's auto-vectorizer emits
+    // unused v128 locals into many `+simd128` modules even when no
+    // SIMD op executes; without this slot wasm3 rejects every such
+    // module before it ever sees a function body.
+    c_m3Type_v128   = 5,
 
     c_m3Type_unknown
 } M3ValueType;
@@ -348,7 +360,10 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 
 # define m3ApiReturnType(TYPE)                 TYPE* raw_return = ((TYPE*) (_sp++));
 # define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME = ((TYPE*) (_sp++));
-# define m3ApiGetArg(TYPE, NAME)               TYPE NAME = * ((TYPE *) (_sp++));
+# define m3ApiGetArg(TYPE, NAME)               TYPE NAME = \
+    (sizeof(TYPE) >= sizeof(uint32_t)) ? \
+    (*((TYPE *)(_sp++))) : \
+    ((TYPE)(*((uint32_t *)(_sp++))));
 # define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 # define m3ApiIsNullPtr(addr)       ((void*)(addr) <= m3ApiGetMem())
