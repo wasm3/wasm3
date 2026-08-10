@@ -59,3 +59,19 @@ export ASAN_OPTIONS=abort_on_error=1
 export UBSAN_OPTIONS=abort_on_error=1
 ```
 
+## Running unit-tests
+
+Unit tests can be found in `test/internal/unit` and are used to test m3 functions directly with the help of `Catch2`.<br>
+
+First setup the CMake project:
+
+```sh
+cd test/internal/unit
+mkdir build
+cd build
+cmake ..
+```
+Then (re-)compile and run the tests:
+```sh
+cmake --build . && ./wasm3_test_unit
+```

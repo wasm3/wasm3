@@ -384,6 +384,33 @@ namespace wasm3 {
             }
         }
 
+        template<typename ...Ret, typename ... Args>
+        std::tuple<Ret...> call_tuple(Args... args) {
+            call(args...);
+
+            std::tuple<Ret...> ret;
+            const auto func = m_func;
+
+            auto res = std::apply([func](auto&&... retRefs) {
+                return m3_GetResultsV(func, &retRefs...);
+            }, ret);
+
+            detail::check_error(res);
+            return ret;
+        }
+
+        template<typename Ret, typename ... Args>
+        Ret call_mapped(Args... args) {
+            call(args...);
+
+            Ret ret;
+            const auto res = m3_GetResultsBuffer(m_func, sizeof(ret), &ret);
+            detail::check_error(res);
+
+            return ret; 
+        }
+
+
     protected:
         friend class wasm_runtime;
 
