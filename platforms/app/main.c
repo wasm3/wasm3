@@ -75,7 +75,7 @@ M3Result link_spec_test() {
 
     module->name = "spectest";
 
-    // might want to have exportName be unmanaged idk
+    // Might want to have exportName be unmanaged idk
     char *memname = m3_Malloc(char, 7);
     strcpy(memname, "memory");
 
