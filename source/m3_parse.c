@@ -291,11 +291,12 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
 
 #if d_m3EnableValidation
     // Spec: all export names must be different
-    const char ** exportNames = NULL;
+    // We store name pointers + lengths to handle embedded NUL bytes correctly
+    typedef struct { const u8 * ptr; u16 len; } ExportName;
+    ExportName * exportNames = NULL;
     if (numExports > 1)
     {
-        exportNames = (const char **) m3_Malloc ("exportNames", sizeof(const char *) * numExports);
-        // If allocation fails, skip uniqueness check but continue parsing
+        exportNames = (ExportName *) m3_Malloc ("exportNames", sizeof(ExportName) * numExports);
     }
 #endif
 
@@ -304,22 +305,36 @@ _   (ReadLEB_u32 (& numExports, & i_bytes, i_end));                             
         u8 exportKind;
         u32 index;
 
+        // Read name length and remember raw position for uniqueness check
+#if d_m3EnableValidation
+        const u8 * nameStart = i_bytes;
+        u32 nameLen = 0;
+        {
+            bytes_t tmp = i_bytes;
+            M3Result rl = ReadLEB_u32 (& nameLen, & tmp, i_end);
+            if (rl) { m3_Free(exportNames); _throw(rl); }
+            nameStart = tmp; // points to the raw name bytes
+        }
+#endif
+
 _       (Read_utf8 (& utf8, & i_bytes, i_end));
 _       (Read_u8 (& exportKind, & i_bytes, i_end));
 _       (ReadLEB_u32 (& index, & i_bytes, i_end));                                  m3log (parse, "    index: %3d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
 
 #if d_m3EnableValidation
-        // Spec: check export name uniqueness
         if (exportNames)
         {
             for (u32 j = 0; j < i; ++j)
             {
-                if (exportNames[j] && utf8 && strcmp (exportNames[j], utf8) == 0)
+                if (exportNames[j].len == nameLen &&
+                    memcmp (exportNames[j].ptr, nameStart, nameLen) == 0)
                 {
+                    m3_Free (exportNames);
                     _throw (m3Err_wasmMalformed);  // duplicate export name
                 }
             }
-            exportNames[i] = utf8;
+            exportNames[i].ptr = nameStart;
+            exportNames[i].len = (u16)nameLen;
         }
 #endif
 
