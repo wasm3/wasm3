@@ -209,8 +209,8 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   )
   FetchContent_Declare(
     uvwasi
-    GIT_REPOSITORY  https://github.com/vshymanskyy/uvwasi.git
-    GIT_TAG         master
+    GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
+    GIT_TAG         main
   )
   FetchContent_MakeAvailable(libuv)
   FetchContent_MakeAvailable(uvwasi)
