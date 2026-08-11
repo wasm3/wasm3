@@ -19,7 +19,7 @@ type checking needs a full operand-stack simulation over a function body and
 nothing else. Keeping them apart means neither has to carry the other's state.
 
 Each check lives in exactly **one** place. When the same rule could plausibly go
-in either layer — memory access alignment, for instance — it belongs in the
+in either layer - memory access alignment, for instance - it belongs in the
 validator, and the compiler does not repeat it. Duplicated checks drift apart.
 
 The compiler is not a third layer. It maintains its own stack bookkeeping for
@@ -73,7 +73,7 @@ compilation trigger: **a function body is validated the first time it is
 compiled, not when the module is loaded.**
 
 This deviates from the spec, which requires an invalid module to be rejected at
-instantiation. It is a deliberate trade — validating every body at load would
+instantiation. It is a deliberate trade - validating every body at load would
 walk all bytecode up front, costing cold-start latency and defeating the point
 of lazy compilation on memory-constrained targets, and it would be paid by every
 embedder whether they want it or not.
@@ -88,7 +88,7 @@ The `wasm3` CLI exposes this as `--compile` ("disable lazy compilation"), which
 applies both to a file named on the command line and to `:load` / `:load-hex`
 issued in the repl.
 
-Structural checks in `m3_parse.c` are **not** lazy — they always run during
+Structural checks in `m3_parse.c` are **not** lazy - they always run during
 `m3_ParseModule`, before any function body is touched.
 
 ### Constant expressions
@@ -96,7 +96,7 @@ Structural checks in `m3_parse.c` are **not** lazy — they always run during
 Global initializers and data/element segment offsets are walked by
 `Parse_InitExpr`, which reuses the compiler with `M3Compilation.isInitExpr` set.
 That flag exists because a constant expression is not a function body and a few
-rules differ — most importantly, `global.get` may only name an **imported**
+rules differ - most importantly, `global.get` may only name an **imported**
 global. A plain index bound check is not enough: a module's own globals are
 appended to `numGlobals` before their initializer is walked, so an index check
 alone would let a global initialize from itself.
@@ -106,7 +106,7 @@ as `restricted opcode`.
 
 ## Knobs
 
-### `d_m3EnableValidation` — `m3_config.h`, default `1`
+### `d_m3EnableValidation` - `m3_config.h`, default `1`
 
 ```c
 # ifndef d_m3EnableValidation
@@ -119,16 +119,16 @@ becomes a stub returning `m3Err_none`, and `m3_validate.c` compiles to nothing.
 Structural checks in `m3_parse.c` are unaffected and still run.
 
 Disabling it means **trusting your input**. What stops being checked is
-everything the validator solely owns — memory access alignment and memory-op
+everything the validator solely owns - memory access alignment and memory-op
 presence, for instance, are simply accepted. Note that a build with validation
 disabled does *not* accept everything: the compiler keeps its own stack-height
 bookkeeping and will still reject some malformed bodies as a side effect. That
-is incidental and nowhere near spec coverage — do not treat it as a fallback.
+is incidental and nowhere near spec coverage - do not treat it as a fallback.
 
 Turning validation off is an appropriate trade for a device running a fixed,
 pre-validated payload, and not for one loading modules from outside.
 
-### `d_m3ValStack` / `d_m3ValCtrlDepth` — `m3_config.h`
+### `d_m3ValStack` / `d_m3ValCtrlDepth` - `m3_config.h`
 
 ```c
 # ifndef d_m3ValStack
@@ -142,7 +142,7 @@ pre-validated payload, and not for one loading modules from outside.
 
 These size the validator's stacks and, with them, its memory cost. Both derive
 from `d_m3MaxFunctionStackHeight` so the validator scales with the target's
-other limits automatically — `d_m3ValStack` is the same operand stack the
+other limits automatically - `d_m3ValStack` is the same operand stack the
 compiler already bounds, and control frames are larger than operand entries, so
 `d_m3ValCtrlDepth` dominates the total. Override either directly if the derived
 value doesn't suit.
@@ -159,12 +159,12 @@ On a host the frame is irrelevant; on an MCU it may be the largest in the call
 graph, and it now shrinks along with the platform config rather than staying at
 its host size.
 
-Exceeding either limit is reported as `m3Err_functionStackOverflow` — including
-a function declaring more locals than `d_m3ValStack` — so lowering them trades
+Exceeding either limit is reported as `m3Err_functionStackOverflow` - including
+a function declaring more locals than `d_m3ValStack` - so lowering them trades
 acceptance of large or deeply-nested functions for stack footprint. It never
 truncates silently.
 
-### `d_m3MaxSane*` — `m3_core.h`
+### `d_m3MaxSane*` - `m3_core.h`
 
 Upper bounds on declared section counts (`d_m3MaxSaneFunctionsCount`,
 `d_m3MaxSaneImportsCount`, `d_m3MaxSaneUtf8Length`, and so on). These are not
@@ -214,7 +214,7 @@ Three deliberate choices:
 
 The harness requires the module to be rejected **at load**. Because Wasm3
 validates lazily, that only happens if the interpreter under test was started
-with lazy compilation disabled — which is exactly what `--spec-repl` is for, and
+with lazy compilation disabled - which is exactly what `--spec-repl` is for, and
 why it is the default `--exec`.
 
 If you pass your own `--exec`, use `--spec-repl` rather than `--repl`. With a
@@ -245,7 +245,7 @@ being renumbered when the test suite is regenerated.
 
 A blacklist entry should always say whether it is a gap to be fixed or an
 intentional deviation. For example, wasm3 implements multi-value while the older
-v1.1 suite still expects multi-result function types to be rejected — that entry
+v1.1 suite still expects multi-result function types to be rejected - that entry
 is marked as *not* a gap.
 
 ### NaN comparison
@@ -259,8 +259,8 @@ One tolerance is encoded there: Wasm3 keeps all floats in a single `f64`
 register (`_fp0`, see `m3_exec_defs.h`), so an **f32 signaling NaN is quieted**
 by the `float -> double -> float` round trip, even through operations that
 should preserve bits. The harness accepts a quieted result where an f32
-signaling NaN was expected. The reverse — a signaling NaN where the spec
-requires an arithmetic one — is still a failure, and f64 stays strict.
+signaling NaN was expected. The reverse - a signaling NaN where the spec
+requires an arithmetic one - is still a failure, and f64 stays strict.
 
 ## Known gaps
 
@@ -286,7 +286,7 @@ requires an arithmetic one — is still a failure, and f64 stays strict.
 2. Add the check in one place. In the parser use `_throwif`; in the validator
    return the error directly.
 3. Confirm it fires. Load a module that violates the rule and check it is
-   rejected — `wasm3 --spec-repl bad.wasm`.
+   rejected - `wasm3 --spec-repl bad.wasm`.
 4. Run the suite for both spec revisions, and the WASI tests. A new check that
    is too strict shows up as previously-passing functional assertions failing:
 

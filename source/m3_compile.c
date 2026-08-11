@@ -195,7 +195,7 @@ void  ReleaseCompilationCodePage  (IM3Compilation o)
 static inline
 u16 GetTypeNumSlots (u8 i_type)
 {
-    // v128 is 16 bytes — 4 slots in 32-bit-slot mode, 2 in 64-bit.
+    // v128 is 16 bytes - 4 slots in 32-bit-slot mode, 2 in 64-bit.
     // (Slot-allocator only; no v128 ops execute.)
     if (i_type == c_m3Type_v128)
 #       if d_m3Use32BitSlots
