@@ -192,8 +192,8 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 19
-        WASI_VERSION_FULL: "19.0"
+        WASI_VERSION: 11    # TODO: update WASI-SDK
+        WASI_VERSION_FULL: "11.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
