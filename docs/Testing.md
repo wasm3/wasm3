@@ -11,6 +11,10 @@ python3 ./run-spec-test.py
 
 It will automatically download, extract, run the WebAssembly core test suite.
 
+## WebAssembly validation
+
+Wasm3 is not a complete WebAssembly validator. Before running untrusted modules, validate them with an external tool and see [VALIDATION.md](./VALIDATION.md).
+
 ## Running WASI test
 
 Wasm3 comes with a set of benchmarks and test programs (prebuilt as `WASI` apps) including `CoreMark`, `C-Ray`, `Brotli`, `mandelbrot`, `smallpt` and `wasm3` itself.
@@ -58,4 +62,3 @@ Note: to catch fuzzer errors in debugger, you need to define:
 export ASAN_OPTIONS=abort_on_error=1
 export UBSAN_OPTIONS=abort_on_error=1
 ```
-
