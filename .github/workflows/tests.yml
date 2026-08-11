@@ -192,8 +192,10 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 33
-        WASI_VERSION_FULL: "33.0"
+        # v33.0 miscompiles something that makes the self-hosted smallpt test
+        # trap and then corrupt the host heap; 25 is the newest that's clean
+        WASI_VERSION: 25
+        WASI_VERSION_FULL: "25.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV

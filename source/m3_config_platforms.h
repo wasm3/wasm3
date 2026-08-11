@@ -92,8 +92,18 @@
 
 # if M3_HAS_TAIL_CALL && M3_COMPILER_HAS_ATTRIBUTE(musttail)
 #   define M3_MUSTTAIL __attribute__((musttail))
+#   define M3_GUARANTEED_TAIL_CALL 1
 # else
 #   define M3_MUSTTAIL
+    // No musttail, so a tail call only happens if the compiler decides to emit one. GCC
+    // and Clang do when optimizing -- the assumption the whole dispatch chain already
+    // rests on -- but MSVC does not reliably, and nobody does at -O0. Only claim it where
+    // the compiler says it is optimizing.
+#   if M3_HAS_TAIL_CALL && defined(__OPTIMIZE__)
+#     define M3_GUARANTEED_TAIL_CALL 1
+#   else
+#     define M3_GUARANTEED_TAIL_CALL 0
+#   endif
 # endif
 
 # ifndef M3_MIN

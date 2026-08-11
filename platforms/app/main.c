@@ -569,7 +569,10 @@ void print_version() {
             (wasm3_arch || wasm3_env) ? " self-hosting" : "",
             wasm3_arch ? wasm3_arch : M3_ARCH);
 
-    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "\n");
+    // Without "tail-call", return_call still works but doesn't reuse the caller's frame,
+    // so unbounded tail recursion traps instead of running forever. See d_m3CanTailCall.
+    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s\n",
+            d_m3CanTailCall ? ", tail-call" : "");
 }
 
 void print_usage() {
