@@ -192,8 +192,8 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 33
-        WASI_VERSION_FULL: "33.0"
+        WASI_VERSION: 19
+        WASI_VERSION_FULL: "19.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
@@ -202,7 +202,7 @@ jobs:
       run: |
         mkdir -p .toolchains
         cd .toolchains
-        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-x86_64-linux.tar.gz
+        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
         tar xvf ${WASI_TAR}
     - name: Install Wasmer
