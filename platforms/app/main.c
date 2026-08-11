@@ -172,48 +172,69 @@ on_error:
 M3Result repl_load_hex  (u32 fsize)
 {
     M3Result result = m3Err_none;
+    IM3Module module = NULL;
+
+    u8* wasm = NULL;
 
     if (fsize < 8) {
-        return "file is too small";
+        result = "file is too small";
     } else if (fsize > 10*1024*1024) {
-        return "file too big";
+        result = "file too big";
+    } else {
+        wasm = (u8*) malloc(fsize);
+        if (!wasm) {
+            result = "cannot allocate memory for wasm binary";
+        }
     }
 
-    u8* wasm = (u8*) malloc(fsize);
-    if (!wasm) {
-        return "cannot allocate memory for wasm binary";
-    }
-
-    {   // Load hex data from stdin
+    {   // Load hex data from stdin.
+        // The payload is consumed even when the size was rejected above:
+        // whatever is left behind gets read back as the next repl command.
         u32 wasm_idx = 0;
         char hex[3] = { 0, };
         int hex_idx = 0;
         while (wasm_idx < fsize) {
             int c = fgetc(stdin);
+            if (c == EOF) {
+                free(wasm);
+                return "unexpected end of input";
+            }
             if (!isxdigit(c)) continue; // Skip non-hex chars
             hex[hex_idx++] = c;
             if (hex_idx == 2) {
                 int val = strtol(hex, NULL, 16);
-                wasm[wasm_idx++] = val;
+                if (wasm) { wasm[wasm_idx] = val; }
+                wasm_idx++;
                 hex_idx = 0;
             }
         }
-        if (!fgets(hex, 3, stdin)) { // Consume a newline
-            free(wasm);
-            return "cannot read EOL";
-        }
+        int c;                          // Consume the rest of the line
+        while ((c = fgetc(stdin)) != EOF && c != '\n') {}
     }
 
-    IM3Module module;
+    if (result) {
+        return result;
+    }
+
     result = m3_ParseModule (env, &module, wasm, fsize);
-    if (result) return result;
+    if (result) {
+        free(wasm);
+        return result;
+    }
 
     result = m3_LoadModule (runtime, module);
-    if (result) return result;
+    if (result) {
+        m3_FreeModule(module);
+        free(wasm);
+        return result;
+    }
 
-    result = link_all (module);
+    // The module points into the binary, so it is freed along with the runtime
+    if (wasm_bins_qty < MAX_MODULES) {
+        wasm_bins[wasm_bins_qty++] = wasm;
+    }
 
-    return result;
+    return link_all (module);
 }
 
 void print_gas_used()
@@ -466,6 +487,7 @@ void repl_free  ()
         free (wasm_bins[i]);
         wasm_bins[i] = NULL;
     }
+    wasm_bins_qty = 0;
 }
 
 M3Result repl_init  (unsigned stack)
