@@ -192,21 +192,24 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 11    # TODO: update WASI-SDK
-        WASI_VERSION_FULL: "11.0"
+        WASI_VERSION: 33
+        WASI_VERSION_FULL: "33.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
-        echo "WASI_SDK_PATH=${GITHUB_WORKSPACE}/.toolchains/wasi-sdk-${WASI_VERSION_FULL}" >> $GITHUB_ENV
+        echo "WASI_SDK_PATH=${GITHUB_WORKSPACE}/.toolchains/wasi-sdk-${WASI_VERSION_FULL}-x86_64-linux" >> $GITHUB_ENV
     - name: Install WASI SDK
       run: |
         mkdir -p .toolchains
         cd .toolchains
-        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+        WASI_TAR=wasi-sdk-${WASI_VERSION_FULL}-x86_64-linux.tar.gz
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/${WASI_TAR}
-        tar xvf ${WASI_TAR}
-    - name: Install Wasmer
-      run: curl https://get.wasmer.io -sSfL | sh -s "2.0.0"  # TODO: update Wasmer
+        tar xf ${WASI_TAR}
+    # The Wasm build emits tail calls, so it needs a host that supports the proposal.
+    # Wasmtime enables it by default; Wasmer needs --enable-tail-call and, as of 7.x,
+    # can no longer open the test files through a preopened directory.
+    - name: Install Wasmtime
+      run: curl https://wasmtime.dev/install.sh -sSf | bash
     - name: Configure
       run: |
         mkdir build-wasi
@@ -217,16 +220,18 @@ jobs:
         cmake --build build-wasi
         cp ./build-wasi/wasm3.wasm ./test/
 
-    - name: Test WebAssembly spec (in Wasmer)
+    # max-wasm-stack is raised so that Wasm3's own stack limit is what a runaway guest
+    # hits first -- the same reason the self-hosting steps below pass --stack-size
+    - name: Test WebAssembly spec (in Wasmtime)
       run: |
-        source $HOME/.wasmer/wasmer.sh
+        export PATH="$HOME/.wasmtime/bin:$PATH"
         cd test
-        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --spec-repl"
-    - name: Test WASI apps (in Wasmer)
+        python3 run-spec-test.py --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm --spec-repl"
+    - name: Test WASI apps (in Wasmtime)
       run: |
-        source $HOME/.wasmer/wasmer.sh
+        export PATH="$HOME/.wasmtime/bin:$PATH"
         cd test
-        python3 run-wasi-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm --" --fast
+        python3 run-wasi-test.py --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm" --fast
 
     - name: Configure (native)
       run: |

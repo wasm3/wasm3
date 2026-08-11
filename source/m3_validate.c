@@ -220,6 +220,26 @@ static M3Result v_unop (ValCtx * v, u8 in, u8 out)
     return v_push(v, out);
 }
 
+// return_call/return_call_indirect return the callee's results straight to the enclosing
+// function's caller, so the callee's result types must be the enclosing function's
+static M3Result v_check_tail_results (ValCtx * v, IM3FuncType i_calleeType)
+{
+    IM3FuncType ft = v->function ? v->function->funcType : NULL;
+
+    u16 numCalleeRets = i_calleeType ? i_calleeType->numRets : 0;
+    u16 numFuncRets   = ft ? ft->numRets : 0;
+
+    if (numCalleeRets != numFuncRets)
+        return m3Err_typeMismatch;
+
+    for (u16 i = 0; i < numCalleeRets; i++) {
+        if (i_calleeType->types[i] != ft->types[i])
+            return m3Err_typeMismatch;
+    }
+
+    return m3Err_none;
+}
+
 static M3Result v_binop (ValCtx * v, u8 t)
 {
     u8 a; M3Result r;
@@ -467,6 +487,51 @@ static M3Result v_validate_body (ValCtx * v)
                     if (r) return r;
                 }
             }
+            break;
+        }
+
+        case 0x12: // return_call
+        {
+            u32 idx;
+            r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (idx >= v->module->numFunctions) return m3Err_wasmMalformed;
+            IM3FuncType ft = v->module->functions[idx].funcType;
+            r = v_check_tail_results(v, ft);
+            if (r) return r;
+            if (ft) {
+                for (u16 i = ft->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, ft->types[ft->numRets + i - 1], &a);
+                    if (r) return r;
+                }
+            }
+            v_unreachable(v);
+            break;
+        }
+
+        case 0x13: // return_call_indirect
+        {
+            u32 typeIdx;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            u32 tableIdx;
+            r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_wasmMalformed;
+            if (tableIdx != 0) return m3Err_wasmMalformed;
+            if (!v->module->hasTable) return m3Err_wasmMalformed;
+            IM3FuncType ft = v->module->funcTypes[typeIdx];
+            r = v_check_tail_results(v, ft);
+            if (r) return r;
+            r = v_pop_expect(v, c_m3Type_i32, &a); // table index operand
+            if (r) return r;
+            if (ft) {
+                for (u16 i = ft->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, ft->types[ft->numRets + i - 1], &a);
+                    if (r) return r;
+                }
+            }
+            v_unreachable(v);
             break;
         }
 

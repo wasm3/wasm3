@@ -1785,6 +1785,56 @@ _       (MarkSlotsAllocatedByType (o, topSlot, type));
     } _catch: return result;
 }
 
+// A tail call hands the current frame over to the callee instead of stacking a new one.
+// The callee's results have to be the enclosing function's results, so both use the same
+// return slots and only the arguments move: they're staged above the caller's stack here
+// (the argument expressions can still be reading the args/locals they're about to land on)
+// and slid down onto the frame base at runtime, by op_ReturnCall[Indirect].
+static
+M3Result  CompileTailCallArgs  (IM3Compilation o, u16 * o_stackOffset, u16 * o_numArgSlots, IM3FuncType i_type, bool i_isIndirect)
+{
+_try {
+    IM3FuncType funcType = o->function->funcType;
+
+    u16 numRets = GetFuncTypeNumResults (i_type);
+    _throwif (m3Err_typeMismatch, numRets != GetFuncTypeNumResults (funcType));
+
+    for (u16 i = 0; i < numRets; ++i)
+        _throwif (m3Err_typeMismatch, GetFuncTypeResultType (i_type, i) != GetFuncTypeResultType (funcType, i));
+
+    u16 topSlot = GetMaxUsedSlotPlusOne (o);
+
+    topSlot = M3_MAX (1, topSlot);
+
+    // stack frame is 64-bit aligned
+    AlignSlotToType (& topSlot, c_m3Type_i64);
+
+    * o_stackOffset = topSlot;
+
+    // wait to pop this here so that topSlot search is correct
+    if (i_isIndirect)
+_       (Pop (o));
+
+    u16 numArgs = GetFuncTypeNumParams (i_type);
+    u16 numArgSlots = numArgs * c_ioSlotCount;
+
+    * o_numArgSlots = numArgSlots;
+
+    u16 argTop = topSlot + numArgSlots;
+    _throwif (m3Err_functionStackOverflow, argTop > d_m3MaxFunctionSlots);
+
+    // the staging area is written by the caller, so op_Entry has to account for it
+    TouchSlot (o, argTop - 1);
+
+    while (numArgs--)
+    {
+_       (CopyStackTopToSlot (o, argTop -= c_ioSlotCount));
+_       (Pop (o));
+    }
+
+    } _catch: return result;
+}
+
 static
 M3Result  Compile_Call  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -1799,26 +1849,44 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
                                                                                 get_indention_string (o), functionIndex, m3_GetFunctionName (function), function->funcType->numArgs);
         if (function->module)
         {
-            u16 slotTop;
-_           (CompileCallArgsAndReturn (o, & slotTop, function->funcType, false));
+            bool isReturnCall = (i_opcode == c_waOp_returnCall);
+            bool useTailCall  = isReturnCall and d_m3CanTailCall;
+
+            u16 slotTop, numArgSlots = 0;
+
+            if (useTailCall) {
+_               (CompileTailCallArgs (o, & slotTop, & numArgSlots, function->funcType, false));
+            } else {
+_               (CompileCallArgsAndReturn (o, & slotTop, function->funcType, false));
+            }
 
             IM3Operation op;
             const void * operand;
 
             if (function->compiled)
             {
-                op = op_Call;
+                op = useTailCall ? op_ReturnCall : op_Call;
                 operand = function->compiled;
             }
             else
             {
-                op = op_Compile;
+                op = useTailCall ? op_CompileReturnCall : op_Compile;
                 operand = function;
             }
 
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
             EmitSlotOffset  (o, slotTop);
+
+            if (useTailCall)
+            {
+                EmitSlotOffset (o, o->function->numRetSlots);
+                EmitConstant32 (o, numArgSlots);
+
+_               (SetStackPolymorphic (o));
+            }
+            else if (isReturnCall)
+_               (Compile_Return (o, i_opcode));
         }
         else
         {
@@ -1847,15 +1915,33 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));
 
     u16 tableIndexSlot = GetStackTopSlotNumber (o);
 
-    u16 execTop;
-    IM3FuncType type = o->module->funcTypes [typeIndex];
-_   (CompileCallArgsAndReturn (o, & execTop, type, true));
+    bool isReturnCall = (i_opcode == c_waOp_returnCallIndirect);
+    bool useTailCall  = isReturnCall and d_m3CanTailCall;
 
-_   (EmitOp         (o, op_CallIndirect));
+    u16 execTop, numArgSlots = 0;
+    IM3FuncType type = o->module->funcTypes [typeIndex];
+
+    if (useTailCall) {
+_       (CompileTailCallArgs (o, & execTop, & numArgSlots, type, true));
+    } else {
+_       (CompileCallArgsAndReturn (o, & execTop, type, true));
+    }
+
+_   (EmitOp         (o, useTailCall ? op_ReturnCallIndirect : op_CallIndirect));
     EmitSlotOffset  (o, tableIndexSlot);
     EmitPointer     (o, o->module);
     EmitPointer     (o, type);              // TODO: unify all types in M3Environment
     EmitSlotOffset  (o, execTop);
+
+    if (useTailCall)
+    {
+        EmitSlotOffset (o, o->function->numRetSlots);
+        EmitConstant32 (o, numArgSlots);
+
+_       (SetStackPolymorphic (o));
+    }
+    else if (isReturnCall)
+_       (Compile_Return (o, i_opcode));
 
 } _catch:
     return result;
@@ -2478,8 +2564,8 @@ const M3OpInfo c_operations [] =
     M3OP( "return",              0, any,    d_logOp (Return),                   Compile_Return ),       // 0x0f
     M3OP( "call",                0, any,    d_logOp (Call),                     Compile_Call ),         // 0x10
     M3OP( "call_indirect",       0, any,    d_logOp (CallIndirect),             Compile_CallIndirect ), // 0x11
-    M3OP( "return_call",         0, any,    d_emptyOpList,                      Compile_Call ),         // 0x12 TODO: Optimize
-    M3OP( "return_call_indirect",0, any,    d_emptyOpList,                      Compile_CallIndirect ), // 0x13
+    M3OP( "return_call",         0, any,    d_logOp (ReturnCall),               Compile_Call ),         // 0x12
+    M3OP( "return_call_indirect",0, any,    d_logOp (ReturnCallIndirect),       Compile_CallIndirect ), // 0x13
 
     M3OP_RESERVED,  M3OP_RESERVED,                                                                      // 0x14...
     M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                        // ...0x19

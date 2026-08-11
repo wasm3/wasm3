@@ -122,8 +122,19 @@ elseif(WASIENV)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
 
+  # The interpreter dispatches, calls and returns through tail calls, so the Wasm build
+  # needs the tail-call feature: without it Clang rejects every M3_MUSTTAIL, and
+  # return_call would consume a stack frame per call instead of reusing one.
+  # Requires a tail-call capable host (Wasm3 >= 0.6.0, Wasmtime >= 14, Node >= 22).
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtail-call")
+
+  # WASI has no process-associated clock, so wasi-libc only offers clock() (used by
+  # m3_libc_clock_ms) as an opt-in emulation over the wall clock
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WASI_EMULATED_PROCESS_CLOCKS")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lwasi-emulated-process-clocks")
+
   if(WASM_EXT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext")
   endif()
 
   # TODO: LTO breaks wasm imports currently:

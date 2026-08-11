@@ -38,6 +38,22 @@ static m3_wasi_context_t* wasi_context;
 
 typedef size_t __wasi_size_t;
 
+// The WASI ABI passes paths as (pointer, length) with no terminator, but wasi-libc's
+// __wasi_path_* wrappers take NUL-terminated strings, so every path has to be copied out
+// of guest memory and terminated first.
+#ifdef PATH_MAX
+# define d_m3WasiPathMax   PATH_MAX
+#else
+# define d_m3WasiPathMax   1024
+#endif
+
+// Declares NAME as a NUL-terminated copy of the guest's path, or returns ENAMETOOLONG
+#define d_m3WasiPath(NAME, PTR, LEN)                                   \
+    char NAME [d_m3WasiPathMax];                                       \
+    if ((LEN) >= sizeof (NAME)) m3ApiReturn (__WASI_ERRNO_NAMETOOLONG); \
+    memcpy (NAME, (PTR), (LEN));                                       \
+    NAME [(LEN)] = 0;
+
 static inline
 const void* copy_iov_to_host(IM3Runtime runtime, void* _mem, __wasi_iovec_t* host_iov, __wasi_iovec_t* wasi_iov, int32_t iovs_len)
 {
@@ -281,13 +297,28 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 {
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
-    m3ApiGetArgMem   (__wasi_fdstat_t *    , fdstat)
+    m3ApiGetArgMem   (uint8_t *            , fdstat)
 
-    m3ApiCheckMem(fdstat, sizeof(__wasi_fdstat_t));
+    m3ApiCheckMem(fdstat, 24); // wasi_fdstat_t
 
-    __wasi_errno_t ret = __wasi_fd_fdstat_get(fd, fdstat);
+    // The guest's buffer lands wherever its linear memory happens to sit, so it can't be
+    // handed to the host directly: fdstat_t is 8-aligned and strict runtimes reject a
+    // misaligned pointer. Bounce it through a local, as with filestat below.
+    __wasi_fdstat_t stat;
+
+    __wasi_errno_t ret = __wasi_fd_fdstat_get(fd, &stat);
 
     WASI_TRACE("fd:%d", fd);
+
+    if (ret != __WASI_ERRNO_SUCCESS) {
+        m3ApiReturn(ret);
+    }
+
+    memset(fdstat, 0, 24);
+    m3ApiWriteMem8 (fdstat+0,  stat.fs_filetype);
+    m3ApiWriteMem16(fdstat+2,  stat.fs_flags);
+    m3ApiWriteMem64(fdstat+8,  stat.fs_rights_base);
+    m3ApiWriteMem64(fdstat+16, stat.fs_rights_inheriting);
 
     m3ApiReturn(ret);
 }
@@ -521,9 +552,11 @@ m3ApiRawFunction(m3_wasi_generic_path_create_directory)
 
     m3ApiCheckMem(path, path_len);
 
-    __wasi_errno_t ret = __wasi_path_create_directory(fd, path, path_len);
+    d_m3WasiPath(p, path, path_len)
 
-    WASI_TRACE("fd:%d, path:%s", fd, path);
+    __wasi_errno_t ret = __wasi_path_create_directory(fd, p);
+
+    WASI_TRACE("fd:%d, path:%.*s", fd, (int)path_len, path);
 
     m3ApiReturn(ret);
 }
@@ -542,9 +575,11 @@ m3ApiRawFunction(m3_wasi_generic_path_readlink)
     m3ApiCheckMem(buf, buf_len);
     m3ApiCheckMem(bufused, sizeof(__wasi_size_t));
 
-    __wasi_errno_t ret = __wasi_path_readlink(fd, path, path_len, buf, buf_len, bufused);
+    d_m3WasiPath(p, path, path_len)
 
-    WASI_TRACE("fd:%d, path:%s | buf:%s, bufused:%d", fd, path, buf, *bufused);
+    __wasi_errno_t ret = __wasi_path_readlink(fd, p, buf, buf_len, bufused);
+
+    WASI_TRACE("fd:%d, path:%.*s | buf:%s, bufused:%d", fd, (int)path_len, path, buf, *bufused);
 
     m3ApiReturn(ret);
 }
@@ -558,9 +593,11 @@ m3ApiRawFunction(m3_wasi_generic_path_remove_directory)
 
     m3ApiCheckMem(path, path_len);
 
-    __wasi_errno_t ret = __wasi_path_remove_directory(fd, path, path_len);
+    d_m3WasiPath(p, path, path_len)
 
-    WASI_TRACE("fd:%d, path:%s", fd, path);
+    __wasi_errno_t ret = __wasi_path_remove_directory(fd, p);
+
+    WASI_TRACE("fd:%d, path:%.*s", fd, (int)path_len, path);
 
     m3ApiReturn(ret);
 }
@@ -578,10 +615,14 @@ m3ApiRawFunction(m3_wasi_generic_path_rename)
     m3ApiCheckMem(old_path, old_path_len);
     m3ApiCheckMem(new_path, new_path_len);
 
-    __wasi_errno_t ret = __wasi_path_rename(old_fd, old_path, old_path_len,
-                                            new_fd, new_path, new_path_len);
+    d_m3WasiPath(op, old_path, old_path_len)
+    d_m3WasiPath(np, new_path, new_path_len)
 
-    WASI_TRACE("old_fd:%d, old_path:%s, new_fd:%d, new_path:%s", old_fd, old_path, new_fd, new_path);
+    __wasi_errno_t ret = __wasi_path_rename(old_fd, op,
+                                            new_fd, np);
+
+    WASI_TRACE("old_fd:%d, old_path:%.*s, new_fd:%d, new_path:%.*s",
+               old_fd, (int)old_path_len, old_path, new_fd, (int)new_path_len, new_path);
 
     m3ApiReturn(ret);
 }
@@ -598,10 +639,14 @@ m3ApiRawFunction(m3_wasi_generic_path_symlink)
     m3ApiCheckMem(old_path, old_path_len);
     m3ApiCheckMem(new_path, new_path_len);
 
-    __wasi_errno_t ret = __wasi_path_symlink(old_path, old_path_len,
-                                                  fd, new_path, new_path_len);
+    d_m3WasiPath(op, old_path, old_path_len)
+    d_m3WasiPath(np, new_path, new_path_len)
 
-    WASI_TRACE("old_path:%s, fd:%d, new_path:%s", old_path, fd, new_path);
+    __wasi_errno_t ret = __wasi_path_symlink(op,
+                                             fd, np);
+
+    WASI_TRACE("old_path:%.*s, fd:%d, new_path:%.*s",
+               (int)old_path_len, old_path, fd, (int)new_path_len, new_path);
 
     m3ApiReturn(ret);
 }
@@ -615,9 +660,11 @@ m3ApiRawFunction(m3_wasi_generic_path_unlink_file)
 
     m3ApiCheckMem(path, path_len);
 
-    __wasi_errno_t ret = __wasi_path_unlink_file(fd, path, path_len);
+    d_m3WasiPath(p, path, path_len)
 
-    WASI_TRACE("fd:%d, path:%s", fd, path);
+    __wasi_errno_t ret = __wasi_path_unlink_file(fd, p);
+
+    WASI_TRACE("fd:%d, path:%.*s", fd, (int)path_len, path);
 
     m3ApiReturn(ret);
 }
@@ -638,17 +685,19 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
     m3ApiCheckMem(path, path_len);
     m3ApiCheckMem(fd,   sizeof(__wasi_fd_t));
 
+    d_m3WasiPath(p, path, path_len)
+
     __wasi_errno_t ret = __wasi_path_open(dirfd,
                                  dirflags,
-                                 path,
-                                 path_len,
+                                 p,
                                  oflags,
                                  fs_rights_base,
                                  fs_rights_inheriting,
                                  fs_flags,
                                  fd);
 
-    WASI_TRACE("dirfd:%d, dirflags:0x%x, path:%s, oflags:0x%x, fs_flags:0x%x | fd:%d", dirfd, dirflags, path, oflags, fs_flags, *fd);
+    WASI_TRACE("dirfd:%d, dirflags:0x%x, path:%.*s, oflags:0x%x, fs_flags:0x%x | fd:%d",
+               dirfd, dirflags, (int)path_len, path, oflags, fs_flags, *fd);
 
     m3ApiReturn(ret);
 }
@@ -667,9 +716,12 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
 
     __wasi_filestat_t stat;
 
-    __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
+    d_m3WasiPath(p, path, path_len)
 
-    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%" PRIu64, fd, flags, path, stat.WASI_STAT_FIELD(size));
+    __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, p, &stat);
+
+    WASI_TRACE("fd:%d, flags:0x%x, path:%.*s | fs.size:%" PRIu64,
+               fd, flags, (int)path_len, path, stat.WASI_STAT_FIELD(size));
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
@@ -702,9 +754,12 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
 
     __wasi_filestat_t stat;
 
-    __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, path, path_len, &stat);
+    d_m3WasiPath(p, path, path_len)
 
-    WASI_TRACE("fd:%d, flags:0x%x, path:%s | fs.size:%" PRIu64, fd, flags, path, stat.WASI_STAT_FIELD(size));
+    __wasi_errno_t ret = __wasi_path_filestat_get(fd, flags, p, &stat);
+
+    WASI_TRACE("fd:%d, flags:0x%x, path:%.*s | fs.size:%" PRIu64,
+               fd, flags, (int)path_len, path, stat.WASI_STAT_FIELD(size));
 
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
@@ -982,7 +1037,9 @@ m3ApiRawFunction(m3_wasi_generic_proc_exit)
 m3ApiRawFunction(m3_wasi_generic_proc_raise)
 {
     m3ApiReturnType  (uint32_t)
-    m3ApiGetArg      (__wasi_signal_t, sig)
+    // proc_raise was dropped from preview1, so newer wasi-libc no longer has
+    // __wasi_signal_t; the import signature is "i(i)" either way
+    m3ApiGetArg      (uint32_t, sig)
 
     __wasi_errno_t ret = __WASI_ERRNO_INVAL;
 #if 0
