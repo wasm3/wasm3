@@ -68,7 +68,12 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | ☑ Tail call optimization                     |
 | ⏳ Multiple memories                          |
 | ⏳ Reference types                            |
+| ☐ Extended constant expressions              |
+| ☐ Branch hinting                             |
+| ☐ Typed function references                  |
+| ☐ Garbage collection                         |
 | ☐ Fixed-width SIMD                           |
+| ☐ Relaxed SIMD                               |
 | ☐ Exception handling                         |
 | ☐ Stack Switching                            |
 
