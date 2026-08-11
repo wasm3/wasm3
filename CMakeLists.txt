@@ -113,35 +113,27 @@ if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -Wfatal-errors -s ASSERTIONS=0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} --strip-all --gc-sections")
 
-  if(WASM_EXT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call")
-  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mbulk-memory-opt -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
 
 elseif(WASIENV)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector")
 
-  # The interpreter dispatches, calls and returns through tail calls, so the Wasm build
-  # needs the tail-call feature: without it Clang rejects every M3_MUSTTAIL, and
-  # return_call would consume a stack frame per call instead of reusing one.
-  # Requires a tail-call capable host (Wasm3 >= 0.6.0, Wasmtime >= 14, Node >= 22).
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtail-call")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
   # WASI has no process-associated clock, so wasi-libc only offers clock() (used by
   # m3_libc_clock_ms) as an opt-in emulation over the wall clock
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WASI_EMULATED_PROCESS_CLOCKS")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lwasi-emulated-process-clocks")
 
-  if(WASM_EXT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext")
-  endif()
+  # The interpreter dispatches, calls and returns through tail calls, so the Wasm build
+  # needs the tail-call feature: without it Clang rejects every M3_MUSTTAIL, and
+  # return_call would consume a stack frame per call instead of reusing one.
+  # Requires a tail-call capable host (Wasm3 >= 0.6.0, Wasmtime >= 14, Node >= 22).
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mbulk-memory-opt -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
 
-  # TODO: LTO breaks wasm imports currently:
-  # https://www.mail-archive.com/llvm-bugs@lists.llvm.org/msg36273.html
-
-  #-flto -Wl,--lto-O3
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608 -flto -Wl,--lto-O3")
 
 elseif(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
 
@@ -231,7 +223,7 @@ elseif(BUILD_WASI MATCHES "uvwasi")
 endif()
 
 check_ipo_supported(RESULT result)
-if(result AND NOT WASIENV) # TODO: LTO breaks wasm imports
+if(result)
   set_property(TARGET ${OUT_FILE} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   message("LTO:        ON")
 else()

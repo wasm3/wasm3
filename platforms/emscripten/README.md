@@ -12,11 +12,6 @@ ninja
 
 **Note:**
 
-To enable WebAssembly extensions:
-```sh
-cmake -GNinja -DEMSCRIPTEN=1 -DWASM_EXT=1 ..
-```
-
 You can convert the generated wasm to wat to see the effect:
 ```sh
 wasm2wat --enable-tail-call --enable-bulk-memory wasm3.wasm > wasm3.wat
