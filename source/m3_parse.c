@@ -454,6 +454,7 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
     M3Result result = m3Err_none;
 
     u32 numSegments;
+    bytes_t pos;
 _   (ReadLEB_u32 (& numSegments, & i_bytes, i_end));                         m3log (parse, "** Element [%d]", numSegments);
 
     _throwif ("too many element segments", numSegments > d_m3MaxSaneElementSegments);
@@ -467,7 +468,7 @@ _   (ReadLEB_u32 (& numSegments, & i_bytes, i_end));                         m3l
 
     // Walk the section to validate structure and detect section size mismatch.
     // The actual element initialization happens later in InitElements.
-    bytes_t pos = i_bytes;
+    pos = i_bytes;
     for (u32 i = 0; i < numSegments; ++i)
     {
         u32 tableIndex;
