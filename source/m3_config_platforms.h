@@ -95,15 +95,14 @@
 #   define M3_GUARANTEED_TAIL_CALL 1
 # else
 #   define M3_MUSTTAIL
-    // No musttail, so a tail call only happens if the compiler decides to emit one. GCC
-    // and Clang do when optimizing -- the assumption the whole dispatch chain already
-    // rests on -- but MSVC does not reliably, and nobody does at -O0. Only claim it where
-    // the compiler says it is optimizing.
-#   if M3_HAS_TAIL_CALL && defined(__OPTIMIZE__)
-#     define M3_GUARANTEED_TAIL_CALL 1
-#   else
-#     define M3_GUARANTEED_TAIL_CALL 0
-#   endif
+    // Without musttail a tail call happens only if the compiler feels like emitting one,
+    // and that is not something we can predict: GCC on x86-64 does it at -O3, but on
+    // ppc64 and alpha it does not (indirect sibling calls are restricted by those ABIs),
+    // and MSVC does not reliably anywhere. The interpreter merely runs slower when a
+    // dispatch isn't tail-called, but return_call would lose the frame it reuses -- so
+    // only claim a guarantee when the compiler actually gives one. GCC 15 has musttail.
+    // Builders who know their target sibling-calls can force it with -Dd_m3CanTailCall=1.
+#   define M3_GUARANTEED_TAIL_CALL 0
 # endif
 
 # ifndef M3_MIN

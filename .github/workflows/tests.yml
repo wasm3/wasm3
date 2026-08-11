@@ -235,11 +235,13 @@ jobs:
         cd test
         python3 run-wasi-test.py --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm" --fast
 
+    # Clang, because the guest here is wasm3.wasm itself: it's full of return_call, and
+    # replaying those iteratively needs a host built with musttail
     - name: Configure (native)
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake -DCMAKE_C_COMPILER=clang ..
     - name: Build (native)
       run: |
         cmake --build build
