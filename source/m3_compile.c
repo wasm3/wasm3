@@ -2125,18 +2125,15 @@ M3Result  Compile_Select  (IM3Compilation o, m3opcode_t i_opcode)
 
     IM3Operation op = NULL;
 
-    // Spec: the condition operand (top) must be i32
-    if (not IsStackPolymorphic (o))
-    {
-        u8 condType = GetStackTypeFromTop (o, 0);
-        _throwif (m3Err_typeMismatch, condType != c_m3Type_none and condType != c_m3Type_i32);
-    }
-
     u8 type = GetStackTypeFromTop (o, 1); // get type of selection
 
-    // Spec: the two value operands (below condition) must have matching types
     if (not IsStackPolymorphic (o))
     {
+        // Spec: the condition operand (top) must be i32
+        u8 condType = GetStackTypeFromTop (o, 0);
+        _throwif (m3Err_typeMismatch, condType != c_m3Type_none and condType != c_m3Type_i32);
+
+        // Spec: the two value operands (below condition) must have matching types
         u8 type2 = GetStackTypeFromTop (o, 2);
         _throwif (m3Err_typeMismatch, type != c_m3Type_none and type2 != c_m3Type_none and type != type2);
     }

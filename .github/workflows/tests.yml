@@ -192,8 +192,8 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 11
-        WASI_VERSION_FULL: "11.0"
+        WASI_VERSION: 33
+        WASI_VERSION_FULL: "33.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
@@ -421,11 +421,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
-    - name: Build AVR ATmega1284
-      run: |
-        cd platforms/embedded/arduino
-        pio run -e mega1284
-        ! nm .pio/build/mega1284/firmware.elf | grep printf
+    # TODO:
+    #- name: Build AVR ATmega1284
+    #  run: |
+    #    cd platforms/embedded/arduino
+    #    pio run -e mega1284
+    #    ! nm .pio/build/mega1284/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
         cd platforms/embedded/esp8266

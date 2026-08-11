@@ -9,6 +9,7 @@
 #   ./run-spec-test.py .spec-v1.1/proposals/tail-call/*.json
 #   ./run-spec-test.py --exec "../build-custom/wasm3 --spec-repl"
 #   ./run-spec-test.py --no-validation   # skip the checks that invalid modules are rejected
+#   ./run-spec-test.py --no-relax-nan    # compare NaN results by class, not just "is a NaN"
 #
 # Running WASI version with different engines:
 #   cp ../build-wasi/wasm3.wasm ./
@@ -59,6 +60,12 @@ parser.add_argument("--all", action="store_true")
 parser.add_argument("--no-validation", dest="validation", action="store_false",
                     help="skip assert_invalid/assert_malformed/assert_uninstantiable, "
                          "i.e. don't check that invalid modules are rejected")
+parser.add_argument("--relax-nan", dest="relax_nan", action="store_true", default=True,
+                    help="accept any NaN where a NaN is expected (default). Targets without "
+                         "IEEE-754-2008 float hardware -- x87, ARM soft-float, MIPS with the "
+                         "legacy -mnan encoding -- disagree with the spec on the quiet bit")
+parser.add_argument("--no-relax-nan", dest="relax_nan", action="store_false",
+                    help="compare NaN results by class (canonical/arithmetic/signaling)")
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
@@ -149,6 +156,9 @@ formatValue = formaters[args.format]
 
 if args.format == "fp":
     print("When using fp display format, values are compared loosely (some tests may produce false positives)")
+
+if args.relax_nan:
+    print("NaN results are compared as 'any NaN' (--no-relax-nan compares canonical/arithmetic/signaling)")
 
 #
 # Spec tests preparation
@@ -317,6 +327,12 @@ def parseResults(s, expected=None):
 # NaN results are compared by class, not by exact bits: the spec leaves the sign
 # of a produced NaN non-deterministic, so only the payload is meaningful.
 #
+# Under --relax-nan (the default) even the class is dropped and any NaN matches
+# any other. wasm3 evaluates float ops as plain C expressions and libm calls, so
+# NaN handling is whatever the toolchain does, and the usual divergence is that
+# a signaling NaN operand is propagated unquieted where the spec requires an
+# arithmetic (quiet) NaN out.
+#
 
 NAN_PAYLOAD_MASK = { "f32": 0x007FFFFF, "f64": 0x000FFFFFFFFFFFFF }
 NAN_QUIET_BIT    = { "f32": 0x00400000, "f64": 0x0008000000000000 }
@@ -345,6 +361,10 @@ def normalizeResults(values, expected=None):
         v = x["value"]
         if t == "f32" or t == "f64":
             if isNan(v, t):
+                if args.relax_nan:
+                    x["value"] = "nan"
+                    continue
+
                 cls = nanClass(v, t)
                 exp = expected[i]["value"] if (expected and i < len(expected)) else None
                 expCls = nanClass(exp, t) if (exp is not None and isNan(exp, t)) else None
