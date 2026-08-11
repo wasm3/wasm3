@@ -65,9 +65,9 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | ☑ Multi-value                                | ☑ Gas metering                     |
 | ☑ Bulk memory operations (partial support)   | ☑ Linear memory limit (< 64KiB)    |
 | ☑ Custom page size                           |
+| ☑ Tail call optimization                     |
 | ⏳ Multiple memories                          |
 | ⏳ Reference types                            |
-| ☐ Tail call optimization                     |
 | ☐ Fixed-width SIMD                           |
 | ☐ Exception handling                         |
 | ☐ Stack Switching                            |
