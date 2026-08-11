@@ -411,20 +411,12 @@ blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
   "imports.wast:*",
 
-  # -- validation checks wasm3 does not implement yet --------------------
-  # names are not checked for well-formed UTF-8
-  "utf8-*.wast:*",
-  # a section whose declared size doesn't match its contents is accepted:
-  # the section parsers don't report how many bytes they consumed
-  "binary.wast:* * assert_malformed (section size mismatch)",
-  "binary.wast:* * assert_malformed (function and code section have inconsistent lengths)",
-  # the start function runs on first call, not at instantiation, so a module
-  # whose start traps is not rejected at load
-  "start.wast:* * assert_uninstantiable (unreachable)",
   # not a gap: wasm3 implements multi-value, which the older v1.1 testsuite
   # still expects to be rejected
   "* assert_invalid (invalid result arity)",
-  "names.wast:* *.wasm \\x00*", # names that start with '\0'
+  # names containing NUL bytes are valid UTF-8 but wasm3 uses C strings
+  # internally, so embedded NUL truncates the name during function lookup
+  "names.wast:* *.wasm \\x00*",
 ])
 
 if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"]):

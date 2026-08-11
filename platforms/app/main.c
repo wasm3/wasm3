@@ -155,6 +155,9 @@ M3Result repl_load  (const char* fn)
     result = link_all (module);
     if (result) goto on_error;
 
+    result = m3_RunStart (module);
+    if (result) goto on_error;
+
     if (wasm_bins_qty < MAX_MODULES) {
         wasm_bins[wasm_bins_qty++] = wasm;
     }
@@ -234,7 +237,10 @@ M3Result repl_load_hex  (u32 fsize)
         wasm_bins[wasm_bins_qty++] = wasm;
     }
 
-    return link_all (module);
+    result = link_all (module);
+    if (result) return result;
+
+    return m3_RunStart (module);
 }
 
 void print_gas_used()

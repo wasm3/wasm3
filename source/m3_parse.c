@@ -41,6 +41,8 @@ _           (ReadLEB_u32 (& maxSize, & i_bytes, i_end));
         io_module->hasTable = true;
     }
 
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
+
     _catch: return result;
 }
 
@@ -150,6 +152,8 @@ _               (NormalizeType (& retType, wasmType));
         }
     }
 
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
+
 } _catch:
 
     if (result)
@@ -182,6 +186,8 @@ _       (ReadLEB_u32 (& funcTypeIndex, & i_bytes, i_end));
 
 _       (Module_AddFunction (io_module, funcTypeIndex, NULL /* import info */));
     }
+
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
 
     _catch: return result;
 }
@@ -273,6 +279,8 @@ _               (Module_AddGlobal (io_module, & global, type, isMutable, true /*
 
         FreeImportInfo (& import);
     }
+
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
 
     _catch:
 
@@ -382,6 +390,8 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         m3_Free (utf8);
     }
 
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
+
 _catch:
     m3_Free (utf8);
 #if d_m3EnableValidation
@@ -411,6 +421,8 @@ _   (ReadLEB_u32 (& startFuncIndex, & i_bytes, i_end));                         
         io_module->startFunction = startFuncIndex;
     }
     else result = "start function index out of bounds";
+
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
 
     _catch: return result;
 }
@@ -452,6 +464,29 @@ _   (ReadLEB_u32 (& numSegments, & i_bytes, i_end));                         m3l
     io_module->elementSection = i_bytes;
     io_module->elementSectionEnd = i_end;
     io_module->numElementSegments = numSegments;
+
+    // Walk the section to validate structure and detect section size mismatch.
+    // The actual element initialization happens later in InitElements.
+    bytes_t pos = i_bytes;
+    for (u32 i = 0; i < numSegments; ++i)
+    {
+        u32 tableIndex;
+_       (ReadLEB_u32 (& tableIndex, & pos, i_end));
+
+        // Walk the init expression (offset) to find its end
+_       (Parse_InitExpr (io_module, & pos, i_end));
+
+        u32 numElements;
+_       (ReadLEB_u32 (& numElements, & pos, i_end));
+
+        for (u32 e = 0; e < numElements; ++e)
+        {
+            u32 funcIndex;
+_           (ReadLEB_u32 (& funcIndex, & pos, i_end));
+        }
+    }
+
+    _throwif (m3Err_wasmMalformed, pos != i_end);           // section size mismatch
 
     _catch: return result;
 }
@@ -561,6 +596,8 @@ _       (ReadLEB_u32 (& segment->size, & i_bytes, i_end));
         _throwif("data segment underflow", i_bytes > i_end);
     }
 
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
+
     _catch:
 
     return result;
@@ -583,6 +620,8 @@ _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                            
 _       (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
         io_module->memoryDeclared = true;
     }
+
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
 
     _catch: return result;
 }
@@ -616,6 +655,8 @@ _       (Parse_InitExpr (io_module, & i_bytes, i_end));
 
         _throwif (m3Err_wasmMissingInitExpr, global->initExprSize <= 1);
     }
+
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
 
     _catch: return result;
 }
@@ -779,6 +820,15 @@ _       (ReadLEB_u32 (& sectionLength, & pos, end));
 _       (ParseModuleSection (module, section, pos, sectionLength));
 
         pos += sectionLength;
+    }
+
+    // Spec: if a function section exists, a code section must also exist with
+    // matching count (and vice versa). ParseSection_Code checks the other
+    // direction; this covers the case where the code section is missing entirely.
+    if (module->numFunctions > module->numFuncImports)
+    {
+        IM3Function firstNonImport = & module->functions [module->numFuncImports];
+        _throwif (m3Err_wasmMalformed, firstNonImport->wasm == NULL);
     }
 
 } _catch:

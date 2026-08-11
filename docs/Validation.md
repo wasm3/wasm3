@@ -264,19 +264,11 @@ requires an arithmetic one - is still a failure, and f64 stays strict.
 
 ## Known gaps
 
-- **UTF-8 in names is not validated.** Import, export and custom-section names
-  are not checked for well-formed UTF-8. This is the largest remaining gap and
-  is self-contained: one check at every name decode.
-- **Section size mismatch is not detected.** A section whose declared size does
-  not match its contents is accepted, because the section parsers do not report
-  how many bytes they consumed. Fixing it means changing the `M3Parser`
-  signature to report an end position; note that `ParseSection_Element`
-  deliberately does not consume its section, so a blanket "must consume all"
-  rule would not work.
-- **The start function runs on first call, not at instantiation**, so a module
-  whose start function traps is not rejected at load.
 - **f32 signaling NaNs are quieted** by the shared `f64` register, as described
   above. Fixing it needs a separate f32 register or bit-exact slot storage.
+- **Names containing embedded NUL bytes** are valid UTF-8 but truncated by the
+  C-string representation used for function lookup. Fixing it would require
+  length-prefixed name storage throughout the API.
 
 ## Adding a check
 
