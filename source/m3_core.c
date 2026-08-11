@@ -206,7 +206,7 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
     // Accept v128 (wasm-encoded as 0x7b → -i_convolutedWasmType == 5)
     // as an opaque slot so modules with v128 in signatures or local
     // declarations parse. Actual v128 opcodes still hit
-    // m3Err_unknownOpcode at compile time — we just stop refusing
+    // m3Err_unknownOpcode at compile time - we just stop refusing
     // unused SIMD slots that auto-vectorization emits.
     else if (type < c_m3Type_i32 or type > c_m3Type_v128)
         result = m3Err_invalidTypeId;
@@ -377,6 +377,17 @@ M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes,
         if ((byte & 0x80) == 0)
         {
             result = m3Err_none;
+
+#if d_m3EnableValidation
+            // The last byte must not carry bits past i_maxNumBits
+            if (shift > i_maxNumBits)
+            {
+                u32 numUsedBits = i_maxNumBits + 7 - shift;
+
+                if (byte >> numUsedBits)
+                    result = m3Err_lebOverflow;
+            }
+#endif
             break;
         }
 
@@ -414,6 +425,19 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
         {
             result = m3Err_none;
 
+#if d_m3EnableValidation
+            // The bits of the last byte past i_maxNumBits must all repeat the
+            // sign bit, otherwise the value doesn't fit
+            if (shift > i_maxNumBits)
+            {
+                u32 numUsedBits = i_maxNumBits + 7 - shift;
+                u8  signBits    = (u8) ((0x7f << (numUsedBits - 1)) & 0x7f);
+                u8  bits        = (u8) (byte & signBits);
+
+                if (bits != 0 and bits != signBits)
+                    result = m3Err_lebOverflow;
+            }
+#endif
             if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
                 u64 extend = 0;
@@ -486,6 +510,71 @@ M3Result  ReadLEB_i64  (i64 * o_value, bytes_t * io_bytes, cbytes_t i_end)
     return result;
 }
 
+#if d_m3EnableValidation
+// Validate that a byte sequence is well-formed UTF-8 per the Unicode spec.
+// Returns true if valid, false otherwise.
+static bool  IsValidUtf8  (const u8 * i_data, u32 i_length)
+{
+    const u8 * ptr = i_data;
+    const u8 * end = i_data + i_length;
+
+    while (ptr < end)
+    {
+        u8 b0 = *ptr++;
+
+        if (b0 < 0x80)
+        {
+            // single-byte: 0xxxxxxx
+            continue;
+        }
+        else if ((b0 & 0xE0) == 0xC0)
+        {
+            // two-byte: 110xxxxx 10xxxxxx
+            if (b0 < 0xC2) return false;       // overlong
+            if (ptr >= end) return false;
+            u8 b1 = *ptr++;
+            if ((b1 & 0xC0) != 0x80) return false;
+        }
+        else if ((b0 & 0xF0) == 0xE0)
+        {
+            // three-byte: 1110xxxx 10xxxxxx 10xxxxxx
+            if (ptr + 1 >= end) return false;
+            u8 b1 = *ptr++;
+            u8 b2 = *ptr++;
+            if ((b1 & 0xC0) != 0x80) return false;
+            if ((b2 & 0xC0) != 0x80) return false;
+            // reject overlong
+            if (b0 == 0xE0 && b1 < 0xA0) return false;
+            // reject surrogates U+D800..U+DFFF
+            if (b0 == 0xED && b1 >= 0xA0) return false;
+        }
+        else if ((b0 & 0xF8) == 0xF0)
+        {
+            // four-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+            if (b0 > 0xF4) return false;       // above U+10FFFF
+            if (ptr + 2 >= end) return false;
+            u8 b1 = *ptr++;
+            u8 b2 = *ptr++;
+            u8 b3 = *ptr++;
+            if ((b1 & 0xC0) != 0x80) return false;
+            if ((b2 & 0xC0) != 0x80) return false;
+            if ((b3 & 0xC0) != 0x80) return false;
+            // reject overlong
+            if (b0 == 0xF0 && b1 < 0x90) return false;
+            // reject above U+10FFFF
+            if (b0 == 0xF4 && b1 > 0x8F) return false;
+        }
+        else
+        {
+            // invalid leading byte (0x80..0xBF or 0xF5..0xFF)
+            return false;
+        }
+    }
+
+    return true;
+}
+#endif // d_m3EnableValidation
+
 
 M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 {
@@ -503,6 +592,14 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
 
             if (end <= i_end)
             {
+#if d_m3EnableValidation
+                if (not IsValidUtf8 (ptr, utf8Length))
+                {
+                    * io_bytes = end;
+                    return m3Err_wasmMalformed;
+                }
+#endif // d_m3EnableValidation
+
                 char * utf8 = (char *)m3_Malloc ("UTF8", utf8Length + 1);
 
                 if (utf8)

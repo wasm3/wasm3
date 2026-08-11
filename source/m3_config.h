@@ -28,6 +28,14 @@
 #   define d_m3MaxFunctionSlots                 ((d_m3MaxFunctionStackHeight)*2)
 # endif
 
+# ifndef d_m3ValStack                                   // validator operand and local type stacks:
+#   define d_m3ValStack                         (d_m3MaxFunctionStackHeight)    // the same operand stack the compiler bounds
+# endif
+
+# ifndef d_m3ValCtrlDepth                               // validator block nesting depth. Each frame is bigger than an
+#   define d_m3ValCtrlDepth                     ((d_m3MaxFunctionStackHeight)/8)// operand entry, so this dominates the validator's stack usage
+# endif
+
 # ifndef d_m3MaxConstantTableSize
 #   define d_m3MaxConstantTableSize             120
 # endif
@@ -142,6 +150,10 @@
 #if !d_m3HasFloat && !defined(d_m3NoFloatDynamic)
 #   define d_m3NoFloatDynamic                   1       // if no floats, do not fail until flops are actually executed
 #endif
+
+# ifndef d_m3EnableValidation
+#   define d_m3EnableValidation                 1       // pre-pass bytecode type validation
+# endif
 
 # ifndef d_m3SkipStackCheck
 #   define d_m3SkipStackCheck                   0       // skip stack overrun checks

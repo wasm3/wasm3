@@ -27,6 +27,7 @@
 		3D1ED52423C8CB560072E395 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 3D1ED52223C8CB560072E395 /* main.c */; };
 		3D3C322E23C9319A00DB9F7E /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 3D3C322D23C9319A00DB9F7E /* icon.png */; };
 		B5E985C8262018B700FBE0FC /* m3_function.c in Sources */ = {isa = PBXBuildFile; fileRef = B5E985C7262018B700FBE0FC /* m3_function.c */; };
+		B5E985CB262018B700FBE0FC /* m3_validate.c in Sources */ = {isa = PBXBuildFile; fileRef = B5E985CA262018B700FBE0FC /* m3_validate.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +73,8 @@
 		3D3EC19D23D558D5008FD665 /* wasm3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wasm3.h; sourceTree = "<group>"; };
 		B5E985C6262018B700FBE0FC /* m3_function.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_function.h; sourceTree = "<group>"; };
 		B5E985C7262018B700FBE0FC /* m3_function.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_function.c; sourceTree = "<group>"; };
+		B5E985C9262018B700FBE0FC /* m3_validate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m3_validate.h; sourceTree = "<group>"; };
+		B5E985CA262018B700FBE0FC /* m3_validate.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m3_validate.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +93,8 @@
 			children = (
 				B5E985C7262018B700FBE0FC /* m3_function.c */,
 				B5E985C6262018B700FBE0FC /* m3_function.h */,
+				B5E985CA262018B700FBE0FC /* m3_validate.c */,
+				B5E985C9262018B700FBE0FC /* m3_validate.h */,
 				3D1B3AED23C8E20C00142C16 /* extra */,
 				3D3EC19D23D558D5008FD665 /* wasm3.h */,
 				3D1B3AF423C8E20C00142C16 /* m3_api_libc.c */,
@@ -244,6 +249,7 @@
 				3D1B3B1123C8E20D00142C16 /* m3_api_libc.c in Sources */,
 				3D1B3B1723C8E20D00142C16 /* m3_core.c in Sources */,
 				B5E985C8262018B700FBE0FC /* m3_function.c in Sources */,
+				B5E985CB262018B700FBE0FC /* m3_validate.c in Sources */,
 				3D1ED51223C8C8E70072E395 /* ViewController.swift in Sources */,
 				3D1B3B1A23C8E20D00142C16 /* m3_exec.c in Sources */,
 				3D1B3B1223C8E20D00142C16 /* m3_api_meta_wasi.c in Sources */,

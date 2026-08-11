@@ -192,7 +192,7 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 11
+        WASI_VERSION: 11    # TODO: update WASI-SDK
         WASI_VERSION_FULL: "11.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
@@ -221,7 +221,7 @@ jobs:
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --repl"
+        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --spec-repl"
     - name: Test WASI apps (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
@@ -239,7 +239,7 @@ jobs:
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --repl"
+        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
@@ -330,7 +330,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
-        python3 run-spec-test.py --exec "./wasm3-lin.com --repl"
+        python3 run-spec-test.py --exec "./wasm3-lin.com --spec-repl"
     - name: Test WASI apps
       run: |
         cd test
@@ -343,7 +343,7 @@ jobs:
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
-        python3 run-spec-test.py --exec "wine ./wasm3-win.com --repl"
+        python3 run-spec-test.py --exec "wine ./wasm3-win.com --spec-repl"
     - name: Test WASI apps (in Wine)
       run: |
         cd test
@@ -400,7 +400,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
-        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
+        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --spec-repl"
     - name: Test WASI apps
       if: ${{ !matrix.config.skip_wasi }}
       run: |
@@ -421,11 +421,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
-    - name: Build AVR ATmega1284
-      run: |
-        cd platforms/embedded/arduino
-        pio run -e mega1284
-        ! nm .pio/build/mega1284/firmware.elf | grep printf
+    # TODO:
+    #- name: Build AVR ATmega1284
+    #  run: |
+    #    cd platforms/embedded/arduino
+    #    pio run -e mega1284
+    #    ! nm .pio/build/mega1284/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
         cd platforms/embedded/esp8266

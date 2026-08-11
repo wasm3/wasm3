@@ -155,6 +155,9 @@ M3Result repl_load  (const char* fn)
     result = link_all (module);
     if (result) goto on_error;
 
+    result = m3_RunStart (module);
+    if (result) goto on_error;
+
     if (wasm_bins_qty < MAX_MODULES) {
         wasm_bins[wasm_bins_qty++] = wasm;
     }
@@ -172,48 +175,72 @@ on_error:
 M3Result repl_load_hex  (u32 fsize)
 {
     M3Result result = m3Err_none;
+    IM3Module module = NULL;
+
+    u8* wasm = NULL;
 
     if (fsize < 8) {
-        return "file is too small";
+        result = "file is too small";
     } else if (fsize > 10*1024*1024) {
-        return "file too big";
+        result = "file too big";
+    } else {
+        wasm = (u8*) malloc(fsize);
+        if (!wasm) {
+            result = "cannot allocate memory for wasm binary";
+        }
     }
 
-    u8* wasm = (u8*) malloc(fsize);
-    if (!wasm) {
-        return "cannot allocate memory for wasm binary";
-    }
-
-    {   // Load hex data from stdin
+    {   // Load hex data from stdin.
+        // The payload is consumed even when the size was rejected above:
+        // whatever is left behind gets read back as the next repl command.
         u32 wasm_idx = 0;
         char hex[3] = { 0, };
         int hex_idx = 0;
         while (wasm_idx < fsize) {
             int c = fgetc(stdin);
+            if (c == EOF) {
+                free(wasm);
+                return "unexpected end of input";
+            }
             if (!isxdigit(c)) continue; // Skip non-hex chars
             hex[hex_idx++] = c;
             if (hex_idx == 2) {
                 int val = strtol(hex, NULL, 16);
-                wasm[wasm_idx++] = val;
+                if (wasm) { wasm[wasm_idx] = val; }
+                wasm_idx++;
                 hex_idx = 0;
             }
         }
-        if (!fgets(hex, 3, stdin)) { // Consume a newline
-            free(wasm);
-            return "cannot read EOL";
-        }
+        int c;                          // Consume the rest of the line
+        while ((c = fgetc(stdin)) != EOF && c != '\n') {}
     }
 
-    IM3Module module;
+    if (result) {
+        return result;
+    }
+
     result = m3_ParseModule (env, &module, wasm, fsize);
-    if (result) return result;
+    if (result) {
+        free(wasm);
+        return result;
+    }
 
     result = m3_LoadModule (runtime, module);
-    if (result) return result;
+    if (result) {
+        m3_FreeModule(module);
+        free(wasm);
+        return result;
+    }
+
+    // The module points into the binary, so it is freed along with the runtime
+    if (wasm_bins_qty < MAX_MODULES) {
+        wasm_bins[wasm_bins_qty++] = wasm;
+    }
 
     result = link_all (module);
+    if (result) return result;
 
-    return result;
+    return m3_RunStart (module);
 }
 
 void print_gas_used()
@@ -466,6 +493,7 @@ void repl_free  ()
         free (wasm_bins[i]);
         wasm_bins[i] = NULL;
     }
+    wasm_bins_qty = 0;
 }
 
 M3Result repl_init  (unsigned stack)
@@ -552,6 +580,7 @@ void print_usage() {
     puts("  --func <function>     function to run       default: _start");
     puts("  --stack-size <size>   stack size in bytes   default: 64KB");
     puts("  --compile             disable lazy compilation");
+    puts("  --spec-repl           repl for the spec tests");
     puts("  --dump-on-trap        dump wasm memory");
     puts("  --gas-limit           set gas limit");
 }
@@ -590,6 +619,10 @@ int  main  (int i_argc, const char* i_argv[])
             return 0;
         } else if (!strcmp("--repl", arg)) {
             argRepl = true;
+        } else if (!strcmp("--spec-repl", arg)) {
+            // repl for the spec tests
+            argRepl = true;
+            argCompile = true;
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
         } else if (!strcmp("--compile", arg)) {
@@ -628,7 +661,8 @@ int  main  (int i_argc, const char* i_argv[])
         if (result) FATAL("repl_load: %s", result);
 
         if (argCompile) {
-            repl_compile();
+            result = repl_compile();
+            if (result) FATAL("repl_compile: %s", result);
         }
 
         if (argFunc and not argRepl) {
@@ -672,8 +706,10 @@ int  main  (int i_argc, const char* i_argv[])
             return 0;
         } else if (!strcmp(":load", argv[0])) {             // :load <filename>
             result = repl_load(argv[1]);
+            if (argCompile and not result) result = repl_compile();
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(atol(argv[1]));
+            if (argCompile and not result) result = repl_compile();
         } else if (!strcmp(":get-global", argv[0])) {
             result = repl_global_get(argv[1]);
         } else if (!strcmp(":set-global", argv[0])) {
