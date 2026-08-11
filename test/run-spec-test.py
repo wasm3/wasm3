@@ -7,18 +7,19 @@
 #   ./run-spec-test.py .spec-v1.1/core/i32.json
 #   ./run-spec-test.py .spec-v1.1/core/float_exprs.json --line 2070
 #   ./run-spec-test.py .spec-v1.1/proposals/tail-call/*.json
-#   ./run-spec-test.py --exec "../build-custom/wasm3 --repl"
+#   ./run-spec-test.py --exec "../build-custom/wasm3 --spec-repl"
+#   ./run-spec-test.py --no-validation   # skip the checks that invalid modules are rejected
 #
 # Running WASI version with different engines:
 #   cp ../build-wasi/wasm3.wasm ./
-#   ./run-spec-test.py --exec "../build/wasm3 wasm3.wasm --repl"
-#   ./run-spec-test.py --exec "wasmtime --dir=. wasm3.wasm -- --repl"
-#   ./run-spec-test.py --exec "wasmer run --dir=. wasm3.wasm -- --repl"
-#   ./run-spec-test.py --exec "wasmer run --dir=. --backend=llvm wasm3.wasm -- --repl"
-#   ./run-spec-test.py --exec "wasmer-js run wasm3.wasm --dir=. -- --repl"
-#   ./run-spec-test.py --exec "wasirun wasm3.wasm --repl"
-#   ./run-spec-test.py --exec "wavm run --mount-root ./ wasm3.wasm -- --repl"
-#   ./run-spec-test.py --exec "iwasm --dir=. wasm3.wasm --repl"
+#   ./run-spec-test.py --exec "../build/wasm3 wasm3.wasm --spec-repl"
+#   ./run-spec-test.py --exec "wasmtime --dir=. wasm3.wasm -- --spec-repl"
+#   ./run-spec-test.py --exec "wasmer run --dir=. wasm3.wasm -- --spec-repl"
+#   ./run-spec-test.py --exec "wasmer run --dir=. --backend=llvm wasm3.wasm -- --spec-repl"
+#   ./run-spec-test.py --exec "wasmer-js run wasm3.wasm --dir=. -- --spec-repl"
+#   ./run-spec-test.py --exec "wasirun wasm3.wasm --spec-repl"
+#   ./run-spec-test.py --exec "wavm run --mount-root ./ wasm3.wasm -- --spec-repl"
+#   ./run-spec-test.py --exec "iwasm --dir=. wasm3.wasm --spec-repl"
 #
 
 # TODO
@@ -48,11 +49,16 @@ from pprint import pprint
 #
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --repl")
+# --spec-repl is --repl plus --compile: disabling lazy compilation makes a
+# function body that fails validation get rejected at load, as the spec requires
+parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --spec-repl")
 parser.add_argument("--spec",                          default="opam-1.1.1")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
+parser.add_argument("--no-validation", dest="validation", action="store_false",
+                    help="skip assert_invalid/assert_malformed/assert_uninstantiable, "
+                         "i.e. don't check that invalid modules are rejected")
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
@@ -300,20 +306,66 @@ class Wasm3():
 # Multi-value result handling
 #
 
-def parseResults(s):
+def parseResults(s, expected=None):
     values = s.split(", ")
     values = [x.split(":") for x in values]
     values = [{ "type": x[1], "value": int(x[0]) } for x in values]
 
-    return normalizeResults(values)
+    return normalizeResults(values, expected)
 
-def normalizeResults(values):
-    for x in values:
+#
+# NaN results are compared by class, not by exact bits: the spec leaves the sign
+# of a produced NaN non-deterministic, so only the payload is meaningful.
+#
+
+NAN_PAYLOAD_MASK = { "f32": 0x007FFFFF, "f64": 0x000FFFFFFFFFFFFF }
+NAN_QUIET_BIT    = { "f32": 0x00400000, "f64": 0x0008000000000000 }
+
+def nanClass(v, t):
+    # "nan:canonical" and "nan:arithmetic" arrive as labels from the spec tests,
+    # anything else is a raw bit pattern that we classify the same way.
+    if v == "nan:canonical" or v == "nan:arithmetic":
+        return v
+    payload = int(v) & NAN_PAYLOAD_MASK[t]
+    if payload == NAN_QUIET_BIT[t]:
+        return "nan:canonical"
+    elif payload & NAN_QUIET_BIT[t]:
+        return "nan:arithmetic"
+    else:
+        return "nan:signaling"
+
+def isNan(v, t):
+    if v == "nan:canonical" or v == "nan:arithmetic":
+        return True
+    return math.isnan(binaryToFloat(v, t))
+
+def normalizeResults(values, expected=None):
+    for i, x in enumerate(values):
         t = x["type"]
         v = x["value"]
         if t == "f32" or t == "f64":
-            if v == "nan:canonical" or v == "nan:arithmetic" or math.isnan(binaryToFloat(v, t)):
-                x["value"] = "nan:any"
+            if isNan(v, t):
+                cls = nanClass(v, t)
+                exp = expected[i]["value"] if (expected and i < len(expected)) else None
+                expCls = nanClass(exp, t) if (exp is not None and isNan(exp, t)) else None
+
+                # A canonical NaN is also an arithmetic NaN.
+                if cls == "nan:canonical" and expCls == "nan:arithmetic":
+                    cls = "nan:arithmetic"
+
+                # wasm3 keeps every float in one f64 register (_fp0, see
+                # m3_exec_defs.h), so an f32 signaling NaN is quieted by the
+                # float->double->float round trip -- even through operations
+                # that should preserve bits (load, reinterpret, select, neg,
+                # abs, copysign). Tolerate a quieted result where an f32
+                # signaling NaN was expected. The opposite direction, a
+                # signaling NaN where the spec requires an arithmetic one, is
+                # still a failure, and f64 stays strict. Same root cause as the
+                # f32.nonarithmetic_nan_bitpattern entry in the blacklist below.
+                if t == "f32" and expCls == "nan:signaling" and cls != "nan:signaling":
+                    cls = "nan:signaling"
+
+                x["value"] = cls
             else:
                 x["value"] = formatValue(v, t)
         else:
@@ -334,8 +386,24 @@ wasm3_ver = wasm3.version()
 print(wasm3_ver)
 
 blacklist = Blacklist([
+  # returns the bit pattern as i32, so it can't be compared by NaN class:
+  # wasm3 quiets f32 signaling NaNs, see the note in normalizeResults()
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
   "imports.wast:*",
+
+  # -- validation checks wasm3 does not implement yet --------------------
+  # names are not checked for well-formed UTF-8
+  "utf8-*.wast:*",
+  # a section whose declared size doesn't match its contents is accepted:
+  # the section parsers don't report how many bytes they consumed
+  "binary.wast:* * assert_malformed (section size mismatch)",
+  "binary.wast:* * assert_malformed (function and code section have inconsistent lengths)",
+  # the start function runs on first call, not at instantiation, so a module
+  # whose start traps is not rejected at load
+  "start.wast:* * assert_uninstantiable (unreachable)",
+  # not a gap: wasm3 implements multi-value, which the older v1.1 testsuite
+  # still expects to be rejected
+  "* assert_invalid (invalid result arity)",
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
@@ -434,7 +502,9 @@ def runInvoke(test):
             expect = "result <Empty Stack>"
         else:
             if actual_val is not None:
-                actual = "result " + combineResults(parseResults(actual_val))
+                # normalize the actual result first: it needs the raw expected
+                # values, which normalizeResults() rewrites in place below
+                actual = "result " + combineResults(parseResults(actual_val, test.expected))
             expect = "result " + combineResults(normalizeResults(test.expected))
 
     elif "expected_trap" in test:
@@ -472,6 +542,61 @@ def runInvoke(test):
         showTestResult()
         #sys.exit(1)
 
+def runValidation(test, cmd, wasm_dir):
+    # assert_invalid/assert_malformed/assert_uninstantiable: the module must be
+    # rejected at load. wasm3's error strings don't match the spec's, so we only
+    # check that it *is* rejected; the expected text is kept for the log.
+    #
+    # Requires --exec to disable lazy compilation (--spec-repl), otherwise an
+    # invalid function body is not seen until the function is first compiled.
+
+    # Text modules would need a wat parser, only binaries can go to wasm3
+    if cmd.get("module_type") != "binary":
+        stats.skipped += 1
+        warning(f"Skipped {test.source} ({test.type} of a text module)")
+        return
+
+    test.wasm = cmd["filename"]
+    expected_text = cmd.get("text", "")
+    # the expected error is part of the id so the blacklist can name a whole
+    # class of check, which survives the module filenames shifting between
+    # spec revisions
+    test_id = f"{test.source} {test.wasm} {test.type} ({expected_text})"
+
+    if test_id in blacklist and not args.all:
+        warning(f"Skipped {test_id} (blacklisted)")
+        stats.skipped += 1
+        return
+
+    if args.verbose:
+        print(f"Running {test_id}")
+
+    stats.total_run += 1
+
+    detail = ""
+    try:
+        wasm3.init()
+        detail = wasm3.load(os.path.join(wasm_dir, test.wasm))
+        actual = "rejected" if detail else "accepted"
+    except Exception as e:
+        actual = "<Crashed>"
+        detail = str(e)
+        stats.crashed += 1
+
+    log.write(f"{test.source}\t|\t{test.wasm} {test.type} ({expected_text})\t=>\t\t")
+    if actual == "rejected":
+        stats.success += 1
+        log.write(f"OK: {detail}\n")
+    else:
+        stats.failed += 1
+        log.write(f"FAIL: module {actual}, should be rejected: {expected_text}\n")
+        if args.silent:
+            return
+        print(" ----------------------")
+        print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
+        print(f"Expected: {ansi.OKGREEN}rejected ({expected_text}){ansi.ENDC}")
+        print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
+
 if args.file:
     jsonFiles = args.file
 else:
@@ -488,6 +613,10 @@ for fn in jsonFiles:
 
     wast_source = filename(data["source_filename"])
     wasm_module = ""
+
+    # a validation test loads a module of its own, so the one under test has to
+    # be put back before the next invoke
+    reload_module = False
 
     print(f"Running {fn}")
 
@@ -525,6 +654,15 @@ for fn in jsonFiles:
             if args.line and test.line != args.line:
                 continue
 
+            if reload_module:
+                reload_module = False
+                if wasm_module:
+                    try:
+                        wasm3.init()
+                        wasm3.load(os.path.join(pathname(fn), wasm_module))
+                    except Exception:
+                        pass
+
             if test.type == "action":
                 test.expected_anything = True
             elif test.type == "assert_return":
@@ -561,11 +699,18 @@ for fn in jsonFiles:
                 warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
 
 
-        # These are irrelevant
         elif (test.type == "assert_invalid" or
               test.type == "assert_malformed" or
               test.type == "assert_uninstantiable"):
-            pass
+
+            if args.line and test.line != args.line:
+                continue
+
+            if not args.validation:
+                continue
+
+            runValidation(test, cmd, pathname(fn))
+            reload_module = True
 
         # Others - report as skipped
         else:

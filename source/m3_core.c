@@ -377,6 +377,17 @@ M3Result  ReadLebUnsigned  (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes,
         if ((byte & 0x80) == 0)
         {
             result = m3Err_none;
+
+#if d_m3EnableValidation
+            // The last byte must not carry bits past i_maxNumBits
+            if (shift > i_maxNumBits)
+            {
+                u32 numUsedBits = i_maxNumBits + 7 - shift;
+
+                if (byte >> numUsedBits)
+                    result = m3Err_lebOverflow;
+            }
+#endif
             break;
         }
 
@@ -414,6 +425,19 @@ M3Result  ReadLebSigned  (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, c
         {
             result = m3Err_none;
 
+#if d_m3EnableValidation
+            // The bits of the last byte past i_maxNumBits must all repeat the
+            // sign bit, otherwise the value doesn't fit
+            if (shift > i_maxNumBits)
+            {
+                u32 numUsedBits = i_maxNumBits + 7 - shift;
+                u8  signBits    = (u8) ((0x7f << (numUsedBits - 1)) & 0x7f);
+                u8  bits        = (u8) (byte & signBits);
+
+                if (bits != 0 and bits != signBits)
+                    result = m3Err_lebOverflow;
+            }
+#endif
             if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
                 u64 extend = 0;

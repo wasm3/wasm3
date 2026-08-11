@@ -11,11 +11,6 @@
 
 #if d_m3EnableValidation
 
-// ---------- Configuration ----------
-
-#define d_m3ValStack        2048
-#define d_m3ValCtrlDepth    256
-
 // Sentinel type for polymorphic (unknown) operands
 #define c_valUnknown        0xFF
 
@@ -47,6 +42,38 @@ typedef struct {
     u8          localTypes [d_m3ValStack];
     u16         numLocals;
 } ValCtx;
+
+// A memory op is only valid if the module defines or imports one
+static bool v_has_memory (ValCtx * v)
+{
+    return v->module and (v->module->memoryImported or v->module->memoryDeclared);
+}
+
+// Spec: the alignment immediate of a memory access must not be larger than the
+// natural alignment of the operation. Natural alignment: 8-bit=0, 16-bit=1,
+// 32-bit=2, 64-bit=3.
+static u32 v_max_align (m3opcode_t opcode)
+{
+    switch (opcode) {
+        case 0x2c: case 0x2d:   // i32.load8_s, i32.load8_u
+        case 0x30: case 0x31:   // i64.load8_s, i64.load8_u
+        case 0x3a:              // i32.store8
+        case 0x3c:              // i64.store8
+            return 0;
+        case 0x2e: case 0x2f:   // i32.load16_s, i32.load16_u
+        case 0x32: case 0x33:   // i64.load16_s, i64.load16_u
+        case 0x3b:              // i32.store16
+        case 0x3d:              // i64.store16
+            return 1;
+        case 0x29:              // i64.load
+        case 0x2b:              // f64.load
+        case 0x37:              // i64.store
+        case 0x39:              // f64.store
+            return 3;
+        default:                // 32-bit accesses, and a safe fallback
+            return 2;
+    }
+}
 
 // ---------- Operand stack ----------
 
@@ -531,6 +558,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 align, offset;
             r = ReadLEB_u32(&align, &v->wasm, v->wasmEnd); if (r) return r;
             r = ReadLEB_u32(&offset, &v->wasm, v->wasmEnd); if (r) return r;
+            if (align > v_max_align(opcode)) return m3Err_wasmMalformed;
+            if (not v_has_memory(v)) return m3Err_wasmMalformed;
             r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
             u8 result;
             if      (opcode == 0x28) result = c_m3Type_i32;
@@ -552,6 +581,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 align, offset;
             r = ReadLEB_u32(&align, &v->wasm, v->wasmEnd); if (r) return r;
             r = ReadLEB_u32(&offset, &v->wasm, v->wasmEnd); if (r) return r;
+            if (align > v_max_align(opcode)) return m3Err_wasmMalformed;
+            if (not v_has_memory(v)) return m3Err_wasmMalformed;
             u8 valtype;
             if      (opcode == 0x36) valtype = c_m3Type_i32;
             else if (opcode == 0x37) valtype = c_m3Type_i64;
@@ -569,6 +600,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
+            if (memidx != 0 or not v_has_memory(v)) return m3Err_wasmMalformed;
             r = v_push(v, c_m3Type_i32); if (r) return r;
             break;
         }
@@ -576,6 +608,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
+            if (memidx != 0 or not v_has_memory(v)) return m3Err_wasmMalformed;
             r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
             r = v_push(v, c_m3Type_i32); if (r) return r;
             break;
@@ -790,9 +823,11 @@ M3Result  ValidateFunction  (IM3Function i_function)
     r = ReadLEB_u32(&numLocalBlocks, &v.wasm, v.wasmEnd);
     if (r) return r;
 
-    // First: params
+    // First: params. Running out of room has to be an error, not a truncation:
+    // a short localTypes would make later local.get indices read as unknown
     u16 numParams = funcType ? funcType->numArgs : 0;
-    for (u16 i = 0; i < numParams && v.numLocals < d_m3ValStack; i++) {
+    if (numParams > d_m3ValStack) return m3Err_functionStackOverflow;
+    for (u16 i = 0; i < numParams; i++) {
         v.localTypes[v.numLocals++] = funcType->types[funcType->numRets + i];
     }
 
@@ -807,7 +842,8 @@ M3Result  ValidateFunction  (IM3Function i_function)
         u8 normalized;
         r = NormalizeType(&normalized, waType);
         if (r) return r;
-        for (u32 c = 0; c < count && v.numLocals < d_m3ValStack; c++) {
+        if (count > (u32) (d_m3ValStack - v.numLocals)) return m3Err_functionStackOverflow;
+        for (u32 c = 0; c < count; c++) {
             v.localTypes[v.numLocals++] = normalized;
         }
     }

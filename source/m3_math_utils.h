@@ -264,30 +264,50 @@ u64 rotr64(u64 n, unsigned c) {
 
 #include <math.h>
 
+// Propagate a NaN operand the way the arithmetic ops do.
+// keep its sign and payload, but force the quiet bit, since the spec requires
+// min/max to produce an arithmetic NaN.
+
+static inline
+f32 quiet_nan_f32(f32 arg) {
+    union { f32 f; u32 i; } u;
+    u.f = arg;
+    u.i |= 0x00400000;
+    return u.f;
+}
+
+static inline
+f64 quiet_nan_f64(f64 arg) {
+    union { f64 f; u64 i; } u;
+    u.f = arg;
+    u.i |= 0x0008000000000000ULL;
+    return u.f;
+}
+
 static inline
 f32 min_f32(f32 a, f32 b) {
-    if (M3_UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (M3_UNLIKELY(isnan(a) or isnan(b))) return quiet_nan_f32(isnan(a) ? a : b);
     if (M3_UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
     return a > b ? b : a;
 }
 
 static inline
 f32 max_f32(f32 a, f32 b) {
-    if (M3_UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (M3_UNLIKELY(isnan(a) or isnan(b))) return quiet_nan_f32(isnan(a) ? a : b);
     if (M3_UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
     return a > b ? a : b;
 }
 
 static inline
 f64 min_f64(f64 a, f64 b) {
-    if (M3_UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (M3_UNLIKELY(isnan(a) or isnan(b))) return quiet_nan_f64(isnan(a) ? a : b);
     if (M3_UNLIKELY(a == 0 and a == b)) return signbit(a) ? a : b;
     return a > b ? b : a;
 }
 
 static inline
 f64 max_f64(f64 a, f64 b) {
-    if (M3_UNLIKELY(isnan(a) or isnan(b))) return NAN;
+    if (M3_UNLIKELY(isnan(a) or isnan(b))) return quiet_nan_f64(isnan(a) ? a : b);
     if (M3_UNLIKELY(a == 0 and a == b)) return signbit(a) ? b : a;
     return a > b ? a : b;
 }

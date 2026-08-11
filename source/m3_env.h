@@ -118,6 +118,7 @@ typedef struct M3Module
     M3MemoryInfo            memoryInfo;
     M3ImportInfo            memoryImport;
     bool                    memoryImported;
+    bool                    memoryDeclared;     // has a memory section entry
     const char*             memoryExportName;
 
     //bool                    hasWasmCodeCopy;

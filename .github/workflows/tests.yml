@@ -221,7 +221,7 @@ jobs:
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --repl"
+        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --spec-repl"
     - name: Test WASI apps (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
@@ -239,7 +239,7 @@ jobs:
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --repl"
+        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
@@ -330,7 +330,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
-        python3 run-spec-test.py --exec "./wasm3-lin.com --repl"
+        python3 run-spec-test.py --exec "./wasm3-lin.com --spec-repl"
     - name: Test WASI apps
       run: |
         cd test
@@ -343,7 +343,7 @@ jobs:
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
-        python3 run-spec-test.py --exec "wine ./wasm3-win.com --repl"
+        python3 run-spec-test.py --exec "wine ./wasm3-win.com --spec-repl"
     - name: Test WASI apps (in Wine)
       run: |
         cd test
@@ -400,7 +400,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
-        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
+        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --spec-repl"
     - name: Test WASI apps
       if: ${{ !matrix.config.skip_wasi }}
       run: |

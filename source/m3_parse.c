@@ -18,7 +18,9 @@ M3Result  ParseType_Table  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end
     u32 numTables;
 _   (ReadLEB_u32 (& numTables, & i_bytes, i_end));                       m3log (parse, "** Table [%d]", numTables);
 
-    _throwif (m3Err_wasmMalformed, numTables > 1); // MVP: at most one table
+    // MVP: at most one table, counting any that was already imported
+    _throwif (m3Err_wasmMalformed, numTables > 1);
+    _throwif (m3Err_wasmMalformed, numTables and io_module->hasTable);
 
     for (u32 i = 0; i < numTables; ++i)
     {
@@ -256,6 +258,7 @@ _               (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
 _               (ReadLEB_i7 (& waType, & i_bytes, i_end));
 _               (NormalizeType (& type, waType));
 _               (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                     m3log (parse, "     global: %s mutable=%d", c_waTypes [type], (u32) isMutable);
+                _throwif (m3Err_wasmMalformed, isMutable > 1);
 
                 IM3Global global;
 _               (Module_AddGlobal (io_module, & global, type, isMutable, true /* isImport */));
@@ -361,12 +364,16 @@ _       (ReadLEB_u32 (& index, & i_bytes, i_end));                              
         }
         else if (exportKind == d_externalKind_memory)
         {
+            _throwif(m3Err_wasmMalformed, index != 0);
+            _throwif(m3Err_wasmMalformed, not (io_module->memoryImported or io_module->memoryDeclared));
             m3_Free (io_module->memoryExportName);
             io_module->memoryExportName = utf8;
             utf8 = NULL; // ownership transferred to M3Module
         }
         else if (exportKind == d_externalKind_table)
         {
+            _throwif(m3Err_wasmMalformed, index != 0);
+            _throwif(m3Err_wasmMalformed, not io_module->hasTable);
             m3_Free (io_module->table0ExportName);
             io_module->table0ExportName = utf8;
             utf8 = NULL; // ownership transferred to M3Module
@@ -420,7 +427,7 @@ M3Result  Parse_InitExpr  (M3Module * io_module, bytes_t * io_bytes, cbytes_t i_
 #else
     M3Compilation compilation;
 #endif
-    compilation = (M3Compilation){ .runtime = NULL, .module = io_module, .wasm = * io_bytes, .wasmEnd = i_end };
+    compilation = (M3Compilation){ .runtime = NULL, .module = io_module, .wasm = * io_bytes, .wasmEnd = i_end, .isInitExpr = true };
 
     result = CompileBlockStatements (& compilation);
 
@@ -438,6 +445,9 @@ M3Result  ParseSection_Element  (IM3Module io_module, bytes_t i_bytes, cbytes_t 
 _   (ReadLEB_u32 (& numSegments, & i_bytes, i_end));                         m3log (parse, "** Element [%d]", numSegments);
 
     _throwif ("too many element segments", numSegments > d_m3MaxSaneElementSegments);
+
+    // Element segments need a table to populate
+    _throwif (m3Err_wasmMalformed, numSegments and not io_module->hasTable);
 
     io_module->elementSection = i_bytes;
     io_module->elementSectionEnd = i_end;
@@ -533,8 +543,9 @@ _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                        
 
 _       (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
 
-        // Spec: MVP only supports memory index 0
+        // Spec: MVP only supports memory index 0, and it has to exist
         _throwif (m3Err_wasmMalformed, segment->memoryRegion != 0);
+        _throwif (m3Err_wasmMalformed, not (io_module->memoryImported or io_module->memoryDeclared));
 
         segment->initExpr = i_bytes;
 _       (Parse_InitExpr (io_module, & i_bytes, i_end));
@@ -567,7 +578,11 @@ _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                            
 
     _throwif (m3Err_tooManyMemorySections, numMemories > 1);
 
-    ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end);
+    if (numMemories)
+    {
+_       (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
+        io_module->memoryDeclared = true;
+    }
 
     _catch: return result;
 }
@@ -590,6 +605,7 @@ _   (ReadLEB_u32 (& numGlobals, & i_bytes, i_end));                             
 _       (ReadLEB_i7 (& waType, & i_bytes, i_end));
 _       (NormalizeType (& type, waType));
 _       (ReadLEB_u7 (& isMutable, & i_bytes, i_end));                                 m3log (parse, "    global: [%d] %s mutable: %d", i, c_waTypes [type],   (u32) isMutable);
+        _throwif (m3Err_wasmMalformed, isMutable > 1);
 
         IM3Global global;
 _       (Module_AddGlobal (io_module, & global, type, isMutable, false /* isImport */));

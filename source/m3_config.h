@@ -28,6 +28,14 @@
 #   define d_m3MaxFunctionSlots                 ((d_m3MaxFunctionStackHeight)*2)
 # endif
 
+# ifndef d_m3ValStack                                   // validator operand and local type stacks:
+#   define d_m3ValStack                         (d_m3MaxFunctionStackHeight)    // the same operand stack the compiler bounds
+# endif
+
+# ifndef d_m3ValCtrlDepth                               // validator block nesting depth. Each frame is bigger than an
+#   define d_m3ValCtrlDepth                     ((d_m3MaxFunctionStackHeight)/8)// operand entry, so this dominates the validator's stack usage
+# endif
+
 # ifndef d_m3MaxConstantTableSize
 #   define d_m3MaxConstantTableSize             120
 # endif

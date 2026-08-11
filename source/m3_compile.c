@@ -1437,6 +1437,11 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         {
             M3Global * global = & o->module->globals [globalIndex];
 
+            // Spec: a constant expression may only read an imported global.
+            // The module's own globals are counted before their initializer is
+            // walked, so a bare index check would let one reference itself.
+            _throwif (m3Err_globaIndexOutOfBounds, o->isInitExpr and not global->imported);
+
 _           ((i_opcode == c_waOp_getGlobal) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
         else _throw (ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name));
@@ -2403,40 +2408,9 @@ M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 _try {
     u32 alignHint, memoryOffset;
 
-_   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
+_   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));  // checked by the validator
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
-    // Spec: alignment must not be larger than natural alignment of the operation
-    // Natural alignment: 8-bit=0, 16-bit=1, 32-bit=2, 64-bit=3
-    u32 maxAlign;
-    switch (i_opcode) {
-        case 0x2c: case 0x2d:   // i32.load8_s, i32.load8_u
-        case 0x30: case 0x31:   // i64.load8_s, i64.load8_u
-        case 0x3a:              // i32.store8
-        case 0x3c:              // i64.store8
-            maxAlign = 0; break;
-        case 0x2e: case 0x2f:   // i32.load16_s, i32.load16_u
-        case 0x32: case 0x33:   // i64.load16_s, i64.load16_u
-        case 0x3b:              // i32.store16
-        case 0x3d:              // i64.store16
-            maxAlign = 1; break;
-        case 0x28:              // i32.load
-        case 0x2a:              // f32.load
-        case 0x34: case 0x35:   // i64.load32_s, i64.load32_u
-        case 0x36:              // i32.store
-        case 0x38:              // f32.store
-        case 0x3e:              // i64.store32
-            maxAlign = 2; break;
-        case 0x29:              // i64.load
-        case 0x2b:              // f64.load
-        case 0x37:              // i64.store
-        case 0x39:              // f64.store
-            maxAlign = 3; break;
-        default:
-            maxAlign = 2; break; // safe fallback
-    }
-    _throwif (m3Err_wasmMalformed, alignHint > maxAlign);
-
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
 

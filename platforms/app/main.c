@@ -552,6 +552,7 @@ void print_usage() {
     puts("  --func <function>     function to run       default: _start");
     puts("  --stack-size <size>   stack size in bytes   default: 64KB");
     puts("  --compile             disable lazy compilation");
+    puts("  --spec-repl           repl for the spec tests");
     puts("  --dump-on-trap        dump wasm memory");
     puts("  --gas-limit           set gas limit");
 }
@@ -590,6 +591,10 @@ int  main  (int i_argc, const char* i_argv[])
             return 0;
         } else if (!strcmp("--repl", arg)) {
             argRepl = true;
+        } else if (!strcmp("--spec-repl", arg)) {
+            // repl for the spec tests
+            argRepl = true;
+            argCompile = true;
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
         } else if (!strcmp("--compile", arg)) {
@@ -628,7 +633,8 @@ int  main  (int i_argc, const char* i_argv[])
         if (result) FATAL("repl_load: %s", result);
 
         if (argCompile) {
-            repl_compile();
+            result = repl_compile();
+            if (result) FATAL("repl_compile: %s", result);
         }
 
         if (argFunc and not argRepl) {
@@ -672,8 +678,10 @@ int  main  (int i_argc, const char* i_argv[])
             return 0;
         } else if (!strcmp(":load", argv[0])) {             // :load <filename>
             result = repl_load(argv[1]);
+            if (argCompile and not result) result = repl_compile();
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
             result = repl_load_hex(atol(argv[1]));
+            if (argCompile and not result) result = repl_compile();
         } else if (!strcmp(":get-global", argv[0])) {
             result = repl_global_get(argv[1]);
         } else if (!strcmp(":set-global", argv[0])) {
