@@ -113,7 +113,7 @@ if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -Wfatal-errors -s ASSERTIONS=0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} --strip-all --gc-sections")
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mbulk-memory-opt -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
 
 elseif(WASIENV)
 
@@ -131,7 +131,7 @@ elseif(WASIENV)
   # needs the tail-call feature: without it Clang rejects every M3_MUSTTAIL, and
   # return_call would consume a stack frame per call instead of reusing one.
   # Requires a tail-call capable host (Wasm3 >= 0.6.0, Wasmtime >= 14, Node >= 22).
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mbulk-memory-opt -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608 -flto -Wl,--lto-O3")
 
