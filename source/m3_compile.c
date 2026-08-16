@@ -52,10 +52,23 @@ M3Result  EnsureCodePageNumLines  (IM3Compilation o, u32 i_numLines)
     return result;
 }
 
+// invalidate the pending local.set fold candidate; called wherever code is emitted or a
+// branch target captures the current pc (a fold appends an immediate, moving that position)
+static inline void  InvalidateFold  (IM3Compilation o)
+{
+# if d_m3FoldSetLocal
+    o->foldPatchPC = NULL;
+# else
+    (void) o;
+# endif
+}
+
 static M3_NOINLINE
 M3Result  EmitOp  (IM3Compilation o, IM3Operation i_operation)
 {
     M3Result result = m3Err_none;                                 d_m3Assert (i_operation or IsStackPolymorphic (o));
+
+    InvalidateFold (o);
 
     // it's OK for page to be null; when compile-walking the bytecode without emitting
     if (o->page)
@@ -147,6 +160,114 @@ static const IM3Operation c_setGlobalOps [] =    { NULL, op_SetGlobal_i32,      
                                                     FPOP(op_SetGlobal_f32),       FPOP(op_SetGlobal_f64) };
 static const IM3Operation c_setRegisterOps [] =  { NULL, op_SetRegister_i32,           op_SetRegister_i64,
                                                     FPOP(op_SetRegister_f32),     FPOP(op_SetRegister_f64) };
+
+#if d_m3FoldSetLocal
+
+// destination-folded variants of the hot int binops, indexed by the operand-form index
+// recorded at emission: [0]=_rs [1]=_sr [2]=_ss [3]=(fp _rr, never folded)
+#define d_foldOpList(TYPE, NAME)        { op_##TYPE##_##NAME##_rs_f, op_##TYPE##_##NAME##_sr_f, op_##TYPE##_##NAME##_ss_f, NULL }
+
+static const IM3Operation c_fold_i32_Add []        = d_foldOpList (i32, Add);
+static const IM3Operation c_fold_i32_Subtract []   = d_foldOpList (i32, Subtract);
+static const IM3Operation c_fold_i32_Multiply []   = d_foldOpList (i32, Multiply);
+static const IM3Operation c_fold_u32_And []        = d_foldOpList (u32, And);
+static const IM3Operation c_fold_u32_Or []         = d_foldOpList (u32, Or);
+static const IM3Operation c_fold_u32_Xor []        = d_foldOpList (u32, Xor);
+static const IM3Operation c_fold_u32_ShiftLeft []  = d_foldOpList (u32, ShiftLeft);
+static const IM3Operation c_fold_i32_ShiftRight [] = d_foldOpList (i32, ShiftRight);
+static const IM3Operation c_fold_u32_ShiftRight [] = d_foldOpList (u32, ShiftRight);
+
+// loads are unary: [0]= address in _r0, [1]= address in a slot
+#define d_foldLoadList(DEST, SRC)       { op_##DEST##_Load_##SRC##_r_f, op_##DEST##_Load_##SRC##_s_f, NULL, NULL }
+
+static const IM3Operation c_fold_i32_Load_i32 [] = d_foldLoadList (i32, i32);
+static const IM3Operation c_fold_i32_Load_i8 []  = d_foldLoadList (i32, i8);
+static const IM3Operation c_fold_i32_Load_u8 []  = d_foldLoadList (i32, u8);
+static const IM3Operation c_fold_i32_Load_i16 [] = d_foldLoadList (i32, i16);
+static const IM3Operation c_fold_i32_Load_u16 [] = d_foldLoadList (i32, u16);
+
+static IM3Operation  GetFoldOp  (m3opcode_t i_opcode, u8 i_form)
+{
+    if (i_form >= 4)
+        return NULL;
+
+    switch (i_opcode)
+    {
+        case 0x6a:  return c_fold_i32_Add        [i_form];      // i32.add
+        case 0x6b:  return c_fold_i32_Subtract   [i_form];      // i32.sub
+        case 0x6c:  return c_fold_i32_Multiply   [i_form];      // i32.mul
+        case 0x71:  return c_fold_u32_And        [i_form];      // i32.and
+        case 0x72:  return c_fold_u32_Or         [i_form];      // i32.or
+        case 0x73:  return c_fold_u32_Xor        [i_form];      // i32.xor
+        case 0x74:  return c_fold_u32_ShiftLeft  [i_form];      // i32.shl
+        case 0x75:  return c_fold_i32_ShiftRight [i_form];      // i32.shr_s
+        case 0x76:  return c_fold_u32_ShiftRight [i_form];      // i32.shr_u
+
+        case 0x28:  return c_fold_i32_Load_i32   [i_form];      // i32.load
+        case 0x2c:  return c_fold_i32_Load_i8    [i_form];      // i32.load8_s
+        case 0x2d:  return c_fold_i32_Load_u8    [i_form];      // i32.load8_u
+        case 0x2e:  return c_fold_i32_Load_i16   [i_form];      // i32.load16_s
+        case 0x2f:  return c_fold_i32_Load_u16   [i_form];      // i32.load16_u
+
+        default:    return NULL;
+    }
+}
+
+#endif // d_m3FoldSetLocal
+
+#if d_m3FuseBranch
+
+// fused compare+branch/if variants, indexed like the fold lists: [0]=_rs [1]=_sr [2]=_ss [3]=unused.
+// the [1] entries are NULL for commutative compares: the compiler never records the _sr form for them
+#define d_fuseCmpList(TYPE, NAME, KIND)             { op_##TYPE##_##KIND##_##NAME##_rs, op_##TYPE##_##KIND##_##NAME##_sr, op_##TYPE##_##KIND##_##NAME##_ss, NULL }
+#define d_fuseCommutativeCmpList(TYPE, NAME, KIND)  { op_##TYPE##_##KIND##_##NAME##_rs, NULL,                             op_##TYPE##_##KIND##_##NAME##_ss, NULL }
+
+typedef struct M3FusedCmpOps
+{
+    IM3Operation branchIf [4];
+    IM3Operation ifOp     [4];
+}
+M3FusedCmpOps;
+
+#define d_fuseCmp(TYPE, NAME)               { d_fuseCmpList (TYPE, NAME, BranchIf),            d_fuseCmpList (TYPE, NAME, If) }
+#define d_fuseCommutativeCmp(TYPE, NAME)    { d_fuseCommutativeCmpList (TYPE, NAME, BranchIf), d_fuseCommutativeCmpList (TYPE, NAME, If) }
+
+static const M3FusedCmpOps c_fuse_i32_Equal              = d_fuseCommutativeCmp (i32, Equal);
+static const M3FusedCmpOps c_fuse_i32_NotEqual           = d_fuseCommutativeCmp (i32, NotEqual);
+static const M3FusedCmpOps c_fuse_i32_LessThan           = d_fuseCmp (i32, LessThan);
+static const M3FusedCmpOps c_fuse_u32_LessThan           = d_fuseCmp (u32, LessThan);
+static const M3FusedCmpOps c_fuse_i32_GreaterThan        = d_fuseCmp (i32, GreaterThan);
+static const M3FusedCmpOps c_fuse_u32_GreaterThan        = d_fuseCmp (u32, GreaterThan);
+static const M3FusedCmpOps c_fuse_i32_LessThanOrEqual    = d_fuseCmp (i32, LessThanOrEqual);
+static const M3FusedCmpOps c_fuse_u32_LessThanOrEqual    = d_fuseCmp (u32, LessThanOrEqual);
+static const M3FusedCmpOps c_fuse_i32_GreaterThanOrEqual = d_fuseCmp (i32, GreaterThanOrEqual);
+static const M3FusedCmpOps c_fuse_u32_GreaterThanOrEqual = d_fuseCmp (u32, GreaterThanOrEqual);
+
+// i32.eqz is unary: [0]= operand in _r0, [1]= operand in a slot
+static const M3FusedCmpOps c_fuse_i32_Eqz =
+    { { op_i32_BranchIfEqz_r, op_i32_BranchIfEqz_s, NULL, NULL },
+      { op_i32_IfEqz_r,       op_i32_IfEqz_s,       NULL, NULL } };
+
+static const M3FusedCmpOps *  GetFusedCmpOps  (m3opcode_t i_opcode)
+{
+    switch (i_opcode)
+    {
+        case 0x45:  return & c_fuse_i32_Eqz;                    // i32.eqz
+        case 0x46:  return & c_fuse_i32_Equal;                  // i32.eq
+        case 0x47:  return & c_fuse_i32_NotEqual;               // i32.ne
+        case 0x48:  return & c_fuse_i32_LessThan;               // i32.lt_s
+        case 0x49:  return & c_fuse_u32_LessThan;               // i32.lt_u
+        case 0x4a:  return & c_fuse_i32_GreaterThan;            // i32.gt_s
+        case 0x4b:  return & c_fuse_u32_GreaterThan;            // i32.gt_u
+        case 0x4c:  return & c_fuse_i32_LessThanOrEqual;        // i32.le_s
+        case 0x4d:  return & c_fuse_u32_LessThanOrEqual;        // i32.le_u
+        case 0x4e:  return & c_fuse_i32_GreaterThanOrEqual;     // i32.ge_s
+        case 0x4f:  return & c_fuse_u32_GreaterThanOrEqual;     // i32.ge_u
+        default:    return NULL;
+    }
+}
+
+#endif // d_m3FuseBranch
 
 static const IM3Operation c_intSelectOps [2] [4] =      { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
                                                           { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
@@ -523,7 +644,7 @@ _       (AllocateSlots (o, & slot, type));
         // Ensure type is within the valid range
         if (type < sizeof(c_setSetOps) / sizeof(c_setSetOps[0])) {
 _           (EmitOp (o, c_setSetOps [type]));
-        } else 
+        } else
             _throw(m3Err_functionStackOverflow);
 
         EmitSlotOffset (o, slot);
@@ -852,6 +973,8 @@ M3Result  SetStackPolymorphic  (IM3Compilation o)
 static
 void  PatchBranches  (IM3Compilation o)
 {
+    InvalidateFold (o);         // patched branches land at the current pc
+
     pc_t pc = GetPC (o);
 
     pc_t patches = o->block.patches;
@@ -1360,13 +1483,47 @@ _   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));           				m3log (co
         u16 preserveSlot;
 _       (FindReferencedLocalWithinCurrentBlock (o, & preserveSlot, localSlot));  // preserve will be different than local, if referenced
 
-        if (preserveSlot == localSlot)
-_           (CopyStackTopToSlot (o, localSlot))
-        else
-_           (PreservedCopyTopSlot (o, localSlot, preserveSlot))
+        bool folded = false;
 
-        if (i_opcode != c_waOp_teeLocal)
-_           (Pop (o));
+# if d_m3FoldSetLocal
+        // destination folding: when the value was produced by the immediately preceding op (nothing
+        // emitted since, result on top in _r0, no copy-on-write preservation needed), retro-patch the
+        // producer to a variant that writes straight to the local's slot and skip the SetSlot op
+        if (o->foldPatchPC
+            and preserveSlot == localSlot
+            and IsStackTopInRegister (o)
+            and GetStackTopIndex (o) == (i16) o->foldStackIndex)
+        {
+            IM3Operation foldOp = GetFoldOp (o->foldOpcode, o->foldForm);
+
+            if (foldOp)
+            {
+                * (IM3Operation *) o->foldPatchPC = foldOp;     // retro-patch the producer
+                EmitSlotOffset (o, localSlot);                  // append its destination
+                InvalidateFold (o);
+                folded = true;
+            }
+        }
+# endif
+
+        if (folded)
+        {
+            u8 type = GetStackTopType (o);
+_           (Pop (o));                              // frees _r0: the value now lives in the local's slot
+
+            if (i_opcode == c_waOp_teeLocal)
+_               (Push (o, type, localSlot));        // same representation local.get would push
+        }
+        else
+        {
+            if (preserveSlot == localSlot)
+_               (CopyStackTopToSlot (o, localSlot))
+            else
+_               (PreservedCopyTopSlot (o, localSlot, preserveSlot))
+
+            if (i_opcode != c_waOp_teeLocal)
+_               (Pop (o));
+        }
     }
     else _throw ("local index out of bounds");
 
@@ -1487,6 +1644,26 @@ _   (EmitOp (o, op_Branch));
     _catch: return result;
 }
 
+#if d_m3FuseBranch
+// when the pending fold candidate is a compare whose result sits on top in _r0, return the fused
+// variant that absorbs an immediately following br_if (i_isIf false) or if (i_isIf true)
+static IM3Operation  GetBranchFusionOp  (IM3Compilation o, bool i_isIf)
+{
+    if (o->foldPatchPC
+        and o->foldForm < 4
+        and IsStackTopInRegister (o)
+        and GetStackTopIndex (o) == (i16) o->foldStackIndex)
+    {
+        const M3FusedCmpOps * ops = GetFusedCmpOps (o->foldOpcode);
+
+        if (ops)
+            return i_isIf ? ops->ifOp [o->foldForm] : ops->branchIf [o->foldForm];
+    }
+
+    return NULL;
+}
+#endif // d_m3FuseBranch
+
 static
 M3Result  Compile_Branch  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -1566,6 +1743,21 @@ _               (EmitOp (o, op_ContinueLoopIf));
             }
             else
             {
+# if d_m3FuseBranch
+                IM3Operation fuseOp = GetBranchFusionOp (o, false);
+
+                if (fuseOp)
+                {
+                    // absorb the branch into the compare that produced the condition
+                    * (IM3Operation *) o->foldPatchPC = fuseOp;
+                    InvalidateFold (o);
+
+_                   (Pop (o));                      // the condition is consumed inside the fused op
+
+                    EmitPatchingBranchPointer (o, scope);
+                    goto _catch;
+                }
+# endif
                 IM3Operation op = IsStackTopInRegister (o) ? op_BranchIf_r : op_BranchIf_s;
 
     _           (EmitOp (o, op));
@@ -2093,10 +2285,25 @@ _try {
 _   (PreserveNonTopRegisters (o));
 _   (PreserveArgsAndLocals (o));
 
-    IM3Operation op = IsStackTopInRegister (o) ? op_If_r : op_If_s;
+# if d_m3FuseBranch
+    IM3Operation fuseOp = GetBranchFusionOp (o, true);
 
-_   (EmitOp (o, op));
-_   (EmitSlotNumOfStackTopAndPop (o));
+    if (fuseOp)
+    {
+        // absorb the if into the compare that produced the condition
+        * (IM3Operation *) o->foldPatchPC = fuseOp;
+        InvalidateFold (o);
+
+_       (Pop (o));                          // the condition is consumed inside the fused op
+    }
+    else
+# endif
+    {
+        IM3Operation op = IsStackTopInRegister (o) ? op_If_r : op_If_s;
+
+_       (EmitOp (o, op));
+_       (EmitSlotNumOfStackTopAndPop (o));
+    }
 
     pc_t * pc = (pc_t *) ReservePointer (o);
 
@@ -2278,7 +2485,7 @@ M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
         }
     }
 
-    IM3Operation op;
+    IM3Operation op = NULL;
 
     // This preserve is for for FP compare operations.
     // either need additional slot destination operations or the
@@ -2332,13 +2539,39 @@ _           (PreserveRegisterIfOccupied (o, opInfo->type));     // _ss
     {
 _       (EmitOp (o, op));
 
+# if d_m3FoldSetLocal
+        // the op word just written (EmitOp may have bridged pages); NULL in the page-less compile-walk mode
+        pc_t patchPC = o->page ? GetPC (o) - 1 : NULL;
+# endif
+
 _       (EmitSlotNumOfStackTopAndPop (o));
 
         if (opInfo->stackOffset < 0)
 _           (EmitSlotNumOfStackTopAndPop (o));
 
         if (opInfo->type != c_m3Type_none)
+        {
 _           (PushRegister (o, opInfo->type));
+
+# if d_m3FoldSetLocal
+            // record this op as a fold candidate for an immediately following local.set;
+            // the operand-form index is recovered by matching against the variant table
+            if (patchPC)
+            {
+                for (u8 form = 0; form < 4; ++form)
+                {
+                    if (opInfo->operations [form] == op)
+                    {
+                        o->foldPatchPC    = patchPC;
+                        o->foldOpcode     = i_opcode;
+                        o->foldForm       = form;
+                        o->foldStackIndex = (u16) GetStackTopIndex (o);
+                        break;
+                    }
+                }
+            }
+# endif
+        }
     }
     else
     {
@@ -2472,6 +2705,7 @@ M3Result  CompileRawFunction  (IM3Module io_module,  IM3Function io_function, co
 #define d_binOpList(TYPE, NAME)             { op_##TYPE##_##NAME##_rs,  op_##TYPE##_##NAME##_sr,    op_##TYPE##_##NAME##_ss,    NULL }
 #define d_storeFpOpList(TYPE, NAME)         { op_##TYPE##_##NAME##_rs,  op_##TYPE##_##NAME##_sr,    op_##TYPE##_##NAME##_ss,    op_##TYPE##_##NAME##_rr }
 #define d_commutativeBinOpList(TYPE, NAME)  { op_##TYPE##_##NAME##_rs,  NULL,                       op_##TYPE##_##NAME##_ss,    NULL }
+
 #define d_convertOpList(OP)                 { op_##OP##_r_r,            op_##OP##_r_s,              op_##OP##_s_r,              op_##OP##_s_s }
 
 
@@ -2876,6 +3110,8 @@ M3Result  CompileBlock  (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i
 {
                                                                                         d_m3Assert (not IsRegisterAllocated (o, 0));
                                                                                         d_m3Assert (not IsRegisterAllocated (o, 1));
+    InvalidateFold (o);
+
     M3CompilationScope outerScope = o->block;
     M3CompilationScope * block = & o->block;
 

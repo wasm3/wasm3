@@ -117,6 +117,15 @@ typedef struct
     m3opcode_t          previousOpcode;
 
     bool                isInitExpr;                 // walking a constant expression, not a function body
+
+# if d_m3FoldSetLocal
+    // the last emitted op, when it is a candidate for local.set destination folding.
+    // foldPatchPC is NULL whenever anything was emitted (or a branch target captured) since.
+    pc_t                foldPatchPC;                // address of the candidate's op word in the code stream
+    m3opcode_t          foldOpcode;
+    u16                 foldStackIndex;             // stack index of the candidate's pushed result
+    u8                  foldForm;                   // operand-form index the candidate was emitted with
+# endif
 }
 M3Compilation;
 

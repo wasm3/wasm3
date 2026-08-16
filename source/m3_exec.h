@@ -225,6 +225,50 @@ d_m3CommutativeOp_i (u64, And,              &)
 d_m3CommutativeOp_i (u64, Or,               |)
 d_m3CommutativeOp_i (u64, Xor,              ^)
 
+#if d_m3FoldSetLocal
+
+// destination-folded ("_f") variants: same operand shapes as _rs/_sr/_ss, but the result is
+// written to a trailing destination slot instead of _r0 — a producer fused with its local.set.
+// operand immediates keep their normal order; the destination slot is the last immediate.
+#define d_m3FoldOpMacro(TYPE, NAME, OP, ...)            \
+d_m3Op(TYPE##_##NAME##_rs_f)                            \
+{                                                       \
+    TYPE operand = slot (TYPE);                         \
+    TYPE result;                                        \
+    OP((result), operand, ((TYPE) _r0), ##__VA_ARGS__); \
+    slot (TYPE) = result;                               \
+    nextOp ();                                          \
+}                                                       \
+d_m3Op(TYPE##_##NAME##_sr_f)                            \
+{                                                       \
+    TYPE operand = slot (TYPE);                         \
+    TYPE result;                                        \
+    OP((result), ((TYPE) _r0), operand, ##__VA_ARGS__); \
+    slot (TYPE) = result;                               \
+    nextOp ();                                          \
+}                                                       \
+d_m3Op(TYPE##_##NAME##_ss_f)                            \
+{                                                       \
+    TYPE operand2 = slot (TYPE);                        \
+    TYPE operand1 = slot (TYPE);                        \
+    TYPE result;                                        \
+    OP((result), operand1, operand2, ##__VA_ARGS__);    \
+    slot (TYPE) = result;                               \
+    nextOp ();                                          \
+}
+
+d_m3FoldOpMacro (i32, Add,          M3_FUNC, OP_ADD_32)
+d_m3FoldOpMacro (i32, Subtract,     M3_FUNC, OP_SUB_32)
+d_m3FoldOpMacro (i32, Multiply,     M3_FUNC, OP_MUL_32)
+d_m3FoldOpMacro (u32, And,          M3_OPER, &)
+d_m3FoldOpMacro (u32, Or,           M3_OPER, |)
+d_m3FoldOpMacro (u32, Xor,          M3_OPER, ^)
+d_m3FoldOpMacro (u32, ShiftLeft,    M3_FUNC, OP_SHL_32)
+d_m3FoldOpMacro (i32, ShiftRight,   M3_FUNC, OP_SHR_32)
+d_m3FoldOpMacro (u32, ShiftRight,   M3_FUNC, OP_SHR_32)
+
+#endif // d_m3FoldSetLocal
+
 #if d_m3HasFloat
 d_m3CommutativeOp_f (f32, Add,              +)      d_m3CommutativeOp_f (f64, Add,              +)
 d_m3CommutativeOp_f (f32, Multiply,         *)      d_m3CommutativeOp_f (f64, Multiply,         *)
@@ -1224,6 +1268,111 @@ d_m3Op  (BranchIf_s)
     else nextOp ();
 }
 
+#if d_m3FuseBranch
+
+// fused compare+branch and compare+if: a compare retro-patched by the compiler when a br_if or if
+// immediately consumes its result. operand shapes and immediate order match the plain compare
+// (_rs/_sr/_ss); the branch/else target pointer is the last immediate.
+#define d_m3FusedCmpBranch(TYPE, NAME, OPER)                \
+d_m3Op(TYPE##_BranchIf_##NAME##_rs)                         \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t branch  = immediate (pc_t);                        \
+    if (operand OPER ((TYPE) _r0))                          \
+        jumpOp (branch);                                    \
+    else nextOp ();                                         \
+}                                                           \
+d_m3Op(TYPE##_BranchIf_##NAME##_sr)                         \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t branch  = immediate (pc_t);                        \
+    if (((TYPE) _r0) OPER operand)                          \
+        jumpOp (branch);                                    \
+    else nextOp ();                                         \
+}                                                           \
+d_m3Op(TYPE##_BranchIf_##NAME##_ss)                         \
+{                                                           \
+    TYPE operand2 = slot (TYPE);                            \
+    TYPE operand1 = slot (TYPE);                            \
+    pc_t branch   = immediate (pc_t);                       \
+    if (operand1 OPER operand2)                             \
+        jumpOp (branch);                                    \
+    else nextOp ();                                         \
+}                                                           \
+d_m3Op(TYPE##_If_##NAME##_rs)                               \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t elsePC  = immediate (pc_t);                        \
+    if (operand OPER ((TYPE) _r0))                          \
+        nextOp ();                                          \
+    else jumpOp (elsePC);                                   \
+}                                                           \
+d_m3Op(TYPE##_If_##NAME##_sr)                               \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t elsePC  = immediate (pc_t);                        \
+    if (((TYPE) _r0) OPER operand)                          \
+        nextOp ();                                          \
+    else jumpOp (elsePC);                                   \
+}                                                           \
+d_m3Op(TYPE##_If_##NAME##_ss)                               \
+{                                                           \
+    TYPE operand2 = slot (TYPE);                            \
+    TYPE operand1 = slot (TYPE);                            \
+    pc_t elsePC   = immediate (pc_t);                       \
+    if (operand1 OPER operand2)                             \
+        nextOp ();                                          \
+    else jumpOp (elsePC);                                   \
+}
+
+d_m3FusedCmpBranch (i32, Equal,                 ==)
+d_m3FusedCmpBranch (i32, NotEqual,              !=)
+d_m3FusedCmpBranch (i32, LessThan,              < )
+d_m3FusedCmpBranch (i32, GreaterThan,           > )
+d_m3FusedCmpBranch (i32, LessThanOrEqual,       <=)
+d_m3FusedCmpBranch (i32, GreaterThanOrEqual,    >=)
+d_m3FusedCmpBranch (u32, LessThan,              < )
+d_m3FusedCmpBranch (u32, GreaterThan,           > )
+d_m3FusedCmpBranch (u32, LessThanOrEqual,       <=)
+d_m3FusedCmpBranch (u32, GreaterThanOrEqual,    >=)
+
+// i32.eqz is unary: form _r has the operand in _r0 (no operand immediate), _s reads a slot
+d_m3Op (i32_BranchIfEqz_r)
+{
+    pc_t branch = immediate (pc_t);
+    if (((i32) _r0) == 0)
+        jumpOp (branch);
+    else nextOp ();
+}
+
+d_m3Op (i32_BranchIfEqz_s)
+{
+    i32 operand = slot (i32);
+    pc_t branch = immediate (pc_t);
+    if (operand == 0)
+        jumpOp (branch);
+    else nextOp ();
+}
+
+d_m3Op (i32_IfEqz_r)
+{
+    pc_t elsePC = immediate (pc_t);
+    if (((i32) _r0) == 0)
+        nextOp ();
+    else jumpOp (elsePC);
+}
+
+d_m3Op (i32_IfEqz_s)
+{
+    i32 operand = slot (i32);
+    pc_t elsePC = immediate (pc_t);
+    if (operand == 0)
+        nextOp ();
+    else jumpOp (elsePC);
+}
+
+#endif // d_m3FuseBranch
+
 
 d_m3Op  (BranchIfPrologue_r)
 {
@@ -1427,6 +1576,60 @@ d_m3Load_i (i64, u16);
 d_m3Load_i (i64, i32);
 d_m3Load_i (i64, u32);
 d_m3Load_i (i64, i64);
+
+#if d_m3FoldSetLocal
+
+// destination-folded loads: the value goes to a trailing destination slot instead of _r0.
+// operand immediates keep d_m3Load's order; the destination slot is the last immediate
+#define d_m3LoadFold(DEST_TYPE, SRC_TYPE)               \
+d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r_f)               \
+{                                                       \
+    d_m3TracePrepare                                    \
+    u32 offset = immediate (u32);                       \
+    u64 operand = (u32) _r0;                            \
+    operand += offset;                                  \
+                                                        \
+    if (m3MemCheck(                                     \
+        operand + sizeof (SRC_TYPE) <= _mem->length     \
+    )) {                                                \
+        u8* src8 = m3MemData(_mem) + operand;           \
+        SRC_TYPE value;                                 \
+        memcpy(&value, src8, sizeof(value));            \
+        M3_BSWAP_##SRC_TYPE(value);                     \
+        DEST_TYPE result = (DEST_TYPE)value;            \
+        slot (DEST_TYPE) = result;                      \
+        d_m3TraceLoad(DEST_TYPE, operand, result);      \
+        nextOp ();                                      \
+    } else d_outOfBounds;                               \
+}                                                       \
+d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s_f)               \
+{                                                       \
+    d_m3TracePrepare                                    \
+    u64 operand = slot (u32);                           \
+    u32 offset = immediate (u32);                       \
+    operand += offset;                                  \
+                                                        \
+    if (m3MemCheck(                                     \
+        operand + sizeof (SRC_TYPE) <= _mem->length     \
+    )) {                                                \
+        u8* src8 = m3MemData(_mem) + operand;           \
+        SRC_TYPE value;                                 \
+        memcpy(&value, src8, sizeof(value));            \
+        M3_BSWAP_##SRC_TYPE(value);                     \
+        DEST_TYPE result = (DEST_TYPE)value;            \
+        slot (DEST_TYPE) = result;                      \
+        d_m3TraceLoad(DEST_TYPE, operand, result);      \
+        nextOp ();                                      \
+    } else d_outOfBounds;                               \
+}
+
+d_m3LoadFold (i32, i8)
+d_m3LoadFold (i32, u8)
+d_m3LoadFold (i32, i16)
+d_m3LoadFold (i32, u16)
+d_m3LoadFold (i32, i32)
+
+#endif // d_m3FoldSetLocal
 
 #define d_m3Store(REG, SRC_TYPE, DEST_TYPE)             \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \

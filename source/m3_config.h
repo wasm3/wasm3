@@ -150,6 +150,18 @@
 #   define d_m3HasFloat                         1       // implement floating point ops
 # endif
 
+# ifndef d_m3FoldSetLocal
+#   define d_m3FoldSetLocal                     1       // fuse a value-producing op with an immediately
+# endif                                                 // following local.set by retro-patching its destination
+
+# ifndef d_m3FuseBranch
+#   define d_m3FuseBranch                       1       // fuse a compare with an immediately following
+# endif                                                 // br_if/if into one op (needs d_m3FoldSetLocal)
+# if d_m3FuseBranch && !d_m3FoldSetLocal
+#   undef  d_m3FuseBranch
+#   define d_m3FuseBranch                       0       // the fusion candidate tracking lives in the fold machinery
+# endif
+
 #if !d_m3HasFloat && !defined(d_m3NoFloatDynamic)
 #   define d_m3NoFloatDynamic                   1       // if no floats, do not fail until flops are actually executed
 #endif
