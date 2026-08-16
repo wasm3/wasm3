@@ -11,6 +11,9 @@ python3 ./run-spec-test.py
 
 It will automatically download, extract, run the WebAssembly core test suite.
 
+This includes checking that invalid modules are rejected. See
+[Validation](./Validation.md) for how those checks work and how to skip them.
+
 ## Running WASI test
 
 Wasm3 comes with a set of benchmarks and test programs (prebuilt as `WASI` apps) including `CoreMark`, `C-Ray`, `Brotli`, `mandelbrot`, `smallpt` and `wasm3` itself.

@@ -81,7 +81,7 @@ typedef enum M3ValueType
     // whose function signatures or local-variable declarations
     // mention v128 (the SIMD value type, wasm-encoded as 0x7B).
     // Actual v128 OPCODES still error at compile-time with
-    // m3Err_unknownOpcode — we only avoid the parse-time
+    // m3Err_unknownOpcode - we only avoid the parse-time
     // m3Err_invalidTypeId rejection. LLVM's auto-vectorizer emits
     // unused v128 locals into many `+simd128` modules even when no
     // SIMD op executes; without this slot wasm3 rejects every such

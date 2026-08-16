@@ -13,6 +13,7 @@
 #include "m3_exec.h"
 #include "m3_exception.h"
 #include "m3_info.h"
+#include "m3_validate.h"
 
 //----- EMIT --------------------------------------------------------------------------------------------------------------
 
@@ -200,7 +201,7 @@ void  ReleaseCompilationCodePage  (IM3Compilation o)
 static inline
 u16 GetTypeNumSlots (u8 i_type)
 {
-    // v128 is 16 bytes — 4 slots in 32-bit-slot mode, 2 in 64-bit.
+    // v128 is 16 bytes - 4 slots in 32-bit-slot mode, 2 in 64-bit.
     // (Slot-allocator only; no v128 ops execute.)
     if (i_type == c_m3Type_v128)
 #       if d_m3Use32BitSlots
@@ -1290,18 +1291,25 @@ static
 M3Result  ValidateBlockEnd  (IM3Compilation o)
 {
     M3Result result = m3Err_none;
-/*
+
     u16 numResults = GetFuncTypeNumResults (o->block.type);
     u16 blockHeight = GetNumBlockValuesOnStack (o);
 
-    if (IsStackPolymorphic (o))
+    if (not IsStackPolymorphic (o))
     {
-    }
-    else
-    {
+        // Spec: at block end, stack height must match the number of results
+        _throwif (m3Err_typeCountMismatch, blockHeight != numResults);
+
+        // Spec: result types must match expected types
+        for (u16 i = 0; i < numResults; ++i)
+        {
+            u8 expectedType = GetFuncTypeResultType (o->block.type, numResults - 1 - i);
+            u8 actualType = GetStackTypeFromTop (o, i);
+            _throwif (m3Err_typeMismatch, actualType != expectedType);
+        }
     }
 
-    _catch: */ return result;
+    _catch: return result;
 }
 
 static
@@ -1339,6 +1347,14 @@ _   (ReadLEB_u32 (& localIndex, & o->wasm, o->wasmEnd));           				m3log (co
 
     if (localIndex < GetFunctionNumArgsAndLocals (o->function))
     {
+        // Spec: value type must match local type
+        if (not IsStackPolymorphic (o))
+        {
+            u8 localType = GetStackTypeFromBottom (o, localIndex);
+            u8 stackTopType = GetStackTopType (o);
+            _throwif (m3Err_typeMismatch, stackTopType != c_m3Type_none and localType != c_m3Type_none and stackTopType != localType);
+        }
+
         u16 localSlot = GetSlotForStackIndex (o, localIndex);
 
         u16 preserveSlot;
@@ -1396,6 +1412,13 @@ M3Result  Compile_SetGlobal  (IM3Compilation o, M3Global * i_global)
 
     if (i_global->isMutable)
     {
+        // Spec: value type must match global type
+        if (not IsStackPolymorphic (o))
+        {
+            u8 stackTopType = GetStackTopType (o);
+            _throwif (m3Err_typeMismatch, stackTopType != c_m3Type_none and stackTopType != i_global->type);
+        }
+
         IM3Operation op;
         u8 type = GetStackTopType (o);
 
@@ -1432,6 +1455,11 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
         {
             M3Global * global = & o->module->globals [globalIndex];
 
+            // Spec: a constant expression may only read an imported global.
+            // The module's own globals are counted before their initializer is
+            // walked, so a bare index check would let one reference itself.
+            _throwif (m3Err_globaIndexOutOfBounds, o->isInitExpr and not global->imported);
+
 _           ((i_opcode == c_waOp_getGlobal) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
         else _throw (ErrorCompile (m3Err_globalMemoryNotAllocated, o, "module '%s' is missing global memory", o->module->name));
@@ -1466,6 +1494,13 @@ M3Result  Compile_Branch  (IM3Compilation o, m3opcode_t i_opcode)
 
     u32 depth;
 _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
+
+    // Spec: br_if condition must be i32
+    if (i_opcode == c_waOp_branchIf and not IsStackPolymorphic (o))
+    {
+        u8 condType = GetStackTopType (o);
+        _throwif (m3Err_typeMismatch, condType != c_m3Type_none and condType != c_m3Type_i32);
+    }
 
     IM3CompilationScope scope;
 _   (GetBlockScope (o, & scope, depth));
@@ -1574,6 +1609,13 @@ _try {
     u32 targetCount;
 _   (ReadLEB_u32 (& targetCount, & o->wasm, o->wasmEnd));
 
+    // Spec: validate that the branch index operand is i32
+    if (not IsStackPolymorphic (o))
+    {
+        u8 indexType = GetStackTopType (o);
+        _throwif (m3Err_typeMismatch, indexType != c_m3Type_none and indexType != c_m3Type_i32);
+    }
+
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i64));         // move branch operand to a slot
     u16 slot = GetStackTopSlotNumber (o);
 _   (Pop (o));
@@ -1590,6 +1632,73 @@ _   (EmitOp (o, op_BranchTable));
     EmitConstant32 (o, targetCount);
 
     IM3CodePage continueOpPage = NULL;
+
+#if d_m3EnableValidation
+    // Spec: all br_table labels must have the same arity as the default label
+    // First pass: read all targets (including default which is the last one) and validate arities
+    u32 defaultArity = 0;
+    IM3FuncType defaultType = NULL;
+    bool defaultIsLoop = false;
+
+    // We need to read all targets, validate arity, then generate code
+    // Save wasm position to read targets again for code generation
+    bytes_t targetListStart = o->wasm;
+
+    // Pre-scan to get the default label type (last in the list)
+    {
+        bytes_t scanPos = o->wasm;
+        for (u32 i = 0; i <= targetCount; ++i)
+        {
+            u32 target;
+_           (ReadLEB_u32 (& target, & scanPos, o->wasmEnd));
+
+            IM3CompilationScope scope;
+_           (GetBlockScope (o, & scope, target));
+
+            if (i == targetCount) // default label (last)
+            {
+                defaultType = scope->type;
+                defaultIsLoop = (scope->opcode == c_waOp_loop);
+                defaultArity = defaultIsLoop
+                    ? GetFuncTypeNumParams (scope->type)
+                    : GetFuncTypeNumResults (scope->type);
+            }
+        }
+    }
+
+    // Spec: all labels must have the same label_types as the default
+    // label_types = params for loop, results for other blocks
+    {
+        bytes_t scanPos = o->wasm;
+        for (u32 i = 0; i <= targetCount; ++i)
+        {
+            u32 target;
+_           (ReadLEB_u32 (& target, & scanPos, o->wasmEnd));
+
+            IM3CompilationScope scope;
+_           (GetBlockScope (o, & scope, target));
+
+            bool isLoop = (scope->opcode == c_waOp_loop);
+            u16 arity = isLoop
+                ? GetFuncTypeNumParams (scope->type)
+                : GetFuncTypeNumResults (scope->type);
+
+            _throwif (m3Err_typeCountMismatch, arity != defaultArity);
+
+            // Compare actual types
+            for (u16 t = 0; t < arity; ++t)
+            {
+                u8 labelType = isLoop
+                    ? GetFuncTypeParamType (scope->type, t)
+                    : GetFuncTypeResultType (scope->type, t);
+                u8 defaultLabelType = defaultIsLoop
+                    ? GetFuncTypeParamType (defaultType, t)
+                    : GetFuncTypeResultType (defaultType, t);
+                _throwif (m3Err_typeMismatch, labelType != defaultLabelType);
+            }
+        }
+    }
+#endif  // d_m3EnableValidation
 
     ++targetCount; // include default
     for (u32 i = 0; i < targetCount; ++i)
@@ -1974,6 +2083,13 @@ M3Result  Compile_If  (IM3Compilation o, m3opcode_t i_opcode)
 
 _try {
 
+    // Spec: if condition must be i32
+    if (not IsStackPolymorphic (o))
+    {
+        u8 condType = GetStackTopType (o);
+        _throwif (m3Err_typeMismatch, condType != c_m3Type_none and condType != c_m3Type_i32);
+    }
+
 _   (PreserveNonTopRegisters (o));
 _   (PreserveArgsAndLocals (o));
 
@@ -2022,9 +2138,20 @@ M3Result  Compile_Select  (IM3Compilation o, m3opcode_t i_opcode)
 
     u16 slots [3] = { c_slotUnused, c_slotUnused, c_slotUnused };
 
+    IM3Operation op = NULL;
+
     u8 type = GetStackTypeFromTop (o, 1); // get type of selection
 
-    IM3Operation op = NULL;
+    if (not IsStackPolymorphic (o))
+    {
+        // Spec: the condition operand (top) must be i32
+        u8 condType = GetStackTypeFromTop (o, 0);
+        _throwif (m3Err_typeMismatch, condType != c_m3Type_none and condType != c_m3Type_i32);
+
+        // Spec: the two value operands (below condition) must have matching types
+        u8 type2 = GetStackTypeFromTop (o, 2);
+        _throwif (m3Err_typeMismatch, type != c_m3Type_none and type2 != c_m3Type_none and type != type2);
+    }
 
     if (IsFpType (type))
     {
@@ -2133,6 +2260,24 @@ M3Result  Compile_Operator  (IM3Compilation o, m3opcode_t i_opcode)
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
 
+    // Spec: validate operand types for load/store operations
+    if (not IsStackPolymorphic (o))
+    {
+        // For load ops (stackOffset == 0, unary), the operand is always i32 (address)
+        if (i_opcode >= 0x28 and i_opcode <= 0x35)
+        {
+            u8 topType = GetStackTopType (o);
+            _throwif (m3Err_typeMismatch, topType != c_m3Type_none and topType != c_m3Type_i32);
+        }
+
+        // For store ops (stackOffset == -2), the address operand must be i32
+        if (i_opcode >= 0x36 and i_opcode <= 0x3e)
+        {
+            u8 addrType = GetStackTypeFromTop (o, 1);
+            _throwif (m3Err_typeMismatch, addrType != c_m3Type_none and addrType != c_m3Type_i32);
+        }
+    }
+
     IM3Operation op;
 
     // This preserve is for for FP compare operations.
@@ -2215,6 +2360,43 @@ _try {
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
 
+    // Spec: validate source operand type for conversion instructions
+    if (not IsStackPolymorphic (o))
+    {
+        u8 sourceType = c_m3Type_none;
+        switch (i_opcode)
+        {
+            case 0xa7:              // i32.wrap/i64
+                sourceType = c_m3Type_i64; break;
+            case 0xa8: case 0xa9:   // i32.trunc_s/f32, i32.trunc_u/f32
+            case 0xae: case 0xaf:   // i64.trunc_s/f32, i64.trunc_u/f32
+            case 0xbb:              // f64.promote/f32
+            case 0xbc:              // i32.reinterpret/f32
+                sourceType = c_m3Type_f32; break;
+            case 0xaa: case 0xab:   // i32.trunc_s/f64, i32.trunc_u/f64
+            case 0xb0: case 0xb1:   // i64.trunc_s/f64, i64.trunc_u/f64
+            case 0xb6:              // f32.demote/f64
+            case 0xbd:              // i64.reinterpret/f64
+                sourceType = c_m3Type_f64; break;
+            case 0xac: case 0xad:   // i64.extend_s/i32, i64.extend_u/i32
+            case 0xb2: case 0xb3:   // f32.convert_s/i32, f32.convert_u/i32
+            case 0xb7: case 0xb8:   // f64.convert_s/i32, f64.convert_u/i32
+            case 0xbe:              // f32.reinterpret/i32
+                sourceType = c_m3Type_i32; break;
+            case 0xb4: case 0xb5:   // f32.convert_s/i64, f32.convert_u/i64
+            case 0xb9: case 0xba:   // f64.convert_s/i64, f64.convert_u/i64
+            case 0xbf:              // f64.reinterpret/i64
+                sourceType = c_m3Type_i64; break;
+            default: break;
+        }
+
+        if (sourceType != c_m3Type_none)
+        {
+            u8 topType = GetStackTopType (o);
+            _throwif (m3Err_typeMismatch, topType != c_m3Type_none and topType != sourceType);
+        }
+    }
+
     bool destInSlot = IsRegisterTypeAllocated (o, opInfo->type);
     bool sourceInSlot = IsStackTopInSlot (o);
 
@@ -2238,7 +2420,7 @@ M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 _try {
     u32 alignHint, memoryOffset;
 
-_   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));
+_   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));  // checked by the validator
 _   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
@@ -2878,6 +3060,11 @@ M3Result  ReserveConstants  (IM3Compilation o)
 M3Result  CompileFunction  (IM3Function io_function)
 {
     if (!io_function->wasm) return "function body is missing";
+
+#if d_m3EnableValidation
+    M3Result vr = ValidateFunction(io_function);
+    if (vr) return vr;
+#endif
 
     IM3FuncType funcType = io_function->funcType;                   m3log (compile, "compiling: [%d] %s %s; wasm-size: %d",
                                                                         io_function->index, m3_GetFunctionName (io_function), SPrintFuncTypeSignature (funcType), (u32) (io_function->wasmEnd - io_function->wasm));

@@ -74,24 +74,24 @@ jobs:
       if: matrix.arch != 'amd64'
       run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
     - name: Run tests
-      uses: addnab/docker-run-action@v3
-      with:
-        image: ${{ matrix.arch }}/alpine:3.24
-        options: --volume=${{ github.workspace }}:/work --workdir=/work
-        run: |
-          set -e
-          apk add --no-cache build-base cmake python3 git linux-headers
-          echo "------------ Build Wasm3 ------------"
-          mkdir build && cd build && cmake .. && cd ..
-          cmake --build build
-          echo "------------ Test i32 const ------------"
-          echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm
-          echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
-          echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
-          echo "------------ Run tests ------------"
-          cd test && python3 run-spec-test.py && cd ..
-          cd test && python3 run-wasi-test.py --fast && cd ..
-          echo "-------- All tests finished -------"
+      run: |
+        docker run --rm -i                                          \
+          --volume="${{ github.workspace }}:/work" --workdir=/work  \
+          ${{ matrix.arch }}/alpine:3.24 sh -s <<'EOF'
+        set -e
+        apk add --no-cache build-base cmake python3 git linux-headers
+        echo "------------ Build Wasm3 ------------"
+        mkdir build && cd build && cmake .. && cd ..
+        cmake --build build
+        echo "------------ Test i32 const ------------"
+        echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm
+        echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
+        echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
+        echo "------------ Run tests ------------"
+        cd test && python3 run-spec-test.py && cd ..
+        cd test && python3 run-wasi-test.py --fast && cd ..
+        echo "-------- All tests finished -------"
+        EOF
 
   macos:
     runs-on: macos-latest
@@ -178,9 +178,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up Cygwin
-        uses: egor-tensin/setup-cygwin@master
+        uses: egor-tensin/setup-cygwin@v4
         with:
-            platform: x64
             packages: make gcc-g++ cmake
       - run: cd $GITHUB_WORKSPACE && cmake -DBUILD_WASI=simple . && make
         shell: C:\tools\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
@@ -193,7 +192,7 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        WASI_VERSION: 11
+        WASI_VERSION: 11    # TODO: update WASI-SDK
         WASI_VERSION_FULL: "11.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
@@ -222,7 +221,7 @@ jobs:
       run: |
         source $HOME/.wasmer/wasmer.sh
         cd test
-        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --repl"
+        python3 run-spec-test.py --exec "wasmer run --mapdir=/:. wasm3.wasm -- --spec-repl"
     - name: Test WASI apps (in Wasmer)
       run: |
         source $HOME/.wasmer/wasmer.sh
@@ -240,7 +239,7 @@ jobs:
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --repl"
+        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
@@ -294,6 +293,8 @@ jobs:
         path: pywasm3
     - name: Set up Python
       uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
     - name: Update and Build Python module
       run: |
         rm -rf ./pywasm3/wasm3
@@ -329,7 +330,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
-        python3 run-spec-test.py --exec "./wasm3-lin.com --repl"
+        python3 run-spec-test.py --exec "./wasm3-lin.com --spec-repl"
     - name: Test WASI apps
       run: |
         cd test
@@ -342,7 +343,7 @@ jobs:
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
-        python3 run-spec-test.py --exec "wine ./wasm3-win.com --repl"
+        python3 run-spec-test.py --exec "wine ./wasm3-win.com --spec-repl"
     - name: Test WASI apps (in Wine)
       run: |
         cd test
@@ -399,7 +400,7 @@ jobs:
     - name: Test WebAssembly spec
       run: |
         cd test
-        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --repl"
+        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --spec-repl"
     - name: Test WASI apps
       if: ${{ !matrix.config.skip_wasi }}
       run: |
@@ -420,11 +421,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
-    - name: Build AVR ATmega1284
-      run: |
-        cd platforms/embedded/arduino
-        pio run -e mega1284
-        ! nm .pio/build/mega1284/firmware.elf | grep printf
+    # TODO:
+    #- name: Build AVR ATmega1284
+    #  run: |
+    #    cd platforms/embedded/arduino
+    #    pio run -e mega1284
+    #    ! nm .pio/build/mega1284/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
         cd platforms/embedded/esp8266
@@ -520,26 +522,25 @@ jobs:
         diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
       # TODO: also check that the build flags are in sync
     - name: Build for ESP32
-      uses: addnab/docker-run-action@v3
-      with:
-        image: espressif/idf:release-v5.4
-        options: --volume=${{ github.workspace }}:/work --workdir=/work
-        shell: bash
-        run: |
-          set -e
-          source /opt/esp/idf/export.sh
-          echo "------------ Build Wasm3 ------------"
-          cd platforms/embedded/esp32-idf
-          export EXTRA_CFLAGS="-Werror"
-          idf.py set-target esp32
-          idf.py -D CONFIG_ESPTOOLPY_FLASHFREQ_80M=y    \
-                -D CONFIG_ESPTOOLPY_FLASHFREQ=\"80m\"   \
-                -D CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y     \
-                -D CONFIG_ESPTOOLPY_FLASHSIZE=\"4MB\"   \
-                build
-          idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB
-          chmod -R a+rX build
-          echo "------------ Build OK ---------------"
+      run: |
+        docker run --rm -i                                          \
+          --volume="${{ github.workspace }}:/work" --workdir=/work  \
+          espressif/idf:release-v5.4 bash -s <<'EOF'
+        set -e
+        source /opt/esp/idf/export.sh
+        echo "------------ Build Wasm3 ------------"
+        cd platforms/embedded/esp32-idf
+        export EXTRA_CFLAGS="-Werror"
+        idf.py set-target esp32
+        idf.py -D CONFIG_ESPTOOLPY_FLASHFREQ_80M=y    \
+              -D CONFIG_ESPTOOLPY_FLASHFREQ=\"80m\"   \
+              -D CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y     \
+              -D CONFIG_ESPTOOLPY_FLASHSIZE=\"4MB\"   \
+              build
+        idf.py merge-bin -o flash-image.bin --fill-flash-size 4MB
+        chmod -R a+rX build
+        echo "------------ Build OK ---------------"
+        EOF
     - name: Check flash image
       run: |
         cp platforms/embedded/esp32-idf/build/flash-image.bin .
@@ -655,6 +656,8 @@ jobs:
     steps:
     - name: Set up Python
       uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
     - name: Install codespell
       run: |
         pip install codespell

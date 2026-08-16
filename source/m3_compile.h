@@ -115,6 +115,8 @@ typedef struct
     u16                 regStackIndexPlusOne        [2];
 
     m3opcode_t          previousOpcode;
+
+    bool                isInitExpr;                 // walking a constant expression, not a function body
 }
 M3Compilation;
 
