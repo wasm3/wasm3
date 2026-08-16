@@ -580,7 +580,7 @@ _   (ReadLEB_u32 (& numDataSegments, & i_bytes, i_end));                        
 _       (ReadLEB_u32 (& segment->memoryIndex, & i_bytes, i_end));					_throwif (m3Err_tooManyMemorySections, segment->memoryIndex != 0);
 
         // Spec: MVP only supports memory index 0, and it has to exist
-        _throwif (m3Err_wasmMalformed, segment->memoryRegion != 0);
+        _throwif (m3Err_wasmMalformed, segment->memoryIndex != 0);
         _throwif (m3Err_wasmMalformed, not (io_module->memoryImported or io_module->memoryDeclared));
 
         segment->initExpr = i_bytes;
