@@ -239,7 +239,7 @@ M3Result  GetStackTopIndexThrows  (IM3Compilation o, i16 * o_stackIndex)
 	if (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic (o))
 		return m3Err_none;
 	else
-		return m3Err_invalidStackState;
+		return m3Err_functionStackUnderrun;
 }
 
 
@@ -632,7 +632,7 @@ M3Result  Pop  (IM3Compilation o)
             u32 regSelect = IsFpRegisterSlotAlias (slot);
             DeallocateRegister (o, regSelect);
         }
-        else if (slot < 0 || slot >= o->slotMaxAllocatedIndexPlusOne) {
+        else if (slot < 0 or slot >= o->slotMaxAllocatedIndexPlusOne) {
             return m3Err_functionStackUnderrun; // Return error for invalid slot indices
         }
         else if (slot >= o->slotFirstDynamicIndex)

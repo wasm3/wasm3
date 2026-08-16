@@ -585,18 +585,17 @@ d_m3Op  (CallIndirect)
         {
             if (M3_LIKELY(type == function->funcType))
             {
-                if (M3_UNLIKELY(not function->compiled))
+                if (M3_UNLIKELY (not function->compiled))
                     r = CompileFunction (function);
 
                 if (M3_LIKELY(not r))
                 {
-
-# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
-# else
-                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
-# endif
-
+#					if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+						r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+#					else
+						r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+#					endif
+					
                     _mem = memory->mallocated;
 
                     if (M3_LIKELY(not r))
@@ -617,6 +616,48 @@ d_m3Op  (CallIndirect)
     if (M3_UNLIKELY(r))
         newTrap (r);
     else forwardTrap (r);
+}
+
+
+d_m3Op  (CallIndirectUnsafe)
+{
+	u32 tableIndex              = slot (u32);
+	IM3Module module            = immediate (IM3Module);
+	IM3FuncType type            = immediate (IM3FuncType);
+	i32 stackOffset             = immediate (i32);
+	IM3Memory memory            = m3MemInfo (_mem);
+
+	m3ret_t r = m3Err_none;
+
+	m3stack_t sp = _sp + stackOffset;
+	
+	IM3Function function = module->table0 [tableIndex];
+
+	if (M3_UNLIKELY (not function->compiled))
+		r = CompileFunction (function);
+
+	if (M3_LIKELY (not r))
+	{
+# 		if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+			r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+#		else
+			r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+#		endif
+		
+		_mem = memory->mallocated;
+
+		if (M3_LIKELY(not r))
+			nextOpDirect ();
+		else
+		{
+			pushBacktraceFrame ();
+			forwardTrap (r);
+		}
+	}
+
+	if (M3_UNLIKELY (r))
+		newTrap (r);
+	else forwardTrap (r);
 }
 
 
@@ -708,7 +749,7 @@ d_m3Op  (MemGrow)
     IM3Runtime runtime          = m3MemRuntime(_mem);
     IM3Memory memory            = & runtime->memory;
 
-    i32 numPagesToGrow = _r0;
+    i32 numPagesToGrow = (i32) _r0;
     if (numPagesToGrow >= 0) {
         _r0 = memory->numPages;
 
