@@ -77,6 +77,22 @@
 #   define d_m3EnableExceptionBreakpoint        0       // see m3_exception.h
 # endif
 
+// Backtraces and structured traces need op_Entry to still be around when the function
+// body returns, so it can't tail-call into it.  Everywhere else it can, which keeps the
+// native stack flat across calls -- and is what makes return_call actually iterative.
+# ifndef d_m3EntryKeepsFrame
+#   define d_m3EntryKeepsFrame                  (d_m3RecordBacktraces || (d_m3EnableStrace >= 2))
+# endif
+
+// Whether return_call/return_call_indirect can reuse the caller's frame.  Reusing it stops
+// the m3 stack from growing, so it's only safe where the native stack doesn't grow either
+// -- otherwise runaway tail recursion would blow the native stack with nothing to trap it.
+// Where that doesn't hold they compile to a plain call followed by a return: still
+// correct, just not iterative, and the m3 stack keeps overflowing (and trapping) first.
+# ifndef d_m3CanTailCall
+#   define d_m3CanTailCall                      (!d_m3EntryKeepsFrame && M3_GUARANTEED_TAIL_CALL)
+# endif
+
 
 // profiling and tracing ------------------------------------------------------
 

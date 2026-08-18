@@ -441,6 +441,40 @@ elif wasm3_ver in Blacklist(["* on sparc* GCC *"]):
       "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
     ])
 
+# Wasm3 keeps f32 and f64 in one shared f64 register, so an f32 routed through it is
+# promoted and demoted, which quiets a signaling NaN (the same gap as the blacklisted
+# float_exprs nonarithmetic_nan_bitpattern tests). Natively these cases happen to stay in
+# slots, but once Wasm3 is itself compiled to Wasm its f32 ops become guest f32 loads, and
+# the hosting Wasm3 does route those through the register. Self-hosting is affected.
+if wasm3_ver in Blacklist(["* self-hosting *"]):
+    warning("self-hosting: the hosting Wasm3 quiets f32 signaling NaNs, skipping some tests", True)
+    blacklist.add([
+      "conversions.wast:* i32.reinterpret_f32(2141192192)",
+      "conversions.wast:* i32.reinterpret_f32(4288675840)",
+      # the i32.load right after "f32.store" of an f32 sNaN; the other i32.loads in
+      # these modules read back a data segment or an i32.store, and are unaffected
+      "float_memory.wast:21 *",
+      "float_memory.wast:73 *",
+    ])
+
+# Without the "tail-call" build feature, return_call still runs correctly, it just doesn't
+# reuse the caller's frame, so the tests that recurse a million deep trap instead of
+# completing. Reusing it needs the compiler to guarantee a tail call, i.e. to support
+# musttail (Clang, and GCC from 15 on).
+if wasm3_ver not in Blacklist(["*tail-call*"]):
+    warning("build has no guaranteed tail calls, skipping unbounded tail recursion", True)
+    blacklist.add([
+      "return_call.wast:* count(1000000)",
+      "return_call.wast:* even(1000000)",
+      "return_call.wast:* even(1000001)",
+      "return_call.wast:* odd(1000000)",
+      "return_call.wast:* odd(999999)",
+      "return_call_indirect.wast:* even(100000)",
+      "return_call_indirect.wast:* even(111111)",
+      "return_call_indirect.wast:* odd(200002)",
+      "return_call_indirect.wast:* odd(300003)",
+    ])
+
 stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
 
 # Convert some trap names from the original spec
@@ -615,6 +649,7 @@ else:
     jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"))
     jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "sign-extension-ops", "*.json"))
     jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "nontrapping-float-to-int-conversions", "*.json"))
+    jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "tail-call", "*.json"))
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()

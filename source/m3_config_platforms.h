@@ -92,8 +92,17 @@
 
 # if M3_HAS_TAIL_CALL && M3_COMPILER_HAS_ATTRIBUTE(musttail)
 #   define M3_MUSTTAIL __attribute__((musttail))
+#   define M3_GUARANTEED_TAIL_CALL 1
 # else
 #   define M3_MUSTTAIL
+    // Without musttail a tail call happens only if the compiler feels like emitting one,
+    // and that is not something we can predict: GCC on x86-64 does it at -O3, but on
+    // ppc64 and alpha it does not (indirect sibling calls are restricted by those ABIs),
+    // and MSVC does not reliably anywhere. The interpreter merely runs slower when a
+    // dispatch isn't tail-called, but return_call would lose the frame it reuses -- so
+    // only claim a guarantee when the compiler actually gives one. GCC 15 has musttail.
+    // Builders who know their target sibling-calls can force it with -Dd_m3CanTailCall=1.
+#   define M3_GUARANTEED_TAIL_CALL 0
 # endif
 
 # ifndef M3_MIN

@@ -155,21 +155,38 @@ int clock_getres(int clk_id, struct timespec *spec) {
 
 #endif
 
+// the clock_gettime/clock_getres above take a plain int
+typedef int m3_clockid_t;
+#define d_m3ClockIdInvalid  ((m3_clockid_t) -1)
+
 static inline
-int convert_clockid(__wasi_clockid_t in) {
+m3_clockid_t convert_clockid(__wasi_clockid_t in) {
     return 0;
 }
 
 #else // _WIN32
 
+// wasi-libc (>= wasi-sdk 12) makes clockid_t an opaque pointer rather than an int,
+// so the "no such clock" sentinel has to be the null one
+typedef clockid_t m3_clockid_t;
+#if defined(__wasi__)
+#  define d_m3ClockIdInvalid  ((m3_clockid_t) NULL)
+#else
+#  define d_m3ClockIdInvalid  ((m3_clockid_t) -1)
+#endif
+
 static inline
-int convert_clockid(__wasi_clockid_t in) {
+m3_clockid_t convert_clockid(__wasi_clockid_t in) {
     switch (in) {
     case __WASI_CLOCKID_MONOTONIC:            return CLOCK_MONOTONIC;
-    case __WASI_CLOCKID_PROCESS_CPUTIME_ID:   return CLOCK_PROCESS_CPUTIME_ID;
     case __WASI_CLOCKID_REALTIME:             return CLOCK_REALTIME;
+#if defined(CLOCK_PROCESS_CPUTIME_ID)
+    case __WASI_CLOCKID_PROCESS_CPUTIME_ID:   return CLOCK_PROCESS_CPUTIME_ID;
+#endif
+#if defined(CLOCK_THREAD_CPUTIME_ID)
     case __WASI_CLOCKID_THREAD_CPUTIME_ID:    return CLOCK_THREAD_CPUTIME_ID;
-    default: return -1;
+#endif
+    default: return d_m3ClockIdInvalid;
     }
 }
 
@@ -716,8 +733,8 @@ m3ApiRawFunction(m3_wasi_generic_clock_res_get)
 
     m3ApiCheckMem(resolution, sizeof(__wasi_timestamp_t));
 
-    int clk = convert_clockid(wasi_clk_id);
-    if (clk < 0) m3ApiReturn(__WASI_ERRNO_INVAL);
+    m3_clockid_t clk = convert_clockid(wasi_clk_id);
+    if (clk == d_m3ClockIdInvalid) m3ApiReturn(__WASI_ERRNO_INVAL);
 
     struct timespec tp;
     if (clock_getres(clk, &tp) != 0) {
@@ -738,8 +755,8 @@ m3ApiRawFunction(m3_wasi_generic_clock_time_get)
 
     m3ApiCheckMem(time, sizeof(__wasi_timestamp_t));
 
-    int clk = convert_clockid(wasi_clk_id);
-    if (clk < 0) m3ApiReturn(__WASI_ERRNO_INVAL);
+    m3_clockid_t clk = convert_clockid(wasi_clk_id);
+    if (clk == d_m3ClockIdInvalid) m3ApiReturn(__WASI_ERRNO_INVAL);
 
     struct timespec tp;
     if (clock_gettime(clk, &tp) != 0) {

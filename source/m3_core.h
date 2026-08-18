@@ -155,7 +155,7 @@ typedef struct M3CodePageHeader
 M3CodePageHeader;
 
 
-#define d_m3CodePageFreeLinesThreshold      4+2       // max is: select _sss & CallIndirect + 2 for bridge
+#define d_m3CodePageFreeLinesThreshold      7+2       // max is: ReturnCallIndirect (op + 6 immediates) + 2 for bridge
 
 #define d_m3DefaultMemPageSize              65536
 
