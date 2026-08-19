@@ -19,6 +19,9 @@ u8  ConvertTypeCharToTypeId (char i_code)
     case 'f': return c_m3Type_f32;
     case 'F': return c_m3Type_f64;
     case '*': return c_m3Type_i32;
+    // same letters c_waCompactTypes uses for the reference types
+    case 'r': return c_m3Type_funcref;
+    case 'R': return c_m3Type_externref;
     }
     return c_m3Type_unknown;
 }
@@ -47,7 +50,7 @@ _try {
 
 _   (AllocFuncType (& funcType, (u32) maxNumTypes));
 
-    u8 * typelist = funcType->types;
+    m3type_t * typelist = funcType->types;
 
     bool parsingRets = true;
     while (* sig)

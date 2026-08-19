@@ -167,6 +167,32 @@
 #   define d_m3NoFloatDynamic                   1       // if no floats, do not fail until flops are actually executed
 #endif
 
+// funcref/externref values, the table instructions and multiple tables.
+// Without it a module may still declare one funcref table and use call_indirect.
+# ifndef d_m3HasRefTypes
+#   define d_m3HasRefTypes                      1       // implement the reference types proposal
+# endif
+
+// i32/i64 add, sub and mul inside constant expressions, so a global, data or
+// element offset can be computed from an imported global instead of a literal.
+# ifndef d_m3HasExtendedConst
+#   define d_m3HasExtendedConst                 1       // implement the extended constant expressions proposal
+# endif
+
+// The import section's compact encodings: one module name shared by a run of
+// imports, optionally with one externtype shared as well. Decoding only - a
+// module means exactly what it would spelled out the long way.
+# ifndef d_m3HasCompactImports
+#   define d_m3HasCompactImports                1       // implement the compact import section proposal
+# endif
+
+// (ref $t) and (ref null $t), call_ref and the rest of the typed function
+// references proposal. Off by default: it is not finished, and it widens the
+// value type from one byte to two wherever the compiler carries one.
+# ifndef d_m3HasTypedRefs
+#   define d_m3HasTypedRefs                     0
+# endif
+
 # ifndef d_m3EnableValidation
 #   define d_m3EnableValidation                 1       // pre-pass bytecode type validation
 # endif

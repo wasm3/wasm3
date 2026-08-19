@@ -32,7 +32,15 @@ void  m3_FreeModule  (IM3Module i_module)
         //m3_Free (i_module->imports);
         m3_Free (i_module->funcTypes);
         m3_Free (i_module->dataSegments);
-        m3_Free (i_module->table0);
+
+        for (u32 i = 0; i < i_module->numTables; ++i)
+            m3_Free (i_module->tables[i].elements);
+        m3_Free (i_module->tables);
+
+        for (u32 i = 0; i < i_module->numElementSegments; ++i)
+            m3_Free (i_module->elementSegments[i].resolved);
+        m3_Free (i_module->elementSegments);
+        m3_Free (i_module->declaredFuncs);
 
         for (u32 i = 0; i < i_module->numGlobals; ++i)
         {
@@ -50,7 +58,96 @@ void  m3_FreeModule  (IM3Module i_module)
 }
 
 
-M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported)
+// Supplies the value of an imported global. Unlike m3_SetGlobal this ignores
+// mutability: the import's mutability governs what the wasm code may do with it,
+// not whether the host may provide it in the first place.
+M3Result  m3_LinkGlobal  (IM3Module            io_module,
+                          const char * const   i_moduleName,
+                          const char * const   i_globalName,
+                          const IM3TaggedValue i_value)
+{
+    M3Result result = m3Err_globalLookupFailed;
+
+    for (u32 i = 0; i < io_module->numGlobals; ++i)
+    {
+        IM3Global g = & io_module->globals [i];
+
+        if (not (g->import.moduleUtf8 and g->import.fieldUtf8))
+            continue;
+
+        if (strcmp (g->import.moduleUtf8, i_moduleName) != 0 or
+            strcmp (g->import.fieldUtf8, i_globalName) != 0)
+            continue;
+
+        if (g->type != i_value->type)
+            return m3Err_globalTypeMismatch;
+
+        switch (i_value->type) {
+        case c_m3Type_i32: g->i32Value = i_value->value.i32; break;
+        case c_m3Type_i64: g->i64Value = i_value->value.i64; break;
+# if d_m3HasFloat
+        case c_m3Type_f32: g->f32Value = i_value->value.f32; break;
+        case c_m3Type_f64: g->f64Value = i_value->value.f64; break;
+# endif
+        default: return m3Err_invalidTypeId;
+        }
+
+        result = m3Err_none;
+    }
+
+    return result;
+}
+
+
+// The function count is final by the time anything can declare a reference:
+// imports and the function section both precede the global, export and element
+// sections, and those in turn precede the code section.
+M3Result  Module_DeclareFunction  (IM3Module io_module, u32 i_index)
+{
+    M3Result result = m3Err_none;
+
+    if (i_index >= io_module->numFunctions)
+        return "function index out of range";
+
+    if (not io_module->declaredFuncs)
+    {
+        io_module->declaredFuncs = m3_AllocArray (u8, (io_module->numFunctions + 7) / 8);
+        _throwifnull (io_module->declaredFuncs);
+    }
+
+    io_module->declaredFuncs [i_index / 8] |= (u8) (1u << (i_index % 8));
+
+    _catch: return result;
+}
+
+
+bool  Module_IsFunctionDeclared  (IM3Module i_module, u32 i_index)
+{
+    if (not i_module->declaredFuncs or i_index >= i_module->numFunctions)
+        return false;
+
+    return (i_module->declaredFuncs [i_index / 8] & (1u << (i_index % 8))) != 0;
+}
+
+
+M3Result  Module_AddTable  (IM3Module io_module, m3type_t i_type, u32 i_size, u32 i_maxSize)
+{
+_try {
+    u32 index = io_module->numTables++;
+    io_module->tables = m3_ReallocArray (M3Table, io_module->tables, io_module->numTables, index);
+    _throwifnull (io_module->tables);
+    M3Table * table = & io_module->tables [index];
+
+    table->type = i_type;
+    table->size = i_size;
+    table->maxSize = i_maxSize;
+
+} _catch:
+    return result;
+}
+
+
+M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, m3type_t i_type, bool i_mutable, bool i_isImported)
 {
 _try {
     u32 index = io_module->numGlobals++;
@@ -94,6 +191,7 @@ _   (Module_PreallocFunctions(io_module, io_module->numFunctions));
 
     IM3Function func = Module_GetFunction (io_module, index);
     func->funcType = ft;
+    func->module = io_module;       // an import has no body, but still belongs to this module
 
 #   ifdef DEBUG
     func->index = index;

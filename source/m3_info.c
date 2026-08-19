@@ -56,7 +56,7 @@ cstr_t  SPrintFunctionArgList  (IM3Function i_function, m3stack_t i_sp)
         {
             u8 type = d_FuncArgType(funcType, i);
 
-            ret = snprintf (s, e-s, "%s: ", c_waTypes [type]);
+            ret = snprintf (s, e-s, "%s: ", c_waTypes [BaseTypeOf(type)]);
             s += M3_MAX (0, ret);
 
             s += SPrintArg (s, e-s, argSp + i, type);
@@ -126,10 +126,10 @@ void  m3_PrintRuntimeInfo  (IM3Runtime i_runtime)
 }
 
 
-cstr_t  GetTypeName  (u8 i_m3Type)
+cstr_t  GetTypeName  (m3type_t i_m3Type)
 {
     if (i_m3Type < 5)
-        return c_waTypes [i_m3Type];
+        return c_waTypes [BaseTypeOf(i_m3Type)];
     else
         return "?";
 }
@@ -180,24 +180,22 @@ OpInfo find_operation_info  (IM3Operation i_operation)
 
     if (!i_operation) return opInfo;
 
+    // Scans the table directly rather than through GetOpInfo (), which rejects
+    // the reserved slots and the internal operations kept past the last opcode.
     // TODO: find also extended opcodes
-    for (u32 i = 0; i <= 0xff; ++i)
+    for (u32 i = 0; i < c_numOperations; ++i)
     {
-        IM3OpInfo oi = GetOpInfo (i);
+        IM3OpInfo oi = & c_operations [i];
 
-        if (oi->type != c_m3Type_unknown)
+        for (u32 o = 0; o < 4; ++o)
         {
-            for (u32 o = 0; o < 4; ++o)
+            if (oi->operations [o] == i_operation)
             {
-                if (oi->operations [o] == i_operation)
-                {
-                    opInfo.info = oi;
-                    opInfo.opcode = i;
-                    break;
-                }
+                opInfo.info = oi;
+                opInfo.opcode = i;
+                return opInfo;
             }
         }
-        else break;
     }
 
     return opInfo;
@@ -367,7 +365,7 @@ void  dump_type_stack  (IM3Compilation o)
             if (i == o->block.blockStackIndex)
                 printf (">");
 
-            const char * type = c_waCompactTypes [o->typeStack [i]];
+            const char * type = c_waCompactTypes [BaseTypeOf(o->typeStack [i])];
 
             const char * location = "";
 

@@ -22,9 +22,13 @@ IM3Environment  m3_NewEnvironment  ()
     {
         _try
         {
-            // create FuncTypes for all simple block return ValueTypes
-            for (u8 t = c_m3Type_none; t <= c_m3Type_f64; t++)
+            // create FuncTypes for all simple block return ValueTypes.
+            // v128 is skipped: it parses as a slot but has no operations.
+            for (u8 t = c_m3Type_none; t < c_m3Type_unknown; t++)
             {
+                if (t == c_m3Type_v128)
+                    continue;
+
                 IM3FuncType ftype;
 _               (AllocFuncType (& ftype, 1));
 
@@ -34,7 +38,6 @@ _               (AllocFuncType (& ftype, 1));
 
                 Environment_AddFuncType (env, & ftype);
 
-                d_m3Assert (t < 5);
                 env->retFuncTypes [t] = ftype;
             }
         }
@@ -84,7 +87,7 @@ void m3_SetCustomSectionHandler  (IM3Environment i_environment, M3SectionHandler
 
 
 // returns the same io_funcType or replaces it with an equivalent that's already in the type linked list
-void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_funcType)
+M3Result  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_funcType)
 {
     IM3FuncType addType = * io_funcType;
     IM3FuncType newType = i_environment->funcTypes;
@@ -102,12 +105,23 @@ void  Environment_AddFuncType  (IM3Environment i_environment, IM3FuncType * io_f
 
     if (newType == NULL)
     {
+        // a type index has to fit in the heap type field of an m3type_t
+        if (i_environment->numFuncTypes >= d_m3MaxSaneTypesCount)
+        {
+            m3_Free (addType);
+            * io_funcType = NULL;
+            return "too many distinct function types";
+        }
+
         newType = addType;
+        newType->canonicalIndex = i_environment->numFuncTypes++;
         newType->next = i_environment->funcTypes;
         i_environment->funcTypes = newType;
     }
 
     * io_funcType = newType;
+
+    return m3Err_none;
 }
 
 
@@ -186,7 +200,7 @@ IM3Runtime  m3_NewRuntime  (IM3Environment i_environment, u32 i_stackSizeInBytes
         if (runtime->originStack)
         {
             runtime->stack = runtime->originStack;
-            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p", runtime->originStack);
+            runtime->numStackSlots = i_stackSizeInBytes / sizeof (m3slot_t);         m3log (runtime, "new stack: %p, slots: %u", runtime->originStack, runtime->numStackSlots);
         }
         else m3_Free (runtime);
     }
@@ -250,7 +264,7 @@ void  m3_FreeRuntime  (IM3Runtime i_runtime)
     }
 }
 
-M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, m3type_t i_type, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
 
@@ -280,17 +294,15 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
     o->wasmEnd = i_end;
     o->lastOpcodeStart = o->wasm;
 
-    o->block.depth = -1;  // so that root compilation depth = 0
-
     //  OPTZ: this code page could be erased after use.  maybe have 'empty' list in addition to full and open?
     o->page = AcquireCodePage (& runtime);  // AcquireUnusedCodePage (...)
 
     if (o->page)
     {
-        IM3FuncType ftype = runtime.environment->retFuncTypes[i_type];
+        IM3FuncType ftype = runtime.environment->retFuncTypes[BaseTypeOf(i_type)];
 
         pc_t m3code = GetPagePC (o->page);
-        result = CompileBlock (o, ftype, c_waOp_block);
+        result = CompileExpression (o, ftype);
 
         if (not result && o->maxStackSlots >= runtime.numStackSlots) {
             result = m3Err_trapStackOverflow;
@@ -306,7 +318,7 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
             
             if (r == 0)
             {                                                                               m3log (runtime, "expression result: %s", SPrintValue (stack, i_type));
-                if (SizeOfType (i_type) == sizeof (u32))
+                if (SizeOfType (BaseTypeOf(i_type)) == sizeof (u32))
                 {
                     * (u32 *) o_expressed = * ((u32 *) stack);
                 }
@@ -339,9 +351,17 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
     if (not i_module->memoryImported)
     {
         u32 maxPages = i_module->memoryInfo.maxPages;
-        u32 pageSize = i_module->memoryInfo.pageSize;
-        io_runtime->memory.maxPages = maxPages ? maxPages : 65536;
-        io_runtime->memory.pageSize = pageSize ? pageSize : d_m3DefaultMemPageSize;
+        u32 pageSize = i_module->memoryInfo.pageSize ? i_module->memoryInfo.pageSize : d_m3DefaultMemPageSize;
+
+        io_runtime->memory.pageSize = pageSize;
+
+        // Without a declared maximum a memory may grow to the spec limit of
+        // 2^32/pagesize pages, which is the usual 65536 at the default page
+        // size and a whole u32 of them when a page is a single byte.
+        u64 pageLimit = 0x100000000ull / pageSize;
+
+        io_runtime->memory.maxPages = maxPages ? maxPages
+                                    : (u32) M3_MIN (pageLimit, 0xFFFFFFFFull);
 
         result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
     }
@@ -370,20 +390,26 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
     if (numPagesToAlloc <= memory->maxPages)
     {
-        size_t numPageBytes = numPagesToAlloc * io_runtime->memory.pageSize;
+        u64 numPageBytes = (u64) numPagesToAlloc * io_runtime->memory.pageSize;
 
 #if d_m3MaxLinearMemoryPages > 0
-        _throwif("linear memory limitation exceeded", numPagesToAlloc > d_m3MaxLinearMemoryPages);
+        // the limit is a memory size, counted in default-sized pages; comparing
+        // it against a raw page count would make it 65536 times stricter for a
+        // module whose pages are one byte
+        _throwif("linear memory limitation exceeded",
+                 numPageBytes > (u64) d_m3MaxLinearMemoryPages * d_m3DefaultMemPageSize);
 #endif
 
         // Limit the amount of memory that gets actually allocated
         if (io_runtime->memoryLimit) {
-            numPageBytes = M3_MIN (numPageBytes, io_runtime->memoryLimit);
+            numPageBytes = M3_MIN (numPageBytes, (u64) io_runtime->memoryLimit);
         }
 
-        size_t numBytes = numPageBytes + sizeof (M3MemoryHeader);
+        _throwif("linear memory limitation exceeded", numPageBytes > (u64) SIZE_MAX - sizeof (M3MemoryHeader));
 
-        size_t numPreviousBytes = memory->numPages * io_runtime->memory.pageSize;
+        size_t numBytes = (size_t) numPageBytes + sizeof (M3MemoryHeader);
+
+        size_t numPreviousBytes = (size_t) memory->numPages * io_runtime->memory.pageSize;
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
@@ -457,11 +483,16 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
-    _throwif ("unallocated linear memory", !(io_memory->mallocated));
-
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {
         M3DataSegment * segment = & io_module->dataSegments [i];
+
+        // A passive segment stays available for memory.init until data.drop.
+        // An active one is copied here and then counts as dropped.
+        if (segment->isPassive)
+            continue;
+
+        _throwif ("unallocated linear memory", !(io_memory->mallocated));
 
         i32 segmentOffset;
         bytes_t start = segment->initExpr;
@@ -476,55 +507,133 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
         } else {
             _throw ("data segment out of bounds");
         }
+
+        segment->dropped = true;
     }
 
     _catch: return result;
 }
 
 
-M3Result  InitElements  (IM3Module io_module)
+// Turns a segment's elements into references. Element expressions are constant
+// expressions restricted to ref.null/ref.func, so they're read directly rather
+// than run through the compiler.
+static
+M3Result  ResolveElements  (IM3Module io_module, M3ElementSegment * i_segment, void ** o_elements)
 {
     M3Result result = m3Err_none;
 
-    bytes_t bytes = io_module->elementSection;
+    bytes_t pos = i_segment->elements;
     cbytes_t end = io_module->elementSectionEnd;
+
+    for (u32 e = 0; e < i_segment->numElements; ++e)
+    {
+        u32 funcIndex;
+        void * ref = NULL;
+
+        if (i_segment->isExpr)
+        {
+            m3opcode_t opcode;
+_           (Read_opcode (& opcode, & pos, end));
+
+            if (opcode == c_waOp_refFunc)
+            {
+_               (ReadLEB_u32 (& funcIndex, & pos, end));
+                _throwif ("function index out of range", funcIndex >= io_module->numFunctions);
+                ref = & io_module->functions [funcIndex];
+            }
+            else if (opcode == c_waOp_refNull)
+            {
+                i8 waType;
+                u8 nullType;
+_               (ReadLEB_i7 (& waType, & pos, end));
+_               (NormalizeType (& nullType, waType));
+                _throwif (m3Err_typeMismatch, nullType != i_segment->type);
+            }
+            else _throw ("constant expression required");
+
+_           (Read_opcode (& opcode, & pos, end));
+            _throwif (m3Err_wasmMalformed, opcode != c_waOp_end);
+        }
+        else
+        {
+_           (ReadLEB_u32 (& funcIndex, & pos, end));
+            _throwif ("function index out of range", funcIndex >= io_module->numFunctions);
+            ref = & io_module->functions [funcIndex];
+        }
+
+        o_elements [e] = ref;
+    }
+
+    _catch: return result;
+}
+
+
+M3Result  InitTableAndElements  (IM3Module io_module)
+{
+    M3Result result = m3Err_none;
+
+    cbytes_t end = io_module->elementSectionEnd;
+    M3Table * table;
+
+    for (u32 i = 0; i < io_module->numTables; ++i)
+    {
+        table = & io_module->tables [i];
+
+        if (table->size)
+        {
+            table->elements = m3_AllocArray (void *, table->size);
+            _throwifnull (table->elements);
+
+            if (table->initExpr)
+            {
+                u64 value = 0;
+                bytes_t start = table->initExpr;
+_               (EvaluateExpression (io_module, & value, BaseTypeOf(table->type),
+                                     & start, table->initExpr + table->initExprSize));
+
+                for (u32 e = 0; e < table->size; ++e)
+                    table->elements [e] = (void *) (uintptr_t) value;
+            }
+        }
+    }
 
     for (u32 i = 0; i < io_module->numElementSegments; ++i)
     {
-        u32 index;
-_       (ReadLEB_u32 (& index, & bytes, end));
+        M3ElementSegment * segment = & io_module->elementSegments [i];
 
-        if (index == 0)
+        // Declarative segments only make their functions referenceable, and
+        // passive ones wait for table.init, so neither is written out here.
+        if (segment->mode == c_m3Elem_declarative)
         {
-            i32 offset;
-_           (EvaluateExpression (io_module, & offset, c_m3Type_i32, & bytes, end));
-            _throwif ("table underflow", offset < 0);
-
-            u32 numElements;
-_           (ReadLEB_u32 (& numElements, & bytes, end));
-
-            size_t endElement = (size_t) numElements + offset;
-            _throwif ("table overflow", endElement > d_m3MaxSaneTableSize);
-
-            // is there any requirement that elements must be in increasing sequence?
-            // make sure the table isn't shrunk.
-            if (endElement > io_module->table0Size)
-            {
-                io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, endElement, io_module->table0Size);
-                io_module->table0Size = (u32) endElement;
-            }
-            _throwifnull(io_module->table0);
-
-            for (u32 e = 0; e < numElements; ++e)
-            {
-                u32 functionIndex;
-_               (ReadLEB_u32 (& functionIndex, & bytes, end));
-                _throwif ("function index out of range", functionIndex >= io_module->numFunctions);
-                IM3Function function = & io_module->functions [functionIndex];      d_m3Assert (function); //printf ("table: %s\n", m3_GetFunctionName(function));
-                io_module->table0 [e + offset] = function;
-            }
+            segment->dropped = true;
+            continue;
         }
-        else _throw ("element table index must be zero for MVP");
+
+        if (segment->mode == c_m3Elem_passive)
+        {
+            if (segment->numElements)
+            {
+                segment->resolved = m3_AllocArray (void *, segment->numElements);
+                _throwifnull (segment->resolved);
+_               (ResolveElements (io_module, segment, segment->resolved));
+            }
+            continue;
+        }
+
+        table = & io_module->tables [segment->tableIndex];
+
+        i32 offset;
+        bytes_t expr = segment->initExpr;
+_       (EvaluateExpression (io_module, & offset, c_m3Type_i32, & expr, end));
+        _throwif ("table underflow", offset < 0);
+
+        _throwif ("out of bounds table access",
+                  (size_t) segment->numElements + offset > table->size);
+
+_       (ResolveElements (io_module, segment, table->elements + offset));
+
+        segment->dropped = true;
     }
 
     _catch: return result;
@@ -607,7 +716,7 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
 _   (InitMemory (io_runtime, io_module));
 _   (InitGlobals (io_module));
 _   (InitDataSegments (memory, io_module));
-_   (InitElements (io_module));
+_   (InitTableAndElements (io_module));
 
     // Start func might use imported functions, which are not liked here yet,
     // so it will be called before a function call is attempted (in m3_FindFunction)
@@ -765,12 +874,15 @@ _           (CompileFunction (function))
 M3Result  m3_GetTableFunction  (IM3Function * o_function, IM3Module i_module, uint32_t i_index)
 {
 _try {
-    if (i_index >= i_module->table0Size)
-    {
-        _throw ("function index out of range");
-    }
+    M3Table * table;
+    IM3Function function;
 
-    IM3Function function = i_module->table0[i_index];
+    _throwif ("no table", i_module->numTables == 0);
+
+    table = & i_module->tables [0];
+    _throwif ("function index out of range", i_index >= table->size);
+
+    function = (IM3Function) table->elements [i_index];
 
     if (function)
     {
@@ -828,7 +940,7 @@ M3ValueType  m3_GetArgType  (IM3Function i_function, uint32_t index)
     if (i_function) {
         IM3FuncType ft = i_function->funcType;
         if (ft and index < ft->numArgs) {
-            return (M3ValueType)d_FuncArgType(ft, index);
+            return (M3ValueType) BaseTypeOf(d_FuncArgType(ft, index));
         }
     }
     return c_m3Type_none;
@@ -839,7 +951,7 @@ M3ValueType  m3_GetRetType  (IM3Function i_function, uint32_t index)
     if (i_function) {
         IM3FuncType ft = i_function->funcType;
         if (ft and index < ft->numRets) {
-            return (M3ValueType) d_FuncRetType (ft, index);
+            return (M3ValueType) BaseTypeOf(d_FuncRetType (ft, index));
         }
     }
     return c_m3Type_none;
@@ -902,6 +1014,8 @@ _   (checkStartFunction(i_function->module))
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = va_arg(i_args, i32);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = va_arg(i_args, i64);  s += 8; break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref: *(uintptr_t*)(s) = va_arg(i_args, uintptr_t); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = va_arg(i_args, f64);  s += 8; break; // f32 is passed as f64
         case c_m3Type_f64:  *(f64*)(s) = va_arg(i_args, f64);  s += 8; break;
@@ -951,6 +1065,8 @@ _   (checkStartFunction(i_function->module))
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = *(i32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = *(i64*)i_argptrs[i];  s += 8; break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref: *(uintptr_t*)(s) = *(uintptr_t*)i_argptrs[i]; s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = *(f32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_f64:  *(f64*)(s) = *(f64*)i_argptrs[i];  s += 8; break;
@@ -1001,6 +1117,8 @@ _   (checkStartFunction(i_function->module))
         switch (d_FuncArgType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); s += 8; break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref: *(uintptr_t*)(s) = (uintptr_t)strtoull(i_argv[i], NULL, 10); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
@@ -1049,6 +1167,8 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
         switch (d_FuncRetType(ftype, i)) {
         case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 8; break;
         case c_m3Type_i64:  *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref: *(uintptr_t*)o_retptrs[i] = *(uintptr_t*)(s); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
         case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
@@ -1083,6 +1203,8 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
         switch (d_FuncRetType(ftype, i)) {
         case c_m3Type_i32:  *va_arg(o_rets, i32*) = *(i32*)(s);  s += 8; break;
         case c_m3Type_i64:  *va_arg(o_rets, i64*) = *(i64*)(s);  s += 8; break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref: *va_arg(o_rets, uintptr_t*) = *(uintptr_t*)(s); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *va_arg(o_rets, f32*) = *(f32*)(s);  s += 8; break;
         case c_m3Type_f64:  *va_arg(o_rets, f64*) = *(f64*)(s);  s += 8; break;

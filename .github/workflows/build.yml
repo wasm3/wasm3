@@ -1,12 +1,16 @@
-name: tests
+name: build
 
 on:
   push:
     branches:
     - "**"
+    tags:
+    - "v*.*.*"
+    # Note: path filters are not evaluated for tag pushes, so a release always builds
     paths-ignore: ['**.md', '**.svg', '**.png']
   pull_request:
     paths-ignore: ['**.md', '**.svg', '**.png']
+  workflow_dispatch:
 
 jobs:
   linux:
@@ -19,7 +23,7 @@ jobs:
       matrix:
         config:
         - {target: clang,       cc: clang,      }
-        - {target: clang-x86,   cc: clang,      flags: -DCMAKE_C_FLAGS="-m32",    install: "gcc-multilib"   }
+        - {target: clang-x86,   cc: clang,      cflags: -m32,                     install: "gcc-multilib"   }
         - {target: gcc,         cc: gcc,        }
         # Builds without uvwasi
         - {target: gcc-no-uvwasi,   cc: gcc,    flags: -DBUILD_WASI=simple   }
@@ -27,6 +31,9 @@ jobs:
         # Debug builds
         - {target: gcc-debug,               cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug                         }
         - {target: clang-no-uvwasi-debug,   cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple     }
+        # Release builds (static, linked against musl)
+        - {target: musl,        cc: musl-gcc, musl: true, install: musl-tools, ldflags: "-static -s", artifact: wasm3-linux-x64 }
+        - {target: musl-strace, cc: musl-gcc, musl: true, install: musl-tools, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
         # TODO: fails on numeric operations
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
@@ -38,10 +45,17 @@ jobs:
       run: |
         sudo apt update
         sudo apt install ${{ matrix.config.install }}
+    - name: Add musl-gcc include paths
+      if: ${{ matrix.config.musl }}
+      run: |
+        sudo cp -a /usr/include/linux /usr/include/x86_64-linux-musl/
+        sudo cp -a /usr/include/asm-generic /usr/include/x86_64-linux-musl/
+        sudo cp -a /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/
     - name: Configure
       env:
         CC: ${{ matrix.config.cc }}
-        CFLAGS: ${{ matrix.config.cflags }}
+        CFLAGS: -Dd_m3HasTypedRefs=1 ${{ matrix.config.cflags }}
+        LDFLAGS: ${{ matrix.config.ldflags }}
       run: |
         mkdir build
         cd build
@@ -49,13 +63,28 @@ jobs:
     - name: Build
       run: |
         cmake --build build
+    - name: Prepare artifact
+      if: ${{ matrix.config.artifact }}
+      run: cp ./build/wasm3 ./${{ matrix.config.artifact }}.elf
+    - name: Upload artifact
+      if: ${{ matrix.config.artifact }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.config.artifact }}
+        path: ./${{ matrix.config.artifact }}.elf
+        if-no-files-found: error
     - name: Test WebAssembly spec
+      if: ${{ !matrix.config.notest }}
       run: cd test && python3 run-spec-test.py
-    - name: Test previous WebAssembly specs
+    - name: Test previous WebAssembly spec versions
+      if: ${{ !matrix.config.notest }}
       run: |
         cd test
         python3 run-spec-test.py --spec=v1.1
+        python3 run-spec-test.py --spec=opam-1.1.1
+        python3 run-spec-test.py --spec=wg-2.0
     - name: Test WASI apps
+      if: ${{ !matrix.config.notest }}
       run: cd test && python3 run-wasi-test.py
 
   alpine-multiarch:
@@ -98,6 +127,9 @@ jobs:
     name: macos-${{ matrix.config.target }}
     timeout-minutes: 10
 
+    env:
+      CFLAGS: -Dd_m3HasTypedRefs=1
+
     strategy:
       fail-fast: false
       matrix:
@@ -117,10 +149,12 @@ jobs:
         cmake --build build
     - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
-    - name: Test previous WebAssembly specs
+    - name: Test previous WebAssembly spec versions
       run: |
         cd test
         python3 run-spec-test.py --spec=v1.1
+        python3 run-spec-test.py --spec=opam-1.1.1
+        python3 run-spec-test.py --spec=wg-2.0
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
@@ -133,15 +167,17 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: clang-x64,   platform: "-A x64",     toolset: "-T ClangCL"   }
+        - {target: clang-x64,   platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x64   }
         - {target: msvc-x64,    platform: "-A x64",     toolset: ""             }
-        - {target: clang-x86,   platform: "-A Win32",   toolset: "-T ClangCL"   }
+        - {target: clang-x86,   platform: "-A Win32",   toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x86   }
         - {target: msvc-x86,    platform: "-A Win32",   toolset: ""             }
         # Builds without uvwasi
         - {target: clang-x64-no-uvwasi,   platform: "-A x64",     toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
         - {target: msvc-x64-no-uvwasi,    platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple"   }
         - {target: clang-x86-no-uvwasi,   platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
         - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple"   }
+        # Release build with strace
+        - {target: clang-x64-strace,      platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-strace-win-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     defaults:
       run:
@@ -150,6 +186,9 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Configure
+      env:
+        CFLAGS: -Dd_m3HasTypedRefs=1 ${{ matrix.config.cflags }}
+        LDFLAGS: ${{ matrix.config.ldflags }}
       run: |
         mkdir build
         cd build
@@ -158,15 +197,30 @@ jobs:
       run: |
         cmake --build build --config Release
         cp ./build/Release/wasm3.exe ./build/
+    - name: Prepare artifact
+      if: ${{ matrix.config.artifact }}
+      run: cp ./build/Release/wasm3.exe ./${{ matrix.config.artifact }}.exe
+    - name: Upload artifact
+      if: ${{ matrix.config.artifact }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.config.artifact }}
+        path: ./${{ matrix.config.artifact }}.exe
+        if-no-files-found: error
     - name: Test WebAssembly spec
+      if: ${{ !matrix.config.notest }}
       run: |
         cd test
         python run-spec-test.py
-    - name: Test previous WebAssembly specs
+    - name: Test previous WebAssembly spec versions
+      if: ${{ !matrix.config.notest }}
       run: |
         cd test
         python run-spec-test.py --spec=v1.1
+        python run-spec-test.py --spec=opam-1.1.1
+        python run-spec-test.py --spec=wg-2.0
     - name: Test WASI apps
+      if: ${{ !matrix.config.notest }}
       run: |
         cd test
         python run-wasi-test.py
@@ -186,7 +240,10 @@ jobs:
 
   wasi:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+
+    env:
+      CFLAGS: -Dd_m3HasTypedRefs=1
 
     steps:
     - uses: actions/checkout@v7
@@ -221,7 +278,13 @@ jobs:
       run: |
         cmake --build build-wasi
         cp ./build-wasi/wasm3.wasm ./test/
-
+        cp ./build-wasi/wasm3.wasm ./wasm3-wasi.wasm
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-wasi
+        path: ./wasm3-wasi.wasm
+        if-no-files-found: error
     # max-wasm-stack is raised so that Wasm3's own stack limit is what a runaway guest
     # hits first -- the same reason the self-hosting steps below pass --stack-size
     - name: Test WebAssembly spec (in Wasmtime)
@@ -254,6 +317,22 @@ jobs:
         cd test
         python3 run-wasi-test.py --fast --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm"
 
+    - name: Configure, Build wasm3-strace
+      env:
+        CFLAGS: -Dd_m3HasTypedRefs=1 -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
+      run: |
+        mkdir build-strace
+        cd build-strace
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
+        cmake --build .
+        cp ./wasm3.wasm ../wasm3-strace.wasm
+    - name: Upload artifact (strace)
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-strace-wasi
+        path: ./wasm3-strace.wasm
+        if-no-files-found: error
+
   ios:
     runs-on: macos-latest
     timeout-minutes: 10
@@ -285,6 +364,15 @@ jobs:
       run: |
         cd platforms/android
         ./gradlew build
+    - name: Copy
+      run: |
+        cp ./platforms/android/app/build/outputs/apk/debug/app-debug.apk ./wasm3-android-coremark.apk
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-android-coremark
+        path: ./wasm3-android-coremark.apk
+        if-no-files-found: error
 
   python:
     runs-on: ubuntu-latest
@@ -330,6 +418,16 @@ jobs:
         cd platforms/cosmopolitan
         gcc -v
         ./build.sh
+        cp ./wasm3.com ../../wasm3-cosmopolitan.com
+        cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-cosmopolitan
+        path: |
+          ./wasm3-cosmopolitan.com
+          ./wasm3-cosmopolitan.com.dbg
+        if-no-files-found: error
     - name: Prepare tests
       run: |
         cd test
@@ -361,7 +459,7 @@ jobs:
   cross-qemu:
     runs-on: ubuntu-latest
     name: cross-qemu-${{ matrix.config.target }}
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -673,3 +771,67 @@ jobs:
     - name: Spellcheck
       run: |
         codespell
+
+  #
+  # Cross-compiled release builds. Kept separate: build-cross.py drives its own
+  # toolchain matrix, and these binaries are not exercised here (see cross-qemu).
+  #
+
+  dist-linux-cross:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Build for all targets
+      run: |
+        python3 build-cross.py --notest --nowasi
+        cd build-cross
+        tar -czvf ../wasm3-linux-other.tar.gz wasm3-linux-*
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm3-linux-other
+        path: wasm3-linux-other.tar.gz
+        if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    needs:
+      - linux
+      - macos
+      - windows
+      - wasi
+      - cosmopolitan
+      - android
+      - dist-linux-cross
+
+    permissions:
+      contents: write
+
+    env:
+      draft: true
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          find dist -type f -maxdepth 2 -print
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: ${{ env.draft }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

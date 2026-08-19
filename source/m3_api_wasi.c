@@ -239,7 +239,7 @@ m3ApiRawFunction(m3_wasi_generic_args_get)
 
         size_t len = strlen (context->argv[i]);
 
-        m3ApiCheckMem(argv_buf, len);
+        m3ApiCheckMem(argv_buf, len + 1);       // include the terminating `\0`
         memcpy (argv_buf, context->argv[i], len);
         argv_buf += len;
         * argv_buf++ = 0;
@@ -780,6 +780,13 @@ m3ApiRawFunction(m3_wasi_generic_proc_exit)
     m3ApiTrap(m3Err_trapExit);
 }
 
+m3ApiRawFunction(m3_wasi_generic_sched_yield)
+{
+    m3ApiReturnType  (uint32_t)
+
+    m3ApiReturn(__WASI_ERRNO_SUCCESS);
+}
+
 
 static
 M3Result SuppressLookupFailure(M3Result i_result)
@@ -874,7 +881,7 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_open",  
 _       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "proc_exit",          "v(i)",    &m3_wasi_generic_proc_exit, wasi_context)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "proc_raise",           "i(i)",    )));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "random_get",           "i(*i)",   &m3_wasi_generic_random_get)));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sched_yield",          "i()",     )));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sched_yield",          "i()",     &m3_wasi_generic_sched_yield)));
 
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_recv",            "i(i*ii**)",        )));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_send",            "i(i*ii*)",         )));

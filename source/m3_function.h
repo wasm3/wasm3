@@ -20,7 +20,14 @@ typedef struct M3FuncType
 
     u16                     numRets;
     u16                     numArgs;
-    u8                      types [];        // returns, then args
+
+    // Position in the environment's list of distinct function types. Equal
+    // types share one M3FuncType, so this doubles as the canonical heap type
+    // index a (ref $t) carries, and comparing two of them is exactly the
+    // structural equivalence the spec asks for.
+    u16                     canonicalIndex;
+
+    m3type_t                types [];        // returns, then args
 }
 M3FuncType;
 
@@ -31,10 +38,15 @@ M3Result    AllocFuncType                   (IM3FuncType * o_functionType, u32 i
 bool        AreFuncTypesEqual               (const IM3FuncType i_typeA, const IM3FuncType i_typeB);
 
 u16         GetFuncTypeNumParams            (const IM3FuncType i_funcType);
-u8          GetFuncTypeParamType            (const IM3FuncType i_funcType, u16 i_index);
+m3type_t    GetFuncTypeParamType            (const IM3FuncType i_funcType, u16 i_index);
 
 u16         GetFuncTypeNumResults           (const IM3FuncType i_funcType);
-u8          GetFuncTypeResultType           (const IM3FuncType i_funcType, u16 i_index);
+m3type_t    GetFuncTypeResultType           (const IM3FuncType i_funcType, u16 i_index);
+
+#if d_m3HasTypedRefs
+// The type a (ref $t) / (ref null $t) naming this function type is spelled as
+m3type_t    RefTypeOfFuncType               (const IM3FuncType i_funcType, bool i_nonNull);
+#endif
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
@@ -86,7 +98,7 @@ void        Function_FreeCompiledCode   (IM3Function i_function);
 cstr_t      GetFunctionImportModuleName (IM3Function i_function);
 cstr_t *    GetFunctionNames            (IM3Function i_function, u16 * o_numNames);
 u16         GetFunctionNumArgs          (IM3Function i_function);
-u8          GetFunctionArgType          (IM3Function i_function, u32 i_index);
+m3type_t    GetFunctionArgType          (IM3Function i_function, u32 i_index);
 
 u16         GetFunctionNumReturns       (IM3Function i_function);
 u8          GetFunctionReturnType       (const IM3Function i_function, u16 i_index);

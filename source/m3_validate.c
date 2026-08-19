@@ -132,7 +132,7 @@ static M3Result v_pop_ctrl (ValCtx * v, ValCtrlFrame * o_frame)
     if (f->type) {
         for (u16 i = f->result_count; i > 0; i--) {
             u8 a;
-            M3Result r = v_pop_expect(v, f->type->types[i - 1], &a);
+            M3Result r = v_pop_expect(v, BaseTypeOf(f->type->types[i - 1]), &a);
             if (r) return r;
         }
     }
@@ -160,8 +160,21 @@ static u8 v_label_t (ValCtrlFrame * f, u16 i)
 {
     if (!f->type) return c_m3Type_none;
     if (f->opcode == 0x03)
-        return f->type->types[f->type->numRets + i]; // params
-    return f->type->types[i]; // results
+        return BaseTypeOf(f->type->types[f->type->numRets + i]); // params
+    return BaseTypeOf(f->type->types[i]); // results
+}
+
+// The operand i_depth below the top, without popping. Anything at or below the
+// current frame's height is implicitly bottom in an unreachable frame; reporting
+// unknown there defers a genuine underrun to the pop that follows.
+static u8 v_peek (ValCtx * v, u16 i_depth)
+{
+    ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
+
+    if (v->opdTop <= i_depth || (u16)(v->opdTop - i_depth - 1) < f->height)
+        return c_valUnknown;
+
+    return v->opd[v->opdTop - i_depth - 1];
 }
 
 // Pop label types for branch target
@@ -194,6 +207,16 @@ static M3Result v_read_blocktype (ValCtx * v, IM3FuncType * o_type)
     if (v->wasm >= v->wasmEnd)
         return m3Err_wasmUnderrun;
 
+#if d_m3HasTypedRefs
+    if (*v->wasm == d_waEncode_ref or *v->wasm == d_waEncode_refNull) {
+        m3type_t refType;
+        M3Result rr = ParseValueType(v->module, &refType, &v->wasm, v->wasmEnd);
+        if (rr) return rr;
+        *o_type = v->module->environment->retFuncTypes[BaseTypeOf(refType)];
+        return m3Err_none;
+    }
+#endif
+
     i64 type;
     M3Result r = ReadLebSigned(&type, 33, &v->wasm, v->wasmEnd);
     if (r) return r;
@@ -205,7 +228,8 @@ static M3Result v_read_blocktype (ValCtx * v, IM3FuncType * o_type)
         IM3Environment env = v->module->environment;
         *o_type = env->retFuncTypes[valtype];
     } else {
-        if ((u32)type >= v->module->numFuncTypes) return m3Err_wasmMalformed;
+        if ((u32)type >= v->module->numFuncTypes)
+            return m3Err_unknownType;
         *o_type = v->module->funcTypes[(u32)type];
     }
     return m3Err_none;
@@ -304,7 +328,7 @@ static M3Result v_validate_body (ValCtx * v)
             // Pop block params from caller stack
             if (bt) {
                 for (u16 i = bt->numArgs; i > 0; i--) {
-                    r = v_pop_expect(v, bt->types[bt->numRets + i - 1], &a);
+                    r = v_pop_expect(v, BaseTypeOf(bt->types[bt->numRets + i - 1]), &a);
                     if (r) return r;
                 }
             }
@@ -313,7 +337,7 @@ static M3Result v_validate_body (ValCtx * v)
             // Push params inside block
             if (bt) {
                 for (u16 i = 0; i < bt->numArgs; i++) {
-                    r = v_push(v, bt->types[bt->numRets + i]);
+                    r = v_push(v, BaseTypeOf(bt->types[bt->numRets + i]));
                     if (r) return r;
                 }
             }
@@ -331,7 +355,7 @@ static M3Result v_validate_body (ValCtx * v)
             if (r) return r;
             if (frame.type) {
                 for (u16 i = 0; i < frame.type->numArgs; i++) {
-                    r = v_push(v, frame.type->types[frame.type->numRets + i]);
+                    r = v_push(v, BaseTypeOf(frame.type->types[frame.type->numRets + i]));
                     if (r) return r;
                 }
             }
@@ -346,7 +370,7 @@ static M3Result v_validate_body (ValCtx * v)
             // Push results
             if (frame.type) {
                 for (u16 i = 0; i < frame.result_count; i++) {
-                    r = v_push(v, frame.type->types[i]);
+                    r = v_push(v, BaseTypeOf(frame.type->types[i]));
                     if (r) return r;
                 }
             }
@@ -361,7 +385,7 @@ static M3Result v_validate_body (ValCtx * v)
             u32 depth;
             r = ReadLEB_u32(&depth, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (depth >= v->ctrlTop) return m3Err_wasmMalformed;
+            if (depth >= v->ctrlTop) return m3Err_unknownLabel;
             ValCtrlFrame * tgt = &v->ctrl[v->ctrlTop - 1 - depth];
             r = v_pop_labels(v, tgt);
             if (r) return r;
@@ -374,7 +398,7 @@ static M3Result v_validate_body (ValCtx * v)
             u32 depth;
             r = ReadLEB_u32(&depth, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (depth >= v->ctrlTop) return m3Err_wasmMalformed;
+            if (depth >= v->ctrlTop) return m3Err_unknownLabel;
             r = v_pop_expect(v, c_m3Type_i32, &a);
             if (r) return r;
             ValCtrlFrame * tgt = &v->ctrl[v->ctrlTop - 1 - depth];
@@ -399,13 +423,17 @@ static M3Result v_validate_body (ValCtx * v)
                 u32 d;
                 r = ReadLEB_u32(&d, &v->wasm, v->wasmEnd);
                 if (r) return r;
-                if (d >= v->ctrlTop) return m3Err_wasmMalformed;
+                if (d >= v->ctrlTop) return m3Err_unknownLabel;
                 if (i == count) defDepth = d;
             }
             // Now validate all labels match the default's types
             ValCtrlFrame * defTgt = &v->ctrl[v->ctrlTop - 1 - defDepth];
             arity = v_label_n(defTgt);
             v->wasm = savedPos;
+
+            r = v_pop_expect(v, c_m3Type_i32, &a);      // the index, before the labels are inspected
+            if (r) return r;
+
             for (u32 i = 0; i <= count; i++) {
                 u32 d;
                 r = ReadLEB_u32(&d, &v->wasm, v->wasmEnd);
@@ -413,14 +441,16 @@ static M3Result v_validate_body (ValCtx * v)
                 ValCtrlFrame * t = &v->ctrl[v->ctrlTop - 1 - d];
                 u16 n = v_label_n(t);
                 if (n != arity) return m3Err_typeCountMismatch;
-                // Spec: label types must be identical, not just same arity
+                // Spec: each target's types must be compatible with the operand
+                // stack, not identical to the default's. In unreachable code the
+                // operands are bottom, so the targets may legitimately differ.
                 for (u16 j = 0; j < n; j++) {
-                    if (v_label_t(t, j) != v_label_t(defTgt, j))
+                    u8 want = v_label_t(t, n - 1 - j);
+                    u8 have = v_peek(v, j);
+                    if (want != c_valUnknown && have != c_valUnknown && want != have)
                         return m3Err_typeMismatch;
                 }
             }
-            r = v_pop_expect(v, c_m3Type_i32, &a);
-            if (r) return r;
             ValCtrlFrame * dt = &v->ctrl[v->ctrlTop - 1 - defDepth];
             r = v_pop_labels(v, dt);
             if (r) return r;
@@ -433,7 +463,7 @@ static M3Result v_validate_body (ValCtx * v)
             IM3FuncType ft = v->function->funcType;
             if (ft) {
                 for (u16 i = ft->numRets; i > 0; i--) {
-                    r = v_pop_expect(v, ft->types[i - 1], &a);
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[i - 1]), &a);
                     if (r) return r;
                 }
             }
@@ -447,15 +477,15 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->module->numFunctions) return m3Err_wasmMalformed;
+            if (idx >= v->module->numFunctions) return m3Err_unknownFunction;
             IM3FuncType ft = v->module->functions[idx].funcType;
             if (ft) {
                 for (u16 i = ft->numArgs; i > 0; i--) {
-                    r = v_pop_expect(v, ft->types[ft->numRets + i - 1], &a);
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
                     if (r) return r;
                 }
                 for (u16 i = 0; i < ft->numRets; i++) {
-                    r = v_push(v, ft->types[i]);
+                    r = v_push(v, BaseTypeOf(ft->types[i]));
                     if (r) return r;
                 }
             }
@@ -470,20 +500,20 @@ static M3Result v_validate_body (ValCtx * v)
             u32 tableIdx;
             r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (typeIdx >= v->module->numFuncTypes) return m3Err_wasmMalformed;
-            // Spec: table must exist (MVP requires table index 0 and table must be defined)
-            if (tableIdx != 0) return m3Err_wasmMalformed;
-            if (!v->module->hasTable) return m3Err_wasmMalformed;
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            // the table must exist and hold funcrefs
+            if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
+            if (v->module->tables[tableIdx].type != c_m3Type_funcref) return m3Err_typeMismatch;
             IM3FuncType ft = v->module->funcTypes[typeIdx];
             r = v_pop_expect(v, c_m3Type_i32, &a); // table index operand
             if (r) return r;
             if (ft) {
                 for (u16 i = ft->numArgs; i > 0; i--) {
-                    r = v_pop_expect(v, ft->types[ft->numRets + i - 1], &a);
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
                     if (r) return r;
                 }
                 for (u16 i = 0; i < ft->numRets; i++) {
-                    r = v_push(v, ft->types[i]);
+                    r = v_push(v, BaseTypeOf(ft->types[i]));
                     if (r) return r;
                 }
             }
@@ -495,13 +525,13 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->module->numFunctions) return m3Err_wasmMalformed;
+            if (idx >= v->module->numFunctions) return m3Err_unknownFunction;
             IM3FuncType ft = v->module->functions[idx].funcType;
             r = v_check_tail_results(v, ft);
             if (r) return r;
             if (ft) {
                 for (u16 i = ft->numArgs; i > 0; i--) {
-                    r = v_pop_expect(v, ft->types[ft->numRets + i - 1], &a);
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
                     if (r) return r;
                 }
             }
@@ -517,9 +547,10 @@ static M3Result v_validate_body (ValCtx * v)
             u32 tableIdx;
             r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (typeIdx >= v->module->numFuncTypes) return m3Err_wasmMalformed;
-            if (tableIdx != 0) return m3Err_wasmMalformed;
-            if (!v->module->hasTable) return m3Err_wasmMalformed;
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            // the table must exist and hold funcrefs
+            if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
+            if (v->module->tables[tableIdx].type != c_m3Type_funcref) return m3Err_typeMismatch;
             IM3FuncType ft = v->module->funcTypes[typeIdx];
             r = v_check_tail_results(v, ft);
             if (r) return r;
@@ -527,13 +558,56 @@ static M3Result v_validate_body (ValCtx * v)
             if (r) return r;
             if (ft) {
                 for (u16 i = ft->numArgs; i > 0; i--) {
-                    r = v_pop_expect(v, ft->types[ft->numRets + i - 1], &a);
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
                     if (r) return r;
                 }
             }
             v_unreachable(v);
             break;
         }
+
+#if d_m3HasTypedRefs
+        case 0x14: // call_ref
+        case 0x15: // return_call_ref
+        {
+            u32 typeIdx;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            IM3FuncType ft = v->module->funcTypes[typeIdx];
+            bool isTail = (opcode == 0x15);
+            if (isTail) {
+                r = v_check_tail_results(v, ft);
+                if (r) return r;
+            }
+            // the callee itself, as a reference to a function of this type
+            r = v_pop_expect(v, c_m3Type_funcref, &a);
+            if (r) return r;
+            if (ft) {
+                for (u16 i = ft->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
+                    if (r) return r;
+                }
+                if (not isTail) {
+                    for (u16 i = 0; i < ft->numRets; i++) {
+                        r = v_push(v, BaseTypeOf(ft->types[i]));
+                        if (r) return r;
+                    }
+                }
+            }
+            if (isTail) v_unreachable(v);
+            break;
+        }
+
+        case 0xd4: // ref.as_non_null
+        {
+            r = v_pop_expect(v, c_m3Type_funcref, &a);
+            if (r) return r;
+            r = v_push(v, a == c_m3Type_unknown ? c_m3Type_funcref : a);
+            if (r) return r;
+            break;
+        }
+#endif // d_m3HasTypedRefs
 
         // ---- Parametric ----
         case 0x1a: // drop
@@ -551,10 +625,91 @@ static M3Result v_validate_body (ValCtx * v)
             u8 t1;
             r = v_pop_expect(v, t2, &t1);
             if (r) return r;
+            // untyped select is numeric only; references need the 0x1c form
+            if (t2 != c_valUnknown && IsRefType(t2)) return m3Err_typeMismatch;
             r = v_push(v, (t2 == c_valUnknown) ? t1 : t2);
             if (r) return r;
             break;
         }
+
+#if d_m3HasRefTypes
+        case 0x1c: // select with an explicit result type
+        {
+            u32 numTypes;
+            r = ReadLEB_u32(&numTypes, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (numTypes != 1) return m3Err_wasmMalformed;
+
+            m3type_t selType;
+            r = ParseValueType(v->module, &selType, &v->wasm, v->wasmEnd);  if (r) return r;
+            u8 t = BaseTypeOf(selType);
+
+            r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
+            r = v_pop_expect(v, t, &a);            if (r) return r;
+            r = v_pop_expect(v, t, &a);            if (r) return r;
+            r = v_push(v, t);                      if (r) return r;
+            break;
+        }
+
+        case 0x25: // table.get
+        case 0x26: // table.set
+        {
+            u32 tableIdx;
+            r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
+            u8 t = BaseTypeOf(v->module->tables[tableIdx].type);
+
+            if (opcode == 0x26) {
+                r = v_pop_expect(v, t, &a);            if (r) return r;
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
+            } else {
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
+                r = v_push(v, t);                      if (r) return r;
+            }
+            break;
+        }
+
+        case 0xd0: // ref.null
+        {
+#if d_m3HasTypedRefs
+            m3type_t heapBits;
+            r = ParseHeapType(v->module, &heapBits, &v->wasm, v->wasmEnd);  if (r) return r;
+            u8 t = (heapBits & d_m3Type_refExtern) ? c_m3Type_externref : c_m3Type_funcref;
+#else
+            i8 waType;
+            u8 t;
+            r = ReadLEB_i7(&waType, &v->wasm, v->wasmEnd);   if (r) return r;
+            r = NormalizeType(&t, waType);                   if (r) return r;
+            if (!IsRefType(t)) return m3Err_wasmMalformed;
+#endif
+            r = v_push(v, t);                                if (r) return r;
+            break;
+        }
+
+        case 0xd1: // ref.is_null
+        {
+            u8 t;
+            r = v_pop(v, &t);
+            if (r) return r;
+            if (t != c_valUnknown && !IsRefType(t)) return m3Err_typeMismatch;
+            r = v_push(v, c_m3Type_i32);
+            if (r) return r;
+            break;
+        }
+
+        case 0xd2: // ref.func
+        {
+            u32 funcIdx;
+            r = ReadLEB_u32(&funcIdx, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (funcIdx >= v->module->numFunctions) return m3Err_unknownFunction;
+            if (!Module_IsFunctionDeclared(v->module, funcIdx)) return m3Err_undeclaredFuncRef;
+            r = v_push(v, c_m3Type_funcref);
+            if (r) return r;
+            break;
+        }
+#endif
 
         // ---- Variable ----
         case 0x20: // local.get
@@ -562,7 +717,7 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->numLocals) return m3Err_wasmMalformed;
+            if (idx >= v->numLocals) return m3Err_unknownLocal;
             r = v_push(v, v->localTypes[idx]);
             if (r) return r;
             break;
@@ -573,7 +728,7 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->numLocals) return m3Err_wasmMalformed;
+            if (idx >= v->numLocals) return m3Err_unknownLocal;
             r = v_pop_expect(v, v->localTypes[idx], &a);
             if (r) return r;
             break;
@@ -584,7 +739,7 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->numLocals) return m3Err_wasmMalformed;
+            if (idx >= v->numLocals) return m3Err_unknownLocal;
             r = v_pop_expect(v, v->localTypes[idx], &a);
             if (r) return r;
             r = v_push(v, v->localTypes[idx]);
@@ -597,8 +752,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->module->numGlobals) return m3Err_wasmMalformed;
-            r = v_push(v, v->module->globals[idx].type);
+            if (idx >= v->module->numGlobals) return m3Err_unknownGlobal;
+            r = v_push(v, BaseTypeOf(v->module->globals[idx].type));
             if (r) return r;
             break;
         }
@@ -608,8 +763,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 idx;
             r = ReadLEB_u32(&idx, &v->wasm, v->wasmEnd);
             if (r) return r;
-            if (idx >= v->module->numGlobals) return m3Err_wasmMalformed;
-            r = v_pop_expect(v, v->module->globals[idx].type, &a);
+            if (idx >= v->module->numGlobals) return m3Err_unknownGlobal;
+            r = v_pop_expect(v, BaseTypeOf(v->module->globals[idx].type), &a);
             if (r) return r;
             break;
         }
@@ -623,8 +778,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 align, offset;
             r = ReadLEB_u32(&align, &v->wasm, v->wasmEnd); if (r) return r;
             r = ReadLEB_u32(&offset, &v->wasm, v->wasmEnd); if (r) return r;
-            if (align > v_max_align(opcode)) return m3Err_wasmMalformed;
-            if (not v_has_memory(v)) return m3Err_wasmMalformed;
+            if (align > v_max_align(opcode)) return m3Err_invalidAlignment;
+            if (not v_has_memory(v)) return m3Err_unknownMemory;
             r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
             u8 result;
             if      (opcode == 0x28) result = c_m3Type_i32;
@@ -646,8 +801,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 align, offset;
             r = ReadLEB_u32(&align, &v->wasm, v->wasmEnd); if (r) return r;
             r = ReadLEB_u32(&offset, &v->wasm, v->wasmEnd); if (r) return r;
-            if (align > v_max_align(opcode)) return m3Err_wasmMalformed;
-            if (not v_has_memory(v)) return m3Err_wasmMalformed;
+            if (align > v_max_align(opcode)) return m3Err_invalidAlignment;
+            if (not v_has_memory(v)) return m3Err_unknownMemory;
             u8 valtype;
             if      (opcode == 0x36) valtype = c_m3Type_i32;
             else if (opcode == 0x37) valtype = c_m3Type_i64;
@@ -665,7 +820,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
-            if (memidx != 0 or not v_has_memory(v)) return m3Err_wasmMalformed;
+            if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
             r = v_push(v, c_m3Type_i32); if (r) return r;
             break;
         }
@@ -673,7 +828,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
-            if (memidx != 0 or not v_has_memory(v)) return m3Err_wasmMalformed;
+            if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
             r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
             r = v_push(v, c_m3Type_i32); if (r) return r;
             break;
@@ -820,11 +975,92 @@ static M3Result v_validate_body (ValCtx * v)
                 r = v_cvtop(v, c_m3Type_f32, c_m3Type_i64); break;
             case 0x06: case 0x07: // i64.trunc_sat_f64_s/u
                 r = v_cvtop(v, c_m3Type_f64, c_m3Type_i64); break;
+            case 0x08: // memory.init
+            {
+                u32 dataidx, memidx;
+                r = ReadLEB_u32(&dataidx, &v->wasm, v->wasmEnd); if (r) return r;
+                r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
+                if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
+                // the segments must have been declared up front by a data count section
+                if (not v->module->hasDataCount) return m3Err_dataCountRequired;
+                if (dataidx >= v->module->numDataSegments) return m3Err_unknownDataSegment;
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // src
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
+                break;
+            }
+            case 0x09: // data.drop
+            {
+                u32 dataidx;
+                r = ReadLEB_u32(&dataidx, &v->wasm, v->wasmEnd); if (r) return r;
+                // needs the segment, but not a memory
+                if (not v->module->hasDataCount) return m3Err_dataCountRequired;
+                if (dataidx >= v->module->numDataSegments) return m3Err_unknownDataSegment;
+                break;
+            }
+#if d_m3HasRefTypes
+            case 0x0c: // table.init
+            case 0x0e: // table.copy
+            {
+                u32 a1, a2;
+                r = ReadLEB_u32(&a1, &v->wasm, v->wasmEnd); if (r) return r;
+                r = ReadLEB_u32(&a2, &v->wasm, v->wasmEnd); if (r) return r;
+
+                if (sub == 0x0c) {                                          // elemidx, tableidx
+                    // the immediates are encoded elem-then-table, but the spec's
+                    // rule requires the table to be defined before the segment
+                    if (a2 >= v->module->numTables) return m3Err_unknownTable;
+                    if (a1 >= v->module->numElementSegments) return m3Err_unknownElemSegment;
+                    if (v->module->elementSegments[a1].type != v->module->tables[a2].type)
+                        return m3Err_typeMismatch;
+                } else {                                                    // dst, src
+                    if (a1 >= v->module->numTables) return m3Err_unknownTable;
+                    if (a2 >= v->module->numTables) return m3Err_unknownTable;
+                    if (v->module->tables[a1].type != v->module->tables[a2].type)
+                        return m3Err_typeMismatch;
+                }
+
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // n
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // s
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // d
+                break;
+            }
+            case 0x0d: // elem.drop
+            {
+                u32 elemIdx;
+                r = ReadLEB_u32(&elemIdx, &v->wasm, v->wasmEnd); if (r) return r;
+                if (elemIdx >= v->module->numElementSegments) return m3Err_unknownElemSegment;
+                break;
+            }
+            case 0x0f: // table.grow
+            case 0x10: // table.size
+            case 0x11: // table.fill
+            {
+                u32 tableIdx;
+                r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd); if (r) return r;
+                if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
+                u8 t = BaseTypeOf(v->module->tables[tableIdx].type);
+
+                if (sub == 0x10) {                                          // table.size
+                    r = v_push(v, c_m3Type_i32); if (r) return r;
+                } else if (sub == 0x0f) {                                   // table.grow
+                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // n
+                    r = v_pop_expect(v, t, &a);            if (r) return r;  // init
+                    r = v_push(v, c_m3Type_i32);           if (r) return r;
+                } else {                                                    // table.fill
+                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // n
+                    r = v_pop_expect(v, t, &a);            if (r) return r;  // val
+                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // i
+                }
+                break;
+            }
+#endif
             case 0x0a: // memory.copy
             {
                 u32 dst, src;
                 r = ReadLEB_u32(&dst, &v->wasm, v->wasmEnd); if (r) return r;
                 r = ReadLEB_u32(&src, &v->wasm, v->wasmEnd); if (r) return r;
+                if (dst != 0 or src != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // src
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
@@ -834,6 +1070,7 @@ static M3Result v_validate_body (ValCtx * v)
             {
                 u32 memidx;
                 r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
+                if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // val
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
@@ -893,7 +1130,7 @@ M3Result  ValidateFunction  (IM3Function i_function)
     u16 numParams = funcType ? funcType->numArgs : 0;
     if (numParams > d_m3ValStack) return m3Err_functionStackOverflow;
     for (u16 i = 0; i < numParams; i++) {
-        v.localTypes[v.numLocals++] = funcType->types[funcType->numRets + i];
+        v.localTypes[v.numLocals++] = BaseTypeOf(funcType->types[funcType->numRets + i]);
     }
 
     // Then: declared locals
@@ -901,12 +1138,10 @@ M3Result  ValidateFunction  (IM3Function i_function)
         u32 count;
         r = ReadLEB_u32(&count, &v.wasm, v.wasmEnd);
         if (r) return r;
-        i8 waType;
-        r = ReadLEB_i7(&waType, &v.wasm, v.wasmEnd);
+        m3type_t localType;
+        r = ParseValueType(v.module, &localType, &v.wasm, v.wasmEnd);
         if (r) return r;
-        u8 normalized;
-        r = NormalizeType(&normalized, waType);
-        if (r) return r;
+        u8 normalized = BaseTypeOf(localType);
         if (count > (u32) (d_m3ValStack - v.numLocals)) return m3Err_functionStackOverflow;
         for (u32 c = 0; c < count; c++) {
             v.localTypes[v.numLocals++] = normalized;

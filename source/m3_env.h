@@ -41,6 +41,49 @@ typedef M3Memory *          IM3Memory;
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
+// A table's elements are opaque pointer-sized references: IM3Function for a
+// funcref table, a host handle for an externref one. NULL is the null reference.
+typedef struct M3Table
+{
+    void **                 elements;
+    u32                     size;
+    u32                     maxSize;            // 0 when the module declared no maximum
+    m3type_t                type;
+
+    // Every slot starts out holding this, rather than null. A table whose
+    // element type is not nullable has to say what to fill itself with.
+    bytes_t                 initExpr;
+    u32                     initExprSize;
+}
+M3Table;
+
+// Element segment modes, from the low two bits of the segment's flags
+typedef enum
+{
+    c_m3Elem_active     = 0,        // table 0
+    c_m3Elem_passive    = 1,
+    c_m3Elem_activeIdx  = 2,        // explicit table index
+    c_m3Elem_declarative = 3
+}
+M3ElementMode;
+
+typedef struct M3ElementSegment
+{
+    bytes_t                 initExpr;       // active segments only: the offset
+    bytes_t                 elements;       // funcidx list, or const exprs when isExpr
+    void **                 resolved;       // passive segments only, for table.init
+
+    u32                     initExprSize;
+    u32                     numElements;
+    u32                     tableIndex;
+
+    m3type_t                type;
+    u8                      mode;
+    bool                    isExpr;
+    bool                    dropped;
+}
+M3ElementSegment;
+
 typedef struct M3DataSegment
 {
     const u8 *              initExpr;           // wasm code
@@ -49,6 +92,9 @@ typedef struct M3DataSegment
     u32                     initExprSize;
     u32                     memoryRegion;
     u32                     size;
+
+    bool                    isPassive;
+    bool                    dropped;            // active segments are dropped once instantiated
 }
 M3DataSegment;
 
@@ -71,7 +117,7 @@ typedef struct M3Global
     cstr_t                  name;
     bytes_t                 initExpr;       // wasm code
     u32                     initExprSize;
-    u8                      type;
+    m3type_t                type;
     bool                    imported;
     bool                    isMutable;
 }
@@ -102,18 +148,24 @@ typedef struct M3Module
     u32                     numDataSegments;
     M3DataSegment *         dataSegments;
 
+    u32                     dataCount;          // from the data count section
+    bool                    hasDataCount;
+
+    // Bitset of the functions ref.func may name: those exported, or referenced
+    // by an element segment or a global initializer. One bit per function.
+    u8 *                    declaredFuncs;
+
     //u32                     importedGlobals;
     u32                     numGlobals;
     M3Global *              globals;
 
     u32                     numElementSegments;
-    bytes_t                 elementSection;
+    M3ElementSegment *      elementSegments;
     bytes_t                 elementSectionEnd;
 
-    IM3Function *           table0;
-    u32                     table0Size;
+    M3Table *               tables;
+    u32                     numTables;
     const char*             table0ExportName;
-    bool                    hasTable;
 
     M3MemoryInfo            memoryInfo;
     M3ImportInfo            memoryImport;
@@ -127,7 +179,10 @@ typedef struct M3Module
 }
 M3Module;
 
-M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, u8 i_type, bool i_mutable, bool i_isImported);
+M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, m3type_t i_type, bool i_mutable, bool i_isImported);
+M3Result                    Module_AddTable             (IM3Module io_module, m3type_t i_type, u32 i_size, u32 i_maxSize);
+M3Result                    Module_DeclareFunction      (IM3Module io_module, u32 i_index);
+bool                        Module_IsFunctionDeclared   (IM3Module i_module, u32 i_index);
 
 M3Result                    Module_PreallocFunctions    (IM3Module io_module, u32 i_totalFunctions);
 M3Result                    Module_AddFunction          (IM3Module io_module, u32 i_typeIndex, IM3ImportInfo i_importInfo /* can be null */);
@@ -147,6 +202,7 @@ typedef struct M3Environment
 
     IM3FuncType             retFuncTypes [c_m3Type_unknown];    // these 'point' to elements in the linked list above.
                                                                 // the number of elements must match the basic types as per M3ValueType
+    u16                     numFuncTypes;                       // hands out M3FuncType.canonicalIndex
     M3CodePage *            pagesReleased;
 
     M3SectionHandler        customSectionHandler;
@@ -156,7 +212,12 @@ M3Environment;
 void                        Environment_Release         (IM3Environment i_environment);
 
 // takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
-void                        Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
+M3Result                    Environment_AddFuncType     (IM3Environment i_environment, IM3FuncType * io_funcType);
+
+#if d_m3HasTypedRefs
+M3Result                    ParseHeapType               (IM3Module i_module, m3type_t * o_heapBits, bytes_t * io_bytes, cbytes_t i_end);
+#endif
+M3Result                    ParseValueType              (IM3Module i_module, m3type_t * o_type, bytes_t * io_bytes, cbytes_t i_end);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 

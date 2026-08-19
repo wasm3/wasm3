@@ -27,11 +27,17 @@ enum
     c_waOp_call                 = 0x10,
     c_waOp_returnCall           = 0x12,
     c_waOp_returnCallIndirect   = 0x13,
+    c_waOp_callRef              = 0x14,
+    c_waOp_returnCallRef        = 0x15,
     c_waOp_getLocal             = 0x20,
     c_waOp_setLocal             = 0x21,
     c_waOp_teeLocal             = 0x22,
 
+    c_waOp_selectTyped          = 0x1c,
+
     c_waOp_getGlobal            = 0x23,
+    c_waOp_tableGet             = 0x25,
+    c_waOp_tableSet             = 0x26,
 
     c_waOp_store_f32            = 0x38,
     c_waOp_store_f64            = 0x39,
@@ -41,10 +47,35 @@ enum
     c_waOp_f32_const            = 0x43,
     c_waOp_f64_const            = 0x44,
 
+    // the arithmetic the extended-const proposal admits into constant expressions
+    c_waOp_i32_add              = 0x6a,
+    c_waOp_i32_sub              = 0x6b,
+    c_waOp_i32_mul              = 0x6c,
+    c_waOp_i64_add              = 0x7c,
+    c_waOp_i64_sub              = 0x7d,
+    c_waOp_i64_mul              = 0x7e,
+
+    c_waOp_refNull              = 0xd0,
+    c_waOp_refIsNull            = 0xd1,
+    c_waOp_refFunc              = 0xd2,
+    c_waOp_refAsNonNull         = 0xd4,
+    c_waOp_brOnNull             = 0xd5,
+    c_waOp_brOnNonNull          = 0xd6,
+
     c_waOp_extended             = 0xfc,
 
+    c_waOp_memoryInit           = 0xfc08,
     c_waOp_memoryCopy           = 0xfc0a,
-    c_waOp_memoryFill           = 0xfc0b
+    c_waOp_memoryFill           = 0xfc0b,
+    c_waOp_tableGrow            = 0xfc0f,
+    c_waOp_tableSize            = 0xfc10,
+    c_waOp_tableFill            = 0xfc11,
+
+    // Highest opcode each operation table actually defines below the reference
+    // instructions. The tables run past these: with internal ops in DEBUG
+    // builds, and with the designated 0xd0..0xd2 and 0xfc entries.
+    c_waOp_lastCore             = 0xc4,     // i64.extend32_s
+    c_waOp_lastExtended         = 0x11      // table.fill
 };
 
 
@@ -107,7 +138,7 @@ typedef struct
 
     // 'wasmStack' holds slot locations
     u16                 wasmStack                   [d_m3MaxFunctionStackHeight];
-    u8                  typeStack                   [d_m3MaxFunctionStackHeight];
+    m3type_t            typeStack                   [d_m3MaxFunctionStackHeight];
 
     // 'm3Slots' contains allocation usage counts
     u8                  m3Slots                     [d_m3MaxFunctionSlots];
@@ -151,9 +182,16 @@ typedef const M3OpInfo *    IM3OpInfo;
 
 IM3OpInfo  GetOpInfo  (m3opcode_t opcode);
 
+// The raw tables, for the DEBUG-only reverse lookup in m3_info.c. Past the last
+// Wasm opcode they also hold internal operations, which GetOpInfo hides.
+extern const M3OpInfo   c_operations [];
+extern const M3OpInfo   c_operationsFC [];
+extern const u32        c_numOperations;
+extern const u32        c_numOperationsFC;
+
 // TODO: This helper should be removed, when MultiValue is implemented
 static inline
-u8 GetSingleRetType(IM3FuncType ftype) {
+m3type_t GetSingleRetType(IM3FuncType ftype) {
     return (ftype && ftype->numRets) ? ftype->types[0] : (u8)c_m3Type_none;
 }
 
@@ -201,6 +239,7 @@ u16         GetMaxUsedSlotPlusOne       (IM3Compilation o);
 M3Result    CompileBlock                (IM3Compilation io, IM3FuncType i_blockType, m3opcode_t i_blockOpcode);
 
 M3Result    CompileBlockStatements      (IM3Compilation io);
+M3Result    CompileExpression           (IM3Compilation io, IM3FuncType i_resultType);
 M3Result    CompileFunction             (IM3Function io_function);
 
 M3Result    CompileRawFunction          (IM3Module io_module, IM3Function io_function, const void * i_function, const void * i_userdata);

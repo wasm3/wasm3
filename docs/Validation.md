@@ -10,7 +10,7 @@ Validation is split across two places, by the kind of thing being checked.
 
 | Layer | File | Checks |
 |---|---|---|
-| **Structural** | `m3_parse.c` | Section order and uniqueness, LEB128 encoding limits, declared counts against sanity limits, index bounds (function / global / memory / table), memory and table limits, global mutability byte, start function signature, export name uniqueness, constant expressions |
+| **Structural** | `m3_parse.c` | Section order and uniqueness, LEB128 encoding limits, declared counts against sanity limits, index bounds (function / global / memory / table), memory and table limits, page sizes, global mutability byte, start function signature, export name uniqueness, constant expressions |
 | **Type** | `m3_validate.c` | Per-instruction operand types, control flow structure, block signatures, branch label types, polymorphic (unreachable) stack handling |
 
 The split is not arbitrary: structural checks need module-wide context that only
@@ -102,7 +102,62 @@ appended to `numGlobals` before their initializer is walked, so an index check
 alone would let a global initialize from itself.
 
 Instructions that are not allowed in a constant expression are rejected earlier,
-as `restricted opcode`.
+as `restricted opcode`. The permitted set is `*.const`, `global.get`, `ref.null`
+and `ref.func`, plus - with `d_m3HasExtendedConst` - the `i32`/`i64` `add`, `sub`
+and `mul` of the extended constant expressions proposal.
+
+The walk only type-checks; nothing is emitted, because the module's code pages do
+not exist yet. The expression is compiled and run for real later, during
+instantiation, by `EvaluateExpression` in `m3_env.c`: it builds a throwaway
+runtime, calls `CompileExpression` (the same root-block shape a function gets,
+with one result and no args) and reads the value back out of slot 0.
+
+### Memory limits
+
+A memory's declared minimum and maximum are checked against `2^32/pagesize`
+pages. A module that declares no page size gets the default of 65536, so the
+bound is the familiar 65536 pages.
+
+The page size itself is checked only for being a power of two no larger than
+65536 - it arrives as a log2, so the encoding grants the first half of that.
+This is deliberately wider than the custom page sizes proposal, which admits
+only the endpoints `1` and `65536`: nothing in the engine cares which power of
+two a page is, so there is nothing to gain by refusing the ones in between. The
+suite's checks that they *are* refused are turned off in `run-spec-test.py`,
+with the ceiling still exercised by the modules asking for `2^17` and `2^65`.
+
+Note that `d_m3MaxLinearMemoryPages` is a *size*, counted in default-sized
+pages - it is compared against the memory's byte length, not its page count, so
+that lowering it constrains the same amount of memory whatever page size a
+module asks for.
+
+### Reference types
+
+A value type is an `m3type_t`, not a byte. The plain `M3ValueType` values keep
+their old encoding, so every comparison against a `c_m3Type_*` constant still
+means what it did; a reference spelled out in full - `(ref $t)` or
+`(ref null $t)` from the typed function references proposal - sets the top bit
+and spends the rest on a null flag and the *canonical* index of the function
+type it points at.
+
+Canonical is the important word. `Environment_AddFuncType` already collapsed
+structurally equal function types onto one `M3FuncType`, so numbering those
+gives `$t <: $t'` exactly the meaning the spec asks for - the types are
+equivalent - without comparing structures at each check. `IsSubTypeOf()` is the
+only place that relation lives; `BaseTypeOf()` reduces any reference back to the
+`funcref` or `externref` it is stored as, which is what slot sizing, the
+operation tables and the public API all want.
+
+The index has to fit alongside the flags, which is why `d_m3MaxSaneTypesCount`
+is 8190 rather than something rounder, and why exceeding it is an error rather
+than a silent truncation. With `d_m3HasTypedRefs` off there is nothing to spell
+out, so `m3type_t` narrows back to a byte, the limit returns to a million, and
+`IsSubTypeOf()` collapses to equality - the compiler's type stack, and with it
+`M3Compilation`, are exactly the size they were before the proposal.
+
+Note that `m3_GetArgType()` and `m3_GetRetType()` report the storage type: a
+host sees `funcref` whatever shape the reference has, matching the proposal's
+own position that concrete reference types don't cross the embedding boundary.
 
 ## Knobs
 
