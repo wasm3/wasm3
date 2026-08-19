@@ -8,12 +8,12 @@
 
 [![StandWithUkraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md) 
 [![GitHub issues](https://img.shields.io/github/issues-raw/wasm3/wasm3?style=flat-square&label=issues&color=success)](https://github.com/wasm3/wasm3/issues) 
-[![Tests status](https://img.shields.io/github/actions/workflow/status/wasm3/wasm3/tests.yml?branch=main&style=flat-square&logo=github&label=tests)](https://github.com/wasm3/wasm3/actions) 
+[![Build status](https://img.shields.io/github/actions/workflow/status/wasm3/wasm3/build.yml?branch=main&style=flat-square&logo=github&label=build)](https://github.com/wasm3/wasm3/actions) 
 [![Fuzzing Status](https://img.shields.io/badge/oss--fuzz-fuzzing-success?style=flat-square)](https://bugs.chromium.org/p/oss-fuzz/issues/list?can=1&q=proj:wasm3) 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/wasm3/wasm3/blob/main/LICENSE) 
 
 A fast WebAssembly interpreter and the most universal WASM runtime.  
-<sub>Based on [**CoreMark 1.0**](./docs/Performance.md) and [**independent**](https://00f.net/2021/02/22/webassembly-runtimes-benchmarks) benchmarks. Your mileage may vary.</sub>
+<sub>See [**CoreMark 1.0**](./docs/Performance.md) and [**independent**](https://00f.net/2021/02/22/webassembly-runtimes-benchmarks) benchmarks. Your mileage may vary.</sub>
 
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/wasm3_engine)](https://twitter.com/wasm3_engine) 
 [![Discord](https://img.shields.io/discord/671415645073702925?style=social&logo=discord&color=7289da&label=discord)](https://discord.gg/qmZjgnd)
@@ -57,25 +57,15 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
 ## Features
 
-| Webassembly [Proposals][WasmProps]  | Extra |
-| --- | --- |
-| ☑ Import/Export of Mutable Globals           | ☑ Structured execution tracing     |
-| ☑ Non-trapping float-to-int conversions      | ☑ Big-Endian systems support       |
-| ☑ Sign-extension operators                   | ☑ Wasm and WASI self-hosting       |
-| ☑ Multi-value                                | ☑ Gas metering                     |
-| ☑ Bulk memory operations (partial support)   | ☑ Linear memory limit (< 64KiB)    |
-| ☑ Custom page size                           |
-| ☑ Tail call optimization                     |
-| ⏳ Multiple memories                          |
-| ⏳ Reference types                            |
-| ☐ Extended constant expressions              |
-| ☐ Branch hinting                             |
-| ☐ Typed function references                  |
-| ☐ Garbage collection                         |
-| ☐ Fixed-width SIMD                           |
-| ☐ Relaxed SIMD                               |
-| ☐ Exception handling                         |
-| ☐ Stack Switching                            |
+
+| Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Features |
+|:---    |:---      |
+| ⭐ Ready | **[Lime1][WasmLime1]:** `Import/Export of Mutable Globals`, `Non-trapping float-to-int conversions`, `Sign-extension operators`, `Multi-value`, `Extended constant expressions`, `bulk-memory-opt`, `call-indirect-overlong` |
+| ⭐ Ready | **[Proposals][WasmStatus]:** `Bulk memory operations`, `Reference types`, `Tail call optimization`, `Custom page size`, `Compact Import section` |
+| ✨ Ready | **Extra:** `Structured execution tracing`, `Big-Endian support`, `Wasm and WASI self-hosting`, `Gas metering`, `Linear memory limit (< 64KiB)` |
+| ⏳ WIP | `Multiple memories`, `Typed function references` |
+| ⛔ Not yet | `Garbage collection`, `Exception handling`, `Stack switching`, `Fixed-width SIMD` |
+
 
 ## Motivation
 
@@ -122,4 +112,5 @@ Wasm3 started as a research project and remains so by any means. Evaluating the 
 This project is released under The MIT License (MIT)
 
 
-[WasmProps]: https://github.com/WebAssembly/proposals/blob/main/README.md  "WebAssembly Finished Proposals"
+[WasmStatus]: https://webassembly.org/features/?categories=standalones  "WebAssembly Feature Proposal Status"
+[WasmLime1]: https://github.com/WebAssembly/tool-conventions/blob/main/Lime.md "WebAssembly Lime1"

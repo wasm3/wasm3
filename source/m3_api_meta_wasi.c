@@ -189,7 +189,7 @@ m3ApiRawFunction(m3_wasi_generic_args_get)
 
         size_t len = strlen (context->argv[i]);
 
-        m3ApiCheckMem(argv_buf, len);
+        m3ApiCheckMem(argv_buf, len + 1);       // include the terminating `\0`
         memcpy (argv_buf, context->argv[i], len);
         argv_buf += len;
         * argv_buf++ = 0;

@@ -147,16 +147,19 @@ M3Result repl_load  (const char* fn)
     result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) goto on_error;
 
+    result = m3_LinkSpecTestGlobals (module);
+    if (result) goto on_error;
+
     result = m3_LoadModule (runtime, module);
     if (result) goto on_error;
 
     m3_SetModuleName(module, modname_from_fn(fn));
 
     result = link_all (module);
-    if (result) goto on_error;
+    if (result) goto on_error_after_load;
 
     result = m3_RunStart (module);
-    if (result) goto on_error;
+    if (result) goto on_error_after_load;
 
     if (wasm_bins_qty < MAX_MODULES) {
         wasm_bins[wasm_bins_qty++] = wasm;
@@ -166,6 +169,8 @@ M3Result repl_load  (const char* fn)
 
 on_error:
     m3_FreeModule(module);
+
+on_error_after_load:
     if (wasm) free(wasm);
     if (f) fclose(f);
 
@@ -221,6 +226,13 @@ M3Result repl_load_hex  (u32 fsize)
 
     result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) {
+        free(wasm);
+        return result;
+    }
+
+    result = m3_LinkSpecTestGlobals (module);
+    if (result) {
+        m3_FreeModule(module);
         free(wasm);
         return result;
     }
@@ -355,6 +367,21 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
     return result;
 }
 
+// A reference is an opaque pointer-sized word to the engine, with 0 for null, so
+// the host picks how to encode the (ref.extern N) values the spec tests use. We
+// hand out N+1 as the handle, which keeps 0 free to mean null.
+static uintptr_t parse_ref (const char* s)
+{
+    if (strcmp (s, "null") == 0) return 0;
+    return (uintptr_t) strtoull (s, NULL, 10) + 1;
+}
+
+static void print_ref (uintptr_t ref, const char* type)
+{
+    if (ref) fprintf (stderr, "%" PRIu64 ":%s", (uint64_t) (ref - 1), type);
+    else     fprintf (stderr, "null:%s", type);
+}
+
 // :invoke is used by spec tests, so it treats floats as raw data
 M3Result repl_invoke  (const char* name, int argc, const char* argv[])
 {
@@ -386,6 +413,8 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         case c_m3Type_f32:  *(u32*)(s) = strtoul(argv[i], NULL, 10);  break;
         case c_m3Type_i64:
         case c_m3Type_f64:  *(u64*)(s) = strtoull(argv[i], NULL, 10); break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref: *(uintptr_t*)(s) = parse_ref(argv[i]); break;
         default: return "unknown argument type";
         }
     }
@@ -411,6 +440,8 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         case c_m3Type_f32: fprintf (stderr, "%" PRIu32 ":f32", *(u32*)valptrs[i]);  break;
         case c_m3Type_i64: fprintf (stderr, "%" PRIu64 ":i64", *(u64*)valptrs[i]);  break;
         case c_m3Type_f64: fprintf (stderr, "%" PRIu64 ":f64", *(u64*)valptrs[i]);  break;
+        case c_m3Type_funcref:   print_ref (*(uintptr_t*)valptrs[i], "funcref");   break;
+        case c_m3Type_externref: print_ref (*(uintptr_t*)valptrs[i], "externref"); break;
         default: return "unknown return type";
         }
         if (i != ret_count-1) {
@@ -422,6 +453,24 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
     return result;
 }
 
+// m3_SetModuleName does not take ownership, and the name has to outlive the
+// command line it came from, so the names live here and are reused after :init
+static char registeredNames [MAX_MODULES][32];
+static int  numRegisteredNames = 0;
+
+// Names the most recently loaded module, so later modules can import from it
+M3Result repl_register  (const char* name)
+{
+    if (!runtime->modules) return "no modules loaded";
+    if (numRegisteredNames >= MAX_MODULES) return "too many registered modules";
+
+    char* slot = registeredNames [numRegisteredNames++];
+    snprintf (slot, sizeof(registeredNames[0]), "%s", name);
+
+    m3_SetModuleName (runtime->modules, slot);
+    return m3Err_none;
+}
+
 M3Result repl_global_get  (const char* name)
 {
     IM3Global g = m3_FindGlobal(runtime->modules, name);
@@ -430,13 +479,19 @@ M3Result repl_global_get  (const char* name)
     M3Result err = m3_GetGlobal (g, &tagged);
     if (err) return err;
 
+    // "Result: " so spec-test output parses the same as :invoke
+    fprintf (stderr, "Result: ");
+
     switch (tagged.type) {
-    case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32\n", tagged.value.i32);  break;
-    case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64\n", tagged.value.i64);  break;
-    case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32\n", tagged.value.f32);  break;
-    case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64\n", tagged.value.f64);  break;
+    case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32", tagged.value.i32);  break;
+    case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64", tagged.value.i64);  break;
+    case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32", tagged.value.f32);  break;
+    case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64", tagged.value.f64);  break;
+    case c_m3Type_funcref:   print_ref ((uintptr_t) tagged.value.i64, "funcref");   break;
+    case c_m3Type_externref: print_ref ((uintptr_t) tagged.value.i64, "externref"); break;
     default:            return m3Err_invalidTypeId;
     }
+    fprintf (stderr, "\n");
     return m3Err_none;
 }
 
@@ -499,6 +554,7 @@ void repl_free  ()
 M3Result repl_init  (unsigned stack)
 {
     repl_free();
+    numRegisteredNames = 0;
     runtime = m3_NewRuntime (env, stack, NULL);
     if (runtime == NULL) {
         return "m3_NewRuntime failed";
@@ -571,8 +627,10 @@ void print_version() {
 
     // Without "tail-call", return_call still works but doesn't reuse the caller's frame,
     // so unbounded tail recursion traps instead of running forever. See d_m3CanTailCall.
-    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s\n",
-            d_m3CanTailCall ? ", tail-call" : "");
+    // "typed-refs" reports the typed function references proposal, see d_m3HasTypedRefs.
+    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s\n",
+            d_m3CanTailCall  ? ", tail-call"  : "",
+            d_m3HasTypedRefs ? ", typed-refs" : "");
 }
 
 void print_usage() {
@@ -717,6 +775,8 @@ int  main  (int i_argc, const char* i_argv[])
             result = repl_global_get(argv[1]);
         } else if (!strcmp(":set-global", argv[0])) {
             result = repl_global_set(argv[1], argv[2]);
+        } else if (!strcmp(":register", argv[0])) {         // :register <name>
+            result = repl_register(argv[1]);
         } else if (!strcmp(":dump", argv[0])) {
             result = repl_dump();
         } else if (!strcmp(":compile", argv[0])) {

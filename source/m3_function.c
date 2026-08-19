@@ -11,16 +11,33 @@
 
 M3Result AllocFuncType (IM3FuncType * o_functionType, u32 i_numTypes)
 {
-    *o_functionType = (IM3FuncType) m3_Malloc ("M3FuncType", sizeof (M3FuncType) + i_numTypes);
+    *o_functionType = (IM3FuncType) m3_Malloc ("M3FuncType", sizeof (M3FuncType) + i_numTypes * sizeof (m3type_t));
     return (*o_functionType) ? m3Err_none : m3Err_mallocFailed;
 }
+
+
+#if d_m3HasTypedRefs
+
+// The type a (ref $t) / (ref null $t) naming this function type is spelled as
+m3type_t  RefTypeOfFuncType  (const IM3FuncType i_funcType, bool i_nonNull)
+{
+    m3type_t type = d_m3Type_ref | (i_funcType ? i_funcType->canonicalIndex : d_m3Type_heapAbstract);
+
+    if (i_nonNull)
+        type |= d_m3Type_refNonNull;
+
+    return type;
+}
+
+#endif // d_m3HasTypedRefs
 
 
 bool  AreFuncTypesEqual  (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
 {
     if (i_typeA->numRets == i_typeB->numRets && i_typeA->numArgs == i_typeB->numArgs)
     {
-        return (memcmp (i_typeA->types, i_typeB->types, i_typeA->numRets + i_typeA->numArgs) == 0);
+        return (memcmp (i_typeA->types, i_typeB->types,
+                        (i_typeA->numRets + i_typeA->numArgs) * sizeof (m3type_t)) == 0);
     }
 
     return false;
@@ -32,9 +49,9 @@ u16  GetFuncTypeNumParams  (const IM3FuncType i_funcType)
 }
 
 
-u8  GetFuncTypeParamType  (const IM3FuncType i_funcType, u16 i_index)
+m3type_t  GetFuncTypeParamType  (const IM3FuncType i_funcType, u16 i_index)
 {
-    u8 type = c_m3Type_unknown;
+    m3type_t type = c_m3Type_unknown;
 
     if (i_funcType)
     {
@@ -55,9 +72,9 @@ u16  GetFuncTypeNumResults  (const IM3FuncType i_funcType)
 }
 
 
-u8  GetFuncTypeResultType  (const IM3FuncType i_funcType, u16 i_index)
+m3type_t  GetFuncTypeResultType  (const IM3FuncType i_funcType, u16 i_index)
 {
-    u8 type = c_m3Type_unknown;
+    m3type_t type = c_m3Type_unknown;
 
     if (i_funcType)
     {
@@ -188,9 +205,9 @@ u16  GetFunctionNumArgs  (IM3Function i_function)
     return numArgs;
 }
 
-u8  GetFunctionArgType  (IM3Function i_function, u32 i_index)
+m3type_t  GetFunctionArgType  (IM3Function i_function, u32 i_index)
 {
-    u8 type = c_m3Type_none;
+    m3type_t type = c_m3Type_none;
 
     if (i_index < GetFunctionNumArgs (i_function))
     {

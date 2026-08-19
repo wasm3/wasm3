@@ -195,6 +195,8 @@ int      m3StackGetMax  ()
 
 //--------------------------------------------------------------------------------------------
 
+// Value types arrive as signed 7-bit LEBs, so the encoding negates: 0x7f (i32)
+// reads as -1, 0x7b (v128) as -5, 0x70 (funcref) as -16, 0x6f (externref) as -17.
 M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
 {
     M3Result result = m3Err_none;
@@ -203,6 +205,12 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
 
     if (type == 0x40)
         type = c_m3Type_none;
+    // always recognised: funcref names the element type of an MVP table even
+    // when the reference types proposal is compiled out
+    else if (type == d_waType_funcref)
+        type = c_m3Type_funcref;
+    else if (type == d_waType_externref)
+        type = c_m3Type_externref;
     // Accept v128 (wasm-encoded as 0x7b → -i_convolutedWasmType == 5)
     // as an opaque slot so modules with v128 in signatures or local
     // declarations parse. Actual v128 opcodes still hit
@@ -217,20 +225,67 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
 }
 
 
-bool  IsFpType  (u8 i_m3Type)
+#if d_m3HasTypedRefs
+
+u8  BaseTypeOf  (m3type_t i_type)
 {
+    if (IsSpelledRefType (i_type))
+        return (i_type & d_m3Type_refExtern) ? c_m3Type_externref : c_m3Type_funcref;
+
+    return (u8) i_type;
+}
+
+
+bool  IsSubTypeOf  (m3type_t i_sub, m3type_t i_super)
+{
+    if (i_sub == i_super)
+        return true;
+
+    u8 base = BaseTypeOf(i_sub);
+
+    // only references have a subtype relation; every other type is invariant
+    if (base != BaseTypeOf(i_super) or not IsRefType (base))
+        return false;
+
+    // (ref ht) <: (ref null ht), never the other way around
+    if (IsNullableRef (i_sub) and not IsNullableRef (i_super))
+        return false;
+
+    // $t <: func, and function types are invariant among themselves, so a
+    // concrete heap type matches only itself or the abstract one. Indices are
+    // canonical, so structurally equal types compare equal here.
+    return (HeapTypeOf (i_super) == d_m3Type_heapAbstract) or
+           (HeapTypeOf (i_sub) == HeapTypeOf (i_super));
+}
+
+#endif // d_m3HasTypedRefs
+
+
+bool  IsFpType  (m3type_t i_type)
+{
+    u8 i_m3Type = BaseTypeOf(i_type);
     return (i_m3Type == c_m3Type_f32 or i_m3Type == c_m3Type_f64);
 }
 
 
-bool  IsIntType  (u8 i_m3Type)
+bool  IsRefType  (m3type_t i_type)
 {
+    u8 i_m3Type = BaseTypeOf(i_type);
+    return (i_m3Type == c_m3Type_funcref or i_m3Type == c_m3Type_externref);
+}
+
+
+bool  IsIntType  (m3type_t i_type)
+{
+    u8 i_m3Type = BaseTypeOf(i_type);
     return (i_m3Type == c_m3Type_i32 or i_m3Type == c_m3Type_i64);
 }
 
 
-bool  Is64BitType  (u8 i_m3Type)
+bool  Is64BitType  (m3type_t i_type)
 {
+    u8 i_m3Type = BaseTypeOf(i_type);
+
     if (i_m3Type == c_m3Type_i64 or i_m3Type == c_m3Type_f64)
         return true;
     else if (i_m3Type == c_m3Type_i32 or i_m3Type == c_m3Type_f32 or i_m3Type == c_m3Type_none)
@@ -239,10 +294,15 @@ bool  Is64BitType  (u8 i_m3Type)
         return (sizeof (voidptr_t) == 8); // all other cases are pointers
 }
 
-u32  SizeOfType  (u8 i_m3Type)
+u32  SizeOfType  (m3type_t i_type)
 {
+    u8 i_m3Type = BaseTypeOf(i_type);
+
     if (i_m3Type == c_m3Type_i32 or i_m3Type == c_m3Type_f32)
         return sizeof (i32);
+
+    if (IsRefType (i_m3Type))
+        return sizeof (void *);
 
     return sizeof (i64);
 }
@@ -608,6 +668,7 @@ M3Result  Read_utf8  (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end)
                     utf8 [utf8Length] = 0;
                     * o_utf8 = utf8;
                 }
+                else result = m3Err_mallocFailed;   // callers dereference the name; don't hand back NULL as success
 
                 * io_bytes = end;
             }

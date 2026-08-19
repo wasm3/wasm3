@@ -58,6 +58,11 @@ typedef const u8 *              bytes_t;
 typedef const u8 * const        cbytes_t;
 
 typedef u16                     m3opcode_t;
+#if d_m3HasTypedRefs
+typedef u16                     m3type_t;       // a value type, see the d_m3Type_* bits below
+#else
+typedef u8                      m3type_t;       // only plain M3ValueType values exist
+#endif
 
 typedef i64                     m3reg_t;
 
@@ -120,7 +125,7 @@ const void * const  cvptr_t;
 
 
 # if defined(ASSERTS) || (defined(DEBUG) && !defined(NASSERTS))
-#   define d_m3Assert(ASS)  if (!(ASS)) { printf("Assertion failed at %s:%d : %s\n", __FILE__, __LINE__, #ASS); abort(); }
+#   define d_m3Assert(ASS)  if (!(ASS)) { printf("Assertion failed at %s:%d : %s\n", __FILE__, __LINE__, #ASS); fflush(stdout); abort(); }
 # else
 #   define d_m3Assert(ASS)
 # endif
@@ -162,7 +167,12 @@ M3CodePageHeader;
 #define d_m3Reg0SlotAlias                   60000
 #define d_m3Fp0SlotAlias                    (d_m3Reg0SlotAlias + 2)
 
-#define d_m3MaxSaneTypesCount               1000000
+#if d_m3HasTypedRefs
+// a heap type index has to fit in the spare bits of an m3type_t, see below
+#  define d_m3MaxSaneTypesCount             8190
+#else
+#  define d_m3MaxSaneTypesCount             1000000
+#endif
 #define d_m3MaxSaneFunctionsCount           1000000
 #define d_m3MaxSaneImportsCount             100000
 #define d_m3MaxSaneExportsCount             100000
@@ -170,6 +180,11 @@ M3CodePageHeader;
 #define d_m3MaxSaneElementSegments          10000000
 #define d_m3MaxSaneDataSegments             100000
 #define d_m3MaxSaneTableSize                10000000
+#if d_m3HasRefTypes
+#  define d_m3MaxSaneTableCount             1000
+#else
+#  define d_m3MaxSaneTableCount             1           // MVP: a single table
+#endif
 #define d_m3MaxSaneUtf8Length               10000
 #define d_m3MaxSaneFunctionArgRetCount      1000    // still insane, but whatever
 
@@ -178,8 +193,25 @@ M3CodePageHeader;
 #define d_externalKind_memory               2
 #define d_externalKind_global               3
 
-static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "unknown" };
-static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "?" };
+// compact-import-section: these stand where an externtype would, after an empty
+// item name, and introduce a run of imports sharing one module name. 0x7f gives
+// each item its own externtype, 0x7e shares a single one across the whole run.
+#define d_compactImports_perItemType        0x7f
+#define d_compactImports_sharedType         0x7e
+
+// the negated wasm encodings of the abstract reference types, as NormalizeType()
+// stores them
+#define d_waType_funcref                    16
+#define d_waType_externref                  17
+
+// function-references: a reference type spelled out as (ref ht) / (ref null ht),
+// where the abstract heap types reuse the funcref and externref encodings
+#define d_waEncode_ref                      0x64
+#define d_waEncode_refNull                  0x63
+
+// indexed by M3ValueType, so these must cover every value up to c_m3Type_unknown
+static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "v128", "funcref", "externref", "unknown" };
+static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "V", "r", "R", "?" };
 
 
 # if d_m3VerboseErrorMessages
@@ -270,12 +302,57 @@ static inline void * m3_Realloc (ccstr_t name, void * i_ptr, size_t i_newSize, s
 #define     m3_Free(P)                              do { m3_Free_Impl ((void*)(P)); (P) = NULL; } while(0)
 #endif
 
+// A value type as the parser, compiler and validator carry it. The plain
+// M3ValueType values keep their encoding, so every comparison against a
+// c_m3Type_* constant still means exactly what it did. Only a typed function
+// reference - (ref $t) or (ref null $t) - needs more room, and it spends it on
+// the canonical index of the function type it points at. Fitting that index
+// here is why d_m3MaxSaneTypesCount is 8190 rather than something rounder.
+//
+//   bit 15     spelled-out reference type rather than a plain M3ValueType
+//   bit 14     non-null, i.e. (ref ht) rather than (ref null ht)
+//   bit 13     heap type extern rather than func
+//   bits 12-0  canonical function type index, or d_m3Type_heapAbstract
+
+#if d_m3HasTypedRefs
+
+#define d_m3Type_ref                0x8000u
+#define d_m3Type_refNonNull         0x4000u
+#define d_m3Type_refExtern          0x2000u
+#define d_m3Type_heapMask           0x1FFFu
+#define d_m3Type_heapAbstract       0x1FFFu     // plain 'func' or 'extern'
+
+// The storage type a value of this type occupies: a reference of any shape is
+// just a funcref or an externref once the type checking is done with.
+u8          BaseTypeOf              (m3type_t i_type);
+bool        IsSubTypeOf             (m3type_t i_sub, m3type_t i_super);
+
+static inline bool  IsSpelledRefType (m3type_t i_type)  { return (i_type & d_m3Type_ref) != 0; }
+static inline bool  IsNullableRef    (m3type_t i_type)  { return (i_type & d_m3Type_refNonNull) == 0; }
+static inline u32   HeapTypeOf       (m3type_t i_type)
+{
+    return IsSpelledRefType (i_type) ? (i_type & d_m3Type_heapMask) : d_m3Type_heapAbstract;
+}
+
+#else // no spelled-out reference types, so every value type is its own storage
+      // type and subtyping collapses back to equality
+
+static inline u8    BaseTypeOf       (m3type_t i_type)  { return (u8) i_type; }
+static inline bool  IsSubTypeOf      (m3type_t i_sub, m3type_t i_super) { return i_sub == i_super; }
+static inline bool  IsSpelledRefType (m3type_t i_type)  { (void) i_type; return false; }
+static inline bool  IsNullableRef    (m3type_t i_type)  { (void) i_type; return true; }
+
+#endif // d_m3HasTypedRefs
+
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 
-bool        IsIntType               (u8 i_wasmType);
-bool        IsFpType                (u8 i_wasmType);
-bool        Is64BitType             (u8 i_m3Type);
-u32         SizeOfType              (u8 i_m3Type);
+// These all speak in terms of how a value is stored, so they reduce a
+// spelled-out reference type to its funcref / externref base first.
+bool        IsIntType               (m3type_t i_wasmType);
+bool        IsFpType                (m3type_t i_wasmType);
+bool        IsRefType               (m3type_t i_m3Type);
+bool        Is64BitType             (m3type_t i_m3Type);
+u32         SizeOfType              (m3type_t i_m3Type);
 
 M3Result    Read_u64                (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_u32                (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
