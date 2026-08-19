@@ -14,6 +14,13 @@
 #define DisabledTest(NAME) printf ("\ndisabled: %s\n", #NAME); if (false)
 #define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); }
 
+int check_called;
+
+m3ApiRawFunction(fn)
+{
+    check_called = 1;
+    m3ApiSuccess();
+}
 
 bool RunTest (int i_argc, const char * i_argv [], cstr_t i_name)
 {
@@ -138,7 +145,7 @@ int  main  (int argc, const char  * argv [])
     }
      
      
-    Test (extensions)
+    Test (extensions.inject)
     {
         M3Result result;
         
@@ -176,6 +183,40 @@ int  main  (int argc, const char  * argv [])
         }
         
         m3_FreeRuntime (runtime);
+        m3_FreeEnvironment (env);
+    }
+
+    Test (extensions.table)
+    {
+        M3Result result;
+        IM3Environment env = m3_NewEnvironment ();
+        IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
+
+        u8 wasm[47] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+            0x00, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x01, 0x04, 0x04,
+            0x01, 0x70, 0x00, 0x01, 0x07, 0x06, 0x01, 0x02, 0x66, 0x6e, 0x00, 0x00,
+            0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x11, 0x00, 0x00, 0x0b
+        };
+
+        IM3Module module;
+        result = m3_ParseModule (env, &module, wasm, 47);                               expect (result == m3Err_none)
+        result = m3_LoadModule (runtime, module);                                       expect (result == m3Err_none)
+
+        // try again
+        result = m3_LinkRawTableFunctionEx (module, 10, "v()", &fn, NULL);              expect (result == m3Err_none)
+
+        IM3Function function;
+        result = m3_FindFunction (&function, runtime, "fn");                            expect (result == m3Err_none)
+
+        check_called = 0;
+        result = m3_CallV (function, 11);                                               expect (result == m3Err_trapTableIndexOutOfRange)
+        result = m3_CallV (function, 6);                                                expect (result == m3Err_trapTableElementIsNull)
+        result = m3_CallV (function, 10);                                               expect (result == m3Err_none)
+        expect (check_called == 1);
+
+        m3_FreeRuntime (runtime);
+        m3_FreeEnvironment (env);
     }
     
 	IM3Environment env = m3_NewEnvironment ();
@@ -224,9 +265,11 @@ int  main  (int argc, const char  * argv [])
 			
 			printf ("%d %f\n", ret0, ret1);
 		}
+        m3_FreeRuntime (runtime);
 	}
 
-		
+	m3_FreeEnvironment (env);
+
 	Test (multireturn.branch)
 	{
 #			if 0

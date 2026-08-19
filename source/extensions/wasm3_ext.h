@@ -44,6 +44,17 @@ extern "C" {
     IM3Function         m3_GetFunctionByIndex       (IM3Module              i_module,
                                                      uint32_t               i_index);
 
+    M3Result            m3_LinkRawTableFunction     (IM3Module              io_module,
+                                                     uint32_t               index,
+                                                     const char * const     i_signature,
+                                                     M3RawCall              i_function);
+
+    M3Result            m3_LinkRawTableFunctionEx   (IM3Module              io_module,
+                                                     uint32_t               index,
+                                                     const char * const     i_signature,
+                                                     M3RawCall              i_function,
+                                                     const void *           i_userdata);
+
 #if defined(__cplusplus)
 }
 #endif
