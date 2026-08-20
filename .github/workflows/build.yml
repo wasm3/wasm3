@@ -463,7 +463,7 @@ jobs:
         echo "------------ wasm3-lin.com ------------"
         ./wasm3-lin.com --version
         echo "------------ wasm3-win.exe (in Wine) ------------"
-        wine64 ./wasm3-win.exe --version
+        wine ./wasm3-win.exe --version
     - name: Test WebAssembly spec
       run: |
         cd test
@@ -476,11 +476,11 @@ jobs:
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
-        python3 run-spec-test.py --exec "wine64 ./wasm3-win.exe --spec-repl"
+        python3 run-spec-test.py --exec "wine ./wasm3-win.exe --spec-repl"
     - name: Test WASI apps (in Wine)
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "wine64 ./wasm3-win.exe"
+        python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.exe"
 
   cross-qemu:
     runs-on: ubuntu-latest
