@@ -428,14 +428,17 @@ jobs:
 
   cosmopolitan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v7
+    # The cosmocc toolchain is itself made of APE binaries, so teach the kernel
+    # how to run them before building
+    - name: Register APE interpreter
+      run: sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
     - name: Build αcτµαlly pδrταblε εxεcµταblε
       run: |
         cd platforms/cosmopolitan
-        gcc -v
         ./build.sh
         cp ./wasm3.com ../../wasm3-cosmopolitan.com
         cp ./wasm3.com.dbg ../../wasm3-cosmopolitan.com.dbg
@@ -452,7 +455,6 @@ jobs:
         cd test
         cp ../platforms/cosmopolitan/wasm3.com ./wasm3-lin.com
         cp ../platforms/cosmopolitan/wasm3.com ./wasm3-win.com
-        sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
     - name: Test WebAssembly spec
       run: |
         cd test
