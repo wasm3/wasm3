@@ -22,47 +22,41 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: clang,       cc: clang,      }
-        - {target: clang-x86,   cc: clang,      cflags: -m32,                     install: "gcc-multilib"   }
-        - {target: gcc,         cc: gcc,        }
+        - {target: clang,             cc: clang,      }
+        - {target: clang-x86,         cc: clang,      cflags: -m32,   install: "gcc-multilib"   }
+        - {target: gcc,               cc: gcc,        }
+        #- {target: gcc-x86,           cc: gcc,        flags: "-m32",  install: "gcc-multilib"   } # TODO: fails on numeric operations
         # Builds without uvwasi
-        - {target: gcc-no-uvwasi,   cc: gcc,    flags: -DBUILD_WASI=simple   }
-        - {target: clang-no-uvwasi, cc: clang,  flags: -DBUILD_WASI=simple   }
+        - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple   }
+        - {target: clang-no-uvwasi,   cc: clang,  flags: -DBUILD_WASI=simple   }
         # Debug builds
         - {target: gcc-debug,               cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug                         }
         - {target: clang-no-uvwasi-debug,   cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple     }
         # GCC 16.2 build (static, linked against musl)
-        - {target: gcc-musl,    toolchain: gcc-musl,   ldflags: "-static -s", artifact: wasm3-gcc-linux-x64 }
+        - {target: gcc-musl,          install: gcc-musl,   ldflags: "-static -s", artifact: wasm3-gcc-linux-x64 }
         # Clang builds (static, linked against musl)
-        - {target: musl,        toolchain: clang-musl, ldflags: "-static -s", artifact: wasm3-linux-x64 }
-        - {target: musl-strace, toolchain: clang-musl, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
-
-        # TODO: fails on numeric operations
-        #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
+        - {target: clang-musl,        install: clang-musl, ldflags: "-static -s", artifact: wasm3-linux-x64 }
+        - {target: clang-musl-strace, install: clang-musl, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     steps:
     - uses: actions/checkout@v7
-    - name: Install ${{ matrix.config.install }}
+
+    - name: Install ${{ matrix.config.install }} toolchain
       if: ${{ matrix.config.install }}
-      run: |
-        sudo apt update
-        sudo apt install ${{ matrix.config.install }}W
-    - name: Install ${{ matrix.config.toolchain }} toolchain
-      if: ${{ matrix.config.toolchain }}
       env:
-        GCC_URL:   https://github.com/prepkg/gcc-toolchain/releases/download/1.0.0-beta/gcc-x86_64-linux-musl.tar.gz
-        CLANG_URL: https://github.com/cross-tools/clang-cross/releases/download/20260430/x86_64-unknown-linux-musl.tar.xz
+        GCC_MUSL_URL:   https://github.com/prepkg/gcc-toolchain/releases/download/1.0.0-beta/gcc-x86_64-linux-musl.tar.gz
+        CLANG_MUSL_URL: https://github.com/cross-tools/clang-cross/releases/download/20260430/x86_64-unknown-linux-musl.tar.xz
       run: |
         mkdir -p .toolchains
-        if [ "${{ matrix.config.toolchain }}" = "gcc-musl" ]; then
-          wget -qO- ${GCC_URL} | tar xz -C .toolchains
+        if [ "${{ matrix.config.install }}" = "gcc-musl" ]; then
+          wget -qO- ${GCC_MUSL_URL} | tar xz -C .toolchains
           echo "TOOLCHAIN_ARGS=-DCMAKE_TOOLCHAIN_FILE=${GITHUB_WORKSPACE}/.toolchains/x86_64-linux-musl/toolchain.cmake" >> $GITHUB_ENV
-        elif [ "${{ matrix.config.toolchain }}" = "clang-musl" ]; then
-          wget -qO- ${CLANG_URL} | tar xJ -C .toolchains
+        elif [ "${{ matrix.config.install }}" = "clang-musl" ]; then
+          wget -qO- ${CLANG_MUSL_URL} | tar xJ -C .toolchains
           echo "TOOLCHAIN_ARGS=-DCMAKE_C_COMPILER=${GITHUB_WORKSPACE}/.toolchains/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-clang" >> $GITHUB_ENV
         else
-          echo "Unknown toolchain: ${{ matrix.config.toolchain }}"
-          exit 1
+          sudo apt update
+          sudo apt install -y ${{ matrix.config.install }}
         fi
     - name: Configure
       env:
