@@ -582,22 +582,21 @@ M3Result  Push  (IM3Compilation o, m3type_t i_type, u16 i_slot)
     }
 #endif
 
+    if (M3_UNLIKELY(o->stackIndex >= d_m3MaxFunctionStackHeight))
+        return m3Err_functionStackOverflow;
+
     u16 stackIndex = o->stackIndex++;                                       // printf ("push: %d\n", (i32) i);
 
-    if (stackIndex < d_m3MaxFunctionStackHeight)
+    o->wasmStack        [stackIndex] = i_slot;
+    o->typeStack        [stackIndex] = i_type;
+
+    if (IsRegisterSlotAlias (i_slot))
     {
-        o->wasmStack        [stackIndex] = i_slot;
-        o->typeStack        [stackIndex] = i_type;
-
-        if (IsRegisterSlotAlias (i_slot))
-        {
-            u32 regSelect = IsFpRegisterSlotAlias (i_slot);
-            AllocateRegister (o, regSelect, stackIndex);
-        }
-
-        if (d_m3LogWasmStack) dump_type_stack (o);
+        u32 regSelect = IsFpRegisterSlotAlias (i_slot);
+        AllocateRegister (o, regSelect, stackIndex);
     }
-    else result = m3Err_functionStackOverflow;
+
+    if (d_m3LogWasmStack) dump_type_stack (o);
 
     return result;
 }
@@ -3562,7 +3561,7 @@ _           (PopType (o, type));
     o->stackIndex = stackIndex;
 
     // find slots for the results ----------------------------
-    PushBlockResults (o);
+_   (PushBlockResults (o));
 
     stackIndex = o->stackIndex;
 
