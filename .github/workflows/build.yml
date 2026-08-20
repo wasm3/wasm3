@@ -31,9 +31,11 @@ jobs:
         # Debug builds
         - {target: gcc-debug,               cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug                         }
         - {target: clang-no-uvwasi-debug,   cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple     }
-        # Release builds (static, linked against musl)
-        - {target: musl,        cc: musl-gcc, musl: true, install: musl-tools, ldflags: "-static -s", artifact: wasm3-linux-x64 }
-        - {target: musl-strace, cc: musl-gcc, musl: true, install: musl-tools, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
+        # GCC 16.2 build (static, linked against musl)
+        - {target: gcc-musl,    toolchain: gcc-musl,   ldflags: "-static -s", artifact: wasm3-gcc-linux-x64 }
+        # Clang builds (static, linked against musl)
+        - {target: musl,        toolchain: clang-musl, ldflags: "-static -s", artifact: wasm3-linux-x64 }
+        - {target: musl-strace, toolchain: clang-musl, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
         # TODO: fails on numeric operations
         #- {target: gcc-x86,     cc: gcc,        flags: "-m32",                    install: "gcc-multilib"   }
@@ -44,13 +46,24 @@ jobs:
       if: ${{ matrix.config.install }}
       run: |
         sudo apt update
-        sudo apt install ${{ matrix.config.install }}
-    - name: Add musl-gcc include paths
-      if: ${{ matrix.config.musl }}
+        sudo apt install ${{ matrix.config.install }}W
+    - name: Install ${{ matrix.config.toolchain }} toolchain
+      if: ${{ matrix.config.toolchain }}
+      env:
+        GCC_URL:   https://github.com/prepkg/gcc-toolchain/releases/download/1.0.0-beta/gcc-x86_64-linux-musl.tar.gz
+        CLANG_URL: https://github.com/cross-tools/clang-cross/releases/download/20260430/x86_64-unknown-linux-musl.tar.xz
       run: |
-        sudo cp -a /usr/include/linux /usr/include/x86_64-linux-musl/
-        sudo cp -a /usr/include/asm-generic /usr/include/x86_64-linux-musl/
-        sudo cp -a /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/
+        mkdir -p .toolchains
+        if [ "${{ matrix.config.toolchain }}" = "gcc-musl" ]; then
+          wget -qO- ${GCC_URL} | tar xz -C .toolchains
+          echo "TOOLCHAIN_ARGS=-DCMAKE_TOOLCHAIN_FILE=${GITHUB_WORKSPACE}/.toolchains/x86_64-linux-musl/toolchain.cmake" >> $GITHUB_ENV
+        elif [ "${{ matrix.config.toolchain }}" = "clang-musl" ]; then
+          wget -qO- ${CLANG_URL} | tar xJ -C .toolchains
+          echo "TOOLCHAIN_ARGS=-DCMAKE_C_COMPILER=${GITHUB_WORKSPACE}/.toolchains/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-clang" >> $GITHUB_ENV
+        else
+          echo "Unknown toolchain: ${{ matrix.config.toolchain }}"
+          exit 1
+        fi
     - name: Configure
       env:
         CC: ${{ matrix.config.cc }}
@@ -59,10 +72,11 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.config.flags }} ..
+        cmake ${TOOLCHAIN_ARGS} ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build
+        ./build/wasm3 --version
     - name: Prepare artifact
       if: ${{ matrix.config.artifact }}
       run: cp ./build/wasm3 ./${{ matrix.config.artifact }}.elf
