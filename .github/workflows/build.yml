@@ -476,8 +476,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {os: macos-latest,   python: python3 }
-        - {os: windows-latest, python: python  }
+        - {os: macos-latest,   python: python3, exec: "sh ./wasm3.com" }
+        - {os: windows-latest, python: python,  exec: "./wasm3.com"    }
 
     defaults:
       run:
@@ -495,15 +495,15 @@ jobs:
         cd test
         mv ./wasm3-cosmopolitan.com ./wasm3.com
         chmod +x ./wasm3.com    # the artifact archive doesn't keep the executable bit
-        ./wasm3.com --version
+        ${{ matrix.config.exec }} --version
     - name: Test WebAssembly spec
       run: |
         cd test
-        ${{ matrix.config.python }} run-spec-test.py --exec "./wasm3.com --spec-repl"
+        ${{ matrix.config.python }} run-spec-test.py --exec "${{ matrix.config.exec }} --spec-repl"
     - name: Test WASI apps
       run: |
         cd test
-        ${{ matrix.config.python }} run-wasi-test.py --fast --exec "./wasm3.com"
+        ${{ matrix.config.python }} run-wasi-test.py --fast --exec "${{ matrix.config.exec }}"
 
   cross-qemu:
     runs-on: ubuntu-latest
