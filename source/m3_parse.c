@@ -484,6 +484,7 @@ _       (Read_utf8 (& import.fieldUtf8, & i_bytes, i_end));
             ++i_bytes;
 
             m3_Free (import.fieldUtf8);         // it only marked the compact form
+            import.fieldUtf8 = NULL;
 
             bytes_t sharedDesc = i_bytes;
 
