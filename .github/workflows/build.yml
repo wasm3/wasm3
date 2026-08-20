@@ -450,11 +450,20 @@ jobs:
           ./wasm3-cosmopolitan.com
           ./wasm3-cosmopolitan.com.dbg
         if-no-files-found: error
+    - name: Install Wine64
+      run: |
+        sudo apt update
+        sudo apt install wine64
+        wine --version
     - name: Prepare tests
       run: |
         cd test
         cp ../platforms/cosmopolitan/wasm3.com ./wasm3-lin.com
         cp ../platforms/cosmopolitan/wasm3.com ./wasm3-win.com
+        echo "------------ wasm3-lin.com ------------"
+        ./wasm3-lin.com --version
+        echo "------------ wasm3-win.com (in Wine) ------------"
+        wine ./wasm3-win.com --version
     - name: Test WebAssembly spec
       run: |
         cd test
@@ -463,11 +472,7 @@ jobs:
       run: |
         cd test
         python3 run-wasi-test.py --fast --exec "./wasm3-lin.com"
-    - name: Install Wine64
-      run: |
-        sudo apt update
-        sudo apt install wine64
-        wine --version
+
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
