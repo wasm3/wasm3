@@ -61,13 +61,11 @@ M3Result  ParseValueType  (IM3Module i_module, m3type_t * o_type, bytes_t * io_b
     _throwif (m3Err_wasmUnderrun, * io_bytes >= i_end);
 
 #if d_m3HasTypedRefs
-    u8 lead = ** io_bytes;
-
-    if (lead == d_waEncode_ref or lead == d_waEncode_refNull)
+    if (** io_bytes == d_waEncode_ref or ** io_bytes == d_waEncode_refNull)
     {
-        ++ * io_bytes;
+        u8 lead = * (* io_bytes)++;
 
-        m3type_t heapBits;
+        m3type_t heapBits = d_m3Type_heapAbstract;
 _       (ParseHeapType (i_module, & heapBits, io_bytes, i_end));
 
         * o_type = d_m3Type_ref | heapBits | ((lead == d_waEncode_ref) ? d_m3Type_refNonNull : 0);
@@ -87,16 +85,18 @@ _   (NormalizeType (& plainType, wasmType));
 }
 
 
+// Reads an elem type and limits without registering anything: an import
+// descriptor holds on to the fields and only adds the table once it has a name.
 static
-M3Result  ParseType_TableType  (IM3Module io_module, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadType_TableType  (IM3Module i_module, m3type_t * o_elemType, u32 * o_initSize, u32 * o_maxSize, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
 
-    m3type_t elemType;
+    m3type_t elemType = c_m3Type_none;
     u8 flag;
-    u32 initSize, maxSize = 0;
+    u32 initSize = 0, maxSize = 0;
 
-_   (ParseValueType (io_module, & elemType, io_bytes, i_end));
+_   (ParseValueType (i_module, & elemType, io_bytes, i_end));
 #if d_m3HasRefTypes
     _throwif (m3Err_wasmMalformed, not IsRefType (BaseTypeOf(elemType)));
 #else
@@ -116,6 +116,25 @@ _       (ReadLEB_u32 (& maxSize, io_bytes, i_end));
         _throwif ("table overflow", maxSize > d_m3MaxSaneTableSize);
     }
 
+    _catch:
+
+    * o_elemType = elemType;
+    * o_initSize = initSize;
+    * o_maxSize  = maxSize;
+
+    return result;
+}
+
+
+static
+M3Result  ParseType_TableType  (IM3Module io_module, bytes_t * io_bytes, cbytes_t i_end)
+{
+    M3Result result = m3Err_none;
+
+    m3type_t elemType;
+    u32 initSize, maxSize;
+
+_   (ReadType_TableType (io_module, & elemType, & initSize, & maxSize, io_bytes, i_end));
 _   (Module_AddTable (io_module, elemType, initSize, maxSize));
 
     _catch: return result;
@@ -141,6 +160,7 @@ _   (ReadLEB_u32 (& numTables, & i_bytes, i_end));                       m3log (
         // initializer. A reference type never starts with 0x40, so the two
         // forms are told apart by the first byte; the second is reserved.
         bool hasInitExpr = (i_bytes < i_end) and (* i_bytes == 0x40);
+        u32 tableIndex = io_module->numTables;
 
         if (hasInitExpr)
         {
@@ -149,13 +169,9 @@ _   (ReadLEB_u32 (& numTables, & i_bytes, i_end));                       m3log (
 _           (Read_u8 (& reserved, & i_bytes, i_end));
             _throwif (m3Err_wasmMalformed, reserved != 0x00);
         }
-#endif
 
-        u32 tableIndex = io_module->numTables;
+        _       (ParseType_TableType (io_module, & i_bytes, i_end));
 
-_       (ParseType_TableType (io_module, & i_bytes, i_end));
-
-#if d_m3HasTypedRefs
         if (hasInitExpr)
         {
             M3Table * table = & io_module->tables [tableIndex];
@@ -175,6 +191,8 @@ _           (Parse_InitExprTyped (io_module, & i_bytes, i_end, & initType));
             _throwif ("table of non-nullable type requires an initializer",
                       not IsNullableRef (io_module->tables [tableIndex].type));
         }
+#else
+_       (ParseType_TableType (io_module, & i_bytes, i_end));
 #endif
     }
 
@@ -330,27 +348,73 @@ _       (Module_AddFunction (io_module, funcTypeIndex, NULL /* import info */));
 }
 
 
-// Reads one externtype and registers the import it describes. Takes ownership of
-// *io_import wherever the module keeps the strings, clearing the struct so the
-// caller's FreeImportInfo() doesn't free what was handed over.
+// One externtype, read but not yet registered. The compact encoding that shares
+// a type across a run needs the two halves apart: the type sits ahead of the
+// item names, so it is read once and then registered for each of them.
+typedef struct M3ImportDesc
+{
+    u8              kind;
+    u32             typeIndex;                  // function
+    m3type_t        type;                       // table element type / global type
+    u8              isMutable;                  // global
+    u32             initSize, maxSize;          // table
+    M3MemoryInfo    memory;
+}
+M3ImportDesc;
+
+
+// Reads and validates one externtype. Mutates nothing in the module, so an
+// externtype is checked even when the compact run that shares it is empty.
 static
-M3Result  ParseImportDesc  (IM3Module io_module, M3ImportInfo * io_import, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadImportDesc  (IM3Module i_module, M3ImportDesc * o_desc, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
 
-    M3ImportInfo clearImport = { NULL, NULL };
+_   (Read_u8 (& o_desc->kind, io_bytes, i_end));
 
-    u8 importKind;
-_   (Read_u8 (& importKind, io_bytes, i_end));                                      m3log (parse, "    kind: %d '%s.%s' ",
-                                                                                            (u32) importKind, io_import->moduleUtf8, io_import->fieldUtf8);
-    switch (importKind)
+    switch (o_desc->kind)
+    {
+        case d_externalKind_function:
+_           (ReadLEB_u32 (& o_desc->typeIndex, io_bytes, i_end));
+            break;
+
+        case d_externalKind_table:
+_           (ReadType_TableType (i_module, & o_desc->type, & o_desc->initSize, & o_desc->maxSize, io_bytes, i_end));
+            break;
+
+        case d_externalKind_memory:
+_           (ParseType_Memory (& o_desc->memory, io_bytes, i_end));
+            break;
+
+        case d_externalKind_global:
+_           (ParseValueType (i_module, & o_desc->type, io_bytes, i_end));
+_           (ReadLEB_u7 (& o_desc->isMutable, io_bytes, i_end));                    m3log (parse, "     global: %s mutable=%d", c_waTypes [BaseTypeOf(o_desc->type)], (u32) o_desc->isMutable);
+            _throwif (m3Err_wasmMalformed, o_desc->isMutable > 1);
+            break;
+
+        default:
+            _throw (m3Err_wasmMalformed);
+    }
+
+    _catch: return result;
+}
+
+
+// Registers the import that i_desc describes. Takes ownership of *io_import
+// wherever the module keeps the strings, clearing the struct so the caller's
+// FreeImportInfo() doesn't free what was handed over.
+static
+M3Result  ApplyImportDesc  (IM3Module io_module, const M3ImportDesc * i_desc, M3ImportInfo * io_import)
+{
+    M3Result result = m3Err_none;
+
+    M3ImportInfo clearImport = { NULL, NULL };                                      m3log (parse, "    kind: %d '%s.%s' ",
+                                                                                            (u32) i_desc->kind, io_import->moduleUtf8, io_import->fieldUtf8);
+    switch (i_desc->kind)
     {
         case d_externalKind_function:
         {
-            u32 typeIndex;
-_           (ReadLEB_u32 (& typeIndex, io_bytes, i_end))
-
-_           (Module_AddFunction (io_module, typeIndex, io_import))
+_           (Module_AddFunction (io_module, i_desc->typeIndex, io_import))
             * io_import = clearImport;
 
             io_module->numFuncImports++;
@@ -359,7 +423,7 @@ _           (Module_AddFunction (io_module, typeIndex, io_import))
 
         case d_externalKind_table:
         {
-_           (ParseType_TableType (io_module, io_bytes, i_end));
+_           (Module_AddTable (io_module, i_desc->type, i_desc->initSize, i_desc->maxSize));
         }
         break;
 
@@ -367,7 +431,7 @@ _           (ParseType_TableType (io_module, io_bytes, i_end));
         {
             _throwif (m3Err_tooManyMemorySections, io_module->memoryImported or io_module->memoryDeclared);
 
-_           (ParseType_Memory (& io_module->memoryInfo, io_bytes, i_end));
+            io_module->memoryInfo = i_desc->memory;
             io_module->memoryImported = true;
             io_module->memoryImport = * io_import;
             * io_import = clearImport;
@@ -376,15 +440,8 @@ _           (ParseType_Memory (& io_module->memoryInfo, io_bytes, i_end));
 
         case d_externalKind_global:
         {
-            m3type_t type;
-            u8 isMutable;
-
-_           (ParseValueType (io_module, & type, io_bytes, i_end));
-_           (ReadLEB_u7 (& isMutable, io_bytes, i_end));                           m3log (parse, "     global: %s mutable=%d", c_waTypes [BaseTypeOf(type)], (u32) isMutable);
-            _throwif (m3Err_wasmMalformed, isMutable > 1);
-
             IM3Global global;
-_           (Module_AddGlobal (io_module, & global, type, isMutable, true /* isImport */));
+_           (Module_AddGlobal (io_module, & global, i_desc->type, i_desc->isMutable, true /* isImport */));
             global->import = * io_import;
             * io_import = clearImport;
         }
@@ -400,52 +457,14 @@ _           (Module_AddGlobal (io_module, & global, type, isMutable, true /* isI
 
 #if d_m3HasCompactImports
 
-// Steps over an externtype without registering anything. Only the compact form
-// that shares one externtype across a run needs this: the item names sit behind
-// the shared type, so it has to be skipped to reach them and then re-read once
-// per item. Mirrors the layouts ParseImportDesc() consumes.
+// The compact encodings only apply when the item name is empty. Read_utf8()
+// hands back a C string, so a name that merely begins with U+0000 would look
+// empty; the length prefix is what has to be tested.
 static
-M3Result  SkipImportDesc  (bytes_t * io_bytes, cbytes_t i_end)
+bool  IsEmptyName  (bytes_t i_bytes, cbytes_t i_end)
 {
-    M3Result result = m3Err_none;
-
-    u8 importKind, ignoredU7;
-    u32 ignoredU32;
-    i8 ignoredI7;
-    M3MemoryInfo ignoredMemory;
-
-_   (Read_u8 (& importKind, io_bytes, i_end));
-
-    switch (importKind)
-    {
-        case d_externalKind_function:
-_           (ReadLEB_u32 (& ignoredU32, io_bytes, i_end));
-            break;
-
-        case d_externalKind_table:
-            // read past reftype and limits; ParseType_TableType() can't be
-            // reused here, it would add a table to the module
-_           (ReadLEB_i7 (& ignoredI7, io_bytes, i_end));
-_           (ReadLEB_u7 (& ignoredU7, io_bytes, i_end));
-_           (ReadLEB_u32 (& ignoredU32, io_bytes, i_end));
-            if (ignoredU7 & 0x01u)
-_               (ReadLEB_u32 (& ignoredU32, io_bytes, i_end));
-            break;
-
-        case d_externalKind_memory:
-_           (ParseType_Memory (& ignoredMemory, io_bytes, i_end));
-            break;
-
-        case d_externalKind_global:
-_           (ReadLEB_i7 (& ignoredI7, io_bytes, i_end));
-_           (ReadLEB_u7 (& ignoredU7, io_bytes, i_end));
-            break;
-
-        default:
-            _throw (m3Err_wasmMalformed);
-    }
-
-    _catch: return result;
+    u32 length;
+    return (not ReadLEB_u32 (& length, & i_bytes, i_end)) and length == 0;
 }
 
 #endif // d_m3HasCompactImports
@@ -457,6 +476,11 @@ M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i
 
     M3ImportInfo import = { NULL, NULL };
 
+    // the limit is on the imports the section declares, which a compact run
+    // multiplies well past the entry count. Declared up here so the throws
+    // below don't jump over its initialization.
+    u32 numImports = 0;
+
     // A count of entries, not of imports: under the compact encodings a single
     // entry stands for a whole run of them.
     u32 numEntries;
@@ -465,11 +489,17 @@ _   (ReadLEB_u32 (& numEntries, & i_bytes, i_end));                             
     _throwif("too many imports", numEntries > d_m3MaxSaneImportsCount);
 
     // Most imports are functions, so we won't waste much space anyway (if any)
-_   (Module_PreallocFunctions(io_module, numEntries));
+_   (Module_PreallocFunctions(io_module, io_module->numFunctions + numEntries));
 
     for (u32 i = 0; i < numEntries; ++i)
     {
+        M3ImportDesc desc;
+
 _       (Read_utf8 (& import.moduleUtf8, & i_bytes, i_end));
+
+#if d_m3HasCompactImports
+        bytes_t fieldStart = i_bytes;
+#endif
 _       (Read_utf8 (& import.fieldUtf8, & i_bytes, i_end));
 
 #if d_m3HasCompactImports
@@ -478,24 +508,26 @@ _       (Read_utf8 (& import.fieldUtf8, & i_bytes, i_end));
         // An empty item name where an externtype should start marks a compact
         // run sharing this module name. Neither marker is a valid externtype,
         // so nothing that used to parse changes meaning.
-        if (import.fieldUtf8 [0] == 0 and
-            (compact == d_compactImports_perItemType or compact == d_compactImports_sharedType))
+        if ((compact == d_compactImports_perItemType or compact == d_compactImports_sharedType) and
+            IsEmptyName (fieldStart, i_end))
         {
             ++i_bytes;
 
             m3_Free (import.fieldUtf8);         // it only marked the compact form
             import.fieldUtf8 = NULL;
 
-            bytes_t sharedDesc = i_bytes;
-
+            // the shared form puts its one externtype ahead of the item names,
+            // so reading it here is also what validates it
             if (compact == d_compactImports_sharedType)
-_               (SkipImportDesc (& i_bytes, i_end));
+_               (ReadImportDesc (io_module, & desc, & i_bytes, i_end));
 
             u32 numItems;
 _           (ReadLEB_u32 (& numItems, & i_bytes, i_end));                           m3log (parse, "    compact: %d import(s) of '%s'", numItems, import.moduleUtf8);
 
-            _throwif("too many imports", numItems > d_m3MaxSaneImportsCount);
-_           (Module_PreallocFunctions(io_module, numItems));
+            _throwif("too many imports", (u64) numImports + numItems > d_m3MaxSaneImportsCount);
+            numImports += numItems;
+
+_           (Module_PreallocFunctions(io_module, io_module->numFunctions + numItems));
 
             for (u32 j = 0; j < numItems; ++j)
             {
@@ -507,16 +539,12 @@ _           (Module_PreallocFunctions(io_module, numItems));
                 {
                     result = Read_utf8 (& item.fieldUtf8, & i_bytes, i_end);
 
+                    // the shared form reuses the externtype read above
+                    if (not result and compact == d_compactImports_perItemType)
+                        result = ReadImportDesc (io_module, & desc, & i_bytes, i_end);
+
                     if (not result)
-                    {
-                        // the shared form repeats its one externtype per item
-                        bytes_t desc = (compact == d_compactImports_sharedType) ? sharedDesc : i_bytes;
-
-                        result = ParseImportDesc (io_module, & item, & desc, i_end);
-
-                        if (compact == d_compactImports_perItemType)
-                            i_bytes = desc;
-                    }
+                        result = ApplyImportDesc (io_module, & desc, & item);
                 }
                 else result = m3Err_mallocFailed;
 
@@ -529,7 +557,11 @@ _           (Module_PreallocFunctions(io_module, numItems));
         }
 #endif // d_m3HasCompactImports
 
-_       (ParseImportDesc (io_module, & import, & i_bytes, i_end));
+        _throwif("too many imports", numImports >= d_m3MaxSaneImportsCount);
+        ++numImports;
+
+_       (ReadImportDesc (io_module, & desc, & i_bytes, i_end));
+_       (ApplyImportDesc (io_module, & desc, & import));
 
         FreeImportInfo (& import);
     }
@@ -832,12 +864,13 @@ _       (ReadLEB_u32 (& size, & i_bytes, i_end));
 
         if (size)
         {
-            const u8 * ptr = i_bytes;
             i_bytes += size;
 
             if (i_bytes <= i_end)
             {
                 /*
+                const u8 * ptr = i_bytes - size;
+
                 u32 numLocalBlocks;
 _               (ReadLEB_u32 (& numLocalBlocks, & ptr, i_end));                                      m3log (parse, "    code size: %-4d", size);
 
@@ -986,7 +1019,7 @@ _   (ReadLEB_u32 (& numGlobals, & i_bytes, i_end));                             
 
     for (u32 i = 0; i < numGlobals; ++i)
     {
-        m3type_t type;
+        m3type_t type = c_m3Type_none;
         u8 isMutable;
 
 _       (ParseValueType (io_module, & type, & i_bytes, i_end));

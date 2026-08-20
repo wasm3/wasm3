@@ -71,6 +71,22 @@ d_m3BeginExternC
     #define forwardTrap(err)                return err
 #endif
 
+// Trap before a non-tail Wasm call (op_Call/op_CallIndirect) would drive the
+// native C stack past runtime->stackLimit. Reads the current stack pointer via
+// a frame-address probe and compares against the low-water mark set by
+// d_m3StackLimitEnter. Only non-tail calls are guarded; op_ReturnCall runs in
+// constant native stack and is intentionally left unbounded.
+#if d_m3MaxNativeStack > 0
+#   define d_m3CheckNativeStack()                                               \
+        do {                                                                    \
+            void * _m3Limit = m3MemRuntime (_mem)->stackLimit;                  \
+            if (M3_UNLIKELY (_m3Limit && m3_NativeStackPtr () < _m3Limit))      \
+                newTrap (m3Err_trapStackOverflow);                              \
+        } while (0)
+#else
+#   define d_m3CheckNativeStack()           do {} while (0)
+#endif
+
 
 #if d_m3EnableStrace == 1
     // Flat trace
@@ -541,6 +557,8 @@ d_m3Op  (SetGlobal_i64)
 
 d_m3Op  (Call)
 {
+    d_m3CheckNativeStack ();
+
     pc_t callPC                 = immediate (pc_t);
     i32 stackOffset             = immediate (i32);
     IM3Memory memory            = m3MemInfo (_mem);
@@ -631,6 +649,8 @@ d_m3Op  (RefAsNonNull)
 
 d_m3Op  (CallIndirect)
 {
+    d_m3CheckNativeStack ();
+
     u32 tableIndex              = slot (u32);
     M3Table * table             = immediate (M3Table *);
     IM3FuncType type            = immediate (IM3FuncType);

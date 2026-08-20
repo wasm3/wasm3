@@ -200,7 +200,7 @@ typedef struct M3Environment
 
     IM3FuncType             funcTypes;                          // linked list of unique M3FuncType structs that can be compared using pointer-equivalence
 
-    IM3FuncType             retFuncTypes [c_m3Type_unknown];    // these 'point' to elements in the linked list above.
+    IM3FuncType             retFuncTypes [c_m3Type_count];      // these 'point' to elements in the linked list above.
                                                                 // the number of elements must match the basic types as per M3ValueType
     u16                     numFuncTypes;                       // hands out M3FuncType.canonicalIndex
     M3CodePage *            pagesReleased;
@@ -239,6 +239,7 @@ typedef struct M3Runtime
     void *                  originStack;
     u32                     stackSize;
     u32                     numStackSlots;
+    void *                  stackLimit;     // native C-stack low-water mark; Wasm calls trap past it (NULL = unset)
     IM3Function             lastCalled;     // last function that successfully executed
 
     void *                  userdata;
@@ -262,6 +263,21 @@ typedef struct M3Runtime
 	u32						newCodePageSequence;
 }
 M3Runtime;
+
+// Establish the native C-stack limit for a top-level invocation. The outermost
+// call records a low-water mark d_m3MaxNativeStack bytes into the stack; nested
+// re-entrant calls (e.g. an imported function calling back into Wasm) keep the
+// original mark. op_Call/op_CallIndirect trap once execution crosses it.
+#if d_m3MaxNativeStack > 0
+#   define d_m3StackLimitEnter(RT)                                               \
+        void * _m3SavedStackLimit = (RT)->stackLimit;                           \
+        if (not (RT)->stackLimit)                                               \
+            (RT)->stackLimit = (u8 *) m3_NativeStackPtr () - (d_m3MaxNativeStack);
+#   define d_m3StackLimitLeave(RT)  (RT)->stackLimit = _m3SavedStackLimit;
+#else
+#   define d_m3StackLimitEnter(RT)
+#   define d_m3StackLimitLeave(RT)
+#endif
 
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void                        Runtime_Release             (IM3Runtime io_runtime);

@@ -128,8 +128,10 @@ void  m3_PrintRuntimeInfo  (IM3Runtime i_runtime)
 
 cstr_t  GetTypeName  (m3type_t i_m3Type)
 {
-    if (i_m3Type < 5)
-        return c_waTypes [BaseTypeOf(i_m3Type)];
+    u8 base = BaseTypeOf (i_m3Type);
+
+    if (base <= c_m3Type_unknown)
+        return c_waTypes [base];
     else
         return "?";
 }
@@ -303,7 +305,8 @@ void  dump_code_page  (IM3CodePage i_codePage, pc_t i_startPC)
 
         while (pc < end)
         {
-            pc_t operationPC = pc;
+            const pc_t operationPC = pc;
+            (void) operationPC;  // avoid unused variable warning if DEBUG is not defined
             IM3Operation op = (IM3Operation) (* pc++);
 
                 OpInfo i = find_operation_info (op);
@@ -475,6 +478,7 @@ void  log_opcode  (IM3Compilation o, m3opcode_t i_opcode)
     i32 depth = o->block.depth;
     if (i_opcode == c_waOp_end or i_opcode == c_waOp_else)
         depth--;
+    (void) depth;
 
     m3log (compile, "%4d | 0x%02x  %s %s", o->numOpcodes++, i_opcode, GetOpcodeIndentionString (depth), GetOpInfo(i_opcode)->name);
 }

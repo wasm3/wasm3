@@ -24,7 +24,7 @@ IM3Environment  m3_NewEnvironment  ()
         {
             // create FuncTypes for all simple block return ValueTypes.
             // v128 is skipped: it parses as a slot but has no operations.
-            for (u8 t = c_m3Type_none; t < c_m3Type_unknown; t++)
+            for (u8 t = c_m3Type_none; t < c_m3Type_count; t++)
             {
                 if (t == c_m3Type_v128)
                     continue;
@@ -655,6 +655,23 @@ _           (CompileFunction (f));
     _catch: return result;
 }
 
+// Run compiled code on the runtime's stack, bounding native recursion for the
+// duration of the call. The outermost invocation establishes the stack limit;
+// nested ones (an imported function calling back into Wasm) inherit it.
+static inline
+M3Result  RunCodeChecked  (IM3Runtime i_runtime, pc_t i_pc)
+{
+    d_m3StackLimitEnter (i_runtime);
+# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+# else
+    M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs);
+# endif
+    d_m3StackLimitLeave (i_runtime);
+
+    return result;
+}
+
 M3Result  m3_RunStart  (IM3Module io_module)
 {
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
@@ -684,11 +701,7 @@ _           (CompileFunction (function));
         startFunctionTmp = io_module->startFunction;
         io_module->startFunction = -1;
 
-# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
-# else
-        result = (M3Result) RunCode (function->compiled, (m3stack_t) runtime->stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
-# endif
+        result = RunCodeChecked (runtime, function->compiled);
 
         if (result)
         {
@@ -1024,11 +1037,7 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
-# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
-# else
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-# endif
+    result = RunCodeChecked (runtime, i_function->compiled);
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -1075,11 +1084,7 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
-# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
-# else
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-# endif
+    result = RunCodeChecked (runtime, i_function->compiled);
 
     ReportNativeStackUsage ();
 
@@ -1127,12 +1132,8 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
-# if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
-# else
-    result = (M3Result) RunCode (i_function->compiled, (m3stack_t)(runtime->stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
-# endif
-    
+    result = RunCodeChecked (runtime, i_function->compiled);
+
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;

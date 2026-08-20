@@ -11,8 +11,10 @@
 
 #if d_m3EnableValidation
 
-// Sentinel type for polymorphic (unknown) operands
-#define c_valUnknown        0xFF
+// The spec's bottom type: an operand of unknown type on an unreachable stack,
+// which unifies with every concrete type. Deliberately not c_m3Type_unknown -
+// that one means "invalid type" and must never be accepted by a type check.
+#define c_valBottom         0xFF
 
 // ---------- Control frame ----------
 
@@ -89,7 +91,7 @@ static M3Result v_pop (ValCtx * v, u8 * o_type)
 {
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
     if (v->opdTop == f->height) {
-        if (f->is_unreachable) { *o_type = c_valUnknown; return m3Err_none; }
+        if (f->is_unreachable) { *o_type = c_valBottom; return m3Err_none; }
         return m3Err_functionStackUnderrun;
     }
     *o_type = v->opd[--v->opdTop];
@@ -98,12 +100,12 @@ static M3Result v_pop (ValCtx * v, u8 * o_type)
 
 static M3Result v_pop_expect (ValCtx * v, u8 expect, u8 * o_actual)
 {
-    u8 actual;
+    u8 actual = c_valBottom;
     M3Result r = v_pop(v, &actual);
     if (r) return r;
-    if (expect != c_valUnknown && actual != c_valUnknown && actual != expect)
+    if (expect != c_valBottom && actual != c_valBottom && actual != expect)
         return m3Err_typeMismatch;
-    *o_actual = (actual == c_valUnknown) ? expect : actual;
+    *o_actual = (actual == c_valBottom) ? expect : actual;
     return m3Err_none;
 }
 
@@ -172,7 +174,7 @@ static u8 v_peek (ValCtx * v, u16 i_depth)
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
 
     if (v->opdTop <= i_depth || (u16)(v->opdTop - i_depth - 1) < f->height)
-        return c_valUnknown;
+        return c_valBottom;
 
     return v->opd[v->opdTop - i_depth - 1];
 }
@@ -296,7 +298,7 @@ static M3Result v_cvtop (ValCtx * v, u8 in, u8 out)
 static M3Result v_validate_body (ValCtx * v)
 {
     M3Result r = m3Err_none;
-    u8 a;
+    u8 a = c_valBottom;
 
     while (v->wasm < v->wasmEnd)
     {
@@ -318,7 +320,7 @@ static M3Result v_validate_body (ValCtx * v)
         case 0x03: // loop
         case 0x04: // if
         {
-            IM3FuncType bt;
+            IM3FuncType bt = NULL;
             r = v_read_blocktype(v, &bt);
             if (r) return r;
             if (opcode == 0x04) {
@@ -447,7 +449,7 @@ static M3Result v_validate_body (ValCtx * v)
                 for (u16 j = 0; j < n; j++) {
                     u8 want = v_label_t(t, n - 1 - j);
                     u8 have = v_peek(v, j);
-                    if (want != c_valUnknown && have != c_valUnknown && want != have)
+                    if (want != c_valBottom && have != c_valBottom && want != have)
                         return m3Err_typeMismatch;
                 }
             }
@@ -603,7 +605,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             r = v_pop_expect(v, c_m3Type_funcref, &a);
             if (r) return r;
-            r = v_push(v, a == c_m3Type_unknown ? c_m3Type_funcref : a);
+            r = v_push(v, (a == c_valBottom) ? c_m3Type_funcref : a);
             if (r) return r;
             break;
         }
@@ -626,8 +628,8 @@ static M3Result v_validate_body (ValCtx * v)
             r = v_pop_expect(v, t2, &t1);
             if (r) return r;
             // untyped select is numeric only; references need the 0x1c form
-            if (t2 != c_valUnknown && IsRefType(t2)) return m3Err_typeMismatch;
-            r = v_push(v, (t2 == c_valUnknown) ? t1 : t2);
+            if (t2 != c_valBottom && IsRefType(t2)) return m3Err_typeMismatch;
+            r = v_push(v, (t2 == c_valBottom) ? t1 : t2);
             if (r) return r;
             break;
         }
@@ -689,10 +691,10 @@ static M3Result v_validate_body (ValCtx * v)
 
         case 0xd1: // ref.is_null
         {
-            u8 t;
+            u8 t = c_valBottom;
             r = v_pop(v, &t);
             if (r) return r;
-            if (t != c_valUnknown && !IsRefType(t)) return m3Err_typeMismatch;
+            if (t != c_valBottom && !IsRefType(t)) return m3Err_typeMismatch;
             r = v_push(v, c_m3Type_i32);
             if (r) return r;
             break;

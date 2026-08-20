@@ -171,7 +171,9 @@ M3CodePageHeader;
 // a heap type index has to fit in the spare bits of an m3type_t, see below
 #  define d_m3MaxSaneTypesCount             8190
 #else
-#  define d_m3MaxSaneTypesCount             1000000
+// M3Environment.numFuncTypes is the u16 that hands out M3FuncType.canonicalIndex,
+// so the count has to stay below 65536 here as well
+#  define d_m3MaxSaneTypesCount             65500
 #endif
 #define d_m3MaxSaneFunctionsCount           1000000
 #define d_m3MaxSaneImportsCount             100000
@@ -209,7 +211,8 @@ M3CodePageHeader;
 #define d_waEncode_ref                      0x64
 #define d_waEncode_refNull                  0x63
 
-// indexed by M3ValueType, so these must cover every value up to c_m3Type_unknown
+// indexed by M3ValueType: c_m3Type_count entries for the concrete types, plus
+// one more for c_m3Type_unknown, which sits right after them
 static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "v128", "funcref", "externref", "unknown" };
 static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "V", "r", "R", "?" };
 

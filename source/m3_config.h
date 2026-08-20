@@ -201,6 +201,15 @@
 #   define d_m3SkipStackCheck                   0       // skip stack overrun checks
 # endif
 
+# ifndef d_m3MaxNativeStack
+                                                        // native C-stack budget (bytes) available to Wasm execution. A recursive
+                                                        // Wasm module builds up native call frames (op_Call -> op_Entry -> ...);
+                                                        // once this budget is exhausted the interpreter traps instead of
+                                                        // overflowing the real C stack. Must be smaller than the
+                                                        // thread's stack size - reduce it on platforms with small stacks. 0 disables.
+#   define d_m3MaxNativeStack                   ((8 * 1024 * 1024) - (128 * 1024))
+# endif
+
 # ifndef d_m3SkipMemoryBoundsCheck
 #   define d_m3SkipMemoryBoundsCheck            0       // skip memory bounds checks
 # endif

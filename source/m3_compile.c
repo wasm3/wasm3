@@ -2152,7 +2152,7 @@ M3Result  Compile_Memory_Init  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
-    M3DataSegment * segment;
+    M3DataSegment * segment = NULL;
     u32 memoryIdx;
 
     _throwif (m3Err_wasmMalformed, not (o->module->memoryImported or o->module->memoryDeclared));
@@ -2451,7 +2451,7 @@ M3Result  Compile_Data_Drop  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
-    M3DataSegment * segment;
+    M3DataSegment * segment = NULL;
 _   (ReadDataSegment (o, & segment));
 
 _   (EmitOp (o, op_DataDrop));

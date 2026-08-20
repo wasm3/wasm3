@@ -93,7 +93,11 @@ typedef enum M3ValueType
     c_m3Type_funcref    = 6,
     c_m3Type_externref  = 7,
 
-    c_m3Type_unknown
+    // the number of concrete value types
+    c_m3Type_count,
+
+    // "not a valid type" - returned where a lookup or a mapping failed.
+    c_m3Type_unknown = c_m3Type_count
 } M3ValueType;
 
 typedef struct M3TaggedValue

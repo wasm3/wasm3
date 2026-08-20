@@ -73,6 +73,9 @@ jobs:
         name: ${{ matrix.config.artifact }}
         path: ./${{ matrix.config.artifact }}.elf
         if-no-files-found: error
+    - name: Test regression cases
+      if: ${{ !matrix.config.notest }}
+      run: cd test && python3 run-regression-test.py
     - name: Test WebAssembly spec
       if: ${{ !matrix.config.notest }}
       run: cd test && python3 run-spec-test.py
@@ -117,6 +120,7 @@ jobs:
         echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
         echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
         echo "------------ Run tests ------------"
+        cd test && python3 run-regression-test.py && cd ..
         cd test && python3 run-spec-test.py && cd ..
         cd test && python3 run-wasi-test.py --fast && cd ..
         echo "-------- All tests finished -------"
@@ -147,6 +151,8 @@ jobs:
     - name: Build
       run: |
         cmake --build build
+    - name: Test regression cases
+      run: cd test && python3 run-regression-test.py
     - name: Test WebAssembly spec
       run: cd test && python3 run-spec-test.py
     - name: Test previous WebAssembly spec versions
@@ -207,6 +213,11 @@ jobs:
         name: ${{ matrix.config.artifact }}
         path: ./${{ matrix.config.artifact }}.exe
         if-no-files-found: error
+    - name: Test regression cases
+      if: ${{ !matrix.config.notest }}
+      run: |
+        cd test
+        python run-regression-test.py
     - name: Test WebAssembly spec
       if: ${{ !matrix.config.notest }}
       run: |

@@ -238,7 +238,7 @@ m3ApiRawFunction(m3_wasi_generic_environ_get)
     m3ApiCheckMem(env,      env_count * sizeof(uint32_t));
     m3ApiCheckMem(env_buf,  env_buf_size);
 
-    ret = __wasi_environ_get(env, env_buf);
+    ret = __wasi_environ_get(env, (uint8_t *) env_buf);
     if (ret != __WASI_ERRNO_SUCCESS) m3ApiReturn(ret);
 
     for (u32 i = 0; i < env_count; ++i) {
@@ -271,7 +271,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 
     m3ApiCheckMem(path, path_len);
 
-    __wasi_errno_t ret = __wasi_fd_prestat_dir_name(fd, path, path_len);
+    __wasi_errno_t ret = __wasi_fd_prestat_dir_name(fd, (uint8_t *) path, path_len);
 
     WASI_TRACE("fd:%d, len:%d | path:%s", fd, path_len, path);
 
@@ -577,7 +577,7 @@ m3ApiRawFunction(m3_wasi_generic_path_readlink)
 
     d_m3WasiPath(p, path, path_len)
 
-    __wasi_errno_t ret = __wasi_path_readlink(fd, p, buf, buf_len, bufused);
+    __wasi_errno_t ret = __wasi_path_readlink(fd, p, (uint8_t *) buf, buf_len, bufused);
 
     WASI_TRACE("fd:%d, path:%.*s | buf:%s, bufused:%d", fd, (int)path_len, path, buf, *bufused);
 
@@ -1155,4 +1155,3 @@ _catch:
 }
 
 #endif // d_m3HasMetaWASI
-
