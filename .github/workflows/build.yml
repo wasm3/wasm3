@@ -459,11 +459,11 @@ jobs:
       run: |
         cd test
         cp ../platforms/cosmopolitan/wasm3.com ./wasm3-lin.com
-        cp ../platforms/cosmopolitan/wasm3.com ./wasm3-win.com
+        cp ../platforms/cosmopolitan/wasm3.com ./wasm3-win.exe
         echo "------------ wasm3-lin.com ------------"
         ./wasm3-lin.com --version
-        echo "------------ wasm3-win.com (in Wine) ------------"
-        wine ./wasm3-win.com --version
+        echo "------------ wasm3-win.exe (in Wine) ------------"
+        wine64 ./wasm3-win.exe --version
     - name: Test WebAssembly spec
       run: |
         cd test
@@ -476,11 +476,11 @@ jobs:
     - name: Test WebAssembly spec (in Wine)
       run: |
         cd test
-        python3 run-spec-test.py --exec "wine ./wasm3-win.com --spec-repl"
+        python3 run-spec-test.py --exec "wine64 ./wasm3-win.exe --spec-repl"
     - name: Test WASI apps (in Wine)
       run: |
         cd test
-        python3 run-wasi-test.py --fast --exec "wine ./wasm3-win.com"
+        python3 run-wasi-test.py --fast --exec "wine64 ./wasm3-win.exe"
 
   cross-qemu:
     runs-on: ubuntu-latest
