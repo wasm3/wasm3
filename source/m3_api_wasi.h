@@ -21,17 +21,39 @@ typedef struct m3_wasi_context_t
     i32                     exit_code;
     u32                     argc;
     ccstr_t *               argv;
+
+#if defined(d_m3HasUVWASI)
+    uvwasi_t uvwasi;
+#endif
 } m3_wasi_context_t;
 
+#define M3WASI m3_wasi_context_t*
+
+// ----------------------------------------------------------------------
+// Free-standing WASI
+// ----------------------------------------------------------------------
+
+M3Result m3_NewCustomWASI(M3WASI*);
+void m3_FreeCustomWASI(M3WASI);
+
+M3Result    m3_LinkCustomWASI       (IM3Module, M3WASI);
+
+#if defined(d_m3HasUVWASI)
+M3Result    m3_LinkCustomWASIWithOptions  (IM3Module io_module, uvwasi_options_t uvwasiOptions);
+#endif
+
+
+// ----------------------------------------------------------------------
+// Global WASI
+// ----------------------------------------------------------------------
 M3Result    m3_LinkWASI             (IM3Module io_module);
 
 #if defined(d_m3HasUVWASI)
-
-M3Result    m3_LinkWASIWithOptions  (IM3Module io_module, uvwasi_options_t uvwasiOptions);
-
+M3Result    m3_LinkWASIWithOptions        (IM3Module io_module, uvwasi_options_t uvwasiOptions);
 #endif
 
-m3_wasi_context_t* m3_GetWasiContext();
+m3_wasi_context_t* m3_GetWasiContext(void);
+
 
 d_m3EndExternC
 
