@@ -450,24 +450,12 @@ jobs:
           ./wasm3-cosmopolitan.com
           ./wasm3-cosmopolitan.com.dbg
         if-no-files-found: error
-    - name: Prepare tests
-      run: |
-        cd test
-        cp ../platforms/cosmopolitan/wasm3.com ./wasm3.com
-    - name: Test WebAssembly spec
-      run: |
-        cd test
-        python3 run-spec-test.py --exec "./wasm3.com --spec-repl"
-    - name: Test WASI apps
-      run: |
-        cd test
-        python3 run-wasi-test.py --fast --exec "./wasm3.com"
 
   # The published APE is meant to run everywhere, so take that exact file
   # and exercise it on the other operating systems
   cosmopolitan-test:
     runs-on: ${{ matrix.config.os }}
-    name: cosmopolitan-${{ matrix.config.os }}
+    name: cosmopolitan-${{ matrix.config.target }}
     timeout-minutes: 20
 
     needs: cosmopolitan
@@ -476,8 +464,9 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {os: macos-latest,   python: python3, exec: "sh ./wasm3.com" }
-        - {os: windows-latest, python: python,  exec: "./wasm3.com"    }
+        - {target: linux,   os: ubuntu-latest,  python: python3, exec: "./wasm3.com"    }
+        - {target: windows, os: windows-latest, python: python,  exec: "./wasm3.com"    }
+        - {target: macos,   os: macos-latest,   python: python3, exec: "sh ./wasm3.com" }
 
     defaults:
       run:
@@ -490,6 +479,9 @@ jobs:
       with:
         name: wasm3-cosmopolitan
         path: test
+    - name: Register APE interpreter
+      if: ${{ matrix.config.target == 'linux' }}
+      run: sudo sh -c "echo ':APE:M::MZqFpD::/bin/sh:' >/proc/sys/fs/binfmt_misc/register"
     - name: Prepare tests
       run: |
         cd test
@@ -500,6 +492,12 @@ jobs:
       run: |
         cd test
         ${{ matrix.config.python }} run-spec-test.py --exec "${{ matrix.config.exec }} --spec-repl"
+    - name: Test previous WebAssembly spec versions
+      run: |
+        cd test
+        ${{ matrix.config.python }} run-spec-test.py --spec=v1.1        --exec "${{ matrix.config.exec }} --spec-repl"
+        ${{ matrix.config.python }} run-spec-test.py --spec=opam-1.1.1  --exec "${{ matrix.config.exec }} --spec-repl"
+        ${{ matrix.config.python }} run-spec-test.py --spec=wg-2.0      --exec "${{ matrix.config.exec }} --spec-repl"
     - name: Test WASI apps
       run: |
         cd test
@@ -523,9 +521,9 @@ jobs:
         - {target: ppc64,   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static   }
         #- {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
         - {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static   }
-        - {target: mips,    toolchain: gcc-mips-linux-gnu,          cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static     }
-        - {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64,   cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static   }
-        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,        cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static   }
+        - {target: mips,    toolchain: gcc-mips-linux-gnu,        cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static     }
+        - {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64, cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static   }
+        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,      cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static   }
         - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,qemu: qemu-mips64el-static }
         - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static   }
         # TODO: - {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static, skip_wasi: true }
