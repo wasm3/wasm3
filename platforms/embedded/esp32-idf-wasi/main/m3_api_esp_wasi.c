@@ -632,7 +632,6 @@ M3Result  m3_LinkEspWASI  (IM3Module module)
     if (!wasi_context) {
         wasi_context = m3_AllocStruct(m3_wasi_context_t);
     }
-
     return _linkWASI(module, wasi_context);
 }
 
