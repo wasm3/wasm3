@@ -21,7 +21,11 @@ add_library(m3 STATIC ${sources})
 
 target_include_directories(m3 PUBLIC .)
 
-target_compile_features(m3 PRIVATE c_std_99)
+# Compilers CMake has no feature table for (TinyCC, for one) can't be asked for
+# c_std_99; the C_STANDARD set at the top level covers them
+if(CMAKE_C_COMPILE_FEATURES)
+    target_compile_features(m3 PRIVATE c_std_99)
+endif()
 
 if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
     # add MSVC specific flags here

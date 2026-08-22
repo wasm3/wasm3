@@ -22,6 +22,8 @@
 #  define M3_COMPILER_CLANG 1
 # elif defined(__INTEL_COMPILER)
 #  define M3_COMPILER_ICC 1
+# elif defined(__TINYC__)
+#  define M3_COMPILER_TCC 1
 # elif defined(__GNUC__) || defined(__GNUG__)
 #  define M3_COMPILER_GCC 1
 # elif defined(_MSC_VER)
@@ -31,15 +33,21 @@
 # endif
 
 # if defined(M3_COMPILER_CLANG)
+# define M3_CLANG_VER "Clang "  \
+  M3_STR(__clang_major__) "."   \
+  M3_STR(__clang_minor__) "."   \
+  M3_STR(__clang_patchlevel__)
 #  if defined(WIN32)
-#   define M3_COMPILER_VER __VERSION__ " for Windows"
+#   define M3_COMPILER_VER M3_CLANG_VER " for Windows"
 #  else
-#   define M3_COMPILER_VER __VERSION__
+#   define M3_COMPILER_VER M3_CLANG_VER
 #  endif
 # elif defined(M3_COMPILER_GCC)
 #  define M3_COMPILER_VER "GCC " __VERSION__
 # elif defined(M3_COMPILER_ICC)
 #  define M3_COMPILER_VER __VERSION__
+# elif defined(M3_COMPILER_TCC)
+#  define M3_COMPILER_VER "TinyCC " M3_STR(__TINYC__)
 # elif defined(M3_COMPILER_MSVC)
 #  define M3_COMPILER_VER "MSVC " M3_STR(_MSC_VER)
 # else
@@ -65,6 +73,18 @@
 # endif
 
 /*
+ * Detect variable-length arrays
+ */
+
+// MSVC has no VLAs at all, and TinyCC's are unusable: it doesn't restore the
+// stack pointer when a goto leaves the scope a VLA was declared in
+# if defined(M3_COMPILER_MSVC) || defined(M3_COMPILER_TCC) || defined(__STDC_NO_VLA__)
+#  define M3_HAS_VLA 0
+# else
+#  define M3_HAS_VLA 1
+# endif
+
+/*
  * Detect endianness
  */
 
@@ -82,7 +102,7 @@
  * Detect platform
  */
 
-# if defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_GCC) || defined(M3_COMPILER_ICC)
+# if defined(M3_COMPILER_CLANG) || defined(M3_COMPILER_GCC) || defined(M3_COMPILER_ICC) || defined(M3_COMPILER_TCC)
 #  if defined(__wasm__)
 #   define M3_ARCH "wasm"
 
@@ -237,10 +257,9 @@
 #  define m3_bswap32(x)     __builtin_bswap32((x))
 #  define m3_bswap64(x)     __builtin_bswap64((x))
 # else
+#  include <stdint.h>
 #  ifdef __linux__
 #   include <endian.h>
-#  else
-#   include <stdint.h>
 #  endif
 #  if defined(__bswap_16)
 #   define m3_bswap16(x)     __bswap_16((x))

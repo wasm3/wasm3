@@ -479,10 +479,10 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
         m3ApiReturn(__WASI_ERRNO_INVAL);
 
     // copy path so we can ensure it is NULL terminated
-#if defined(M3_COMPILER_MSVC)
-    char host_path[512];
-#else
+#if M3_HAS_VLA
     char host_path[path_len+1];
+#else
+    char host_path[512];
 #endif
     memcpy (host_path, path, path_len);
     host_path[path_len] = '\0'; // NULL terminator

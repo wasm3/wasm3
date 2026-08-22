@@ -300,7 +300,11 @@ d_m3UnaryOp_f (f32, Floor,      floorf);        d_m3UnaryOp_f (f64, Floor,      
 d_m3UnaryOp_f (f32, Trunc,      truncf);        d_m3UnaryOp_f (f64, Trunc,      trunc);
 d_m3UnaryOp_f (f32, Sqrt,       sqrtf);         d_m3UnaryOp_f (f64, Sqrt,       sqrt);
 d_m3UnaryOp_f (f32, Nearest,    rintf);         d_m3UnaryOp_f (f64, Nearest,    rint);
+#if defined(M3_COMPILER_TCC)
+d_m3UnaryOp_f (f32, Negate,     m3_negf);       d_m3UnaryOp_f (f64, Negate,     m3_neg);
+#else
 d_m3UnaryOp_f (f32, Negate,     -);             d_m3UnaryOp_f (f64, Negate,     -);
+#endif
 #endif
 
 #define OP_EQZ(x) ((x) == 0)

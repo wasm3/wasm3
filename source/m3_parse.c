@@ -281,10 +281,10 @@ _           (ReadLEB_i7 (& form, & i_bytes, i_end));
 _           (ReadLEB_u32 (& numArgs, & i_bytes, i_end));
 
             _throwif (m3Err_tooManyArgsRets, numArgs > d_m3MaxSaneFunctionArgRetCount);
-#if defined(M3_COMPILER_MSVC)
-            m3type_t argTypes [d_m3MaxSaneFunctionArgRetCount];
-#else
+#if M3_HAS_VLA
             m3type_t argTypes[numArgs+1]; // make ubsan happy
+#else
+            m3type_t argTypes [d_m3MaxSaneFunctionArgRetCount];
 #endif
             for (u32 a = 0; a < numArgs; ++a)
 _               (ParseValueType (io_module, & argTypes[a], & i_bytes, i_end));

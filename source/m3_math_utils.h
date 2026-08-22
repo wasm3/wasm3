@@ -78,6 +78,76 @@ int __builtin_clzll(uint64_t value) {
 
 #endif // defined(M3_COMPILER_MSVC)
 
+#if defined(M3_COMPILER_TCC)
+
+// TinyCC provides none of the bit-counting builtins the interpreter uses
+
+static inline
+int __builtin_popcount(uint32_t x) {
+    x = x - ((x >> 1) & 0x55555555u);
+    x = (x & 0x33333333u) + ((x >> 2) & 0x33333333u);
+    x = (x + (x >> 4)) & 0x0f0f0f0fu;
+    return (int)((x * 0x01010101u) >> 24);
+}
+
+static inline
+int __builtin_ctz(uint32_t x) {
+    //if (x == 0) return 32; // Note: ctz(0) result is undefined anyway
+    return __builtin_popcount((x & (~x + 1u)) - 1);
+}
+
+static inline
+int __builtin_clz(uint32_t x) {
+    //if (x == 0) return 32; // Note: clz(0) result is undefined anyway
+    x |= x >> 1;  x |= x >> 2;  x |= x >> 4;  x |= x >> 8;  x |= x >> 16;
+    return 32 - __builtin_popcount(x);
+}
+
+static inline
+int __builtin_popcountll(uint64_t value) {
+    return __builtin_popcount((uint32_t)(value & 0xFFFFFFFF)) +
+           __builtin_popcount((uint32_t)(value >> 32));
+}
+
+static inline
+int __builtin_ctzll(uint64_t value) {
+    uint32_t msh = (uint32_t)(value >> 32);
+    uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
+    if (lsh != 0) return __builtin_ctz(lsh);
+    return 32 + __builtin_ctz(msh);
+}
+
+static inline
+int __builtin_clzll(uint64_t value) {
+    uint32_t msh = (uint32_t)(value >> 32);
+    uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
+    if (msh != 0) return __builtin_clz(msh);
+    return 32 + __builtin_clz(lsh);
+}
+
+
+// TinyCC compiles -x on floats as an arithmetic negation, which quiets signaling
+// NaNs; f32.neg/f64.neg must only flip the sign bit and leave the payload alone
+
+static inline
+f32 m3_negf(f32 x) {
+    u32 bits;
+    memcpy(&bits, &x, sizeof(bits));
+    bits ^= 0x80000000u;
+    memcpy(&x, &bits, sizeof(x));
+    return x;
+}
+
+static inline
+f64 m3_neg(f64 x) {
+    u64 bits;
+    memcpy(&bits, &x, sizeof(bits));
+    bits ^= 0x8000000000000000ull;
+    memcpy(&x, &bits, sizeof(x));
+    return x;
+}
+
+#endif // defined(M3_COMPILER_TCC)
 
 // TODO: not sure why, signbit is actually defined in math.h
 #if (defined(ESP8266) || defined(ESP32)) && !defined(signbit)

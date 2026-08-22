@@ -9,7 +9,7 @@ cmake ..
 make -j8
 ```
 
-Wasm3 is continuously tested with Clang, GCC, MSVC compilers, and on multiple platforms.
+Wasm3 is continuously tested with Clang, GCC, TinyCC, MSVC compilers, and on multiple platforms.
 It can be easily integrated into any build system, as shown in `platforms`.
 
 ## Build on Linux, OS X
@@ -29,6 +29,18 @@ ninja
 mkdir build
 cd build
 cmake -GNinja ..
+ninja
+```
+
+### TinyCC
+
+TinyCC ships no `stdatomic.h`, which libuv needs, so uvwasi is out; build the
+simple WASI implementation instead:
+
+```sh
+mkdir build
+cd build
+CC=tcc cmake -GNinja -DBUILD_WASI=simple ..
 ninja
 ```
 
