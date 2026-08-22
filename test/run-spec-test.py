@@ -849,13 +849,9 @@ else:
         ):
             jsonFiles += glob.glob(os.path.join(spec_dir, stage, subdir, "*.json"))
 
-    # Exception handling. 3.0 keeps it in core/exceptions; the earlier suites
-    # carry the proposal repo's own snapshot of the whole core suite under
-    # proposals/exceptions, so only the four files the proposal actually adds
-    # are worth picking out of it.
-    jsonFiles += glob.glob(os.path.join(spec_dir, "core", "exceptions", "*.json"))
-    for name in ("tag", "throw", "throw_ref", "try_table"):
-        jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "exceptions", name + ".json"))
+    # Exception handling. 3.0 keeps it in core/exceptions; the earlier suites are irrelevant/outdated
+    if args.spec == "wg-3.0":
+        jsonFiles += glob.glob(os.path.join(spec_dir, "core", "exceptions", "*.json"))
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
