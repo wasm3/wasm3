@@ -37,6 +37,24 @@
 
 #define FATAL(msg, ...) { fprintf(stderr, "Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
+#if defined(_MSC_VER)
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+static inline bool launched_from_gui_shell()
+{
+    /* When Explorer directly starts a console executable, Windows
+     * normally creates a new console containing only that executable.
+     * When invoked from cmd.exe / PowerShell, the shell is normally
+     * attached to the same console as well. */
+    DWORD processes[2];
+    return 1 == GetConsoleProcessList(processes, 2);
+}
+#else
+static inline bool launched_from_gui_shell() { return false; }
+#endif
+
 
 static IM3Environment env;
 static IM3Runtime runtime;
@@ -708,7 +726,15 @@ int  main  (int i_argc, const char* i_argv[])
     if ((argRepl and (i_argc > 1)) or   // repl supports 0 or 1 args
         (not argRepl and (i_argc < 1))  // normal expects at least 1
     ) {
-        print_usage();
+        if (launched_from_gui_shell()) {
+            print_version();
+            print_usage();
+            // Pause so the user can read the output before the console closes
+            fprintf(stderr, "Press Enter to exit...");
+            getchar();
+        } else {
+            print_usage();
+        }
         return 1;
     }
 
