@@ -144,16 +144,29 @@ void * ReservePointer (IM3Compilation o)
 
 static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32,       op_PreserveSetSlot_i64,
                                                     FPOP(op_PreserveSetSlot_f32), FPOP(op_PreserveSetSlot_f64),
-                                                    NULL, REFOP(PreserveSetSlot), REFOP(PreserveSetSlot) };
+                                                    NULL, REFOP(PreserveSetSlot),  REFOP(PreserveSetSlot),
+                                                    REFOP(PreserveSetSlot) };
 static const IM3Operation c_setSetOps [] =       { NULL, op_SetSlot_i32,               op_SetSlot_i64,
                                                     FPOP(op_SetSlot_f32),         FPOP(op_SetSlot_f64),
-                                                    NULL, REFOP(SetSlot),         REFOP(SetSlot) };
+                                                    NULL, REFOP(SetSlot),         REFOP(SetSlot),
+                                                    REFOP(SetSlot) };
 static const IM3Operation c_setGlobalOps [] =    { NULL, op_SetGlobal_i32,             op_SetGlobal_i64,
                                                     FPOP(op_SetGlobal_f32),       FPOP(op_SetGlobal_f64),
-                                                    NULL, REFOP(SetGlobal),       REFOP(SetGlobal) };
+                                                    NULL, REFOP(SetGlobal),       REFOP(SetGlobal),
+                                                    REFOP(SetGlobal) };
 static const IM3Operation c_setRegisterOps [] =  { NULL, op_SetRegister_i32,           op_SetRegister_i64,
                                                     FPOP(op_SetRegister_f32),     FPOP(op_SetRegister_f64),
-                                                    NULL, REFOP(SetRegister),     REFOP(SetRegister) };
+                                                    NULL, REFOP(SetRegister),     REFOP(SetRegister),
+                                                    REFOP(SetRegister) };
+
+// One entry per M3ValueType, so a type the compiler carries can never index off
+// the end of them. Declaring an array of negative size is the portable way to
+// say this in C99, which these builds still target.
+typedef char m3_TypeOpTablesAreComplete [
+    (M3_COUNT_OF (c_preserveSetSlot) == c_m3Type_count and
+     M3_COUNT_OF (c_setSetOps)       == c_m3Type_count and
+     M3_COUNT_OF (c_setGlobalOps)    == c_m3Type_count and
+     M3_COUNT_OF (c_setRegisterOps)  == c_m3Type_count) ? 1 : -1];
 
 // A table shorter than the enum reads out of bounds, so tie the two together at
 // build time: adding a value type must not silently outgrow these.
@@ -1504,10 +1517,109 @@ _   (EmitOp (o, op_Branch));
     _catch: return result;
 }
 
+#if d_m3HasExceptionHandling
+
+// How many try_table handler records an exit from i_from out to i_target takes
+// down with it. Walking outward from the block the branch sits in, every
+// try_table scope up to and including the target is left behind - the target
+// too, because landing on a block's label means that block is finished.
+//
+// A loop label is the exception, but a loop is never a try_table, so the count
+// is the same either way: the loop itself is not on the list.
+static
+u32  CountTryFramesToExit  (IM3CompilationScope i_from, IM3CompilationScope i_target)
+{
+    u32 count = 0;
+
+    for (IM3CompilationScope scope = i_from; scope; scope = scope->outer)
+    {
+        if (scope->opcode == c_waOp_tryTable)
+            ++count;
+
+        if (scope == i_target)
+            break;
+    }
+
+    return count;
+}
+
+
+// The handler records a branch out of i_from to i_target has to drop.
+//
+// A branch to the function's own label compiles to op_Return, and returning
+// unwinds op_TryTable's native frame, which drops that record on its own, so
+// those need no pop at the branch site.
+//
+// i_from is where the walk starts, which is not always the block the branch is
+// written in: a catch stub passes the scope outside its try, because
+// op_TryTable takes its own record off before jumping to the stub.
+static
+u32  NumTryFramesToPop  (IM3CompilationScope i_from, IM3CompilationScope i_target)
+{
+    if (i_target->depth == 0)
+        return 0;
+
+    // the walk only ever runs inward-to-outward; a target that is already
+    // outside i_from has nothing between them
+    if (not i_from or i_from->depth < i_target->depth)
+        return 0;
+
+    return CountTryFramesToExit (i_from, i_target);
+}
+
+
+static
+M3Result  EmitPopTryFrames  (IM3Compilation o, u32 i_numFrames)
+{
+    M3Result result = m3Err_none;
+
+    if (i_numFrames)
+    {
+_       (EmitOp (o, op_PopHandlers));
+        EmitConstant32 (o, i_numFrames);
+    }
+
+    _catch: return result;
+}
+
+
+// A return_call leaves the enclosing function before the callee runs, so no
+// try_table in this function may catch what the callee throws. Neither shape of
+// the instruction unwinds the native stack in time to arrange that on its own:
+// op_ReturnCall tail-jumps with op_TryTable's frames still standing, and the
+// fallback shape is an ordinary call sitting inside them. Either way the
+// handler records have to come off first.
+static
+M3Result  EmitPopTryFramesForReturnCall  (IM3Compilation o)
+{
+    u32 count = 0;
+
+    for (IM3CompilationScope scope = & o->block; scope; scope = scope->outer)
+    {
+        if (scope->opcode == c_waOp_tryTable)
+            ++count;
+    }
+
+    return EmitPopTryFrames (o, count);
+}
+
+#else
+
+static
+M3Result  EmitPopTryFrames  (IM3Compilation o, u32 i_numFrames)
+{
+    (void) o; (void) i_numFrames;
+    return m3Err_none;
+}
+
+#endif // d_m3HasExceptionHandling
+
+
 static
 M3Result  Compile_Branch  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
+    u32 numTryFrames = 0;
 
     u32 depth;
 _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
@@ -1522,12 +1634,18 @@ _   (ReadLEB_u32 (& depth, & o->wasm, o->wasmEnd));
     IM3CompilationScope scope;
 _   (GetBlockScope (o, & scope, depth));
 
+#if d_m3HasExceptionHandling
+    numTryFrames = NumTryFramesToPop (& o->block, scope);
+#endif
+
     // branch target is a loop (continue)
     if (scope->opcode == c_waOp_loop)
     {
         if (i_opcode == c_waOp_branchIf)
         {
-            if (GetFuncTypeNumParams (scope->type))
+            // a handler pop belongs on the taken path only, so it forces the
+            // jump-over form even where the target takes no parameters
+            if (GetFuncTypeNumParams (scope->type) or numTryFrames)
             {
                 IM3Operation op = IsStackTopInRegister (o) ? op_BranchIfPrologue_r : op_BranchIfPrologue_s;
 
@@ -1535,6 +1653,8 @@ _               (EmitOp (o, op));
 _               (EmitSlotNumOfStackTopAndPop (o));
 
                 pc_t * jumpTo = (pc_t *) ReservePointer (o);
+
+_               (EmitPopTryFrames (o, numTryFrames));
 
 _               (ResolveBlockResults (o, scope, /* isBranch: */ true));
 
@@ -1557,6 +1677,8 @@ _               (EmitOp (o, op_ContinueLoopIf));
         }
         else // is c_waOp_branch
         {
+    _       (EmitPopTryFrames (o, numTryFrames));
+
     _       (EmitOp (o, op_ContinueLoop));
             EmitPointer (o, scope->pc);
             o->block.isPolymorphic = true;
@@ -1571,7 +1693,7 @@ _               (EmitOp (o, op_ContinueLoopIf));
 
         if (i_opcode == c_waOp_branchIf)
         {
-            if (targetHasResults or isReturn)
+            if (targetHasResults or isReturn or numTryFrames)
             {
                 IM3Operation op = IsStackTopInRegister (o) ? op_BranchIfPrologue_r : op_BranchIfPrologue_s;
 
@@ -1602,6 +1724,8 @@ _               (EmitOp (o, op_Return));
             }
             else
             {
+_               (EmitPopTryFrames (o, numTryFrames));
+
 _               (ResolveBlockResults (o, scope, true));
 _               (EmitPatchingBranch (o, scope));
             }
@@ -1677,8 +1801,15 @@ _       (AcquireCompilationCodePage (o, & continueOpPage));
         displacedPage = o->page;
         o->page = continueOpPage;
 
+        u32 numTryFrames = 0;
+#if d_m3HasExceptionHandling
+        numTryFrames = NumTryFramesToPop (& o->block, scope);
+#endif
+
         if (scope->opcode == c_waOp_loop)
         {
+_           (EmitPopTryFrames (o, numTryFrames));
+
 _           (ResolveBlockResults (o, scope, true));
 
 _           (EmitOp (o, op_ContinueLoop));
@@ -1696,6 +1827,8 @@ _                   (EmitOp (o, op_Return));
                 }
                 else
                 {
+_                   (EmitPopTryFrames (o, numTryFrames));
+
 _                   (ResolveBlockResults (o, scope, true));
 
 _                   (EmitPatchingBranch (o, scope));
@@ -1905,6 +2038,11 @@ _       (CompileTailCallArgs (o, & execTop, & numArgSlots, type, true));
 _       (CompileCallArgsAndReturn (o, & execTop, type, true));
     }
 
+#if d_m3HasExceptionHandling
+    if (isReturnCall)
+_       (EmitPopTryFramesForReturnCall (o));
+#endif
+
 _   (EmitOp         (o, useTailCall ? op_ReturnCallRef : op_CallRef));
     EmitSlotOffset  (o, functionSlot);
     EmitPointer     (o, type);
@@ -1999,6 +2137,11 @@ _               (CompileCallArgsAndReturn (o, & slotTop, function->funcType, fal
                 operand = function;
             }
 
+#if d_m3HasExceptionHandling
+            if (isReturnCall)
+_               (EmitPopTryFramesForReturnCall (o));
+#endif
+
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
             EmitSlotOffset  (o, slotTop);
@@ -2053,6 +2196,11 @@ _       (CompileTailCallArgs (o, & execTop, & numArgSlots, type, true));
     } else {
 _       (CompileCallArgsAndReturn (o, & execTop, type, true));
     }
+
+#if d_m3HasExceptionHandling
+    if (isReturnCall)
+_       (EmitPopTryFramesForReturnCall (o));
+#endif
 
 _   (EmitOp         (o, useTailCall ? op_ReturnCallIndirect : op_CallIndirect));
     EmitSlotOffset  (o, tableIndexSlot);
@@ -2590,6 +2738,275 @@ _   (CompileBlock (o, blockType, i_opcode));
     _catch: return result;
 }
 
+#if d_m3HasExceptionHandling
+
+// Emits one out-of-line stub per catch clause, and writes each stub's address
+// into the slot op_TryTable reserved for it.
+//
+// Called from CompileBlock with the try block's scope already on the stack, so
+// the clause labels - which count from outside the try - are one deeper here.
+// The payload values are pushed on top of whatever the block entry left there:
+// only their position relative to the stack top matters, since
+// ResolveBlockResults copies the topmost values into the label's landing pads.
+// Popping them again afterwards puts the compiler's stack back where the body
+// expects to find it.
+static
+M3Result  EmitCatchStubs  (IM3Compilation o)
+{
+    IM3CodePage displacedPage = NULL;
+_try {
+    M3CatchClause * clauses = o->tryClauses;
+    u32 numClauses = o->numTryClauses;
+
+    // the body must not see these: a nested try_table sets up its own
+    o->tryClauses = NULL;
+    o->numTryClauses = 0;
+
+    for (u32 i = 0; i < numClauses; ++i)
+    {
+        M3CatchClause * clause = & clauses [i];
+
+        IM3CompilationScope scope;
+_       (GetBlockScope (o, & scope, clause->labelDepth + 1));
+
+        IM3FuncType payload = clause->tag ? clause->tag->type : NULL;
+        u16 numArgs = GetFuncTypeNumParams (payload);
+
+        IM3CodePage stubPage;
+_       (AcquireCompilationCodePage (o, & stubPage));
+
+        pc_t startPC = GetPagePC (stubPage);
+        displacedPage = o->page;
+        o->page = stubPage;
+
+        u16 firstIndex = o->stackIndex;
+
+        for (u16 a = 0; a < numArgs; ++a)
+_           (PushAllocatedSlot (o, GetFuncTypeParamType (payload, a)));
+
+        if (clause->hasRef)
+_           (PushAllocatedSlot (o, c_m3Type_exnref));
+
+        // emitted even with nothing to move: this is also where an exception
+        // no clause will reify gets released
+_       (EnsureCodePageNumLines (o, 2 * numArgs + 3 + d_m3CodePageFreeLinesThreshold));
+
+_       (EmitOp (o, op_CatchPayload));
+        EmitConstant32 (o, numArgs);
+
+        for (u16 a = 0; a < numArgs; ++a)
+        {
+            u16 index = firstIndex + a;
+            EmitSlotOffset (o, GetSlotForStackIndex (o, index));
+            EmitConstant32 (o, Is64BitType (GetStackTypeFromBottom (o, index)));
+        }
+
+        EmitSlotOffset (o, clause->hasRef ? (i32) GetSlotForStackIndex (o, firstIndex + numArgs) : -1);
+
+_       (EmitPopTryFrames (o, NumTryFramesToPop (o->block.outer, scope)));
+
+        if (scope->opcode == c_waOp_loop)
+        {
+_           (ResolveBlockResults (o, scope, /* isBranch: */ true));
+
+_           (EmitOp (o, op_ContinueLoop));
+            EmitPointer (o, scope->pc);
+        }
+        else if (scope->depth == 0)
+        {
+_           (ReturnValues (o, scope, /* isBranch: */ true));
+_           (EmitOp (o, op_Return));
+        }
+        else
+        {
+_           (ResolveBlockResults (o, scope, /* isBranch: */ true));
+_           (EmitPatchingBranch (o, scope));
+        }
+
+        ReleaseCompilationCodePage (o);
+        o->page = displacedPage;
+        displacedPage = NULL;
+
+        * (pc_t *) clause->stubSlot = startPC;
+
+        while (o->stackIndex > firstIndex)
+_           (Pop (o));
+    }
+
+}   _catch:
+
+    // thrown with a stub page installed: release it and put back the one it
+    // displaced, which the caller's catch then releases
+    if (displacedPage)
+    {
+        ReleaseCompilationCodePage (o);
+        o->page = displacedPage;
+    }
+
+    return result;
+}
+
+
+static
+M3Result  Compile_TryTable  (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3CatchClause * clauses = NULL;
+_try {
+    // a catch entry has to be able to assume the operand stack is entirely in
+    // slots: an unwind leaves nothing in the registers
+_   (PreserveRegisters (o));
+_   (PreserveArgsAndLocals (o));
+
+    IM3FuncType blockType;
+_   (ReadBlockType (o, & blockType));
+
+    u32 numClauses;
+_   (ReadLEB_u32 (& numClauses, & o->wasm, o->wasmEnd));
+
+    _throwif ("too many catch clauses", numClauses > d_m3MaxSaneTagsCount);
+
+    if (numClauses)
+    {
+        clauses = m3_AllocArray (M3CatchClause, numClauses);
+        _throwifnull (clauses);
+    }
+
+    for (u32 i = 0; i < numClauses; ++i)
+    {
+        u8 kind;
+_       (Read_u8 (& kind, & o->wasm, o->wasmEnd));
+        _throwif (m3Err_wasmMalformed, kind > 0x03);
+
+        clauses [i].tag    = NULL;
+        clauses [i].hasRef = (kind == 0x01 or kind == 0x03);
+
+        if (kind == 0x00 or kind == 0x01)
+        {
+            u32 tagIndex;
+_           (ReadLEB_u32 (& tagIndex, & o->wasm, o->wasmEnd));
+            _throwif (m3Err_unknownTag, tagIndex >= o->module->numTags);
+
+            clauses [i].tag = & o->module->tags [tagIndex];
+        }
+
+_       (ReadLEB_u32 (& clauses [i].labelDepth, & o->wasm, o->wasmEnd));
+    }
+
+    // op_TryTable, the clause count, and two words per clause, all of which have
+    // to land on one page: the op reads the table by offset from its own pc
+_   (EnsureCodePageNumLines (o, 2 * numClauses + 2 + d_m3CodePageFreeLinesThreshold));
+
+_   (EmitOp (o, op_TryTable));
+    EmitConstant32 (o, numClauses);
+
+    for (u32 i = 0; i < numClauses; ++i)
+    {
+        EmitPointer (o, clauses [i].tag);
+        clauses [i].stubSlot = ReservePointer (o);
+    }
+
+    o->tryClauses = clauses;
+    o->numTryClauses = numClauses;
+
+_   (CompileBlock (o, blockType, c_waOp_tryTable));
+
+}   _catch:
+
+    o->tryClauses = NULL;
+    o->numTryClauses = 0;
+
+    m3_Free (clauses);
+
+    return result;
+}
+
+
+static
+M3Result  Compile_Throw  (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    u32 tagIndex;
+_   (ReadLEB_u32 (& tagIndex, & o->wasm, o->wasmEnd));
+    _throwif (m3Err_unknownTag, tagIndex >= o->module->numTags);
+
+    IM3Tag tag = & o->module->tags [tagIndex];
+
+    u16 numArgs = GetFuncTypeNumParams (tag->type);
+
+    // the payload is read out of slots, so nothing may still be in a register
+_   (PreserveRegisters (o));
+
+    // check the payload before emitting anything, so a mistyped throw does not
+    // leave half an operation behind
+    bool isPolymorphic = IsStackPolymorphic (o);
+
+    if (not isPolymorphic)
+    {
+        _throwif (m3Err_typeCountMismatch, GetNumBlockValuesOnStack (o) < numArgs);
+
+        for (u16 i = 0; i < numArgs; ++i)
+        {
+            u16 index = (u16) (o->stackIndex - numArgs + i);
+
+            _throwif (m3Err_typeMismatch, not IsSubTypeOf (GetStackTypeFromBottom (o, index),
+                                                           GetFuncTypeParamType (tag->type, i)));
+        }
+    }
+
+_   (EnsureCodePageNumLines (o, 2 * numArgs + 3 + d_m3CodePageFreeLinesThreshold));
+
+_   (EmitOp (o, op_Throw));
+    EmitPointer (o, tag);
+    EmitConstant32 (o, numArgs);
+
+    // the payload is named in the order the tag declares it, so the deepest of
+    // the arguments on the stack comes first. In unreachable code there is
+    // nothing on the stack to name and nothing will run this, so slot 0 stands
+    // in for an operand that isn't there.
+    for (u16 i = 0; i < numArgs; ++i)
+    {
+        m3type_t type = GetFuncTypeParamType (tag->type, i);
+
+        EmitSlotOffset (o, isPolymorphic ? 0 : GetSlotForStackIndex (o, (u16) (o->stackIndex - numArgs + i)));
+        EmitConstant32 (o, Is64BitType (type));
+    }
+
+    if (not isPolymorphic)
+    {
+        for (u16 i = 0; i < numArgs; ++i)
+_           (Pop (o));
+    }
+
+_   (SetStackPolymorphic (o));
+
+}   _catch: return result;
+}
+
+
+static
+M3Result  Compile_ThrowRef  (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    if (not IsStackPolymorphic (o))
+    {
+_       (PreserveRegisterIfOccupied (o, c_m3Type_i64));
+
+        _throwif (m3Err_typeMismatch, BaseTypeOf (GetStackTopType (o)) != c_m3Type_exnref);
+
+_       (EmitOp (o, op_ThrowRef));
+        EmitSlotOffset (o, GetStackTopSlotNumber (o));
+
+_       (Pop (o));
+    }
+
+_   (SetStackPolymorphic (o));
+
+}   _catch: return result;
+}
+
+#endif // d_m3HasExceptionHandling
+
+
 static
 M3Result  CompileElseBlock  (IM3Compilation o, pc_t * o_startPC, IM3FuncType i_blockType)
 {
@@ -3035,7 +3452,15 @@ const M3OpInfo c_operations [] =
     M3OP( "if",                 -1, none,   d_emptyOpList,                      Compile_If ),           // 0x04
     M3OP( "else",                0, none,   d_emptyOpList,                      Compile_Nop ),          // 0x05
 
-    M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                          // 0x06...0x0a
+    M3OP_RESERVED,  M3OP_RESERVED,                                                                      // 0x06...0x07
+
+#if d_m3HasExceptionHandling
+    M3OP( "throw",               0, none,   d_logOp (Throw),                    Compile_Throw ),        // 0x08
+    M3OP_RESERVED,                                                                                      // 0x09
+    M3OP( "throw_ref",           0, none,   d_logOp (ThrowRef),                 Compile_ThrowRef ),     // 0x0a
+#else
+    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                       // 0x08...0x0a
+#endif
 
     M3OP( "end",                 0, none,   d_emptyOpList,                      Compile_End ),          // 0x0b
     M3OP( "br",                  0, none,   d_logOp (Branch),                   Compile_Branch ),       // 0x0c
@@ -3063,7 +3488,13 @@ const M3OpInfo c_operations [] =
 #else
     M3OP_RESERVED,                                                                                      // 0x1c
 #endif
-    M3OP_RESERVED,  M3OP_RESERVED, M3OP_RESERVED,                                                       // 0x1d...0x1f
+    M3OP_RESERVED,  M3OP_RESERVED,                                                                      // 0x1d...0x1e
+
+#if d_m3HasExceptionHandling
+    M3OP( "try_table",           0, none,   d_logOp (TryTable),                 Compile_TryTable ),     // 0x1f
+#else
+    M3OP_RESERVED,                                                                                      // 0x1f
+#endif
 
     M3OP( "local.get",          1,  any,    d_emptyOpList,                      Compile_GetLocal ),     // 0x20
     M3OP( "local.set",          1,  none,   d_emptyOpList,                      Compile_SetLocal ),     // 0x21
@@ -3598,6 +4029,13 @@ _           (MarkSlotsAllocatedByType (o, slot, type));
 
     //--------------------------------------------------------
 
+#if d_m3HasExceptionHandling
+    // with the scope pushed and the params back on, a catch label of 0 names
+    // this block - which is what the proposal says it should
+    if (i_blockOpcode == c_waOp_tryTable)
+_       (EmitCatchStubs (o));
+#endif
+
 _   (CompileBlockStatements (o));
 
 _   (ValidateBlockEnd (o));
@@ -3606,6 +4044,17 @@ _   (ValidateBlockEnd (o));
     {
         if (not IsStackPolymorphic (o))
 _           (ResolveBlockResults (o, & o->block, /* isBranch: */ false));
+
+#if d_m3HasExceptionHandling
+        // Falling out of the end of a try region retires its handler. This sits
+        // ahead of PatchBranches so branches into the block's exit land past it:
+        // a branch out of the try popped its own handler at the branch site.
+        if (i_blockOpcode == c_waOp_tryTable)
+        {
+_           (EmitOp (o, op_PopHandlers));
+            EmitConstant32 (o, 1);
+        }
+#endif
 
 _       (UnwindBlockStack (o))
 

@@ -186,6 +186,32 @@
 #   define d_m3HasCompactImports                1       // implement the compact import section proposal
 # endif
 
+// The exception handling proposal: a tag section, the exnref value type, and
+// the try_table / throw / throw_ref instructions. Exceptions unwind by riding
+// the same m3ret_t return path traps already use, so the cost when no module
+// throws is a handful of branches.
+//
+// Four things it does not do:
+//   - an imported tag is a fresh tag, not an alias of the exporting module's,
+//     because wasm3 links imports against host functions rather than against
+//     other modules. An exception thrown through an imported tag never matches
+//     a catch clause naming it.
+//   - exception objects belong to the runtime. One caught without being reified
+//     is released at the catch; the rest are held until the outermost m3_Call
+//     returns, which is the last point an exnref can still be reached from the
+//     Wasm stack. One parked in a global or a table outlives that and dangles;
+//     there is no collector to say otherwise.
+//   - only the exnref shorthand is understood, not the (ref exn) / (ref null
+//     exn) spellings, which need the exn heap type alongside typed function
+//     references.
+//   - entering a try region costs a native frame that is only given back when
+//     the enclosing function returns or an enclosing loop comes round, so a long
+//     straight-line run of try blocks in one function trades native stack for it.
+//     d_m3MaxNativeStack bounds this the same way it bounds call depth.
+# ifndef d_m3HasExceptionHandling
+#   define d_m3HasExceptionHandling             1
+# endif
+
 // (ref $t) and (ref null $t), call_ref and the rest of the typed function
 // references proposal. Off by default: it is not finished, and it widens the
 // value type from one byte to two wherever the compiler carries one.

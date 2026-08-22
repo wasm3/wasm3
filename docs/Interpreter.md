@@ -120,7 +120,11 @@ m3`op_u64_Or_sr:
 
 * Traps/Exceptions work similarly. A trap pointer is returned from the trap operation which has the effect of unwinding the entire stack.
 
-* Returning from a Wasm function also unwinds the stack, back to the point of the Call operation. 
+* Returning from a Wasm function also unwinds the stack, back to the point of the Call operation.
+
+* Wasm exceptions ride the same return path. `throw` parks the exception on the runtime and returns a private marker pointer, which every operation that inspects a return value already forwards, so the unwinding is the trap machinery over again. `try_table` is the one that has to stand still and catch it, so like Loop it claims a native frame and calls into its body rather than tail-jumping.
+
+   The catch is that M3 flattens blocks: a `br` past a try block's end is a direct jump, and it leaves that frame standing. So the frame alone cannot say whether execution is still inside the try region. A handler record, allocated in the frame itself, is pushed onto a runtime-side stack on the way in and popped where control leaves the region - at the block's end, and at every branch that crosses out of it. A frame that finds itself no longer at the top of that stack knows it is a leftover and passes the exception on. `return` and `return_call` are the two exits that do not need a pop of their own: returning unwinds the frame, which retires the record with it.
 
 * But, because M3 execution leans heavily on the native stack, this does create one runtime usage issue.
 

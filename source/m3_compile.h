@@ -20,6 +20,8 @@ enum
     c_waOp_loop                 = 0x03,
     c_waOp_if                   = 0x04,
     c_waOp_else                 = 0x05,
+    c_waOp_throw                = 0x08,
+    c_waOp_throwRef             = 0x0a,
     c_waOp_end                  = 0x0b,
     c_waOp_branch               = 0x0c,
     c_waOp_branchTable          = 0x0e,
@@ -34,6 +36,7 @@ enum
     c_waOp_teeLocal             = 0x22,
 
     c_waOp_selectTyped          = 0x1c,
+    c_waOp_tryTable             = 0x1f,
 
     c_waOp_getGlobal            = 0x23,
     c_waOp_tableGet             = 0x25,
@@ -102,6 +105,26 @@ M3CompilationScope;
 
 typedef M3CompilationScope *        IM3CompilationScope;
 
+#if d_m3HasExceptionHandling
+
+// One catch clause of a try_table, as Compile_TryTable reads it out of the
+// immediates. The stub that CompileBlock later emits for this clause writes its
+// own address back into stubSlot, which points at the pointer op_TryTable
+// reserved for it in the clause table.
+struct M3Tag;
+
+typedef struct M3CatchClause
+{
+    struct M3Tag *      tag;            // NULL for catch_all / catch_all_ref
+    void *              stubSlot;
+    u32                 labelDepth;     // counted from outside the try block
+    bool                hasRef;         // the _ref forms also hand over an exnref
+}
+M3CatchClause;
+
+#endif
+
+
 typedef struct
 {
     IM3Runtime          runtime;
@@ -148,6 +171,15 @@ typedef struct
     u16                 regStackIndexPlusOne        [2];
 
     m3opcode_t          previousOpcode;
+
+#if d_m3HasExceptionHandling
+    // handed from Compile_TryTable to the CompileBlock it is about to start.
+    // The stubs are emitted from in there because a catch entry has to be
+    // compiled against the try block's entry state, which is what CompileBlock
+    // sets up
+    M3CatchClause *     tryClauses;
+    u32                 numTryClauses;
+#endif
 
     bool                isInitExpr;                 // walking a constant expression, not a function body
 }

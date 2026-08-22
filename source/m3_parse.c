@@ -363,6 +363,32 @@ typedef struct M3ImportDesc
 M3ImportDesc;
 
 
+#if d_m3HasExceptionHandling
+
+// A tag_type: a reserved attribute byte that must be 0 (the exception
+// attribute) and the index of the function type giving the payload. The
+// proposal reserves the byte so later kinds of tag can share the encoding.
+static
+M3Result  ReadTagType  (IM3Module i_module, u32 * o_typeIndex, bytes_t * io_bytes, cbytes_t i_end)
+{
+    M3Result result = m3Err_none;
+
+    u8 attribute;
+_   (Read_u8 (& attribute, io_bytes, i_end));
+    _throwif (m3Err_wasmMalformed, attribute != 0);
+
+_   (ReadLEB_u32 (o_typeIndex, io_bytes, i_end));
+    _throwif (m3Err_unknownType, not i_module or * o_typeIndex >= i_module->numFuncTypes);
+
+    // an exception tag's type describes its payload, so it yields nothing
+    _throwif (m3Err_wasmMalformed, GetFuncTypeNumResults (i_module->funcTypes [* o_typeIndex]) != 0);
+
+    _catch: return result;
+}
+
+#endif // d_m3HasExceptionHandling
+
+
 // Reads and validates one externtype. Mutates nothing in the module, so an
 // externtype is checked even when the compact run that shares it is empty.
 static
@@ -391,6 +417,12 @@ _           (ParseValueType (i_module, & o_desc->type, io_bytes, i_end));
 _           (ReadLEB_u7 (& o_desc->isMutable, io_bytes, i_end));                    m3log (parse, "     global: %s mutable=%d", c_waTypes [BaseTypeOf(o_desc->type)], (u32) o_desc->isMutable);
             _throwif (m3Err_wasmMalformed, o_desc->isMutable > 1);
             break;
+
+#if d_m3HasExceptionHandling
+        case d_externalKind_tag:
+_           (ReadTagType (i_module, & o_desc->typeIndex, io_bytes, i_end));
+            break;
+#endif
 
         default:
             _throw (m3Err_wasmMalformed);
@@ -447,6 +479,17 @@ _           (Module_AddGlobal (io_module, & global, i_desc->type, i_desc->isMuta
         }
         break;
 
+#if d_m3HasExceptionHandling
+        case d_externalKind_tag:
+        {
+            IM3Tag tag;
+_           (Module_AddTag (io_module, & tag, io_module->funcTypes [i_desc->typeIndex], true /* isImport */));
+            tag->import = * io_import;
+            * io_import = clearImport;
+        }
+        break;
+#endif
+
         default:
             _throw (m3Err_wasmMalformed);
     }
@@ -468,6 +511,33 @@ bool  IsEmptyName  (bytes_t i_bytes, cbytes_t i_end)
 }
 
 #endif // d_m3HasCompactImports
+
+
+#if d_m3HasExceptionHandling
+
+M3Result  ParseSection_Tag  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
+{
+    M3Result result = m3Err_none;
+
+    u32 numTags;
+_   (ReadLEB_u32 (& numTags, & i_bytes, i_end));                                    m3log (parse, "** Tag [%d]", numTags);
+
+    _throwif ("too many tags", numTags > d_m3MaxSaneTagsCount);
+
+    for (u32 i = 0; i < numTags; ++i)
+    {
+        u32 typeIndex;
+_       (ReadTagType (io_module, & typeIndex, & i_bytes, i_end));                   m3log (parse, "    tag: [%d] type: %d", i, typeIndex);
+
+_       (Module_AddTag (io_module, NULL, io_module->funcTypes [typeIndex], false));
+    }
+
+    _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
+
+    _catch: return result;
+}
+
+#endif // d_m3HasExceptionHandling
 
 
 M3Result  ParseSection_Import  (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
@@ -673,6 +743,16 @@ _           (Module_DeclareFunction (io_module, index));
             io_module->table0ExportName = utf8;
             utf8 = NULL; // ownership transferred to M3Module
         }
+#if d_m3HasExceptionHandling
+        else if (exportKind == d_externalKind_tag)
+        {
+            _throwif(m3Err_wasmMalformed, index >= io_module->numTags);
+            IM3Tag tag = &(io_module->tags [index]);
+            m3_Free (tag->name);
+            tag->name = utf8;
+            utf8 = NULL; // ownership transferred to M3Tag
+        }
+#endif
 
         m3_Free (utf8);
     }
@@ -1137,11 +1217,14 @@ M3Result  ParseModuleSection  (M3Module * o_module, u8 i_sectionType, bytes_t i_
         ParseSection_Code,      // 10
         ParseSection_Data,      // 11
         ParseSection_DataCount, // 12
+#if d_m3HasExceptionHandling
+        ParseSection_Tag,       // 13
+#endif
     };
 
     M3Parser parser = NULL;
 
-    if (i_sectionType <= 12)
+    if (i_sectionType < M3_COUNT_OF (s_parsers))
         parser = s_parsers [i_sectionType];
 
     if (parser)
@@ -1182,7 +1265,12 @@ _   (Read_u32 (& version, & pos, end));
     _throwif (m3Err_wasmMalformed, magic != 0x6d736100);
     _throwif (m3Err_incompatibleWasmVersion, version != 1);
 
+#if d_m3HasExceptionHandling
+    // the tag section sits between memory (5) and global (6)
+    static const u8 sectionsOrder[] = { 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11, 0 }; // 0 is a placeholder
+#else
     static const u8 sectionsOrder[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11, 0 }; // 0 is a placeholder
+#endif
     u8 expectedSection = 0;
 
     while (pos < end)
@@ -1193,7 +1281,7 @@ _       (ReadLEB_u7 (& section, & pos, end));
         if (section != 0) {
             // Ensure sections appear only once and in order
             while (sectionsOrder[expectedSection++] != section) {
-                _throwif(m3Err_misorderedWasmSection, expectedSection >= 12);
+                _throwif(m3Err_misorderedWasmSection, expectedSection >= M3_COUNT_OF (sectionsOrder) - 1);
             }
         }
 

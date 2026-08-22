@@ -655,6 +655,71 @@ _           (CompileFunction (f));
     _catch: return result;
 }
 
+#if d_m3HasExceptionHandling
+
+M3Exception *  NewException  (IM3Runtime io_runtime, IM3Tag i_tag, u32 i_numArgs)
+{
+    M3Exception * exception = (M3Exception *) m3_Malloc ("M3Exception", sizeof (M3Exception) + i_numArgs * sizeof (u64));
+
+    if (exception)
+    {
+        exception->tag      = i_tag;
+        exception->numArgs  = i_numArgs;
+        exception->reified  = false;
+        exception->prev     = NULL;
+        exception->next     = io_runtime->exceptions;
+
+        if (exception->next)
+            exception->next->prev = exception;
+
+        io_runtime->exceptions = exception;
+    }
+
+    return exception;
+}
+
+
+// Releases one exception ahead of the rest. The caller has to know nothing can
+// still name it: no exnref was ever taken of it, and its payload has already
+// been copied out.
+void  FreeException  (IM3Runtime io_runtime, M3Exception * i_exception)
+{
+    if (i_exception->prev)
+        i_exception->prev->next = i_exception->next;
+    else
+        io_runtime->exceptions = i_exception->next;
+
+    if (i_exception->next)
+        i_exception->next->prev = i_exception->prev;
+
+    if (io_runtime->pendingException == i_exception)
+        io_runtime->pendingException = NULL;
+
+    m3_Free_Impl (i_exception);
+}
+
+
+// Releases every exception the runtime still holds. Only safe once the Wasm
+// stack is empty, which is why the outermost RunCodeChecked() is the one that
+// calls it.
+void  FreeExceptions  (IM3Runtime io_runtime)
+{
+    M3Exception * exception = io_runtime->exceptions;
+
+    io_runtime->exceptions = NULL;
+    io_runtime->pendingException = NULL;
+
+    while (exception)
+    {
+        M3Exception * next = exception->next;
+        m3_Free_Impl (exception);
+        exception = next;
+    }
+}
+
+#endif // d_m3HasExceptionHandling
+
+
 // Run compiled code on the runtime's stack, bounding native recursion for the
 // duration of the call. The outermost invocation establishes the stack limit;
 // nested ones (an imported function calling back into Wasm) inherit it.
@@ -662,11 +727,28 @@ static inline
 M3Result  RunCodeChecked  (IM3Runtime i_runtime, pc_t i_pc)
 {
     d_m3StackLimitEnter (i_runtime);
+#if d_m3HasExceptionHandling
+    // handler stacks don't nest across a call boundary: a host function calling
+    // back into Wasm cannot be caught by a try_table its own caller entered
+    M3TryFrame * savedTryFrames = i_runtime->tryFrames;
+    i_runtime->tryFrames = NULL;
+    i_runtime->exceptionNesting++;
+#endif
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
     M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
     M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs);
 # endif
+#if d_m3HasExceptionHandling
+    i_runtime->tryFrames = savedTryFrames;
+
+    // an exception that reached the bottom of the call stack found no handler
+    if (M3_UNLIKELY (result == m3Err_pendingException))
+        result = m3Err_trapUncaughtException;
+
+    if (--i_runtime->exceptionNesting == 0)
+        FreeExceptions (i_runtime);
+#endif
     d_m3StackLimitLeave (i_runtime);
 
     return result;
@@ -821,8 +903,9 @@ M3ValueType  m3_GetGlobalType  (IM3Global          i_global)
 }
 
 
-void *  v_FindFunction  (IM3Module i_module, const char * const i_name)
+void *  v_FindFunction  (IM3Module i_module, void * i_info)
 {
+    const char * const i_name = (const char *) i_info;
 
     // Prefer exported functions
     for (u32 i = 0; i < i_module->numFunctions; ++i)
@@ -863,7 +946,7 @@ M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, cons
         _throw ("no modules loaded");
     }
 
-    function = (IM3Function) ForEachModule (i_runtime, (ModuleVisitor) v_FindFunction, (void *) i_functionName);
+    function = (IM3Function) ForEachModule (i_runtime, v_FindFunction, (void *) i_functionName);
 
     if (function)
     {
@@ -1028,7 +1111,8 @@ _   (checkStartFunction(i_function->module))
         case c_m3Type_i32:  *(i32*)(s) = va_arg(i_args, i32);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = va_arg(i_args, i64);  s += 8; break;
         case c_m3Type_funcref:
-        case c_m3Type_externref: *(uintptr_t*)(s) = va_arg(i_args, uintptr_t); s += 8; break;
+        case c_m3Type_externref:
+        case c_m3Type_exnref:    *(uintptr_t*)(s) = va_arg(i_args, uintptr_t); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = va_arg(i_args, f64);  s += 8; break; // f32 is passed as f64
         case c_m3Type_f64:  *(f64*)(s) = va_arg(i_args, f64);  s += 8; break;
@@ -1075,7 +1159,8 @@ _   (checkStartFunction(i_function->module))
         case c_m3Type_i32:  *(i32*)(s) = *(i32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = *(i64*)i_argptrs[i];  s += 8; break;
         case c_m3Type_funcref:
-        case c_m3Type_externref: *(uintptr_t*)(s) = *(uintptr_t*)i_argptrs[i]; s += 8; break;
+        case c_m3Type_externref:
+        case c_m3Type_exnref:    *(uintptr_t*)(s) = *(uintptr_t*)i_argptrs[i]; s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = *(f32*)i_argptrs[i];  s += 8; break;
         case c_m3Type_f64:  *(f64*)(s) = *(f64*)i_argptrs[i];  s += 8; break;
@@ -1123,7 +1208,8 @@ _   (checkStartFunction(i_function->module))
         case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  s += 8; break;
         case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); s += 8; break;
         case c_m3Type_funcref:
-        case c_m3Type_externref: *(uintptr_t*)(s) = (uintptr_t)strtoull(i_argv[i], NULL, 10); s += 8; break;
+        case c_m3Type_externref:
+        case c_m3Type_exnref:    *(uintptr_t*)(s) = (uintptr_t)strtoull(i_argv[i], NULL, 10); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
         case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
@@ -1169,7 +1255,8 @@ M3Result  m3_GetResults  (IM3Function i_function, uint32_t i_retc, const void * 
         case c_m3Type_i32:  *(i32*)o_retptrs[i] = *(i32*)(s); s += 8; break;
         case c_m3Type_i64:  *(i64*)o_retptrs[i] = *(i64*)(s); s += 8; break;
         case c_m3Type_funcref:
-        case c_m3Type_externref: *(uintptr_t*)o_retptrs[i] = *(uintptr_t*)(s); s += 8; break;
+        case c_m3Type_externref:
+        case c_m3Type_exnref:    *(uintptr_t*)o_retptrs[i] = *(uintptr_t*)(s); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *(f32*)o_retptrs[i] = *(f32*)(s); s += 8; break;
         case c_m3Type_f64:  *(f64*)o_retptrs[i] = *(f64*)(s); s += 8; break;
@@ -1205,7 +1292,8 @@ M3Result  m3_GetResultsVL  (IM3Function i_function, va_list o_rets)
         case c_m3Type_i32:  *va_arg(o_rets, i32*) = *(i32*)(s);  s += 8; break;
         case c_m3Type_i64:  *va_arg(o_rets, i64*) = *(i64*)(s);  s += 8; break;
         case c_m3Type_funcref:
-        case c_m3Type_externref: *va_arg(o_rets, uintptr_t*) = *(uintptr_t*)(s); s += 8; break;
+        case c_m3Type_externref:
+        case c_m3Type_exnref:    *va_arg(o_rets, uintptr_t*) = *(uintptr_t*)(s); s += 8; break;
 # if d_m3HasFloat
         case c_m3Type_f32:  *va_arg(o_rets, f32*) = *(f32*)(s);  s += 8; break;
         case c_m3Type_f64:  *va_arg(o_rets, f64*) = *(f64*)(s);  s += 8; break;

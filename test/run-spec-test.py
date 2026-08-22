@@ -467,6 +467,22 @@ blacklist = Blacklist([
   # names containing NUL bytes are valid UTF-8 but wasm3 uses C strings
   # internally, so embedded NUL truncates the name during function lookup
   "names.wast:* *.wasm \\x00*",
+
+  # exception handling: a tag import is a fresh tag, not an alias of the
+  # exporting module's, since wasm3 does not link modules to each other. An
+  # exception thrown through an imported tag therefore never carries the tag a
+  # catch clause names, and a mismatched imported tag type goes unnoticed.
+  "try_table.wast:* try_table.*.wasm catch-imported()",
+  "try_table.wast:* try_table.*.wasm catch-imported-alias()",
+
+  # one try_table module spells its types as (ref $t) and (ref exn), which need
+  # typed function references and the exn heap type. Neither is implemented, so
+  # the module is refused before any of its functions run.
+  "try_table.wast:* try_table.*.wasm catch()",
+  "try_table.wast:* try_table.*.wasm catch_ref1()",
+  "try_table.wast:* try_table.*.wasm catch_ref2()",
+  "try_table.wast:* try_table.*.wasm catch_all_ref1()",
+  "try_table.wast:* try_table.*.wasm catch_all_ref2()",
 ])
 
 # wasm3 takes any power-of-two page size from 1 to 65536, where the custom page
@@ -521,6 +537,10 @@ if args.spec == "wg-3.0":
       "type-rec.wast:* type-rec.19.wasm *",
       "type-equivalence.wast:* type-equivalence.8.wasm *",
       "type-equivalence.wast:* type-equivalence.9.wasm *",
+
+      # a tag import is a fresh tag rather than an alias (see the exception
+      # handling entries above), so a tag imported at the wrong type is accepted
+      "tag.wast:* tag.7.wasm assert_unlinkable (incompatible import)",
 
       # multiple memories
       "instance.wast:* instance.1.wasm *",
@@ -814,8 +834,9 @@ else:
     # up empty just means this suite already covers it in core/:
     #   up to v1.1: sign-extension, non-trapping float-to-int, tail call
     #   up to 2.0:  tail call, extended const
-    #   3.0:        bulk memory moved to core/bulk-memory; custom page sizes is
-    #               still a proposal
+    #   3.0:        bulk memory moved to core/bulk-memory; exception handling
+    #               moved to core/exceptions; custom page sizes is still a
+    #               proposal
     for stage in ('proposals', 'core'):
         for subdir in (
             "sign-extension-ops",
@@ -827,6 +848,14 @@ else:
             "compact-import-section",
         ):
             jsonFiles += glob.glob(os.path.join(spec_dir, stage, subdir, "*.json"))
+
+    # Exception handling. 3.0 keeps it in core/exceptions; the earlier suites
+    # carry the proposal repo's own snapshot of the whole core suite under
+    # proposals/exceptions, so only the four files the proposal actually adds
+    # are worth picking out of it.
+    jsonFiles += glob.glob(os.path.join(spec_dir, "core", "exceptions", "*.json"))
+    for name in ("tag", "throw", "throw_ref", "try_table"):
+        jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "exceptions", name + ".json"))
 
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
@@ -877,6 +906,7 @@ for fn in jsonFiles:
                 test.type == "assert_return" or
                 test.type == "assert_trap" or
                 test.type == "assert_exhaustion" or
+                test.type == "assert_exception" or
                 test.type == "assert_return_canonical_nan" or
                 test.type == "assert_return_arithmetic_nan"):
 
@@ -906,6 +936,10 @@ for fn in jsonFiles:
                 test.expected_trap = cmd["text"]
             elif test.type == "assert_exhaustion":
                 test.expected_trap = "stack overflow"
+            elif test.type == "assert_exception":
+                # the exception handling proposal only asserts that something
+                # was thrown and never caught, without naming it
+                test.expected_trap = "uncaught exception"
             else:
                 stats.skipped += 1
                 warning(f"Skipped {test.source} ({test.type} not implemented)")

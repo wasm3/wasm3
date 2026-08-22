@@ -93,6 +93,13 @@ typedef enum M3ValueType
     c_m3Type_funcref    = 6,
     c_m3Type_externref  = 7,
 
+    // A caught exception, from the exception handling proposal. Holds a pointer
+    // to a runtime-owned exception object, or 0 for the null reference. The
+    // object belongs to the runtime and stays alive until the outermost
+    // m3_Call() that produced it returns - a host that stashes one past that
+    // point is holding a dangling reference.
+    c_m3Type_exnref     = 8,
+
     // the number of concrete value types
     c_m3Type_count,
 
@@ -191,6 +198,7 @@ d_m3ErrorConst  (unknownLocal,                  "unknown local")
 d_m3ErrorConst  (unknownGlobal,                 "unknown global")
 d_m3ErrorConst  (unknownFunction,               "unknown function")
 d_m3ErrorConst  (unknownTable,                  "unknown table")
+d_m3ErrorConst  (unknownTag,                    "unknown tag")
 d_m3ErrorConst  (unknownMemory,                 "unknown memory")
 d_m3ErrorConst  (unknownDataSegment,            "unknown data segment")
 d_m3ErrorConst  (unknownElemSegment,            "unknown elem segment")
@@ -226,6 +234,12 @@ d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
 d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
+d_m3ErrorConst  (trapUncaughtException,         "[trap] uncaught exception")
+
+// Internal: the marker an in-flight exception rides back up the native stack
+// on. Never escapes m3_Call - the outermost RunCodeChecked turns it into
+// m3Err_trapUncaughtException.
+d_m3ErrorConst  (pendingException,              "[internal] exception in flight")
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
