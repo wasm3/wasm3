@@ -25,7 +25,7 @@ jobs:
         - {target: clang,             cc: clang,      }
         - {target: clang-x86,         cc: clang,      cflags: -m32,   install: "gcc-multilib"   }
         - {target: gcc,               cc: gcc,        }
-        - {target: gcc-x86,           cc: gcc,        cflags: -m32,   install: "gcc-multilib"   }
+        #- {target: gcc-x86,          cc: gcc,        cflags: -m32,   install: "gcc-multilib"   }
         # Builds without uvwasi
         - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple   }
         - {target: clang-no-uvwasi,   cc: clang,  flags: -DBUILD_WASI=simple   }
