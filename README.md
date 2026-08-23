@@ -58,12 +58,12 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 ## Features
 
 
-| Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Features |
+| Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Features |
 |:---    |:---      |
 | ⭐ Ready | **[Lime1][WasmLime1]:** `Import/Export of Mutable Globals`, `Non-trapping float-to-int conversions`, `Sign-extension operators`, `Multi-value`, `Extended constant expressions`, `bulk-memory-opt`, `call-indirect-overlong` |
 | ⭐ Ready | **[Proposals][WasmStatus]:** `Bulk memory operations`, `Reference types`, `Typed function references (partial)`, `Tail call optimization`, `Custom page size`, `Compact Import section` |
 | ✨ Ready | **Extra:** `Structured execution tracing`, `Big-Endian support`, `Wasm and WASI self-hosting`, `Gas metering`, `Linear memory limit (< 64KiB)` |
-| ⏳ WIP | `Multiple memories`, `Exception handling` |
+| ⏳ WIP | `Multiple memories`, `Exception handling`, `Memory64` |
 | ⛔ N/A | `Garbage collection`, `Stack switching`, `Fixed-width SIMD` |
 
 

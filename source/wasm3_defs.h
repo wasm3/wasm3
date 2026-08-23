@@ -309,4 +309,18 @@
 #  define M3_LIKELY(x)   (x)
 # endif
 
+// Compile-time assertion. NAME is an identifier naming the invariant; it shows
+// up in the diagnostic, so make it read like a sentence.
+# if defined(__cplusplus) && (__cplusplus >= 201103L)
+#  define M3_STATIC_ASSERT(COND, NAME)  static_assert((COND), #NAME)
+# elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#  define M3_STATIC_ASSERT(COND, NAME)  _Static_assert((COND), #NAME)
+# elif defined(M3_COMPILER_MSVC) && defined(__cplusplus)
+#  define M3_STATIC_ASSERT(COND, NAME)  static_assert((COND), #NAME)
+# else
+   // Pre-C11: a negative array size is the portable stand-in. Suffixed with the
+   // line number so several assertions can share a translation unit.
+#  define M3_STATIC_ASSERT(COND, NAME)  typedef char M3_CONCAT(NAME, __LINE__) [(COND) ? 1 : -1]
+# endif
+
 #endif // wasm3_defs_h

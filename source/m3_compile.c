@@ -133,8 +133,6 @@ void * ReservePointer (IM3Compilation o)
 #   define FPOP(x) NULL
 #endif
 
-static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32,       op_PreserveSetSlot_i64,
-                                                    FPOP(op_PreserveSetSlot_f32), FPOP(op_PreserveSetSlot_f64) };
 // These are indexed by M3ValueType, so every type up to c_m3Type_externref needs
 // an entry. A reference is one pointer-sized word, so it moves with the integer
 // operation of that width; v128 has no operations at all.
@@ -144,6 +142,9 @@ static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32,
 #   define REFOP(NAME)  op_##NAME##_i32
 #endif
 
+static const IM3Operation c_preserveSetSlot [] = { NULL, op_PreserveSetSlot_i32,       op_PreserveSetSlot_i64,
+                                                    FPOP(op_PreserveSetSlot_f32), FPOP(op_PreserveSetSlot_f64),
+                                                    NULL, REFOP(PreserveSetSlot), REFOP(PreserveSetSlot) };
 static const IM3Operation c_setSetOps [] =       { NULL, op_SetSlot_i32,               op_SetSlot_i64,
                                                     FPOP(op_SetSlot_f32),         FPOP(op_SetSlot_f64),
                                                     NULL, REFOP(SetSlot),         REFOP(SetSlot) };
@@ -153,6 +154,16 @@ static const IM3Operation c_setGlobalOps [] =    { NULL, op_SetGlobal_i32,      
 static const IM3Operation c_setRegisterOps [] =  { NULL, op_SetRegister_i32,           op_SetRegister_i64,
                                                     FPOP(op_SetRegister_f32),     FPOP(op_SetRegister_f64),
                                                     NULL, REFOP(SetRegister),     REFOP(SetRegister) };
+
+// A table shorter than the enum reads out of bounds, so tie the two together at
+// build time: adding a value type must not silently outgrow these.
+#define d_m3CheckTypeTable(TABLE) \
+    M3_STATIC_ASSERT (sizeof (TABLE) / sizeof (*(TABLE)) == c_m3Type_count, TABLE##_needs_one_entry_per_type)
+
+d_m3CheckTypeTable (c_preserveSetSlot);
+d_m3CheckTypeTable (c_setSetOps);
+d_m3CheckTypeTable (c_setGlobalOps);
+d_m3CheckTypeTable (c_setRegisterOps);
 
 static const IM3Operation c_intSelectOps [2] [4] =      { { op_Select_i32_rss, op_Select_i32_srs, op_Select_i32_ssr, op_Select_i32_sss },
                                                           { op_Select_i64_rss, op_Select_i64_srs, op_Select_i64_ssr, op_Select_i64_sss } };
@@ -518,10 +529,11 @@ _       (AllocateSlots (o, & slot, type));
         o->wasmStack [stackIndex] = slot;
 
         // Ensure type is within the valid range
-        if (BaseTypeOf(type) < sizeof(c_setSetOps) / sizeof(c_setSetOps[0])) {
+        if (BaseTypeOf(type) < c_m3Type_count) {
 _           (EmitOp (o, c_setSetOps [BaseTypeOf(type)]));
-        } else 
-            _throw(m3Err_functionStackOverflow);
+        } else {
+            _throw(m3Err_unknownType);
+        }
 
         EmitSlotOffset (o, slot);
     }
