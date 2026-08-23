@@ -13,10 +13,15 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .optimize = optimize,
             .target = target,
+            .omit_frame_pointer = if (optimize == .Debug) null else true,
+            .stack_check = if (optimize == .Debug) null else false,
+            .stack_protector = if (optimize == .Debug) null else false,
             .sanitize_c = .off, // fno-sanitize=undefined
         }),
     });
     libwasm3.root_module.addCMacro("d_m3HasTracer", "");
+    if (optimize == .Debug)
+        libwasm3.root_module.addCMacro("DEBUG", "1");
 
     if (build_wasi) |wasi| {
         switch (wasi) {
@@ -27,6 +32,7 @@ pub fn build(b: *std.Build) !void {
     }
     if (libwasm3.rootModuleTarget().cpu.arch.isWasm()) {
         if (libwasm3.rootModuleTarget().os.tag == .wasi) {
+            libwasm3.root_module.addCMacro("_WASI_EMULATED_PROCESS_CLOCKS", "");
             libwasm3.root_module.linkSystemLibrary("wasi-emulated-process-clocks", .{});
         }
     }
@@ -57,6 +63,31 @@ pub fn build(b: *std.Build) !void {
                 "-target-feature",
                 "-Xclang",
                 "+tail-call",
+
+                "-Xclang",
+                "-target-feature",
+                "-Xclang",
+                "+bulk-memory",
+
+                "-Xclang",
+                "-target-feature",
+                "-Xclang",
+                "+nontrapping-fptoint",
+
+                "-Xclang",
+                "-target-feature",
+                "-Xclang",
+                "+sign-ext",
+
+                "-Xclang",
+                "-target-feature",
+                "-Xclang",
+                "+multivalue",
+
+                "-Xclang",
+                "-target-feature",
+                "-Xclang",
+                "+mutable-globals",
             }
         else
             &cflags,
@@ -70,8 +101,12 @@ pub fn build(b: *std.Build) !void {
             .root_module = b.createModule(.{
                 .target = target,
                 .optimize = optimize,
+                .omit_frame_pointer = if (optimize == .Debug) null else true,
+                .stack_check = if (optimize == .Debug) null else false,
+                .stack_protector = if (optimize == .Debug) null else false,
             }),
         });
+        wasm3.stack_size = 8388608;
         for (libwasm3.root_module.include_dirs.items) |dir| {
             wasm3.root_module.addIncludePath(dir.path);
         }
@@ -79,6 +114,9 @@ pub fn build(b: *std.Build) !void {
             .file = .{ .cwd_relative = "platforms/app/main.c" },
             .flags = &cflags,
         });
+        wasm3.root_module.addCMacro("d_m3HasTracer", "");
+        if (optimize == .Debug)
+            wasm3.root_module.addCMacro("DEBUG", "1");
 
         if (build_wasi) |wasi| {
             switch (wasi) {
@@ -95,10 +133,15 @@ pub fn build(b: *std.Build) !void {
 const cflags = [_][]const u8{
     "-Wall",
     "-Wextra",
-    "-Wpedantic",
     "-Wparentheses",
     "-Wundef",
     "-Wpointer-arith",
     "-Wstrict-aliasing=2",
-    "-std=gnu11",
+    "-Werror=implicit-function-declaration",
+    "-Wno-unused-function",
+    "-Wno-unused-variable",
+    "-Wno-unused-parameter",
+    "-Wno-date-time",
+    "-Wno-missing-field-initializers",
+    "-std=gnu99",
 };
