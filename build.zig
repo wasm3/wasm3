@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
     if (build_wasi) |wasi| {
         switch (wasi) {
             .simple => libwasm3.root_module.addCMacro("d_m3HasWASI", ""),
-            .metawasi => libwasm3.root_module.addCMacro("d_m3HasWASI", ""),
+            .metawasi => libwasm3.root_module.addCMacro("d_m3HasMetaWASI", ""),
             .uvwasi => @panic("build.zig does not yet support this option."),
         }
     }
@@ -83,7 +83,7 @@ pub fn build(b: *std.Build) !void {
         if (build_wasi) |wasi| {
             switch (wasi) {
                 .simple => wasm3.root_module.addCMacro("d_m3HasWASI", ""),
-                .metawasi => wasm3.root_module.addCMacro("d_m3HasWASI", ""),
+                .metawasi => wasm3.root_module.addCMacro("d_m3HasMetaWASI", ""),
                 .uvwasi => @panic("build.zig does not yet support this option."),
             }
         }
