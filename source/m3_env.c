@@ -730,8 +730,8 @@ M3Result  RunCodeChecked  (IM3Runtime i_runtime, pc_t i_pc)
 #if d_m3HasExceptionHandling
     // handler stacks don't nest across a call boundary: a host function calling
     // back into Wasm cannot be caught by a try_table its own caller entered
-    M3TryFrame * savedTryFrames = i_runtime->tryFrames;
-    i_runtime->tryFrames = NULL;
+    u32 savedTryDepth = i_runtime->tryDepth;
+    i_runtime->tryDepth = 0;
     i_runtime->exceptionNesting++;
 #endif
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
@@ -740,7 +740,7 @@ M3Result  RunCodeChecked  (IM3Runtime i_runtime, pc_t i_pc)
     M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs);
 # endif
 #if d_m3HasExceptionHandling
-    i_runtime->tryFrames = savedTryFrames;
+    i_runtime->tryDepth = savedTryDepth;
 
     // an exception that reached the bottom of the call stack found no handler
     if (M3_UNLIKELY (result == m3Err_pendingException))

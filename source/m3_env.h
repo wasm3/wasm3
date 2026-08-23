@@ -170,16 +170,6 @@ typedef struct M3Exception
 M3Exception;
 
 
-// One entry of the handler stack, allocated in op_TryTable's native frame. A
-// throw walks back up the native stack by returning m3Err_pendingException, and
-// the try frame that finds itself at the top of this stack is the one that gets
-// to look at its catch clauses.
-typedef struct M3TryFrame
-{
-    struct M3TryFrame *     outer;
-}
-M3TryFrame;
-
 M3Exception *               NewException                (IM3Runtime io_runtime, IM3Tag i_tag, u32 i_numArgs);
 void                        FreeException               (IM3Runtime io_runtime, M3Exception * i_exception);
 void                        FreeExceptions              (IM3Runtime io_runtime);
@@ -323,7 +313,7 @@ typedef struct M3Runtime
 #endif
 
 #if d_m3HasExceptionHandling
-    M3TryFrame *            tryFrames;          // innermost try_table whose body is executing
+    u32                     tryDepth;           // number of try regions whose body is executing
     M3Exception *           pendingException;   // the exception currently unwinding, if any
     M3Exception *           exceptions;         // the ones it still holds
     u32                     exceptionNesting;   // RunCodeChecked() recursion depth

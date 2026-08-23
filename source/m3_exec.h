@@ -1320,6 +1320,10 @@ d_m3Op  (Loop)
 // The frame stays alive after the body falls through or branches out of the try
 // region, but the handler record is popped at those points (op_PopHandlers), so
 // a later throw sees this frame is no longer the innermost one and passes it by.
+//
+// The handler stack is just a depth counter: an unwind stops at whichever frame
+// finds the count still standing at the value its own push produced, which is
+// the innermost try region that hasn't been popped.
 d_m3Op  (TryTable)
 {
     d_m3CheckNativeStack ();
@@ -1332,9 +1336,7 @@ d_m3Op  (TryTable)
     pc_t clauses        = _pc;
     pc_t body           = _pc + 2 * numClauses;
 
-    M3TryFrame frame;
-    frame.outer         = runtime->tryFrames;
-    runtime->tryFrames  = & frame;
+    u32 depth           = ++ runtime->tryDepth;
 
     m3ret_t r = jumpOpImpl (body);
 
@@ -1342,8 +1344,8 @@ d_m3Op  (TryTable)
     _mem = memory->mallocated;
 
     // control is leaving this frame for good, so this try is done either way
-    bool isInnermost = (runtime->tryFrames == & frame);
-    runtime->tryFrames = frame.outer;
+    bool isInnermost = (runtime->tryDepth == depth);
+    runtime->tryDepth = depth - 1;
 
     if (M3_UNLIKELY (r == m3Err_pendingException) and isInnermost)
     {
@@ -1462,8 +1464,7 @@ d_m3Op  (PopHandlers)
 
     u32 count = immediate (u32);
 
-    while (count--)
-        runtime->tryFrames = runtime->tryFrames->outer;
+    runtime->tryDepth -= count;
 
     nextOp ();
 }
