@@ -29,12 +29,12 @@ jobs:
         # Builds without uvwasi
         - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple   }
         - {target: clang-no-uvwasi,   cc: clang,  flags: -DBUILD_WASI=simple   }
-        - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc   }
+        - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64 }
         # Debug builds
         - {target: gcc-debug,               cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug                         }
         - {target: clang-no-uvwasi-debug,   cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple     }
         # GCC 16.2 build (static, linked against musl)
-        - {target: gcc-musl,          install: gcc-musl,   ldflags: "-static -s", artifact: wasm3-gcc-linux-x64 }
+        - {target: gcc-musl,          install: gcc-musl,   ldflags: "-static -s", artifact: dev-wasm3-gcc-linux-x64 }
         # Clang builds (static, linked against musl)
         - {target: clang-musl,        install: clang-musl, ldflags: "-static -s", artifact: wasm3-linux-x64 }
         - {target: clang-musl-strace, install: clang-musl, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
@@ -871,6 +871,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           path: dist
+          pattern: wasm3-*
           merge-multiple: true
 
       - name: List artifacts
