@@ -110,3 +110,54 @@ IM3Function  m3_GetFunctionByIndex  (IM3Module i_module, uint32_t i_index)
 {
     return Module_GetFunction (i_module, i_index);
 }
+
+M3Result  FindAndLinkTableFunction (IM3Module             io_module,
+                                    uint32_t              index,
+                                    const char * const    i_signature,
+                                    M3RawCall             i_function,
+                                    const void *          i_userdata)
+{
+
+_try {
+    _throwif(m3Err_moduleNotLinked, !io_module->runtime);
+
+    result = m3Err_functionLookupFailed;
+    _throwif ("table overflow", index > d_m3MaxSaneTableSize);
+
+    if (index >= io_module->table0Size)
+    {
+        io_module->table0 = m3_ReallocArray (IM3Function, io_module->table0, index + 1, io_module->table0Size);
+        io_module->table0Size = index + 1;
+    }
+
+    IM3FuncType ftype = NULL;
+_   (SignatureToFuncType (& ftype, i_signature));
+    Environment_AddFuncType (io_module->environment, &ftype);
+
+    int id = io_module->allFunctions;
+_   (Module_PreallocFunctions (io_module, id + 1))
+
+    io_module->table0[index] = &io_module->functions[id];
+    io_module->table0[index]->funcType = ftype;
+
+
+_   (CompileRawFunction (io_module, io_module->table0[index], i_function, i_userdata));
+} _catch:
+    return result;
+}
+
+M3Result  m3_LinkRawTableFunction  (IM3Module             o_module,
+                                     uint32_t               index,
+                                     const char * const     i_signature,
+                                     M3RawCall              i_function)
+{
+    return FindAndLinkTableFunction (o_module, index, i_signature, (voidptr_t)i_function, NULL);
+}
+M3Result  m3_LinkRawTableFunctionEx  (IM3Module             o_module,
+                                     uint32_t               index,
+                                     const char * const     i_signature,
+                                     M3RawCall              i_function,
+                                     const void *           i_userdata)
+{
+    return FindAndLinkTableFunction (o_module, index, i_signature, (voidptr_t)i_function, i_userdata);
+}
