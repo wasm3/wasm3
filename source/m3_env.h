@@ -125,6 +125,59 @@ M3Global;
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
+
+#if d_m3HasExceptionHandling
+
+// An exception tag, as the tag section declares it. Tags are compared by
+// identity, and this struct's address is that identity: a thrown exception
+// carries the M3Tag * it was created from, and a catch clause matches when the
+// pointers are equal. Tags are per-module and never merged, so a tag imported
+// from another module is a fresh tag rather than an alias of the one exported
+// there - wasm3 links imports against host functions, not against modules.
+typedef struct M3Tag
+{
+    M3ImportInfo            import;
+    IM3FuncType             type;           // results must be empty; params are the payload
+    cstr_t                  name;           // export name, if any
+    bool                    imported;
+}
+M3Tag;
+
+typedef M3Tag *             IM3Tag;
+
+
+// A thrown exception: the tag that identifies it plus the payload the throw
+// site popped off the stack, one u64 per value (32-bit values are stored
+// zero-extended, floats as their bit pattern).
+//
+// Exception objects belong to the runtime, not to the code that caught them.
+//
+// One caught by a clause that does not reify it - catch or catch_all rather
+// than their _ref forms - is unreachable the moment its payload has been copied
+// out, and is released there. Anything else stays on the runtime's list until
+// the outermost m3_Call() returns, which is the last moment an exnref can still
+// be reached from the Wasm stack. An exnref parked in a global or a table
+// outlives that and is left dangling - wasm3 has no collector to say otherwise.
+typedef struct M3Exception
+{
+    struct M3Exception *    next;           // the runtime's allocation list,
+    struct M3Exception *    prev;           //   doubly linked so one can leave early
+    IM3Tag                  tag;
+    u32                     numArgs;
+    bool                    reified;        // an exnref to this has been handed out
+    u64                     args [];
+}
+M3Exception;
+
+
+M3Exception *               NewException                (IM3Runtime io_runtime, IM3Tag i_tag, u32 i_numArgs);
+void                        FreeException               (IM3Runtime io_runtime, M3Exception * i_exception);
+void                        FreeExceptions              (IM3Runtime io_runtime);
+
+#endif // d_m3HasExceptionHandling
+
+
+//---------------------------------------------------------------------------------------------------------------------------------
 typedef struct M3Module
 {
     struct M3Runtime *      runtime;
@@ -159,6 +212,11 @@ typedef struct M3Module
     u32                     numGlobals;
     M3Global *              globals;
 
+#if d_m3HasExceptionHandling
+    u32                     numTags;
+    M3Tag *                 tags;
+#endif
+
     u32                     numElementSegments;
     M3ElementSegment *      elementSegments;
     bytes_t                 elementSectionEnd;
@@ -181,6 +239,9 @@ M3Module;
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, m3type_t i_type, bool i_mutable, bool i_isImported);
 M3Result                    Module_AddTable             (IM3Module io_module, m3type_t i_type, u32 i_size, u32 i_maxSize);
+#if d_m3HasExceptionHandling
+M3Result                    Module_AddTag               (IM3Module io_module, IM3Tag * o_tag, IM3FuncType i_type, bool i_isImported);
+#endif
 M3Result                    Module_DeclareFunction      (IM3Module io_module, u32 i_index);
 bool                        Module_IsFunctionDeclared   (IM3Module i_module, u32 i_index);
 
@@ -251,6 +312,13 @@ typedef struct M3Runtime
     u32                     callDepth;
 #endif
 
+#if d_m3HasExceptionHandling
+    u32                     tryDepth;           // number of try regions whose body is executing
+    M3Exception *           pendingException;   // the exception currently unwinding, if any
+    M3Exception *           exceptions;         // the ones it still holds
+    u32                     exceptionNesting;   // RunCodeChecked() recursion depth
+#endif
+
     M3ErrorInfo             error;
 #if d_m3VerboseErrorMessages
     char                    error_message[256]; // the actual buffer. M3ErrorInfo can point to this
@@ -287,7 +355,7 @@ M3Result                    ResizeMemory                (IM3Runtime io_runtime, 
 typedef void *              (* ModuleVisitor)           (IM3Module i_module, void * i_info);
 void *                      ForEachModule               (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info);
 
-void *                      v_FindFunction              (IM3Module i_module, const char * const i_name);
+void *                      v_FindFunction              (IM3Module i_module, void * i_info);
 
 IM3CodePage                 AcquireCodePage             (IM3Runtime io_runtime);
 IM3CodePage                 AcquireCodePageWithCapacity (IM3Runtime io_runtime, u32 i_lineCount);

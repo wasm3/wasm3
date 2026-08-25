@@ -179,6 +179,7 @@ M3CodePageHeader;
 #define d_m3MaxSaneImportsCount             100000
 #define d_m3MaxSaneExportsCount             100000
 #define d_m3MaxSaneGlobalsCount             1000000
+#define d_m3MaxSaneTagsCount                100000
 #define d_m3MaxSaneElementSegments          10000000
 #define d_m3MaxSaneDataSegments             100000
 #define d_m3MaxSaneTableSize                10000000
@@ -194,6 +195,7 @@ M3CodePageHeader;
 #define d_externalKind_table                1
 #define d_externalKind_memory               2
 #define d_externalKind_global               3
+#define d_externalKind_tag                  4
 
 // compact-import-section: these stand where an externtype would, after an empty
 // item name, and introduce a run of imports sharing one module name. 0x7f gives
@@ -206,6 +208,9 @@ M3CodePageHeader;
 #define d_waType_funcref                    16
 #define d_waType_externref                  17
 
+// exception handling: exnref is wasm-encoded as -0x17
+#define d_waType_exnref                     23
+
 // function-references: a reference type spelled out as (ref ht) / (ref null ht),
 // where the abstract heap types reuse the funcref and externref encodings
 #define d_waEncode_ref                      0x64
@@ -213,8 +218,8 @@ M3CodePageHeader;
 
 // indexed by M3ValueType: c_m3Type_count entries for the concrete types, plus
 // one more for c_m3Type_unknown, which sits right after them
-static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "v128", "funcref", "externref", "unknown" };
-static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "V", "r", "R", "?" };
+static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "v128", "funcref", "externref", "exnref", "unknown" };
+static const char * const c_waCompactTypes []   = { "_", "i", "I", "f", "F", "V", "r", "R", "e", "?" };
 
 
 # if d_m3VerboseErrorMessages

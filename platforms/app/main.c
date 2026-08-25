@@ -460,6 +460,7 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
         case c_m3Type_f64: fprintf (stderr, "%" PRIu64 ":f64", *(u64*)valptrs[i]);  break;
         case c_m3Type_funcref:   print_ref (*(uintptr_t*)valptrs[i], "funcref");   break;
         case c_m3Type_externref: print_ref (*(uintptr_t*)valptrs[i], "externref"); break;
+        case c_m3Type_exnref:    print_ref (*(uintptr_t*)valptrs[i], "exnref");    break;
         default: return "unknown return type";
         }
         if (i != ret_count-1) {
@@ -507,6 +508,7 @@ M3Result repl_global_get  (const char* name)
     case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64", tagged.value.f64);  break;
     case c_m3Type_funcref:   print_ref ((uintptr_t) tagged.value.i64, "funcref");   break;
     case c_m3Type_externref: print_ref ((uintptr_t) tagged.value.i64, "externref"); break;
+    case c_m3Type_exnref:    print_ref ((uintptr_t) tagged.value.i64, "exnref");    break;
     default:            return m3Err_invalidTypeId;
     }
     fprintf (stderr, "\n");

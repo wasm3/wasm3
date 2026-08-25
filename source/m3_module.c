@@ -48,6 +48,16 @@ void  m3_FreeModule  (IM3Module i_module)
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free (i_module->globals);
+
+#if d_m3HasExceptionHandling
+        for (u32 i = 0; i < i_module->numTags; ++i)
+        {
+            m3_Free (i_module->tags[i].name);
+            FreeImportInfo(&(i_module->tags[i].import));
+        }
+        m3_Free (i_module->tags);
+#endif
+
         m3_Free (i_module->memoryExportName);
         m3_Free (i_module->table0ExportName);
 
@@ -145,6 +155,29 @@ _try {
 } _catch:
     return result;
 }
+
+
+#if d_m3HasExceptionHandling
+
+M3Result  Module_AddTag  (IM3Module io_module, IM3Tag * o_tag, IM3FuncType i_type, bool i_isImported)
+{
+_try {
+    u32 index = io_module->numTags++;
+    io_module->tags = m3_ReallocArray (M3Tag, io_module->tags, io_module->numTags, index);
+    _throwifnull (io_module->tags);
+    M3Tag * tag = & io_module->tags [index];
+
+    tag->type = i_type;
+    tag->imported = i_isImported;
+
+    if (o_tag)
+        * o_tag = tag;
+
+} _catch:
+    return result;
+}
+
+#endif // d_m3HasExceptionHandling
 
 
 M3Result  Module_AddGlobal  (IM3Module io_module, IM3Global * o_global, m3type_t i_type, bool i_mutable, bool i_isImported)

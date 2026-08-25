@@ -295,6 +295,59 @@ static M3Result v_cvtop (ValCtx * v, u8 in, u8 out)
 
 // ---------- Main validation loop ----------
 
+#if d_m3HasExceptionHandling
+
+// One catch clause of a try_table. The label is resolved in the context the
+// try_table itself appears in - the spec checks the clauses against C, not
+// against C extended with the block's own label - so depth 0 names the block
+// enclosing the try, not the try. What the clause hands the label is the tag's
+// payload, optionally followed by the exnref that reifies the caught exception.
+static M3Result v_catch_clause (ValCtx * v)
+{
+    u8 kind;
+    M3Result r = Read_u8(&kind, &v->wasm, v->wasmEnd);
+    if (r) return r;
+    if (kind > 0x03) return m3Err_wasmMalformed;
+
+    bool hasTag = (kind == 0x00 || kind == 0x01);
+    bool hasRef = (kind == 0x01 || kind == 0x03);
+
+    IM3FuncType tagType = NULL;
+    if (hasTag) {
+        u32 tagIndex;
+        r = ReadLEB_u32(&tagIndex, &v->wasm, v->wasmEnd);
+        if (r) return r;
+        if (!v->module || tagIndex >= v->module->numTags) return m3Err_unknownTag;
+        tagType = v->module->tags[tagIndex].type;
+    }
+
+    u32 depth;
+    r = ReadLEB_u32(&depth, &v->wasm, v->wasmEnd);
+    if (r) return r;
+    if (depth >= v->ctrlTop) return m3Err_unknownLabel;
+
+    ValCtrlFrame * tgt = &v->ctrl[v->ctrlTop - 1 - depth];
+
+    u16 numPayload = tagType ? tagType->numArgs : 0;
+    u16 numLabel   = v_label_n(tgt);
+
+    if (numLabel != numPayload + (hasRef ? 1u : 0u))
+        return m3Err_typeCountMismatch;
+
+    for (u16 i = 0; i < numPayload; i++) {
+        if (v_label_t(tgt, i) != BaseTypeOf(tagType->types[tagType->numRets + i]))
+            return m3Err_typeMismatch;
+    }
+
+    if (hasRef and v_label_t(tgt, numPayload) != c_m3Type_exnref)
+        return m3Err_typeMismatch;
+
+    return m3Err_none;
+}
+
+#endif // d_m3HasExceptionHandling
+
+
 static M3Result v_validate_body (ValCtx * v)
 {
     M3Result r = m3Err_none;
@@ -345,6 +398,64 @@ static M3Result v_validate_body (ValCtx * v)
             }
             break;
         }
+
+#if d_m3HasExceptionHandling
+        case 0x1f: // try_table
+        {
+            IM3FuncType bt = NULL;
+            r = v_read_blocktype(v, &bt);
+            if (r) return r;
+            if (bt) {
+                for (u16 i = bt->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, BaseTypeOf(bt->types[bt->numRets + i - 1]), &a);
+                    if (r) return r;
+                }
+            }
+            // the clauses are checked before the frame goes on, so their
+            // labels count from outside the try block
+            u32 numCatch;
+            r = ReadLEB_u32(&numCatch, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            for (u32 i = 0; i < numCatch; i++) {
+                r = v_catch_clause(v);
+                if (r) return r;
+            }
+
+            r = v_push_ctrl(v, opcode, bt);
+            if (r) return r;
+
+            if (bt) {
+                for (u16 i = 0; i < bt->numArgs; i++) {
+                    r = v_push(v, BaseTypeOf(bt->types[bt->numRets + i]));
+                    if (r) return r;
+                }
+            }
+            break;
+        }
+
+        case 0x08: // throw
+        {
+            u32 tagIndex;
+            r = ReadLEB_u32(&tagIndex, &v->wasm, v->wasmEnd);
+            if (r) return r;
+            if (!v->module || tagIndex >= v->module->numTags) return m3Err_unknownTag;
+            IM3FuncType tt = v->module->tags[tagIndex].type;
+            if (tt) {
+                for (u16 i = tt->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, BaseTypeOf(tt->types[tt->numRets + i - 1]), &a);
+                    if (r) return r;
+                }
+            }
+            v_unreachable(v);
+            break;
+        }
+
+        case 0x0a: // throw_ref
+            r = v_pop_expect(v, c_m3Type_exnref, &a);
+            if (r) return r;
+            v_unreachable(v);
+            break;
+#endif // d_m3HasExceptionHandling
 
         case 0x05: // else
         {

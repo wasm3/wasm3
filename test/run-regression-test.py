@@ -6,11 +6,12 @@
 #   ./run-regression-test.py --exec ../custom_build/wasm3 --timeout 120
 #   ./run-regression-test.py --exec "valgrind --error-exitcode=9 ../build/wasm3"
 #
-# Each case in ./regression/ is a minimized module from a reported issue. The
-# primary assertion is always the same: wasm3 must not die on it. A clean trap
-# or a clean error message is a pass; a signal, an abort, or a sanitizer report
-# is a failure. Cases where the returned value is the point of the issue also
-# carry an expected output pattern.
+# Each case in ./regression/ is a minimized module - from a reported issue, or
+# from an engine corner that the spec suite does not reach. The primary
+# assertion is always the same: wasm3 must not die on it. A clean trap or a
+# clean error message is a pass; a signal, an abort, or a sanitizer report is a
+# failure. Cases where the returned value is the point also carry an expected
+# output pattern.
 
 import argparse
 import os
@@ -82,6 +83,32 @@ tests = [
     "wasm":           "./regression/github-479.wasm",
     "args":           ["--func", "main"],
     "expect_pattern": "*stack overflow*",
+  }, {
+    # op_TryTable's native frame outlives the try region when control branches
+    # past the block's end, so the frame has to notice it is no longer the
+    # innermost handler. Returning 1 means it caught what it should have let by.
+    "name":           "throw after branching out of a try region",
+    "wasm":           "./regression/exceptions-stale-try.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*uncaught exception*",
+  }, {
+    "name":           "throw after leaving a try region via br_table",
+    "wasm":           "./regression/exceptions-stale-try-br-table.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*uncaught exception*",
+  }, {
+    # the catch handler runs on op_TryTable's frame, whose memory pointer is
+    # stale if the body grew linear memory
+    "name":           "memory.grow inside a try body",
+    "wasm":           "./regression/exceptions-grow-in-try.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 7*",
+  }, {
+    # each lap enters a try region; the native frame has to come back off
+    "name":           "try region entered once per loop iteration",
+    "wasm":           "./regression/exceptions-try-in-loop.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 1000000*",
   },
 ]
 
@@ -127,7 +154,8 @@ for test in tests:
     command = args.exec.split(' ') + test.get('args', []) + [test['wasm']]
     command = list(map(str, command))
 
-    title = f"issue #{test['issue']}: {test['name']}"
+    issue = test.get('issue')
+    title = f"issue #{issue}: {test['name']}" if issue else test['name']
     print(f"=== {title} ===")
     if args.verbose:
         print(' '.join(command))

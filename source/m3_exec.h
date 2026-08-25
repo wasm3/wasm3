@@ -1307,6 +1307,171 @@ d_m3Op  (Loop)
 }
 
 
+#if d_m3HasExceptionHandling
+
+// try_table. Like op_Loop this claims a native frame, and for the same reason:
+// a throw unwinds by returning m3Err_pendingException up the native stack, so
+// something has to be standing there to catch it.
+//
+// Immediates: the clause count, then two words per clause - the tag to match
+// (NULL for catch_all / catch_all_ref) and the PC of the stub that moves the
+// payload into place and branches to the clause's label. The body follows.
+//
+// The frame stays alive after the body falls through or branches out of the try
+// region, but the handler record is popped at those points (op_PopHandlers), so
+// a later throw sees this frame is no longer the innermost one and passes it by.
+//
+// The handler stack is just a depth counter: an unwind stops at whichever frame
+// finds the count still standing at the value its own push produced, which is
+// the innermost try region that hasn't been popped.
+d_m3Op  (TryTable)
+{
+    d_m3CheckNativeStack ();
+
+    IM3Memory memory    = m3MemInfo (_mem);
+    IM3Runtime runtime  = m3MemRuntime (_mem);
+
+    u32 numClauses      = immediate (u32);
+
+    pc_t clauses        = _pc;
+    pc_t body           = _pc + 2 * numClauses;
+
+    u32 depth           = ++ runtime->tryDepth;
+
+    m3ret_t r = jumpOpImpl (body);
+
+    // the body can have grown linear memory out from under us
+    _mem = memory->mallocated;
+
+    // control is leaving this frame for good, so this try is done either way
+    bool isInnermost = (runtime->tryDepth == depth);
+    runtime->tryDepth = depth - 1;
+
+    if (M3_UNLIKELY (r == m3Err_pendingException) and isInnermost)
+    {
+        const M3Exception * exception = runtime->pendingException;
+
+        for (u32 i = 0; i < numClauses; ++i)
+        {
+            IM3Tag tag = (IM3Tag) clauses [2 * i];
+
+            if (tag == NULL or tag == exception->tag)
+            {
+                pc_t handler = (pc_t) clauses [2 * i + 1];
+
+                // an unwind leaves nothing meaningful in the registers
+                d_m3ClearRegisters
+
+                jumpOpDirect (handler);
+            }
+        }
+
+        // no clause matched: the exception carries on up
+    }
+
+    forwardTrap (r);
+}
+
+
+// Head of a catch clause's stub: copies the caught exception's payload into the
+// slots the stub's branch expects, and the exnref itself for a _ref clause.
+//
+// A clause that takes no exnref is the end of the road for this exception, so
+// it is released here rather than waiting for the call to finish - a module
+// that throws inside a loop would otherwise pile up one object per lap. Not so
+// once an exnref has been handed out: a local, a global or a table may still be
+// holding it, ready for throw_ref.
+d_m3Op  (CatchPayload)
+{
+    IM3Runtime runtime = m3MemRuntime (_mem);
+    M3Exception * exception = runtime->pendingException;
+
+    u32 numArgs = immediate (u32);
+
+    for (u32 i = 0; i < numArgs; ++i)
+    {
+        i32 offset  = immediate (i32);
+        u32 is64    = immediate (u32);
+        u64 value   = exception->args [i];
+
+        if (is64)
+            * (u64 *) (_sp + offset) = value;
+        else
+            * (u32 *) (_sp + offset) = (u32) value;
+    }
+
+    i32 refOffset = immediate (i32);
+
+    if (refOffset >= 0)
+    {
+        * (M3Exception **) (_sp + refOffset) = exception;
+        exception->reified = true;
+    }
+    else if (not exception->reified)
+    {
+        FreeException (runtime, exception);
+    }
+
+    nextOp ();
+}
+
+
+d_m3Op  (Throw)
+{
+    IM3Runtime runtime = m3MemRuntime (_mem);
+
+    IM3Tag tag  = immediate (IM3Tag);
+    u32 numArgs = immediate (u32);
+
+    M3Exception * exception = NewException (runtime, tag, numArgs);
+
+    if (M3_UNLIKELY (not exception))
+        newTrap (m3Err_mallocFailed);
+
+    for (u32 i = 0; i < numArgs; ++i)
+    {
+        i32 offset  = immediate (i32);
+        u32 is64    = immediate (u32);
+
+        exception->args [i] = is64 ? * (u64 *) (_sp + offset) : * (u32 *) (_sp + offset);
+    }
+
+    runtime->pendingException = exception;
+
+    return m3Err_pendingException;
+}
+
+
+d_m3Op  (ThrowRef)
+{
+    M3Exception * exception = slot (M3Exception *);
+
+    if (M3_UNLIKELY (not exception))
+        newTrap (m3Err_trapNullReference);
+
+    m3MemRuntime (_mem)->pendingException = exception;
+
+    return m3Err_pendingException;
+}
+
+
+// Emitted where control leaves a try region without leaving op_TryTable's native
+// frame: falling out of the block's end, or branching past it. The count is how
+// many try regions the exit crosses.
+d_m3Op  (PopHandlers)
+{
+    IM3Runtime runtime = m3MemRuntime (_mem);
+
+    u32 count = immediate (u32);
+
+    runtime->tryDepth -= count;
+
+    nextOp ();
+}
+
+#endif // d_m3HasExceptionHandling
+
+
 d_m3Op  (Branch)
 {
     jumpOp (* _pc);

@@ -211,6 +211,10 @@ M3Result NormalizeType (u8 * o_type, i8 i_convolutedWasmType)
         type = c_m3Type_funcref;
     else if (type == d_waType_externref)
         type = c_m3Type_externref;
+#if d_m3HasExceptionHandling
+    else if (type == d_waType_exnref)
+        type = c_m3Type_exnref;
+#endif
     // Accept v128 (wasm-encoded as 0x7b → -i_convolutedWasmType == 5)
     // as an opaque slot so modules with v128 in signatures or local
     // declarations parse. Actual v128 opcodes still hit
@@ -271,7 +275,11 @@ bool  IsFpType  (m3type_t i_type)
 bool  IsRefType  (m3type_t i_type)
 {
     u8 i_m3Type = BaseTypeOf(i_type);
-    return (i_m3Type == c_m3Type_funcref or i_m3Type == c_m3Type_externref);
+    return (i_m3Type == c_m3Type_funcref or i_m3Type == c_m3Type_externref
+#if d_m3HasExceptionHandling
+            or i_m3Type == c_m3Type_exnref
+#endif
+            );
 }
 
 
