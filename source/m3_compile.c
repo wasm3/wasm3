@@ -159,15 +159,6 @@ static const IM3Operation c_setRegisterOps [] =  { NULL, op_SetRegister_i32,    
                                                     NULL, REFOP(SetRegister),     REFOP(SetRegister),
                                                     REFOP(SetRegister) };
 
-// One entry per M3ValueType, so a type the compiler carries can never index off
-// the end of them. Declaring an array of negative size is the portable way to
-// say this in C99, which these builds still target.
-typedef char m3_TypeOpTablesAreComplete [
-    (M3_COUNT_OF (c_preserveSetSlot) == c_m3Type_count and
-     M3_COUNT_OF (c_setSetOps)       == c_m3Type_count and
-     M3_COUNT_OF (c_setGlobalOps)    == c_m3Type_count and
-     M3_COUNT_OF (c_setRegisterOps)  == c_m3Type_count) ? 1 : -1];
-
 // A table shorter than the enum reads out of bounds, so tie the two together at
 // build time: adding a value type must not silently outgrow these.
 #define d_m3CheckTypeTable(TABLE) \
