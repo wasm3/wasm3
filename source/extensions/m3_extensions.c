@@ -41,20 +41,26 @@ M3Result  m3_InjectFunction  (IM3Module                 i_module,
 
     IM3Function function = NULL;
     IM3FuncType ftype = NULL;
-_   (SignatureToFuncType (& ftype, i_signature));
 
-    i32 index = * io_functionIndex;
-
+    // Declared before the first throw below, which jumps past this point to
+    // _catch and so must not skip an initialization.
+    i32 index;
     bytes_t bytes = i_wasmBytes;
     bytes_t end = i_wasmBytes + 5;
-
+    size_t numBytes;
     u32 size;
+
+_   (SignatureToFuncType (& ftype, i_signature));
+
+    index = * io_functionIndex;
+
 _   (ReadLEB_u32 (& size, & bytes, end));
     end = bytes + size;
 
     if (index >= 0)
     {
-        _throwif ("function index out of bounds", index >= i_module->numFunctions);
+        // index is known non-negative here, so the counts compare as unsigned
+        _throwif ("function index out of bounds", (u32) index >= i_module->numFunctions);
 
         function = & i_module->functions [index];
 
@@ -85,7 +91,7 @@ _       (Module_AddFunction (i_module, funcTypeIndex, NULL));
     if (function->ownsWasmCode)
         m3_Free (function->wasm);
 
-    size_t numBytes = end - i_wasmBytes;
+    numBytes = end - i_wasmBytes;
     function->wasm = m3_CopyMem (i_wasmBytes, numBytes);
     _throwifnull (function->wasm);
 

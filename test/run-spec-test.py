@@ -477,6 +477,17 @@ blacklist = Blacklist([
   "* assert_invalid (multiple memories)",
   "binary.wast:* assert_malformed (zero flag expected)",
   "binary.wast:* assert_malformed (zero byte expected)",
+  # and for memory64, which widened the memarg offset from u32 to u64. Two
+  # modules per suite encode a small offset in six LEB bytes: one too many for a
+  # u32, and well within a u64, so they are no longer malformed. An offset a
+  # 32-bit memory cannot address is still rejected - as invalid rather than
+  # malformed, which is what the memory64 suite expects - and wg-3.0 no longer
+  # asserts these. The same two modules are binary-leb128.wast in some suites
+  # and binary.wast in others.
+  "binary-leb128.wast:* binary-leb128.40.wasm *",
+  "binary-leb128.wast:* binary-leb128.43.wasm *",
+  "binary.wast:* binary.80.wasm *",
+  "binary.wast:* binary.83.wasm *",
   # Linking is best-effort: an import nothing satisfies is left alone rather than
   # rejected, because m3_LinkRawFunction needs the runtime and so can only run
   # after m3_LoadModule. So a missing or mistyped import is not reported at

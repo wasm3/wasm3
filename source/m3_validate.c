@@ -52,6 +52,29 @@ static bool v_has_memory_idx (ValCtx * v, u32 i_memoryIdx)
     return v->module and i_memoryIdx < v->module->numMemories;
 }
 
+// The type of the addresses, sizes and page counts a memory instruction takes:
+// whichever the memory it names was declared with. Only ever called after
+// v_has_memory_idx has said the index is in range.
+static m3type_t v_memory_addrtype (ValCtx * v, u32 i_memoryIdx)
+{
+    return Memory_AddrType (v->module->memories [i_memoryIdx]);
+}
+
+// Spec: the static offset of a memory access must be in range of the address
+// type, so anything at all for a 64-bit memory and below 2^32 for a 32-bit one.
+static bool v_offset_in_range (ValCtx * v, u32 i_memoryIdx, u64 i_offset)
+{
+    return v_memory_addrtype (v, i_memoryIdx) == c_m3Type_i64 or i_offset <= 0xFFFFFFFFull;
+}
+
+// The type a table's indexes and sizes are given in - table64 is the same
+// choice as memory64, made per table. Only ever called once the table index has
+// been checked against the module's index space.
+static m3type_t v_table_addrtype (ValCtx * v, u32 i_tableIdx)
+{
+    return Table_AddrType (v->module->tables [i_tableIdx]);
+}
+
 // Spec: the alignment immediate of a memory access must not be larger than the
 // natural alignment of the operation. Natural alignment: 8-bit=0, 16-bit=1,
 // 32-bit=2, 64-bit=3.
@@ -619,7 +642,7 @@ static M3Result v_validate_body (ValCtx * v)
             if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
             if (v->module->tables[tableIdx]->type != c_m3Type_funcref) return m3Err_typeMismatch;
             IM3FuncType ft = v->module->funcTypes[typeIdx];
-            r = v_pop_expect(v, c_m3Type_i32, &a); // table index operand
+            r = v_pop_expect(v, v_table_addrtype(v, tableIdx), &a); // table index operand
             if (r) return r;
             if (ft) {
                 for (u16 i = ft->numArgs; i > 0; i--) {
@@ -668,7 +691,7 @@ static M3Result v_validate_body (ValCtx * v)
             IM3FuncType ft = v->module->funcTypes[typeIdx];
             r = v_check_tail_results(v, ft);
             if (r) return r;
-            r = v_pop_expect(v, c_m3Type_i32, &a); // table index operand
+            r = v_pop_expect(v, v_table_addrtype(v, tableIdx), &a); // table index operand
             if (r) return r;
             if (ft) {
                 for (u16 i = ft->numArgs; i > 0; i--) {
@@ -773,13 +796,14 @@ static M3Result v_validate_body (ValCtx * v)
             if (r) return r;
             if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
             u8 t = BaseTypeOf(v->module->tables[tableIdx]->type);
+            m3type_t at = v_table_addrtype(v, tableIdx);
 
             if (opcode == 0x26) {
-                r = v_pop_expect(v, t, &a);            if (r) return r;
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
+                r = v_pop_expect(v, t, &a);   if (r) return r;
+                r = v_pop_expect(v, at, &a);  if (r) return r;
             } else {
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
-                r = v_push(v, t);                      if (r) return r;
+                r = v_pop_expect(v, at, &a);  if (r) return r;
+                r = v_push(v, t);             if (r) return r;
             }
             break;
         }
@@ -889,11 +913,12 @@ static M3Result v_validate_body (ValCtx * v)
         case 0x30: case 0x31: case 0x32: case 0x33: // i64.load8/16 s/u
         case 0x34: case 0x35:                         // i64.load32 s/u
         {
-            u32 align, offset, memidx;
+            u32 align, memidx; u64 offset;
             r = ReadMemoryArg(&align, &memidx, &offset, &v->wasm, v->wasmEnd); if (r) return r;
             if (align > v_max_align(opcode)) return m3Err_invalidAlignment;
             if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
-            r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
+            if (not v_offset_in_range(v, memidx, offset)) return m3Err_wasmMalformed;
+            r = v_pop_expect(v, v_memory_addrtype(v, memidx), &a); if (r) return r;
             u8 result;
             if      (opcode == 0x28) result = c_m3Type_i32;
             else if (opcode == 0x29) result = c_m3Type_i64;
@@ -911,10 +936,11 @@ static M3Result v_validate_body (ValCtx * v)
         case 0x3a: case 0x3b:                         // i32.store8/16
         case 0x3c: case 0x3d: case 0x3e:             // i64.store8/16/32
         {
-            u32 align, offset, memidx;
+            u32 align, memidx; u64 offset;
             r = ReadMemoryArg(&align, &memidx, &offset, &v->wasm, v->wasmEnd); if (r) return r;
             if (align > v_max_align(opcode)) return m3Err_invalidAlignment;
             if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
+            if (not v_offset_in_range(v, memidx, offset)) return m3Err_wasmMalformed;
             u8 valtype;
             if      (opcode == 0x36) valtype = c_m3Type_i32;
             else if (opcode == 0x37) valtype = c_m3Type_i64;
@@ -923,7 +949,7 @@ static M3Result v_validate_body (ValCtx * v)
             else if (opcode <= 0x3b) valtype = c_m3Type_i32;
             else                     valtype = c_m3Type_i64;
             r = v_pop_expect(v, valtype, &a); if (r) return r;
-            r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
+            r = v_pop_expect(v, v_memory_addrtype(v, memidx), &a); if (r) return r;
             break;
         }
 
@@ -933,7 +959,7 @@ static M3Result v_validate_body (ValCtx * v)
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
             if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
-            r = v_push(v, c_m3Type_i32); if (r) return r;
+            r = v_push(v, v_memory_addrtype(v, memidx)); if (r) return r;
             break;
         }
         case 0x40: // memory.grow
@@ -941,8 +967,8 @@ static M3Result v_validate_body (ValCtx * v)
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
             if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
-            r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
-            r = v_push(v, c_m3Type_i32); if (r) return r;
+            r = v_pop_expect(v, v_memory_addrtype(v, memidx), &a); if (r) return r;
+            r = v_push(v, v_memory_addrtype(v, memidx)); if (r) return r;
             break;
         }
 
@@ -1096,9 +1122,11 @@ static M3Result v_validate_body (ValCtx * v)
                 // the segments must have been declared up front by a data count section
                 if (not v->module->hasDataCount) return m3Err_dataCountRequired;
                 if (dataidx >= v->module->numDataSegments) return m3Err_unknownDataSegment;
+                // the segment is indexed as an i32 no matter how the memory is
+                // addressed; only the destination follows the address type
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // src
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
+                r = v_pop_expect(v, v_memory_addrtype(v, memidx), &a); if (r) return r; // dst
                 break;
             }
             case 0x09: // data.drop
@@ -1132,9 +1160,23 @@ static M3Result v_validate_body (ValCtx * v)
                         return m3Err_typeMismatch;
                 }
 
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // n
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // s
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // d
+                if (sub == 0x0c) {
+                    // table.init indexes the segment as an i32 whatever the
+                    // table is; only the destination follows the table
+                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;             // n
+                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;             // s
+                    r = v_pop_expect(v, v_table_addrtype(v, a2), &a); if (r) return r;  // d
+                } else {
+                    // table.copy: each index follows its own table, and the
+                    // length the narrower of the two
+                    m3type_t dType = v_table_addrtype(v, a1);
+                    m3type_t sType = v_table_addrtype(v, a2);
+                    m3type_t nType = (dType == c_m3Type_i64 and sType == c_m3Type_i64)
+                                       ? c_m3Type_i64 : c_m3Type_i32;
+                    r = v_pop_expect(v, nType, &a); if (r) return r;  // n
+                    r = v_pop_expect(v, sType, &a); if (r) return r;  // s
+                    r = v_pop_expect(v, dType, &a); if (r) return r;  // d
+                }
                 break;
             }
             case 0x0d: // elem.drop
@@ -1152,17 +1194,18 @@ static M3Result v_validate_body (ValCtx * v)
                 r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd); if (r) return r;
                 if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
                 u8 t = BaseTypeOf(v->module->tables[tableIdx]->type);
+                m3type_t at = v_table_addrtype(v, tableIdx);
 
                 if (sub == 0x10) {                                          // table.size
-                    r = v_push(v, c_m3Type_i32); if (r) return r;
+                    r = v_push(v, at); if (r) return r;
                 } else if (sub == 0x0f) {                                   // table.grow
-                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // n
-                    r = v_pop_expect(v, t, &a);            if (r) return r;  // init
-                    r = v_push(v, c_m3Type_i32);           if (r) return r;
+                    r = v_pop_expect(v, at, &a); if (r) return r;  // n
+                    r = v_pop_expect(v, t, &a);  if (r) return r;  // init
+                    r = v_push(v, at);           if (r) return r;
                 } else {                                                    // table.fill
-                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // n
-                    r = v_pop_expect(v, t, &a);            if (r) return r;  // val
-                    r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // i
+                    r = v_pop_expect(v, at, &a); if (r) return r;  // n
+                    r = v_pop_expect(v, t, &a);  if (r) return r;  // val
+                    r = v_pop_expect(v, at, &a); if (r) return r;  // i
                 }
                 break;
             }
@@ -1173,9 +1216,16 @@ static M3Result v_validate_body (ValCtx * v)
                 r = ReadLEB_u32(&dst, &v->wasm, v->wasmEnd); if (r) return r;
                 r = ReadLEB_u32(&src, &v->wasm, v->wasmEnd); if (r) return r;
                 if (not v_has_memory_idx(v, dst) or not v_has_memory_idx(v, src)) return m3Err_unknownMemory;
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // src
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
+                // Spec: each address follows its own memory, and the length is
+                // typed by the narrower of the two - so copying between an i32
+                // and an i64 memory takes an i32 length.
+                m3type_t dstType = v_memory_addrtype(v, dst);
+                m3type_t srcType = v_memory_addrtype(v, src);
+                m3type_t lenType = (dstType == c_m3Type_i64 and srcType == c_m3Type_i64)
+                                     ? c_m3Type_i64 : c_m3Type_i32;
+                r = v_pop_expect(v, lenType, &a); if (r) return r; // n
+                r = v_pop_expect(v, srcType, &a); if (r) return r; // src
+                r = v_pop_expect(v, dstType, &a); if (r) return r; // dst
                 break;
             }
             case 0x0b: // memory.fill
@@ -1183,9 +1233,10 @@ static M3Result v_validate_body (ValCtx * v)
                 u32 memidx;
                 r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
                 if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // val
-                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
+                m3type_t addrType = v_memory_addrtype(v, memidx);
+                r = v_pop_expect(v, addrType, &a); if (r) return r;      // n
+                r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;  // val
+                r = v_pop_expect(v, addrType, &a); if (r) return r;      // dst
                 break;
             }
             default:

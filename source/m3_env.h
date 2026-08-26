@@ -17,12 +17,16 @@ d_m3BeginExternC
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
+// Page counts are u64 because a memory64 type may declare up to 2^48 pages.
+// Nothing near that can be backed, but the module still has to parse and
+// validate; it is instantiation that fails.
 typedef struct M3MemoryInfo
 {
-    u32     initPages;
-    u32     maxPages;
+    u64     initPages;
+    u64     maxPages;
     u32     pageSize;
     bool    hasMax;         // a declared maximum of 0 is not the same as none
+    bool    isMemory64;     // addressed by i64 rather than i32
 }
 M3MemoryInfo;
 
@@ -40,11 +44,12 @@ typedef struct M3Memory
 {
     M3MemoryHeader *        mallocated;
 
-    u32                     numPages;
-    u32                     maxPages;
+    u64                     numPages;
+    u64                     maxPages;
+    u64                     initPages;
     u32                     pageSize;
-    u32                     initPages;
     bool                    hasMax;         // see M3MemoryInfo
+    bool                    isMemory64;     // addressed by i64 rather than i32
 
     struct M3Module *       owner;          // the module that allocated it
     M3ImportInfo            import;         // when declared as an import
@@ -55,8 +60,29 @@ M3Memory;
 
 typedef M3Memory *          IM3Memory;
 
+// The value type a memory's addresses, page counts and lengths are expressed
+// in. Every instruction naming the memory takes and returns that type.
+static inline m3type_t  Memory_AddrType  (const M3Memory * i_memory)
+{
+    return i_memory->isMemory64 ? c_m3Type_i64 : c_m3Type_i32;
+}
+
 
 //---------------------------------------------------------------------------------------------------------------------------------
+
+// A table type as the module declared it. Sizes stay u32 - a table64 may name
+// far more entries than that, but d_m3MaxSaneTableSize refuses anything near
+// the limit long before it matters.
+typedef struct M3TableInfo
+{
+    m3type_t    elemType;
+    u32         initSize;
+    u32         maxSize;
+    bool        hasMax;         // a declared maximum of 0 is not the same as none
+    bool        isTable64;      // indexed by i64 rather than i32
+}
+M3TableInfo;
+
 
 // A table's elements are opaque pointer-sized references: IM3Function for a
 // funcref table, a host handle for an externref one. NULL is the null reference.
@@ -74,6 +100,7 @@ typedef struct M3Table
 
     u32                     initSize;       // the declared minimum
     bool                    hasMax;         // a declared maximum of 0 is not the same as none
+    bool                    isTable64;      // indexed by i64 rather than i32
 
     struct M3Module *       owner;          // the module that allocated it
     M3ImportInfo            import;         // when declared as an import
@@ -83,6 +110,13 @@ typedef struct M3Table
 M3Table;
 
 typedef M3Table *           IM3Table;
+
+// The value type a table's indexes and sizes are expressed in - table64 is the
+// same choice as memory64, made per table.
+static inline m3type_t  Table_AddrType  (const M3Table * i_table)
+{
+    return i_table->isTable64 ? c_m3Type_i64 : c_m3Type_i32;
+}
 
 // Element segment modes, from the low two bits of the segment's flags
 typedef enum
@@ -300,7 +334,7 @@ static inline M3MemoryHeader *  Module_MemoryHeader  (IM3Module i_module)
 }
 
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, m3type_t i_type, bool i_mutable, bool i_isImported);
-M3Result                    Module_AddTable             (IM3Module io_module, IM3Table * o_table, m3type_t i_type, u32 i_size, u32 i_maxSize, bool i_hasMax, bool i_isImported);
+M3Result                    Module_AddTable             (IM3Module io_module, IM3Table * o_table, const M3TableInfo * i_info, bool i_isImported);
 #if d_m3HasExceptionHandling
 M3Result                    Module_AddTag               (IM3Module io_module, IM3Tag * o_tag, IM3FuncType i_type, bool i_isImported);
 #endif
@@ -411,7 +445,7 @@ M3Runtime;
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void                        Runtime_Release             (IM3Runtime io_runtime);
 
-M3Result                    ResizeMemory                (IM3Runtime io_runtime, IM3Memory io_memory, u32 i_numPages);
+M3Result                    ResizeMemory                (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPages);
 
 typedef void *              (* ModuleVisitor)           (IM3Module i_module, void * i_info);
 void *                      ForEachModule               (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info);

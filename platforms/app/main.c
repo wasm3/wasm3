@@ -664,7 +664,7 @@ M3Result repl_compile  ()
 
 M3Result repl_dump  ()
 {
-    uint32_t len;
+    size_t len;
     // the memory of the module most recently loaded, which is the one a repl
     // session is looking at
     uint8_t* mem = m3_GetMemory(lastLoadedModule, &len, 0);

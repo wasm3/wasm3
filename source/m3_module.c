@@ -180,12 +180,13 @@ _try {
     io_module->memories = m3_ReallocArray (IM3Memory, io_module->memories, index + 1, index);
     _throwifnull (io_module->memories);
 
-    memory->owner     = io_module;
-    memory->imported  = i_isImported;
-    memory->initPages = i_info->initPages;
-    memory->maxPages  = i_info->maxPages;
-    memory->pageSize  = i_info->pageSize;
-    memory->hasMax    = i_info->hasMax;
+    memory->owner      = io_module;
+    memory->imported   = i_isImported;
+    memory->initPages  = i_info->initPages;
+    memory->maxPages   = i_info->maxPages;
+    memory->pageSize   = i_info->pageSize;
+    memory->hasMax     = i_info->hasMax;
+    memory->isMemory64 = i_info->isMemory64;
 
     io_module->memories [index] = memory;
     io_module->numMemories = index + 1;
@@ -204,7 +205,7 @@ _try {
 // Appends an entry to the module's table index space. Allocated separately from
 // the index, like a memory, so another module importing it can hold the same
 // pointer.
-M3Result  Module_AddTable  (IM3Module io_module, IM3Table * o_table, m3type_t i_type, u32 i_size, u32 i_maxSize, bool i_hasMax, bool i_isImported)
+M3Result  Module_AddTable  (IM3Module io_module, IM3Table * o_table, const M3TableInfo * i_info, bool i_isImported)
 {
     IM3Table table = NULL;
 _try {
@@ -216,13 +217,14 @@ _try {
     io_module->tables = m3_ReallocArray (IM3Table, io_module->tables, index + 1, index);
     _throwifnull (io_module->tables);
 
-    table->owner    = io_module;
-    table->imported = i_isImported;
-    table->type     = i_type;
-    table->size     = i_size;
-    table->initSize = i_size;
-    table->maxSize  = i_maxSize;
-    table->hasMax   = i_hasMax;
+    table->owner     = io_module;
+    table->imported  = i_isImported;
+    table->type      = i_info->elemType;
+    table->size      = i_info->initSize;
+    table->initSize  = i_info->initSize;
+    table->maxSize   = i_info->maxSize;
+    table->hasMax    = i_info->hasMax;
+    table->isTable64 = i_info->isTable64;
 
     io_module->tables [index] = table;
     io_module->numTables = index + 1;

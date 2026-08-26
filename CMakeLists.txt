@@ -27,6 +27,11 @@ set_property(CACHE BUILD_WASI PROPERTY STRINGS none simple uvwasi metawasi)
 
 option(BUILD_NATIVE "Build with machine-specific optimisations" ON)
 
+# The tests under test/internal reach for engine internals and for API corners a
+# .wasm module cannot get at from the outside, so they are not part of a normal
+# build. The CI linux job turns them on.
+option(BUILD_TESTS  "Build the internal API tests" OFF)
+
 set(OUT_FILE "wasm3")
 
 if(NOT APP_DIR)
@@ -188,6 +193,7 @@ else()
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
   target_link_libraries(${OUT_FILE} m)
+  set(M3_LINK_LIBM 1)       # the internal tests link the same way, see BUILD_TESTS
 
 endif()
 
@@ -220,6 +226,7 @@ elseif(BUILD_WASI MATCHES "uvwasi")
   include_directories("${uvwasi_SOURCE_DIR}/include")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasUVWASI")
   target_link_libraries(${OUT_FILE} uvwasi_a uv_a)
+  set(M3_WASI_LIBS uvwasi_a uv_a)   # ...and so do the internal tests
 endif()
 
 check_ipo_supported(RESULT result)
@@ -231,6 +238,28 @@ else()
 endif()
 
 add_subdirectory(source)
+
+# Each of these is a standalone program that exercises the embedding API and
+# reports failures through its exit code. They link the same way the app does -
+# m3 carries source/ as a public include directory, so only the extension
+# headers have to be named here.
+if(BUILD_TESTS)
+  # m3_test also drives the extension API - m3_NewModule, m3_InjectFunction -
+  # which is not part of libm3 because it is opt-in, so it is compiled in here
+  add_executable(m3_test "test/internal/m3_test.c" "source/extensions/m3_extensions.c")
+  target_include_directories(m3_test PRIVATE "source/extensions")
+
+  add_executable(m3_test_reftypes "test/internal/m3_test_reftypes.c")
+
+  foreach(m3_test_name m3_test m3_test_reftypes)
+    target_link_libraries(${m3_test_name} m3 ${M3_WASI_LIBS})
+    if(M3_LINK_LIBM)
+      target_link_libraries(${m3_test_name} m)
+    endif()
+  endforeach()
+
+  message("Tests:      ON")
+endif()
 
 message("Flags:         ${CMAKE_C_FLAGS}")
 message("Debug flags:   ${CMAKE_C_FLAGS_DEBUG}")

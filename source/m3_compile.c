@@ -88,6 +88,15 @@ void  EmitConstant32  (IM3Compilation o, const u32 i_immediate)
         EmitWord32 (o->page, i_immediate);
 }
 
+// Takes two lines of the code page where a pointer is 32 bits, so whatever
+// reads it back has to step _pc by the same amount - see op_Const64.
+static M3_NOINLINE
+void  EmitConstant64  (IM3Compilation o, const u64 i_immediate)
+{
+    if (o->page)
+        EmitWord64 (o->page, i_immediate);
+}
+
 static M3_NOINLINE
 void  EmitSlotOffset  (IM3Compilation o, const i32 i_offset)
 {
@@ -2053,6 +2062,26 @@ _       (Push (o, nonNull, slot));
 #endif // d_m3HasTypedRefs
 
 
+// How wide a table operand is read at comes from the table it names, so a slot
+// holding a narrower type would be read past what was allocated for it. The
+// validator refuses that already; this keeps a build without one from reaching
+// the interpreter with it. c_m3Type_none means the operand is not on the
+// dynamic stack to inspect, which is not this check's business.
+static
+M3Result  CheckOperandType  (IM3Compilation o, u16 i_depthFromTop, m3type_t i_type)
+{
+    m3type_t actual;
+
+    if (IsStackPolymorphic (o))
+        return m3Err_none;
+
+    actual = GetStackTypeFromTop (o, i_depthFromTop);
+
+    return (actual == c_m3Type_none or BaseTypeOf (actual) == i_type) ? m3Err_none
+                                                                     : m3Err_typeMismatch;
+}
+
+
 // Swaps the _mem register onto a given memory. Only ever emitted in pairs --
 // see op_SetMemory.
 static
@@ -2181,6 +2210,8 @@ _   (ReadLEB_u32 (& tableIndex, & o->wasm, o->wasmEnd));
     _throwif ("table index out of range", tableIndex >= o->module->numTables);
     _throwif (m3Err_typeMismatch, BaseTypeOf(o->module->tables [tableIndex]->type) != c_m3Type_funcref);
 
+_   (CheckOperandType (o, 0, Table_AddrType (o->module->tables [tableIndex])));
+
     if (IsStackTopInRegister (o))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));
 
@@ -2203,9 +2234,11 @@ _       (CompileCallArgsAndReturn (o, & execTop, type, true));
 _       (EmitPopTryFramesForReturnCall (o));
 #endif
 
+    // the table comes first: how wide its indexes are is what says how much of
+    // the slot below holds one
 _   (EmitOp         (o, useTailCall ? op_ReturnCallIndirect : op_CallIndirect));
-    EmitSlotOffset  (o, tableIndexSlot);
     EmitPointer     (o, o->module->tables [tableIndex]);
+    EmitSlotOffset  (o, tableIndexSlot);
     EmitPointer     (o, type);              // TODO: unify all types in M3Environment
     EmitSlotOffset  (o, execTop);
 
@@ -2244,19 +2277,28 @@ M3Result  Compile_Memory_Size  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result;
 
     u32 memoryIdx;
+
+    // A page count is given in the memory's own address type. Declared up here
+    // so the throws below don't jump over its initialization.
+    m3type_t addrType = c_m3Type_i32;
+
 _   (ReadMemoryIndex (o, & memoryIdx));
 
-_   (PreserveRegisterIfOccupied (o, c_m3Type_i32));
+    addrType = Memory_AddrType (o->module->memories [memoryIdx]);
+
+_   (PreserveRegisterIfOccupied (o, addrType));
 
     if (memoryIdx)
 _       (EmitSetMemory (o, memoryIdx));
 
+    // op_MemSize writes the whole register either way; the slot it is pushed
+    // to is what decides how much of it the module gets to see
 _   (EmitOp     (o, op_MemSize));
 
     if (memoryIdx)
 _       (EmitSetMemory (o, 0));
 
-_   (PushRegister (o, c_m3Type_i32));
+_   (PushRegister (o, addrType));
 
     _catch: return result;
 }
@@ -2267,20 +2309,30 @@ M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
     M3Result result;
 
     u32 memoryIdx;
+
+    // see Compile_Memory_Size
+    m3type_t addrType = c_m3Type_i32;
+
 _   (ReadMemoryIndex (o, & memoryIdx));
 
+    addrType = Memory_AddrType (o->module->memories [memoryIdx]);
+
 _   (CopyStackTopToRegister (o, false));
-_   (PopType (o, c_m3Type_i32));
+_   (PopType (o, addrType));
 
     if (memoryIdx)
 _       (EmitSetMemory (o, memoryIdx));
 
+#if d_m3HasMemory64
+_   (EmitOp     (o, (addrType == c_m3Type_i64) ? op_MemGrow64 : op_MemGrow));
+#else
 _   (EmitOp     (o, op_MemGrow));
+#endif
 
     if (memoryIdx)
 _       (EmitSetMemory (o, 0));
 
-_   (PushRegister (o, c_m3Type_i32));
+_   (PushRegister (o, addrType));
 
     _catch: return result;
 }
@@ -2295,12 +2347,26 @@ M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
     u32 sourceMemoryIdx = 0, targetMemoryIdx = 0;
     bool isCopy = (i_opcode == c_waOp_memoryCopy);
 
+    // Each address is typed by the memory it belongs to. The length follows
+    // the narrower of the two, so it is 64-bit only when both are - which for
+    // memory.fill, naming one memory twice over, means whenever that one is.
+    // Declared up here so the throws below don't jump over them.
+    m3type_t targetType = c_m3Type_i32;
+    m3type_t sourceType = c_m3Type_i32;
+    m3type_t lengthType = c_m3Type_i32;
+
     _throwif (m3Err_wasmMalformed, o->module->numMemories == 0);
 
 _   (ReadMemoryIndex (o, & targetMemoryIdx));
 
     if (isCopy)
 _       (ReadMemoryIndex (o, & sourceMemoryIdx));
+
+    targetType = Memory_AddrType (o->module->memories [targetMemoryIdx]);
+    sourceType = isCopy ? Memory_AddrType (o->module->memories [sourceMemoryIdx])
+                        : targetType;
+    lengthType = (targetType == c_m3Type_i64 and sourceType == c_m3Type_i64)
+                   ? c_m3Type_i64 : c_m3Type_i32;
 
 _   (CopyStackTopToRegister (o, false));
 
@@ -2311,19 +2377,33 @@ _   (CopyStackTopToRegister (o, false));
 _       (EmitOp     (o, op_MemCopy_x));
         EmitPointer (o, o->module->memories [targetMemoryIdx]);
         EmitPointer (o, o->module->memories [sourceMemoryIdx]);
+
+        // ...and, since they need not be addressed alike, how wide to read
+        // each of the operands: bit 0 the destination, bit 1 the source
+        EmitConstant32 (o, ((targetType == c_m3Type_i64) ? 0x1u : 0u) |
+                           ((sourceType == c_m3Type_i64) ? 0x2u : 0u));
     }
     else
 #endif
     {
+        IM3Operation op = isCopy ? op_MemCopy : op_MemFill;
+
+#if d_m3HasMemory64
+        if (targetType == c_m3Type_i64)
+            op = isCopy ? op_MemCopy64 : op_MemFill64;
+#endif
+
         if (targetMemoryIdx)
 _           (EmitSetMemory (o, targetMemoryIdx));
 
-_       (EmitOp (o, isCopy ? op_MemCopy : op_MemFill));
+_       (EmitOp (o, op));
     }
 
-_   (PopType (o, c_m3Type_i32));
-_   (EmitSlotNumOfStackTopAndPop (o));
-_   (EmitSlotNumOfStackTopAndPop (o));
+    // the length is in the register; the other two are named by slot, at
+    // whatever width their stack entries were pushed with
+_   (PopType (o, lengthType));
+_   (EmitSlotNumOfStackTopAndPop (o));      // the source, or the byte to fill with
+_   (EmitSlotNumOfStackTopAndPop (o));      // the destination
 
     if (targetMemoryIdx and not (isCopy and sourceMemoryIdx != targetMemoryIdx))
 _       (EmitSetMemory (o, 0));
@@ -2368,7 +2448,13 @@ _   (CopyStackTopToRegister (o, false));
     if (memoryIdx)
 _       (EmitSetMemory (o, memoryIdx));
 
+#if d_m3HasMemory64
+    // only the destination follows the memory's address type: a data segment
+    // is indexed as an i32 however the memory it is copied into is addressed
+_   (EmitOp (o, o->module->memories [memoryIdx]->isMemory64 ? op_MemInit64 : op_MemInit));
+#else
 _   (EmitOp (o, op_MemInit));
+#endif
     EmitPointer (o, segment);
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
@@ -2562,9 +2648,15 @@ M3Result  Compile_Table_GetSet  (IM3Compilation o, m3opcode_t i_opcode)
 _   (ReadTable (o, & table));
 
     if (i_opcode == c_waOp_tableGet)
-_       (Compile_Table_Op (o, op_TableGet, table, 1, table->type))
+    {
+_       (CheckOperandType (o, 0, Table_AddrType (table)));
+_       (Compile_Table_Op (o, op_TableGet, table, 1, table->type));
+    }
     else
-_       (Compile_Table_Op (o, op_TableSet, table, 2, c_m3Type_none))
+    {
+_       (CheckOperandType (o, 1, Table_AddrType (table)));
+_       (Compile_Table_Op (o, op_TableSet, table, 2, c_m3Type_none));
+    }
 
     _catch: return result;
 }
@@ -2580,6 +2672,8 @@ M3Result  Compile_Table_Init  (IM3Compilation o, m3opcode_t i_opcode)
 _   (ReadLEB_u32 (& elemIndex, & o->wasm, o->wasmEnd));
     _throwif ("element segment index out of range", elemIndex >= o->module->numElementSegments);
 _   (ReadTable (o, & table));
+
+_   (CheckOperandType (o, 2, Table_AddrType (table)));
 
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i64));
 _   (EmitOp (o, op_TableInit));
@@ -2619,6 +2713,11 @@ _   (ReadTable (o, & dst));
 _   (ReadTable (o, & src));
     _throwif (m3Err_typeMismatch, not IsSubTypeOf (src->type, dst->type));
 
+_   (CheckOperandType (o, 2, Table_AddrType (dst)));
+_   (CheckOperandType (o, 1, Table_AddrType (src)));
+_   (CheckOperandType (o, 0, (dst->isTable64 and src->isTable64) ? c_m3Type_i64
+                                                                : c_m3Type_i32));
+
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i64));
 _   (EmitOp (o, op_TableCopy));
     EmitPointer (o, dst);
@@ -2637,7 +2736,9 @@ M3Result  Compile_Table_Size  (IM3Compilation o, m3opcode_t i_opcode)
 
     M3Table * table;
 _   (ReadTable (o, & table));
-_   (Compile_Table_Op (o, op_TableSize, table, 0, c_m3Type_i32));
+
+    // a table size is given in the table's own index type
+_   (Compile_Table_Op (o, op_TableSize, table, 0, Table_AddrType (table)));
 
     _catch: return result;
 }
@@ -2651,9 +2752,16 @@ M3Result  Compile_Table_GrowFill  (IM3Compilation o, m3opcode_t i_opcode)
 _   (ReadTable (o, & table));
 
     if (i_opcode == c_waOp_tableGrow)
-_       (Compile_Table_Op (o, op_TableGrow, table, 2, c_m3Type_i32))
+    {
+_       (CheckOperandType (o, 0, Table_AddrType (table)));
+_       (Compile_Table_Op (o, op_TableGrow, table, 2, Table_AddrType (table)));
+    }
     else
-_       (Compile_Table_Op (o, op_TableFill, table, 3, c_m3Type_none))
+    {
+_       (CheckOperandType (o, 0, Table_AddrType (table)));
+_       (CheckOperandType (o, 2, Table_AddrType (table)));
+_       (Compile_Table_Op (o, op_TableFill, table, 3, c_m3Type_none));
+    }
 
     _catch: return result;
 }
@@ -3436,19 +3544,94 @@ _       (PushRegister (o, opInfo->type))
     _catch: return result;
 }
 
+#if d_m3HasMemory64
+
+// Replaces the 64-bit address operand of a load or store with the checked
+// 32-bit effective address op_CheckAddr64 leaves behind, so that the access
+// itself compiles exactly as it would against a 32-bit memory: one slot to read
+// the address from, and an offset of zero folded in already.
+//
+// For a store the address sits under the value, so it is rewritten where it
+// stands rather than popped - its stack entry is repointed at the scratch slot
+// and retyped, and the slot it used to occupy released.
+static
+M3Result  EmitCheckAddr64  (IM3Compilation o, u64 i_offset, bool i_isStore)
+{
+    M3Result result = m3Err_none;
+
+    u16 numOperands = i_isStore ? 2 : 1;
+
+    // The address has to be in a slot for op_CheckAddr64 to read it. Spilling
+    // r0 wholesale also keeps the value of a store out of it, which is what
+    // leaves the address as the one operand still in a register to worry about.
+_   (PreserveRegisterIfOccupied (o, c_m3Type_i64));
+
+    // unreachable code: the operands the instruction names may not be there
+    if (o->stackIndex < o->block.blockStackIndex + numOperands)
+        return result;
+
+    {
+        u16 stackIndex   = (u16) (o->stackIndex - numOperands);
+        u16 srcSlot      = o->wasmStack [stackIndex];
+        m3type_t srcType = o->typeStack [stackIndex];
+
+        u16 dstSlot = c_slotUnused;
+
+        // Checked here rather than left to the validator, which a build may
+        // have switched off: reading a slot as an i64 that only holds an i32
+        // would reach past what was allocated for it.
+        _throwif (m3Err_typeMismatch, BaseTypeOf (srcType) != c_m3Type_i64);
+
+        // an address is an integer, so nothing should be left in a register
+        // once r0 has been preserved
+        _throwif (m3Err_typeMismatch, IsRegisterSlotAlias (srcSlot));
+        _throwif (m3Err_functionStackUnderrun, srcSlot >= o->slotMaxAllocatedIndexPlusOne);
+
+        // allocated before the source is released, so the two cannot be the
+        // same slot - op_CheckAddr64 reads one and writes the other
+_       (AllocateSlots (o, & dstSlot, c_m3Type_i32));
+
+_       (EmitOp (o, op_CheckAddr64));
+        EmitSlotOffset (o, srcSlot);
+        EmitSlotOffset (o, dstSlot);
+        EmitConstant64 (o, i_offset);
+
+        o->wasmStack [stackIndex] = dstSlot;
+        o->typeStack [stackIndex] = c_m3Type_i32;
+
+        // locals and the constant table outlive the instruction; a dynamic
+        // slot the address was computed into does not
+        if (srcSlot >= o->slotFirstDynamicIndex)
+            DeallocateSlot (o, srcSlot, srcType);
+    }
+
+    _catch: return result;
+}
+
+#endif // d_m3HasMemory64
+
+
 static
 M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
-    u32 alignHint, memoryOffset, memoryIdx;
+    u32 alignHint, memoryIdx;
+    u64 memoryOffset;
 
     // alignHint is checked by the validator
 _   (ReadMemoryArg (& alignHint, & memoryIdx, & memoryOffset, & o->wasm, o->wasmEnd));
-                                                                        m3log (compile, d_indent " (memory = %d; offset = %d)", get_indention_string (o), memoryIdx, memoryOffset);
+                                                                        m3log (compile, d_indent " (memory = %d; offset = %llu)", get_indention_string (o), memoryIdx, (unsigned long long) memoryOffset);
     _throwif (m3Err_unknownMemory, memoryIdx >= o->module->numMemories);
 
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
+
+    bool isMemory64 = o->module->memories [memoryIdx]->isMemory64;
+
+    // Spec: the static offset has to be in range of the address type. Checked
+    // here as well as in the validator, so that a build without one still
+    // refuses the module rather than silently truncating the offset.
+    _throwif (m3Err_wasmMalformed, not isMemory64 and memoryOffset > 0xFFFFFFFFull);
 
     if (IsFpType (opInfo->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
@@ -3456,9 +3639,25 @@ _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
     if (memoryIdx)
 _       (EmitSetMemory (o, memoryIdx));
 
+#if d_m3HasMemory64
+    if (isMemory64)
+    {
+        // An offset this far out puts every address out of bounds, so rather
+        // than carrying it, clamp it to the limit: op_CheckAddr64 then traps
+        // on whatever address it is given, which is the outcome either way.
+        if (memoryOffset > d_m3AddressLimit)
+            memoryOffset = d_m3AddressLimit;
+
+_       (EmitCheckAddr64 (o, memoryOffset, opInfo->stackOffset < 0));
+
+        // op_CheckAddr64 has folded the offset in already
+        memoryOffset = 0;
+    }
+#endif
+
 _   (Compile_Operator (o, i_opcode));
 
-    EmitConstant32 (o, memoryOffset);
+    EmitConstant32 (o, (u32) memoryOffset);
 
     if (memoryIdx)
 _       (EmitSetMemory (o, 0));

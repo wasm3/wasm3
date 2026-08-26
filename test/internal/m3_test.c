@@ -10,9 +10,14 @@
 #include "wasm3_ext.h"
 #include "m3_bind.h"
 
+static int failures = 0;
+
 #define Test(NAME) if (RunTest (argc, argv, #NAME) != 0)
 #define DisabledTest(NAME) printf ("\ndisabled: %s\n", #NAME); if (false)
-#define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); }
+
+// Deliberately a bare 'if' rather than a do/while: it is used both with and
+// without a trailing semicolon below, and only one of those survives the latter.
+#define expect(TEST) if (not (TEST)) { printf ("failed: (%s) on line: %d\n", #TEST, __LINE__); ++failures; }
 
 
 bool RunTest (int i_argc, const char * i_argv [], cstr_t i_name)
@@ -227,6 +232,36 @@ int  main  (int argc, const char  * argv [])
 	}
 
 		
+	Test (memory.size_not_truncated)
+	{
+		// A linear memory may be a full 4 GiB, which is one byte too many to
+		// count in 32 bits. These used to cast the length down to a u32, so a
+		// memory of exactly that size reported zero - m3_GetMemory handed back
+		// NULL, and m3ApiCheckMem, which is built on the accessor below, then
+		// refused every access into it.
+		//
+		// No memory is allocated here: the accessor reads the header that sits
+		// immediately before the data, so a header on its own is enough to ask.
+		M3MemoryHeader header;
+		M3_INIT (header);
+
+		void * data = & header + 1;
+
+		header.length = 0;                          expect (m3_GetMemorySizeAt (data) == 0)
+		header.length = 65536;                      expect (m3_GetMemorySizeAt (data) == 65536)
+
+		if (sizeof (size_t) > 4)
+		{
+			header.length = (size_t) 0xFFFFFFFFu;   expect (m3_GetMemorySizeAt (data) == (size_t) 0xFFFFFFFFu)
+
+			// 4 GiB exactly: what the truncation used to turn into zero
+			header.length = (size_t) 0x100000000ull; expect (m3_GetMemorySizeAt (data) == (size_t) 0x100000000ull)
+		}
+
+		expect (m3_GetMemorySizeAt (NULL) == 0)
+	}
+
+
 	Test (multireturn.branch)
 	{
 #			if 0
@@ -257,6 +292,7 @@ int  main  (int argc, const char  * argv [])
 			)
 #			endif
 	}
-    
-    return 0;
+
+	printf ("\n%s\n", failures ? "FAILURES" : "all checks passed");
+	return failures ? 1 : 0;
 }

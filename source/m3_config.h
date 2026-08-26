@@ -187,6 +187,14 @@
 #   define d_m3HasMultiMemory                   1       // implement the multiple memories proposal
 # endif
 
+// 64-bit linear memories: a memory declares whether it is addressed by i32 or
+// i64, and every instruction that names it takes operands of that type. The
+// address space wasm3 can actually back is far smaller than 2^64 either way --
+// see d_m3AddressLimit -- so this buys the addressing, not the range.
+# ifndef d_m3HasMemory64
+#   define d_m3HasMemory64                      1       // implement the memory64 proposal
+# endif
+
 // The import section's compact encodings: one module name shared by a run of
 // imports, optionally with one externtype shared as well. Decoding only - a
 // module means exactly what it would spelled out the long way.

@@ -88,13 +88,16 @@ _   (NormalizeType (& plainType, wasmType));
 // Reads an elem type and limits without registering anything: an import
 // descriptor holds on to the fields and only adds the table once it has a name.
 static
-M3Result  ReadType_TableType  (IM3Module i_module, m3type_t * o_elemType, u32 * o_initSize, u32 * o_maxSize, bool * o_hasMax, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadType_TableType  (IM3Module i_module, M3TableInfo * o_info, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
 
     m3type_t elemType = c_m3Type_none;
     u8 flag;
-    u32 initSize = 0, maxSize = 0;
+    u64 initSize = 0, maxSize = 0;
+
+    // the width of the limits, and of every index into the table
+    u32 addrBits = 32;
 
 _   (ParseValueType (i_module, & elemType, io_bytes, i_end));
 #if d_m3HasRefTypes
@@ -104,24 +107,34 @@ _   (ParseValueType (i_module, & elemType, io_bytes, i_end));
 #endif
 
 _   (ReadLEB_u7 (& flag, io_bytes, i_end));
-    _throwif (m3Err_wasmMalformed, flag & ~0x01u);          // bit 0: has max
 
-_   (ReadLEB_u32 (& initSize, io_bytes, i_end));
+    // bit 0: has max, bit 2: table64 - the same flag memory64 gives a memory
+#if d_m3HasMemory64
+    _throwif (m3Err_wasmMalformed, flag & ~0x05u);
+#else
+    _throwif (m3Err_wasmMalformed, flag & ~0x01u);
+#endif
+
+    if (flag & 0x04u)
+        addrBits = 64;
+
+_   (ReadLebUnsigned (& initSize, addrBits, io_bytes, i_end));
     _throwif ("table overflow", initSize > d_m3MaxSaneTableSize);
 
     if (flag & 0x01u)
     {
-_       (ReadLEB_u32 (& maxSize, io_bytes, i_end));
+_       (ReadLebUnsigned (& maxSize, addrBits, io_bytes, i_end));
         _throwif (m3Err_wasmMalformed, maxSize < initSize);
         _throwif ("table overflow", maxSize > d_m3MaxSaneTableSize);
     }
 
     _catch:
 
-    * o_elemType = elemType;
-    * o_initSize = initSize;
-    * o_maxSize  = maxSize;
-    * o_hasMax   = (flag & 0x01u) != 0;
+    o_info->elemType  = elemType;
+    o_info->initSize  = (u32) initSize;
+    o_info->maxSize   = (u32) maxSize;
+    o_info->hasMax    = (flag & 0x01u) != 0;
+    o_info->isTable64 = (flag & 0x04u) != 0;
 
     return result;
 }
@@ -132,12 +145,10 @@ M3Result  ParseType_TableType  (IM3Module io_module, bytes_t * io_bytes, cbytes_
 {
     M3Result result = m3Err_none;
 
-    m3type_t elemType;
-    u32 initSize, maxSize;
-    bool hasMax;
+    M3TableInfo info;
 
-_   (ReadType_TableType (io_module, & elemType, & initSize, & maxSize, & hasMax, io_bytes, i_end));
-_   (Module_AddTable (io_module, NULL, elemType, initSize, maxSize, hasMax, false /* isImport */));
+_   (ReadType_TableType (io_module, & info, io_bytes, i_end));
+_   (Module_AddTable (io_module, NULL, & info, false /* isImport */));
 
     _catch: return result;
 }
@@ -215,19 +226,31 @@ M3Result  ParseType_Memory  (M3MemoryInfo * o_memory, bytes_t * io_bytes, cbytes
     // Declared up here so the throws below don't jump over its initialization.
     u32 logPageSize = 16;
 
+    // The width of the limits, and of everything that addresses the memory:
+    // 32 unless bit 2 says memory64.
+    u32 addrBits = 32;
+
 _   (ReadLEB_u7 (& flag, io_bytes, i_end));
 
-    // bit 0: has max, bit 3: custom page size. bit 1 (shared) and bit 2 (memory64)
-    // belong to proposals we don't implement.
+    // bit 0: has max, bit 2: memory64, bit 3: custom page size. bit 1 (shared)
+    // belongs to a proposal we don't implement.
+#if d_m3HasMemory64
+    _throwif (m3Err_wasmMalformed, flag & ~0x0Du);
+#else
     _throwif (m3Err_wasmMalformed, flag & ~0x09u);
+#endif
 
-_   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
+    o_memory->isMemory64 = (flag & (1u << 2)) != 0;
+    if (o_memory->isMemory64)
+        addrBits = 64;
+
+_   (ReadLebUnsigned (& o_memory->initPages, addrBits, io_bytes, i_end));
 
     o_memory->maxPages = 0;
     o_memory->hasMax = (flag & (1u << 0)) != 0;
-    if (flag & (1u << 0))
+    if (o_memory->hasMax)
     {
-_       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
+_       (ReadLebUnsigned (& o_memory->maxPages, addrBits, io_bytes, i_end));
 
         // Spec: memory limits validation - max must not be less than init
         _throwif (m3Err_wasmMalformed, o_memory->maxPages < o_memory->initPages);
@@ -242,14 +265,16 @@ _       (ReadLEB_u32 (& logPageSize, io_bytes, i_end));
         o_memory->pageSize = 1u << logPageSize;
     }
 
-    // Spec: memory limits must be valid within range 2^32/pagesize. That is
-    // 65536 pages at the default page size, and a whole u32 of them when a page
-    // is a single byte.
+    // Spec: memory limits must be valid within range 2^|addrtype|/pagesize.
+    // That is 65536 pages at the default page size, 2^48 for a 64-bit memory,
+    // and a whole address space of them when a page is a single byte.
     {
-        u32 maxPagesAllowed = logPageSize ? (1u << (32 - logPageSize)) : 0xFFFFFFFFu;
+        u64 maxPagesAllowed = (logPageSize or addrBits < 64)
+                                ? (UINT64_C(1) << (addrBits - logPageSize))
+                                : UINT64_MAX;
 
         _throwif (m3Err_wasmMalformed, o_memory->initPages > maxPagesAllowed);
-        if (flag & (1u << 0))
+        if (o_memory->hasMax)
             _throwif (m3Err_wasmMalformed, o_memory->maxPages > maxPagesAllowed);
     }
 
@@ -358,10 +383,9 @@ typedef struct M3ImportDesc
 {
     u8              kind;
     u32             typeIndex;                  // function
-    m3type_t        type;                       // table element type / global type
+    m3type_t        type;                       // global type
     u8              isMutable;                  // global
-    u32             initSize, maxSize;          // table
-    bool            tableHasMax;                // table
+    M3TableInfo     table;
     M3MemoryInfo    memory;
 }
 M3ImportDesc;
@@ -409,7 +433,7 @@ _           (ReadLEB_u32 (& o_desc->typeIndex, io_bytes, i_end));
             break;
 
         case d_externalKind_table:
-_           (ReadType_TableType (i_module, & o_desc->type, & o_desc->initSize, & o_desc->maxSize, & o_desc->tableHasMax, io_bytes, i_end));
+_           (ReadType_TableType (i_module, & o_desc->table, io_bytes, i_end));
             break;
 
         case d_externalKind_memory:
@@ -460,8 +484,7 @@ _           (Module_AddFunction (io_module, i_desc->typeIndex, io_import))
         case d_externalKind_table:
         {
             IM3Table table;
-_           (Module_AddTable (io_module, & table, i_desc->type, i_desc->initSize, i_desc->maxSize,
-                              i_desc->tableHasMax, true /* isImport */));
+_           (Module_AddTable (io_module, & table, & i_desc->table, true /* isImport */));
             table->import = * io_import;
             * io_import = clearImport;
         }

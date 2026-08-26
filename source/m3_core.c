@@ -543,7 +543,7 @@ M3Result  ReadLEB_u32  (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 // testing the decoded value for it is the same test.
 #define d_memArgHasMemoryIdx    0x40u
 
-M3Result  ReadMemoryArg  (u32 * o_align, u32 * o_memoryIdx, u32 * o_offset, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadMemoryArg  (u32 * o_align, u32 * o_memoryIdx, u64 * o_offset, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result;
 
@@ -565,7 +565,9 @@ M3Result  ReadMemoryArg  (u32 * o_align, u32 * o_memoryIdx, u32 * o_offset, byte
 
     * o_align = align;
 
-    return ReadLEB_u32 (o_offset, io_bytes, i_end);
+    // memory64 widens the offset to a u64. Whether it is in range is a
+    // question about the memory it addresses, so the caller checks it.
+    return ReadLebUnsigned (o_offset, 64, io_bytes, i_end);
 }
 
 

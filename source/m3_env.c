@@ -361,8 +361,8 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, m3type_t 
 // exporter's *current* size is its minimum - one that has been grown satisfies
 // a larger import than its declaration would - and it may be no less bounded.
 static
-bool  LimitsSatisfy  (u32 i_exportedSize, bool i_exportedHasMax, u32 i_exportedMax,
-                      u32 i_importMin,    bool i_importHasMax,   u32 i_importMax)
+bool  LimitsSatisfy  (u64 i_exportedSize, bool i_exportedHasMax, u64 i_exportedMax,
+                      u64 i_importMin,    bool i_importHasMax,   u64 i_importMax)
 {
     if (i_exportedSize < i_importMin)
         return false;
@@ -485,6 +485,10 @@ M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
         if (not exported)
             continue;
 
+        // the address type is part of the memory type, so an i64 memory does
+        // not satisfy an i32 import, or the other way round
+        _throwif ("incompatible import type", exported->isMemory64 != memory->isMemory64);
+
         _throwif ("incompatible import type",
                   not LimitsSatisfy (exported->numPages, exported->hasMax, exported->maxPages,
                                      memory->initPages,  memory->hasMax,   memory->maxPages));
@@ -514,6 +518,10 @@ M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
             continue;
 
         _throwif ("incompatible import type", exported->type != table->type);
+
+        // the index type is part of the table type, the same way it is for a memory
+        _throwif ("incompatible import type", exported->isTable64 != table->isTable64);
+
         _throwif ("incompatible import type",
                   not LimitsSatisfy (exported->size,    exported->hasMax, exported->maxSize,
                                      table->initSize,   table->hasMax,    table->maxSize));
@@ -588,13 +596,18 @@ _       (ResizeMemory (io_runtime, & i_module->emptyMemory, 0));
         memory->pageSize = pageSize;
 
         // Without a declared maximum a memory may grow to the spec limit of
-        // 2^32/pagesize pages, which is the usual 65536 at the default page
-        // size and a whole u32 of them when a page is a single byte. A declared
-        // maximum of zero is a real limit, not the absence of one.
-        u64 pageLimit = 0x100000000ull / pageSize;
-
+        // 2^|addrtype|/pagesize pages, which is the usual 65536 at the default
+        // page size, 2^48 for a 64-bit memory, and a whole address space of
+        // them when a page is a single byte. A declared maximum of zero is a
+        // real limit, not the absence of one.
+        //
+        // 2^64/pagesize overflows a u64 only when a page is a single byte, and
+        // a power-of-two page size divides the address space exactly, so the
+        // 64-bit division below is 2^64/pagesize written so that it fits.
         if (not memory->hasMax)
-            memory->maxPages = (u32) M3_MIN (pageLimit, 0xFFFFFFFFull);
+            memory->maxPages = memory->isMemory64
+                                 ? (pageSize > 1 ? (UINT64_MAX / pageSize) + 1 : UINT64_MAX)
+                                 : (0x100000000ull / pageSize);
 
 _       (ResizeMemory (io_runtime, memory, memory->initPages));
     }
@@ -603,15 +616,21 @@ _       (ResizeMemory (io_runtime, memory, memory->initPages));
 }
 
 
-M3Result  ResizeMemory  (IM3Runtime io_runtime, IM3Memory memory, u32 i_numPages)
+M3Result  ResizeMemory  (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
 {
     M3Result result = m3Err_none;
 
-    u32 numPagesToAlloc = i_numPages;
+    u64 numPagesToAlloc = i_numPages;
 
     if (numPagesToAlloc <= memory->maxPages)
     {
-        u64 numPageBytes = (u64) numPagesToAlloc * memory->pageSize;
+        // A 64-bit memory may ask for up to 2^48 pages, which overflows a u64
+        // of bytes. Nothing that large can be backed, so refuse it up front
+        // rather than multiplying into a wrapped size.
+        _throwif ("linear memory limitation exceeded",
+                  numPagesToAlloc > d_m3AddressLimit / memory->pageSize);
+
+        u64 numPageBytes = numPagesToAlloc * memory->pageSize;
 
 #if d_m3MaxLinearMemoryPages > 0
         // the limit is a memory size, counted in default-sized pages; comparing
@@ -651,7 +670,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, IM3Memory memory, u32 i_numPages
 
         memory->mallocated->maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
 
-        m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %d", oldMallocated, memory->mallocated, memory->mallocated->length, memory->numPages);
+        m3log (runtime, "resized old: %p; mem: %p; length: %zu; pages: %llu", oldMallocated, memory->mallocated, memory->mallocated->length, (unsigned long long) memory->numPages);
     }
     else result = m3Err_wasmMemoryOverflow;
 
@@ -721,13 +740,27 @@ M3Result  InitDataSegments  (IM3Module io_module)
 
         _throwif ("unallocated linear memory", !(io_memory->mallocated));
 
-        i32 segmentOffset;
+        // The offset expression has the memory's address type, and is
+        // unsigned: an i32 offset of -1 is 4294967295, way out of bounds
+        // rather than negative.
+        u64 segmentOffset = 0;
         bytes_t start = segment->initExpr;
-_       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
 
-        m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
+        if (io_memory->isMemory64)
+        {
+_           (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i64, & start, segment->initExpr + segment->initExprSize));
+        }
+        else
+        {
+            u32 offset32;
+_           (EvaluateExpression (io_module, & offset32, c_m3Type_i32, & start, segment->initExpr + segment->initExprSize));
+            segmentOffset = offset32;
+        }
 
-        if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->mallocated->length)
+        m3log (runtime, "loading data segment: %d; size: %d; offset: %llu", i, segment->size, (unsigned long long) segmentOffset);
+
+        if (segmentOffset <= io_memory->mallocated->length &&
+            (u64) segment->size <= io_memory->mallocated->length - segmentOffset)
         {
             u8 * dest = m3MemData (io_memory->mallocated) + segmentOffset;
             memcpy (dest, segment->data, segment->size);
@@ -875,13 +908,24 @@ _               (ResolveElements (io_module, segment, segment->resolved));
 
         table = io_module->tables [segment->tableIndex];
 
-        i32 offset;
+        // The offset expression has the table's index type, and is unsigned:
+        // an i32 offset of -1 is 4294967295, out of bounds rather than negative.
+        u64 offset = 0;
         bytes_t expr = segment->initExpr;
-_       (EvaluateExpression (io_module, & offset, c_m3Type_i32, & expr, end));
-        _throwif ("table underflow", offset < 0);
+
+        if (table->isTable64)
+        {
+_           (EvaluateExpression (io_module, & offset, c_m3Type_i64, & expr, end));
+        }
+        else
+        {
+            u32 offset32;
+_           (EvaluateExpression (io_module, & offset32, c_m3Type_i32, & expr, end));
+            offset = offset32;
+        }
 
         _throwif ("out of bounds table access",
-                  (size_t) segment->numElements + offset > table->size);
+                  offset > table->size or segment->numElements > table->size - offset);
 
 _       (ResolveElements (io_module, segment, table->elements + offset));
 
@@ -1851,10 +1895,10 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
     }
 }
 
-uint8_t *  m3_GetMemory  (IM3Module i_module, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
+uint8_t *  m3_GetMemory  (IM3Module i_module, size_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
 {
     uint8_t * memory = NULL;
-    u32 size = 0;
+    size_t size = 0;
 
     if (i_module and i_memoryIndex < i_module->numMemories)
     {
@@ -1862,7 +1906,7 @@ uint8_t *  m3_GetMemory  (IM3Module i_module, uint32_t * o_memorySizeInBytes, ui
 
         if (mem->mallocated)
         {
-            size = (u32) mem->mallocated->length;
+            size = mem->mallocated->length;
 
             if (size)
                 memory = m3MemData (mem->mallocated);
@@ -1876,18 +1920,18 @@ uint8_t *  m3_GetMemory  (IM3Module i_module, uint32_t * o_memorySizeInBytes, ui
 }
 
 
-uint32_t  m3_GetMemorySize  (IM3Module i_module, uint32_t i_memoryIndex)
+size_t  m3_GetMemorySize  (IM3Module i_module, uint32_t i_memoryIndex)
 {
     if (not i_module or i_memoryIndex >= i_module->numMemories)
         return 0;
 
     IM3Memory mem = i_module->memories [i_memoryIndex];
 
-    return mem->mallocated ? (uint32_t) mem->mallocated->length : 0;
+    return mem->mallocated ? mem->mallocated->length : 0;
 }
 
 
-uint32_t  m3_GetMemorySizeAt  (const void * i_memory)
+size_t  m3_GetMemorySizeAt  (const void * i_memory)
 {
     if (not i_memory)
         return 0;
@@ -1895,7 +1939,7 @@ uint32_t  m3_GetMemorySizeAt  (const void * i_memory)
     // the header sits immediately before the data it describes
     const M3MemoryHeader * header = ((const M3MemoryHeader *) i_memory) - 1;
 
-    return (uint32_t) header->length;
+    return header->length;
 }
 
 

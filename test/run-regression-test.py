@@ -128,6 +128,66 @@ tests = [
     "wasm":           "./regression/exceptions-try-in-loop.wasm",
     "args":           ["--func", "to_test"],
     "expect_pattern": "*Result: 1000000*",
+  }, {
+    # the memory is real, so the traps below are about the addresses and not
+    # about the module failing to load
+    "name":           "memory64 in-bounds access",
+    "wasm":           "./regression/memory64-bounds.wasm",
+    "args":           ["--func", "ok"],
+    "expect_pattern": "*Result: 0*",
+  }] + [
+  {
+    # address + offset is added in a u64, which is only safe because an address
+    # at or above d_m3AddressLimit is refused first. Each of these would land
+    # back inside the memory if the sum were allowed to wrap.
+    "name":           f"memory64 effective address does not wrap ({func})",
+    "wasm":           "./regression/memory64-bounds.wasm",
+    "args":           ["--func", func],
+    "expect_pattern": "*out of bounds*",
+  } for func in ("wrap_max", "wrap_limit", "at_limit", "below_limit",
+                 "far_offset", "wrap_store")
+  ] + [
+  {
+    # start + length has the same room to wrap as a load's address + offset
+    "name":           f"memory64 bulk operation does not wrap ({func})",
+    "wasm":           "./regression/memory64-bulk-wrap.wasm",
+    "args":           ["--func", func],
+    "expect_pattern": "*out of bounds*",
+  } for func in ("fill_wrap", "fill_at_max", "copy_wrap", "copy_at_max")
+  ] + [
+  {
+    # the checked address goes to a scratch slot; writing it back over a
+    # constant operand would corrupt the function's constant table
+    "name":           "memory64 address check leaves its operand alone",
+    "wasm":           "./regression/memory64-const-addr.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 135*",
+  }, {
+    "name":           "memory64 failed memory.grow answers 2^64-1",
+    "wasm":           "./regression/memory64-grow.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 1*",
+  }, {
+    "name":           "table64 in-bounds call_indirect",
+    "wasm":           "./regression/table64-bounds.wasm",
+    "args":           ["--func", "ok"],
+    "expect_pattern": "*Result: 5*",
+  }] + [
+  {
+    # a table64 index is a whole u64, and a bulk length added to a start still
+    # has room to wrap even though table sizes stay far below 2^32
+    "name":           f"table64 index does not wrap ({func})",
+    "wasm":           "./regression/table64-bounds.wasm",
+    "args":           ["--func", func],
+    "expect_pattern": "*trap*",
+  } for func in ("call_max", "call_past_u32", "get_max", "set_max",
+                 "fill_wrap", "fill_at_max", "copy_at_max", "copy_wrap")
+  ] + [
+  {
+    "name":           "table64 failed table.grow answers 2^64-1",
+    "wasm":           "./regression/table64-grow.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 1*",
   },
 ]
 

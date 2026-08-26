@@ -44,6 +44,17 @@ d_m3BeginExternC
 # define slot(TYPE)                 * (TYPE *) (_sp + immediate (i32))
 # define slot_ptr(TYPE)             (TYPE *) (_sp + immediate (i32))
 
+// Reads one address, index or length operand from a slot, at the width the
+// memory or table it belongs to is addressed by. Either way exactly one slot
+// immediate is consumed; only how much of the slot is read differs.
+# define d_m3WideOperand(IS64)      ((IS64) ? slot (u64) : (u64) slot (u32))
+
+// Whether a range fits a memory, written so that it holds for operands of any
+// magnitude: the subtraction cannot wrap once the start is known to be within
+// the memory, where start + length could.
+# define d_m3MemRangeOk(START, LENGTH, MEM)  \
+    ((START) <= (MEM)->length and (LENGTH) <= (MEM)->length - (START))
+
 
 # if d_m3EnableOpProfiling
                                     d_m3RetSig  profileOp   (d_m3OpSig, cstr_t i_operationName);
@@ -655,8 +666,8 @@ d_m3Op  (CallIndirect)
 {
     d_m3CheckNativeStack ();
 
-    u32 tableIndex              = slot (u32);
     M3Table * table             = immediate (M3Table *);
+    u64 tableIndex              = d_m3WideOperand (table->isTable64);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
     IM3Memory memory            = m3MemInfo (_mem);
@@ -778,8 +789,8 @@ d_m3Op  (ReturnCallRef)
 
 d_m3Op  (ReturnCallIndirect)
 {
-    u32 tableIndex              = slot (u32);
     M3Table * table             = immediate (M3Table *);
+    u64 tableIndex              = d_m3WideOperand (table->isTable64);
     IM3FuncType type            = immediate (IM3FuncType);
     i32 stackOffset             = immediate (i32);
     i32 returnSlots             = immediate (i32);
@@ -908,13 +919,13 @@ d_m3Op  (MemGrow)
     IM3Runtime runtime          = m3MemRuntime(_mem);
     IM3Memory memory            = m3MemInfo (_mem);
 
-    i32 numPagesToGrow = _r0;
+    i32 numPagesToGrow = (i32) _r0;
     if (numPagesToGrow >= 0) {
-        _r0 = memory->numPages;
+        _r0 = (m3reg_t) memory->numPages;
 
         if (M3_LIKELY(numPagesToGrow))
         {
-            u32 requiredPages = memory->numPages + numPagesToGrow;
+            u64 requiredPages = memory->numPages + (u32) numPagesToGrow;
 
             M3Result r = ResizeMemory (runtime, memory, requiredPages);
             if (r)
@@ -932,15 +943,50 @@ d_m3Op  (MemGrow)
 }
 
 
+#if d_m3HasMemory64
+
+// memory.grow on a 64-bit memory. The delta is a full u64 rather than a value
+// the sign of which can stand in for "too big", and failure answers 2^64-1
+// instead of 2^32-1 - which is the same -1 in the register, sized by the slot
+// it is written to.
+d_m3Op  (MemGrow64)
+{
+    IM3Runtime runtime          = m3MemRuntime(_mem);
+    IM3Memory memory            = m3MemInfo (_mem);
+
+    u64 numPagesToGrow = (u64) _r0;
+    u64 numPages       = memory->numPages;
+
+    if (M3_LIKELY(numPagesToGrow))
+    {
+        // maxPages is never below the current size, so the difference cannot
+        // wrap; asking for more than it is a request nothing could satisfy
+        if (numPagesToGrow <= memory->maxPages - numPages and
+            not ResizeMemory (runtime, memory, numPages + numPagesToGrow))
+        {
+            _r0 = (m3reg_t) numPages;
+        }
+        else _r0 = -1;
+
+        _mem = memory->mallocated;
+    }
+    else _r0 = (m3reg_t) numPages;
+
+    nextOp ();
+}
+
+#endif // d_m3HasMemory64
+
+
 d_m3Op  (MemCopy)
 {
-    u32 size = (u32) _r0;
+    u64 size = (u32) _r0;
     u64 source = slot (u32);
     u64 destination = slot (u32);
 
-    if (M3_LIKELY(destination + size <= _mem->length))
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, _mem)))
     {
-        if (M3_LIKELY(source + size <= _mem->length))
+        if (M3_LIKELY(d_m3MemRangeOk (source, size, _mem)))
         {
             u8 * dst = m3MemData (_mem) + destination;
             u8 * src = m3MemData (_mem) + source;
@@ -952,6 +998,33 @@ d_m3Op  (MemCopy)
     }
     else d_outOfBoundsMemOp (destination, size);
 }
+
+
+#if d_m3HasMemory64
+
+// memory.copy within a single 64-bit memory: every operand is a full u64.
+d_m3Op  (MemCopy64)
+{
+    u64 size = (u64) _r0;
+    u64 source = slot (u64);
+    u64 destination = slot (u64);
+
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, _mem)))
+    {
+        if (M3_LIKELY(d_m3MemRangeOk (source, size, _mem)))
+        {
+            u8 * dst = m3MemData (_mem) + destination;
+            u8 * src = m3MemData (_mem) + source;
+            memmove (dst, src, size);
+
+            nextOp ();
+        }
+        else d_outOfBoundsMemOp (source, size);
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+#endif // d_m3HasMemory64
 
 
 // Points the _mem register at another memory: one of the module's own, or
@@ -973,21 +1046,27 @@ d_m3Op  (SetMemory)
 
 // memory.copy between two different memories. The pair-of-SetMemory trick only
 // reaches one memory at a time, so this one names both outright.
+//
+// The two need not be addressed the same way, so each operand's width comes
+// from the memory it belongs to: bit 0 of the widths immediate for the
+// destination, bit 1 for the source. The length follows the narrower of the
+// two, which is 64-bit only when both are.
 d_m3Op  (MemCopy_x)
 {
     IM3Memory destMemory   = immediate (IM3Memory);
     IM3Memory sourceMemory = immediate (IM3Memory);
+    u32 widths             = immediate (u32);
 
     M3MemoryHeader * destMem   = destMemory->mallocated;
     M3MemoryHeader * sourceMem = sourceMemory->mallocated;
 
-    u32 size = (u32) _r0;
-    u64 source = slot (u32);
-    u64 destination = slot (u32);
+    u64 size = (widths == 0x3) ? (u64) _r0 : (u64) (u32) _r0;
+    u64 source = d_m3WideOperand (widths & 0x2);
+    u64 destination = d_m3WideOperand (widths & 0x1);
 
-    if (M3_LIKELY(destination + size <= destMem->length))
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, destMem)))
     {
-        if (M3_LIKELY(source + size <= sourceMem->length))
+        if (M3_LIKELY(d_m3MemRangeOk (source, size, sourceMem)))
         {
             memmove (m3MemData (destMem) + destination, m3MemData (sourceMem) + source, size);
 
@@ -1007,7 +1086,7 @@ d_m3Op  (MemFill)
     u32 byte = slot (u32);
     u64 destination = slot (u32);
 
-    if (M3_LIKELY(destination + size <= _mem->length))
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, _mem)))
     {
         u8 * mem8 = m3MemData (_mem) + destination;
         memset (mem8, (u8) byte, size);
@@ -1017,19 +1096,41 @@ d_m3Op  (MemFill)
 }
 
 
+#if d_m3HasMemory64
+
+// memory.fill on a 64-bit memory. The byte to write stays an i32 - it is a
+// value, not an address - so only the destination and the length widen.
+d_m3Op  (MemFill64)
+{
+    u64 size = (u64) _r0;
+    u32 byte = slot (u32);
+    u64 destination = slot (u64);
+
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, _mem)))
+    {
+        u8 * mem8 = m3MemData (_mem) + destination;
+        memset (mem8, (u8) byte, size);
+        nextOp ();
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+#endif // d_m3HasMemory64
+
+
 d_m3Op  (MemInit)
 {
     M3DataSegment * segment = immediate (M3DataSegment *);
 
-    u32 size = (u32) _r0;
+    u64 size = (u32) _r0;
     u64 source = slot (u32);
     u64 destination = slot (u32);
 
     u64 available = segment->dropped ? 0 : segment->size;
 
-    if (M3_LIKELY(destination + size <= _mem->length))
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, _mem)))
     {
-        if (M3_LIKELY(source + size <= available))
+        if (M3_LIKELY(source <= available and size <= available - source))
         {
             memcpy (m3MemData (_mem) + destination, segment->data + source, size);
             nextOp ();
@@ -1038,6 +1139,35 @@ d_m3Op  (MemInit)
     }
     else d_outOfBoundsMemOp (destination, size);
 }
+
+
+#if d_m3HasMemory64
+
+// memory.init into a 64-bit memory. The segment is indexed as an i32 whatever
+// the memory is, so only the destination widens.
+d_m3Op  (MemInit64)
+{
+    M3DataSegment * segment = immediate (M3DataSegment *);
+
+    u64 size = (u32) _r0;
+    u64 source = slot (u32);
+    u64 destination = slot (u64);
+
+    u64 available = segment->dropped ? 0 : segment->size;
+
+    if (M3_LIKELY(d_m3MemRangeOk (destination, size, _mem)))
+    {
+        if (M3_LIKELY(source <= available and size <= available - source))
+        {
+            memcpy (m3MemData (_mem) + destination, segment->data + source, size);
+            nextOp ();
+        }
+        else d_outOfBoundsMemOp (source, size);
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+#endif // d_m3HasMemory64
 
 
 d_m3Op  (DataDrop)
@@ -1054,7 +1184,7 @@ d_m3Op  (DataDrop)
 d_m3Op  (TableGet)
 {
     M3Table * table = immediate (M3Table *);
-    u32 index       = slot (u32);
+    u64 index       = d_m3WideOperand (table->isTable64);
 
     if (M3_LIKELY(index < table->size))
     {
@@ -1069,7 +1199,7 @@ d_m3Op  (TableSet)
 {
     M3Table * table = immediate (M3Table *);
     void * value    = slot (void *);
-    u32 index       = slot (u32);
+    u64 index       = d_m3WideOperand (table->isTable64);
 
     if (M3_LIKELY(index < table->size))
     {
@@ -1093,12 +1223,16 @@ d_m3Op  (TableSize)
 d_m3Op  (TableGrow)
 {
     M3Table * table = immediate (M3Table *);
-    u32 delta       = slot (u32);
+    u64 delta       = d_m3WideOperand (table->isTable64);
     void * value    = slot (void *);
 
     u32 oldSize = table->size;
-    u64 newSize = (u64) oldSize + delta;
     u32 maxSize = table->maxSize ? table->maxSize : d_m3MaxSaneTableSize;
+
+    // a table64 delta is a whole u64, so the sum is formed only once it is
+    // known to fit
+    u64 newSize = (delta <= maxSize - oldSize) ? (u64) oldSize + delta
+                                               : (u64) maxSize + 1;
 
     if (newSize == oldSize)         // a zero delta never reallocates, and the table may have no storage yet
     {
@@ -1123,8 +1257,9 @@ d_m3Op  (TableGrow)
         }
     }
 
-    // spec: a failed grow returns -1 and leaves the table alone
-    _r0 = (u32) -1;
+    // spec: a failed grow returns -1 - which for a table64 is 2^64-1, and the
+    // slot it is pushed to is what decides how much of the register is seen
+    _r0 = -1;
 
     nextOp ();
 }
@@ -1136,11 +1271,13 @@ d_m3Op  (TableInit)
     M3ElementSegment * segment  = immediate (M3ElementSegment *);
     u32 count                   = slot (u32);
     u32 source                  = slot (u32);
-    u32 destination             = slot (u32);
+    // an element segment is indexed as an i32 whatever the table is; only the
+    // destination follows the table's index type
+    u64 destination             = d_m3WideOperand (table->isTable64);
 
     u64 available = segment->dropped ? 0 : segment->numElements;
 
-    if (M3_LIKELY((u64) destination + count <= table->size and
+    if (M3_LIKELY(destination <= table->size and count <= table->size - destination and
                   (u64) source + count <= available))
     {
         for (u32 i = 0; i < count; ++i)
@@ -1165,14 +1302,16 @@ d_m3Op  (TableCopy)
 {
     M3Table * dst   = immediate (M3Table *);
     M3Table * src   = immediate (M3Table *);
-    u32 count       = slot (u32);
-    u32 source      = slot (u32);
-    u32 destination = slot (u32);
+    // the length follows the narrower of the two tables, so it is 64-bit only
+    // when both are
+    u64 count       = d_m3WideOperand (dst->isTable64 and src->isTable64);
+    u64 source      = d_m3WideOperand (src->isTable64);
+    u64 destination = d_m3WideOperand (dst->isTable64);
 
-    if (M3_LIKELY((u64) destination + count <= dst->size and
-                  (u64) source + count <= src->size))
+    if (M3_LIKELY(destination <= dst->size and count <= dst->size - destination and
+                  source <= src->size and count <= src->size - source))
     {
-        memmove (dst->elements + destination, src->elements + source, count * sizeof (void *));
+        memmove (dst->elements + destination, src->elements + source, (size_t) count * sizeof (void *));
 
         nextOp ();
     }
@@ -1183,13 +1322,13 @@ d_m3Op  (TableCopy)
 d_m3Op  (TableFill)
 {
     M3Table * table = immediate (M3Table *);
-    u32 count       = slot (u32);
+    u64 count       = d_m3WideOperand (table->isTable64);
     void * value    = slot (void *);
-    u32 index       = slot (u32);
+    u64 index       = d_m3WideOperand (table->isTable64);
 
-    if (M3_LIKELY((u64) index + count <= table->size))
+    if (M3_LIKELY(index <= table->size and count <= table->size - index))
     {
-        for (u32 i = 0; i < count; ++i)
+        for (u64 i = 0; i < count; ++i)
             table->elements [index + i] = value;
 
         nextOp ();
@@ -1935,6 +2074,45 @@ d_m3Op  (SetGlobal_f64)
     nextOp ();
 }
 #endif
+
+
+#if d_m3HasMemory64
+
+// Checks a 64-bit address and folds the memarg offset into it, leaving the
+// effective address in a slot the access that follows reads as an ordinary
+// 32-bit one, with an offset of zero. That keeps one op between a 64-bit
+// memory and the whole load/store table, rather than a second copy of it.
+//
+// The spec computes the effective address as a u65 and traps if it is out of
+// range. Here the address is first held against d_m3AddressLimit and the
+// compiler has already refused to emit this for an offset above it, so their
+// sum is below 2^53 and no wider arithmetic is needed. An address that then
+// passes the bounds check is below the memory's length, which no allocator
+// lets past 32 bits, so the truncation below is exact.
+d_m3Op  (CheckAddr64)
+{
+    u64 operand   = slot (u64);
+    u32 * address = slot_ptr (u32);
+
+    u64 offset = * (u64 *) _pc;
+    _pc += (M3_SIZEOF_PTR == 4) ? 2 : 1;
+
+    if (M3_LIKELY(operand < d_m3AddressLimit))
+    {
+        u64 effective = operand + offset;
+
+        // the access itself checks its own size against what is left
+        if (M3_LIKELY(effective < _mem->length))
+        {
+            * address = (u32) effective;
+            nextOp ();
+        }
+    }
+
+    d_outOfBounds;
+}
+
+#endif // d_m3HasMemory64
 
 
 #if d_m3SkipMemoryBoundsCheck

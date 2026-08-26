@@ -171,6 +171,20 @@ M3CodePageHeader;
 
 #define d_m3DefaultMemPageSize              65536
 
+// The ceiling on a linear memory address, and so on the size of a linear
+// memory. No allocator reaches anywhere near it - a memory is one contiguous
+// realloc'd block, and d_m3MaxLinearMemoryPages caps it far lower - so an
+// address at or above this is out of bounds no matter which memory it names.
+//
+// That is what a 64-bit address is checked against before anything is added to
+// it. Once both the address and the memarg offset are known to be below 2^52,
+// their sum is below 2^53 and cannot wrap, so the u65 effective address the
+// spec calls for can be computed in a plain u64 - and stays well inside the
+// positive range of m3reg_t, which is signed. Anything at or above the limit
+// traps, which is what an address that far out would do anyway.
+#define d_m3AddressLimitBits                52
+#define d_m3AddressLimit                    (UINT64_C(1) << d_m3AddressLimitBits)
+
 #define d_m3Reg0SlotAlias                   60000
 #define d_m3Fp0SlotAlias                    (d_m3Reg0SlotAlias + 2)
 
@@ -387,7 +401,7 @@ M3Result    ReadLEB_u32             (u32 * o_value, bytes_t * io_bytes, cbytes_t
 // offset. Multi-memory reinterprets the alignment as a bitfield -- bit 6 says a
 // memory index sits between the two -- so the hint is returned with that bit
 // masked off and the index defaults to 0 when it is clear.
-M3Result    ReadMemoryArg           (u32 * o_align, u32 * o_memoryIdx, u32 * o_offset, bytes_t * io_bytes, cbytes_t i_end);
+M3Result    ReadMemoryArg           (u32 * o_align, u32 * o_memoryIdx, u64 * o_offset, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_u7              (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_i7              (i8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_i32             (i32 * o_value, bytes_t * io_bytes, cbytes_t i_end);

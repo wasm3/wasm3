@@ -67,7 +67,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${TOOLCHAIN_ARGS} ${{ matrix.config.flags }} ..
+        cmake ${TOOLCHAIN_ARGS} -DBUILD_TESTS=ON ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build
@@ -82,6 +82,11 @@ jobs:
         name: ${{ matrix.config.artifact }}
         path: ./${{ matrix.config.artifact }}.elf
         if-no-files-found: error
+    - name: Test embedding API
+      if: ${{ !matrix.config.notest }}
+      run: |
+        ./build/m3_test
+        ./build/m3_test_reftypes
     - name: Test regression cases
       if: ${{ !matrix.config.notest }}
       run: cd test && python3 run-regression-test.py

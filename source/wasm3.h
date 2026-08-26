@@ -272,17 +272,20 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
     // rather than the runtime - a runtime can hold several modules, each with
     // its own memories. Returns NULL when the module has no memory at that
     // index; o_memorySizeInBytes is set either way.
+    //
+    // Sizes are size_t, not uint32_t: a linear memory may be a full 4 GiB, which
+    // is one byte too many to count in 32 bits.
     uint8_t *           m3_GetMemory                (IM3Module              i_module,
-                                                     uint32_t *             o_memorySizeInBytes,
+                                                     size_t *               o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
-    uint32_t            m3_GetMemorySize            (IM3Module              i_module,
+    size_t              m3_GetMemorySize            (IM3Module              i_module,
                                                      uint32_t               i_memoryIndex);
 
     // Size of the memory a pointer addresses into - specifically the _mem a raw
     // function is handed, which is the memory of whichever module is calling,
     // and need not be any particular module's. Used by m3ApiCheckMem.
-    uint32_t            m3_GetMemorySizeAt          (const void *           i_memory);
+    size_t              m3_GetMemorySizeAt          (const void *           i_memory);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
@@ -428,7 +431,21 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
 # define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 # define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
-# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < _mem) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySizeAt(_mem)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+
+// Whether [addr, addr+len) lies inside the memory _mem points at. Written as
+// two subtractions rather than base + size and addr + len, so that neither a
+// memory occupying the top of the address space nor a wild length can carry the
+// comparison past where it wraps. Its own block, so the locals go out of scope
+// with it.
+# define m3ApiCheckMem(addr, len)                                                   \
+    {   uintptr_t _m3_base = (uintptr_t)(_mem);                                     \
+        uintptr_t _m3_addr = (uintptr_t)(void*)(addr);                              \
+        size_t    _m3_size = m3_GetMemorySizeAt(_mem);                              \
+        if (M3_UNLIKELY(_m3_addr < _m3_base ||                                      \
+                        (size_t)(_m3_addr - _m3_base) > _m3_size ||                 \
+                        (uint64_t)(len) > (uint64_t)(_m3_size - (size_t)(_m3_addr - _m3_base)))) \
+            m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess);                           \
+    }
 
 # define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
 # define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}
