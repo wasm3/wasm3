@@ -34,7 +34,19 @@ void  m3_FreeModule  (IM3Module i_module)
         m3_Free (i_module->dataSegments);
 
         for (u32 i = 0; i < i_module->numTables; ++i)
-            m3_Free (i_module->tables[i].elements);
+        {
+            IM3Table table = i_module->tables [i];
+
+            // a slot may point at a table another module owns; that module
+            // frees it
+            if (not table or table->owner != i_module)
+                continue;
+
+            m3_Free (table->elements);
+            m3_Free (table->exportName);
+            FreeImportInfo (& table->import);
+            m3_Free (table);
+        }
         m3_Free (i_module->tables);
 
         for (u32 i = 0; i < i_module->numElementSegments; ++i)
@@ -58,10 +70,23 @@ void  m3_FreeModule  (IM3Module i_module)
         m3_Free (i_module->tags);
 #endif
 
-        m3_Free (i_module->memoryExportName);
-        m3_Free (i_module->table0ExportName);
+        for (u32 i = 0; i < i_module->numMemories; ++i)
+        {
+            IM3Memory memory = i_module->memories [i];
 
-        FreeImportInfo(&i_module->memoryImport);
+            // a slot may point at a memory another module owns; that module
+            // frees it
+            if (not memory or memory->owner != i_module)
+                continue;
+
+            m3_Free (memory->mallocated);
+            m3_Free (memory->exportName);
+            FreeImportInfo (& memory->import);
+            m3_Free (memory);
+        }
+        m3_Free (i_module->memories);
+        m3_Free (i_module->emptyMemory.mallocated);
+
 
         m3_Free (i_module);
     }
@@ -140,19 +165,75 @@ bool  Module_IsFunctionDeclared  (IM3Module i_module, u32 i_index)
 }
 
 
-M3Result  Module_AddTable  (IM3Module io_module, m3type_t i_type, u32 i_size, u32 i_maxSize)
+// Appends an entry to the module's memory index space. The M3Memory is
+// allocated separately from the index so that another module importing it can
+// hold the same pointer.
+M3Result  Module_AddMemory  (IM3Module io_module, IM3Memory * o_memory, const M3MemoryInfo * i_info, bool i_isImported)
 {
+    IM3Memory memory = NULL;
 _try {
-    u32 index = io_module->numTables++;
-    io_module->tables = m3_ReallocArray (M3Table, io_module->tables, io_module->numTables, index);
-    _throwifnull (io_module->tables);
-    M3Table * table = & io_module->tables [index];
+    u32 index = io_module->numMemories;
 
-    table->type = i_type;
-    table->size = i_size;
-    table->maxSize = i_maxSize;
+    memory = m3_AllocStruct (M3Memory);
+    _throwifnull (memory);
+
+    io_module->memories = m3_ReallocArray (IM3Memory, io_module->memories, index + 1, index);
+    _throwifnull (io_module->memories);
+
+    memory->owner     = io_module;
+    memory->imported  = i_isImported;
+    memory->initPages = i_info->initPages;
+    memory->maxPages  = i_info->maxPages;
+    memory->pageSize  = i_info->pageSize;
+    memory->hasMax    = i_info->hasMax;
+
+    io_module->memories [index] = memory;
+    io_module->numMemories = index + 1;
+
+    if (o_memory)
+        * o_memory = memory;
+
+    return result;
 
 } _catch:
+    m3_Free (memory);
+    return result;
+}
+
+
+// Appends an entry to the module's table index space. Allocated separately from
+// the index, like a memory, so another module importing it can hold the same
+// pointer.
+M3Result  Module_AddTable  (IM3Module io_module, IM3Table * o_table, m3type_t i_type, u32 i_size, u32 i_maxSize, bool i_hasMax, bool i_isImported)
+{
+    IM3Table table = NULL;
+_try {
+    u32 index = io_module->numTables;
+
+    table = m3_AllocStruct (M3Table);
+    _throwifnull (table);
+
+    io_module->tables = m3_ReallocArray (IM3Table, io_module->tables, index + 1, index);
+    _throwifnull (io_module->tables);
+
+    table->owner    = io_module;
+    table->imported = i_isImported;
+    table->type     = i_type;
+    table->size     = i_size;
+    table->initSize = i_size;
+    table->maxSize  = i_maxSize;
+    table->hasMax   = i_hasMax;
+
+    io_module->tables [index] = table;
+    io_module->numTables = index + 1;
+
+    if (o_table)
+        * o_table = table;
+
+    return result;
+
+} _catch:
+    m3_Free (table);
     return result;
 }
 

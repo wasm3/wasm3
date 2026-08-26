@@ -45,10 +45,11 @@ typedef struct {
     u16         numLocals;
 } ValCtx;
 
-// A memory op is only valid if the module defines or imports one
-static bool v_has_memory (ValCtx * v)
+// A memory op is only valid if the memory it names is in the module's index
+// space; for a module that declares none, every index is out of range.
+static bool v_has_memory_idx (ValCtx * v, u32 i_memoryIdx)
 {
-    return v->module and (v->module->memoryImported or v->module->memoryDeclared);
+    return v->module and i_memoryIdx < v->module->numMemories;
 }
 
 // Spec: the alignment immediate of a memory access must not be larger than the
@@ -616,7 +617,7 @@ static M3Result v_validate_body (ValCtx * v)
             if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
             // the table must exist and hold funcrefs
             if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
-            if (v->module->tables[tableIdx].type != c_m3Type_funcref) return m3Err_typeMismatch;
+            if (v->module->tables[tableIdx]->type != c_m3Type_funcref) return m3Err_typeMismatch;
             IM3FuncType ft = v->module->funcTypes[typeIdx];
             r = v_pop_expect(v, c_m3Type_i32, &a); // table index operand
             if (r) return r;
@@ -663,7 +664,7 @@ static M3Result v_validate_body (ValCtx * v)
             if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
             // the table must exist and hold funcrefs
             if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
-            if (v->module->tables[tableIdx].type != c_m3Type_funcref) return m3Err_typeMismatch;
+            if (v->module->tables[tableIdx]->type != c_m3Type_funcref) return m3Err_typeMismatch;
             IM3FuncType ft = v->module->funcTypes[typeIdx];
             r = v_check_tail_results(v, ft);
             if (r) return r;
@@ -771,7 +772,7 @@ static M3Result v_validate_body (ValCtx * v)
             r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd);
             if (r) return r;
             if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
-            u8 t = BaseTypeOf(v->module->tables[tableIdx].type);
+            u8 t = BaseTypeOf(v->module->tables[tableIdx]->type);
 
             if (opcode == 0x26) {
                 r = v_pop_expect(v, t, &a);            if (r) return r;
@@ -888,11 +889,10 @@ static M3Result v_validate_body (ValCtx * v)
         case 0x30: case 0x31: case 0x32: case 0x33: // i64.load8/16 s/u
         case 0x34: case 0x35:                         // i64.load32 s/u
         {
-            u32 align, offset;
-            r = ReadLEB_u32(&align, &v->wasm, v->wasmEnd); if (r) return r;
-            r = ReadLEB_u32(&offset, &v->wasm, v->wasmEnd); if (r) return r;
+            u32 align, offset, memidx;
+            r = ReadMemoryArg(&align, &memidx, &offset, &v->wasm, v->wasmEnd); if (r) return r;
             if (align > v_max_align(opcode)) return m3Err_invalidAlignment;
-            if (not v_has_memory(v)) return m3Err_unknownMemory;
+            if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
             r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
             u8 result;
             if      (opcode == 0x28) result = c_m3Type_i32;
@@ -911,11 +911,10 @@ static M3Result v_validate_body (ValCtx * v)
         case 0x3a: case 0x3b:                         // i32.store8/16
         case 0x3c: case 0x3d: case 0x3e:             // i64.store8/16/32
         {
-            u32 align, offset;
-            r = ReadLEB_u32(&align, &v->wasm, v->wasmEnd); if (r) return r;
-            r = ReadLEB_u32(&offset, &v->wasm, v->wasmEnd); if (r) return r;
+            u32 align, offset, memidx;
+            r = ReadMemoryArg(&align, &memidx, &offset, &v->wasm, v->wasmEnd); if (r) return r;
             if (align > v_max_align(opcode)) return m3Err_invalidAlignment;
-            if (not v_has_memory(v)) return m3Err_unknownMemory;
+            if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
             u8 valtype;
             if      (opcode == 0x36) valtype = c_m3Type_i32;
             else if (opcode == 0x37) valtype = c_m3Type_i64;
@@ -933,7 +932,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
-            if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
+            if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
             r = v_push(v, c_m3Type_i32); if (r) return r;
             break;
         }
@@ -941,7 +940,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             u32 memidx;
             r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
-            if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
+            if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
             r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r;
             r = v_push(v, c_m3Type_i32); if (r) return r;
             break;
@@ -1093,7 +1092,7 @@ static M3Result v_validate_body (ValCtx * v)
                 u32 dataidx, memidx;
                 r = ReadLEB_u32(&dataidx, &v->wasm, v->wasmEnd); if (r) return r;
                 r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
-                if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
+                if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
                 // the segments must have been declared up front by a data count section
                 if (not v->module->hasDataCount) return m3Err_dataCountRequired;
                 if (dataidx >= v->module->numDataSegments) return m3Err_unknownDataSegment;
@@ -1124,12 +1123,12 @@ static M3Result v_validate_body (ValCtx * v)
                     // rule requires the table to be defined before the segment
                     if (a2 >= v->module->numTables) return m3Err_unknownTable;
                     if (a1 >= v->module->numElementSegments) return m3Err_unknownElemSegment;
-                    if (v->module->elementSegments[a1].type != v->module->tables[a2].type)
+                    if (v->module->elementSegments[a1].type != v->module->tables[a2]->type)
                         return m3Err_typeMismatch;
                 } else {                                                    // dst, src
                     if (a1 >= v->module->numTables) return m3Err_unknownTable;
                     if (a2 >= v->module->numTables) return m3Err_unknownTable;
-                    if (v->module->tables[a1].type != v->module->tables[a2].type)
+                    if (v->module->tables[a1]->type != v->module->tables[a2]->type)
                         return m3Err_typeMismatch;
                 }
 
@@ -1152,7 +1151,7 @@ static M3Result v_validate_body (ValCtx * v)
                 u32 tableIdx;
                 r = ReadLEB_u32(&tableIdx, &v->wasm, v->wasmEnd); if (r) return r;
                 if (tableIdx >= v->module->numTables) return m3Err_unknownTable;
-                u8 t = BaseTypeOf(v->module->tables[tableIdx].type);
+                u8 t = BaseTypeOf(v->module->tables[tableIdx]->type);
 
                 if (sub == 0x10) {                                          // table.size
                     r = v_push(v, c_m3Type_i32); if (r) return r;
@@ -1173,7 +1172,7 @@ static M3Result v_validate_body (ValCtx * v)
                 u32 dst, src;
                 r = ReadLEB_u32(&dst, &v->wasm, v->wasmEnd); if (r) return r;
                 r = ReadLEB_u32(&src, &v->wasm, v->wasmEnd); if (r) return r;
-                if (dst != 0 or src != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
+                if (not v_has_memory_idx(v, dst) or not v_has_memory_idx(v, src)) return m3Err_unknownMemory;
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // src
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst
@@ -1183,7 +1182,7 @@ static M3Result v_validate_body (ValCtx * v)
             {
                 u32 memidx;
                 r = ReadLEB_u32(&memidx, &v->wasm, v->wasmEnd); if (r) return r;
-                if (memidx != 0 or not v_has_memory(v)) return m3Err_unknownMemory;
+                if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // n
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // val
                 r = v_pop_expect(v, c_m3Type_i32, &a); if (r) return r; // dst

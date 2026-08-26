@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "wasm3.h"
 #include "m3_api_libc.h"
@@ -25,6 +26,8 @@
 // TODO: remove
 #include "m3_env.h"
 
+#include "spectest.wasm.h"
+
 /*
  * NOTE: Gas metering/limit only applies to pre-instrumented modules.
  * You can generate a metered version from any wasm file automatically, using
@@ -33,7 +36,7 @@
 #define GAS_LIMIT       500000000
 #define GAS_FACTOR      10000LL
 
-#define MAX_MODULES     16
+#define MAX_MODULES     64
 
 #define FATAL(msg, ...) { fprintf(stderr, "Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
@@ -59,8 +62,31 @@ static inline bool launched_from_gui_shell() { return false; }
 static IM3Environment env;
 static IM3Runtime runtime;
 
-static u8* wasm_bins[MAX_MODULES];
-static int wasm_bins_qty = 0;
+// Every wasm binary handed to the runtime. A module points into its bytes, and
+// m3_LoadModule takes ownership of the module whether or not it succeeds, so
+// the bytes have to live until the runtime is freed. One spec-test file can
+// hand over hundreds, so this grows instead of being capped.
+static u8** wasm_bins = NULL;
+static int  wasm_bins_qty = 0;
+static int  wasm_bins_cap = 0;
+
+// Takes ownership of i_wasm on success; the caller still owns it on failure.
+static bool keep_wasm_bin (u8* i_wasm)
+{
+    if (wasm_bins_qty == wasm_bins_cap) {
+        int cap = wasm_bins_cap ? wasm_bins_cap * 2 : 16;
+        u8** grown = (u8**) realloc (wasm_bins, (size_t)cap * sizeof(u8*));
+        if (!grown) return false;
+        wasm_bins = grown;
+        wasm_bins_cap = cap;
+    }
+
+    wasm_bins [wasm_bins_qty++] = i_wasm;
+    return true;
+}
+
+// the module the most recent :load / :load-hex produced
+static IM3Module lastLoadedModule = NULL;
 
 #if defined(GAS_LIMIT)
 
@@ -86,9 +112,6 @@ m3ApiRawFunction(metering_usegas)
 M3Result link_all  (IM3Module module)
 {
     M3Result res;
-    res = m3_LinkSpecTest (module);
-    if (res) return res;
-
     res = m3_LinkLibC (module);
     if (res) return res;
 
@@ -165,13 +188,20 @@ M3Result repl_load  (const char* fn)
     result = m3_ParseModule (env, &module, wasm, fsize);
     if (result) goto on_error;
 
-    result = m3_LinkSpecTestGlobals (module);
-    if (result) goto on_error;
+    // The module points into the binary, and m3_LoadModule takes ownership of
+    // the module whether or not it succeeds, so the bytes have to outlive this
+    // call either way. Hand them over before loading rather than after.
+    if (not keep_wasm_bin (wasm)) {
+        result = "cannot allocate memory for wasm binary";
+        goto on_error;
+    }
+    wasm = NULL;
 
     result = m3_LoadModule (runtime, module);
-    if (result) goto on_error;
+    if (result) goto on_error_after_load;
 
     m3_SetModuleName(module, modname_from_fn(fn));
+    lastLoadedModule = module;
 
     result = link_all (module);
     if (result) goto on_error_after_load;
@@ -179,14 +209,10 @@ M3Result repl_load  (const char* fn)
     result = m3_RunStart (module);
     if (result) goto on_error_after_load;
 
-    if (wasm_bins_qty < MAX_MODULES) {
-        wasm_bins[wasm_bins_qty++] = wasm;
-    }
-
     return result;
 
 on_error:
-    m3_FreeModule(module);
+    m3_FreeModule(module);          // never handed to the runtime
 
 on_error_after_load:
     if (wasm) free(wasm);
@@ -248,24 +274,18 @@ M3Result repl_load_hex  (u32 fsize)
         return result;
     }
 
-    result = m3_LinkSpecTestGlobals (module);
-    if (result) {
+    // see the note in repl_load: the runtime owns the module from here on, so
+    // the binary it points into has to be handed over first
+    if (not keep_wasm_bin (wasm)) {
         m3_FreeModule(module);
         free(wasm);
-        return result;
+        return "cannot allocate memory for wasm binary";
     }
 
     result = m3_LoadModule (runtime, module);
-    if (result) {
-        m3_FreeModule(module);
-        free(wasm);
-        return result;
-    }
+    if (result) return result;
 
-    // The module points into the binary, so it is freed along with the runtime
-    if (wasm_bins_qty < MAX_MODULES) {
-        wasm_bins[wasm_bins_qty++] = wasm;
-    }
+    lastLoadedModule = module;
 
     result = link_all (module);
     if (result) return result;
@@ -388,10 +408,49 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 // A reference is an opaque pointer-sized word to the engine, with 0 for null, so
 // the host picks how to encode the (ref.extern N) values the spec tests use. We
 // hand out N+1 as the handle, which keeps 0 free to mean null.
-static uintptr_t parse_ref (const char* s)
+// The repl's own argument parsing, kept strict for the same reason as
+// m3_CallArgv's: a value it cannot read is a mistake, not zero. Floats arrive
+// here as bit patterns rather than as decimals, so everything is an integer.
+static M3Result parse_u64 (const char* s, unsigned numBits, uint64_t* o_value)
 {
-    if (strcmp (s, "null") == 0) return 0;
-    return (uintptr_t) strtoull (s, NULL, 10) + 1;
+    if (!s || !*s)                        return "empty argument";
+    if (isspace ((unsigned char) *s))     return "argument is not a number";
+
+    char* end = NULL;
+    uint64_t value;
+
+    errno = 0;
+
+    if (*s == '-') {
+        long long signedValue = strtoll (s, &end, 10);
+        if (numBits == 32 && (signedValue < INT32_MIN || signedValue > INT32_MAX))
+            return "argument out of range";
+        value = (uint64_t) signedValue;
+    } else {
+        value = strtoull (s, &end, 10);
+        if (numBits == 32 && value > UINT32_MAX)
+            return "argument out of range";
+    }
+
+    if (errno == ERANGE)        return "argument out of range";
+    if (end == s || *end)       return "argument is not a number";
+
+    *o_value = value;
+    return m3Err_none;
+}
+
+// A reference is the null reference, or a host handle written as an integer.
+// The +1 keeps 0 free to mean null; print_ref undoes it.
+static M3Result parse_ref (const char* s, uintptr_t* o_ref)
+{
+    if (s && strcmp (s, "null") == 0) { *o_ref = 0; return m3Err_none; }
+
+    uint64_t value = 0;
+    M3Result result = parse_u64 (s, 64, &value);
+    if (result) return result;
+
+    *o_ref = (uintptr_t) value + 1;
+    return m3Err_none;
 }
 
 static void print_ref (uintptr_t ref, const char* type)
@@ -401,10 +460,24 @@ static void print_ref (uintptr_t ref, const char* type)
 }
 
 // :invoke is used by spec tests, so it treats floats as raw data
-M3Result repl_invoke  (const char* name, int argc, const char* argv[])
+static IM3Module  repl_find_module  (const char* id);
+
+// i_module names the module whose export to call, or is NULL to search every
+// loaded module (most recently loaded first).
+M3Result repl_invoke  (const char* i_module, const char* name, int argc, const char* argv[])
 {
     IM3Function func;
-    M3Result result = m3_FindFunction (&func, runtime, name);
+    M3Result result;
+
+    if (i_module)
+    {
+        IM3Module mod = repl_find_module (i_module);
+        if (!mod) return "module not found";
+
+        result = m3_FindFunctionIn (&func, mod, name);
+    }
+    else result = m3_FindFunction (&func, runtime, name);
+
     if (result) return result;
 
     int arg_count = m3_GetArgCount(func);
@@ -425,16 +498,19 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
 
     for (int i = 0; i < argc; i++) {
         u64* s = &valbuff[i];
+        uint64_t value = 0;
+        uintptr_t ref = 0;
         valptrs[i] = s;
         switch (m3_GetArgType(func, i)) {
         case c_m3Type_i32:
-        case c_m3Type_f32:  *(u32*)(s) = strtoul(argv[i], NULL, 10);  break;
+        case c_m3Type_f32:  result = parse_u64(argv[i], 32, &value); *(u32*)(s) = (u32) value; break;
         case c_m3Type_i64:
-        case c_m3Type_f64:  *(u64*)(s) = strtoull(argv[i], NULL, 10); break;
+        case c_m3Type_f64:  result = parse_u64(argv[i], 64, &value); *(u64*)(s) = value;       break;
         case c_m3Type_funcref:
-        case c_m3Type_externref: *(uintptr_t*)(s) = parse_ref(argv[i]); break;
+        case c_m3Type_externref: result = parse_ref(argv[i], &ref);  *(uintptr_t*)(s) = ref;   break;
         default: return "unknown argument type";
         }
+        if (result) return result;
     }
 
     result = m3_Call (func, argc, valptrs);
@@ -477,22 +553,69 @@ M3Result repl_invoke  (const char* name, int argc, const char* argv[])
 static char registeredNames [MAX_MODULES][32];
 static int  numRegisteredNames = 0;
 
-// Names the most recently loaded module, so later modules can import from it
-M3Result repl_register  (const char* name)
+// A spec test addresses a module by the variable name its .wast gave it ($Mf),
+// which is a different thing from the name it is registered under for other
+// modules to import from (Mf) - one module can have both, or neither. Only the
+// test harness cares about the first, so the mapping lives here rather than in
+// M3Module.
+static struct { char id [32]; IM3Module module; } moduleIds [MAX_MODULES];
+static int  numModuleIds = 0;
+
+static IM3Module  module_by_id  (const char* id)
 {
-    if (!runtime->modules) return "no modules loaded";
+    for (int i = numModuleIds - 1; i >= 0; i--)
+    {
+        if (!strcmp (moduleIds[i].id, id))
+            return moduleIds[i].module;
+    }
+
+    return NULL;
+}
+
+// Resolves what a test means by a module: its .wast variable if it has one,
+// otherwise a registered name.
+static IM3Module  repl_find_module  (const char* id)
+{
+    IM3Module module = module_by_id (id);
+
+    return module ? module : m3_FindModule (runtime, id);
+}
+
+// Binds the .wast variable name of the module that was just loaded
+M3Result repl_name  (const char* id)
+{
+    if (!lastLoadedModule) return "no modules loaded";
+    if (numModuleIds >= MAX_MODULES) return "too many named modules";
+
+    snprintf (moduleIds[numModuleIds].id, sizeof(moduleIds[0].id), "%s", id);
+    moduleIds[numModuleIds].module = lastLoadedModule;
+    numModuleIds++;
+
+    return m3Err_none;
+}
+
+// Names a module so later modules can import from it. Without an id that is the
+// most recently loaded one, which is what a bare (register "...") means.
+M3Result repl_register  (const char* name, const char* id)
+{
+    IM3Module module = id ? repl_find_module (id) : lastLoadedModule;
+
+    if (!module) return "no modules loaded";
     if (numRegisteredNames >= MAX_MODULES) return "too many registered modules";
 
     char* slot = registeredNames [numRegisteredNames++];
     snprintf (slot, sizeof(registeredNames[0]), "%s", name);
 
-    m3_SetModuleName (runtime->modules, slot);
+    m3_SetModuleName (module, slot);
     return m3Err_none;
 }
 
-M3Result repl_global_get  (const char* name)
+M3Result repl_global_get  (const char* i_module, const char* name)
 {
-    IM3Global g = m3_FindGlobal(runtime->modules, name);
+    IM3Module mod = i_module ? repl_find_module (i_module) : runtime->modules;
+    if (!mod) return "module not found";
+
+    IM3Global g = m3_FindGlobal(mod, name);
 
     M3TaggedValue tagged;
     M3Result err = m3_GetGlobal (g, &tagged);
@@ -542,7 +665,9 @@ M3Result repl_compile  ()
 M3Result repl_dump  ()
 {
     uint32_t len;
-    uint8_t* mem = m3_GetMemory(runtime, &len, 0);
+    // the memory of the module most recently loaded, which is the one a repl
+    // session is looking at
+    uint8_t* mem = m3_GetMemory(lastLoadedModule, &len, 0);
     if (mem) {
         FILE* f = fopen ("wasm3_dump.bin", "wb");
         if (!f) {
@@ -566,19 +691,51 @@ void repl_free  ()
 
     for (int i = 0; i < wasm_bins_qty; i++) {
         free (wasm_bins[i]);
-        wasm_bins[i] = NULL;
     }
+    free (wasm_bins);
+    wasm_bins = NULL;
     wasm_bins_qty = 0;
+    wasm_bins_cap = 0;
+}
+
+// The spec testsuite expects a module registered as "spectest", exporting the
+// print functions plus a (table 10 20 funcref), a (memory 1 2) and four
+// globals. Host functions can stand in for the functions but not for the memory
+// and the table, so the repl loads the real thing - see spectest.wasm.h.
+static bool provideSpecTest = false;
+
+static M3Result  load_spectest  (void)
+{
+    IM3Module module = NULL;
+
+    M3Result result = m3_ParseModule (env, &module, spectest_wasm, spectest_wasm_len);
+    if (result) return result;
+
+    result = m3_LoadModule (runtime, module);
+    if (result) return result;  // the runtime owns it either way
+
+    lastLoadedModule = module;
+
+    // it has to answer to "spectest" before anything imports from it
+    return repl_register ("spectest", NULL);
 }
 
 M3Result repl_init  (unsigned stack)
 {
     repl_free();
     numRegisteredNames = 0;
+    numModuleIds = 0;
+    lastLoadedModule = NULL;
     runtime = m3_NewRuntime (env, stack, NULL);
     if (runtime == NULL) {
         return "m3_NewRuntime failed";
     }
+
+    if (provideSpecTest) {
+        M3Result result = load_spectest ();
+        if (result) return result;
+    }
+
     return m3Err_none;
 }
 
@@ -648,9 +805,11 @@ void print_version() {
     // Without "tail-call", return_call still works but doesn't reuse the caller's frame,
     // so unbounded tail recursion traps instead of running forever. See d_m3CanTailCall.
     // "typed-refs" reports the typed function references proposal, see d_m3HasTypedRefs.
-    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s\n",
-            d_m3CanTailCall  ? ", tail-call"  : "",
-            d_m3HasTypedRefs ? ", typed-refs" : "");
+    // "multi-memory" reports the multiple memories proposal, see d_m3HasMultiMemory.
+    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s%s\n",
+            d_m3CanTailCall    ? ", tail-call"    : "",
+            d_m3HasTypedRefs   ? ", typed-refs"   : "",
+            d_m3HasMultiMemory ? ", multi-memory" : "");
 }
 
 void print_usage() {
@@ -704,6 +863,7 @@ int  main  (int i_argc, const char* i_argv[])
             // repl for the spec tests
             argRepl = true;
             argCompile = true;
+            provideSpecTest = true;
         } else if (!strcmp("--dump-on-trap", arg)) {
             argDumpOnTrap = true;
         } else if (!strcmp("--compile", arg)) {
@@ -786,6 +946,9 @@ int  main  (int i_argc, const char* i_argv[])
             continue;
         }
         result = m3Err_none;
+
+        #define NEED_ARGS(N)   if (argc < (N)) { result = "not enough arguments"; } else
+
         if (!strcmp(":init", argv[0])) {
             result = repl_init(argStackSize);
         } else if (!strcmp(":version", argv[0])) {
@@ -794,24 +957,53 @@ int  main  (int i_argc, const char* i_argv[])
             repl_free();
             return 0;
         } else if (!strcmp(":load", argv[0])) {             // :load <filename>
-            result = repl_load(argv[1]);
-            if (argCompile and not result) result = repl_compile();
+            NEED_ARGS(2) {
+                result = repl_load(argv[1]);
+                if (argCompile and not result) result = repl_compile();
+            }
         } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
-            result = repl_load_hex(atol(argv[1]));
-            if (argCompile and not result) result = repl_compile();
-        } else if (!strcmp(":get-global", argv[0])) {
-            result = repl_global_get(argv[1]);
-        } else if (!strcmp(":set-global", argv[0])) {
-            result = repl_global_set(argv[1], argv[2]);
-        } else if (!strcmp(":register", argv[0])) {         // :register <name>
-            result = repl_register(argv[1]);
+            NEED_ARGS(2) {
+                result = repl_load_hex(atol(argv[1]));
+                if (argCompile and not result) result = repl_compile();
+            }
+        } else if (!strcmp(":get-global", argv[0])) {       // :get-global <global>
+            NEED_ARGS(2) {
+                unescape(argv[1]);
+                result = repl_global_get(NULL, argv[1]);
+            }
+        } else if (!strcmp(":get-global-in", argv[0])) {    // :get-global-in <module> <global>
+            NEED_ARGS(3) {
+                unescape(argv[1]);
+                unescape(argv[2]);
+                result = repl_global_get(argv[1], argv[2]);
+            }
+        } else if (!strcmp(":set-global", argv[0])) {       // :set-global <global> <value>
+            NEED_ARGS(3) {
+                result = repl_global_set(argv[1], argv[2]);
+            }
+        } else if (!strcmp(":register", argv[0])) {         // :register <name> [module]
+            NEED_ARGS(2) {
+                result = repl_register(argv[1], argc > 2 ? argv[2] : NULL);
+            }
+        } else if (!strcmp(":name", argv[0])) {             // :name <module>
+            NEED_ARGS(2) {
+                result = repl_name(argv[1]);
+            }
         } else if (!strcmp(":dump", argv[0])) {
             result = repl_dump();
         } else if (!strcmp(":compile", argv[0])) {
             result = repl_compile();
-        } else if (!strcmp(":invoke", argv[0])) {
-            unescape(argv[1]);
-            result = repl_invoke(argv[1], argc-2, (const char**)(argv+2));
+        } else if (!strcmp(":invoke", argv[0])) {           // :invoke <function> [args...]
+            NEED_ARGS(2) {
+                unescape(argv[1]);
+                result = repl_invoke(NULL, argv[1], argc-2, (const char**)(argv+2));
+            }
+        } else if (!strcmp(":invoke-in", argv[0])) {        // :invoke-in <module> <function> [args...]
+            NEED_ARGS(3) {
+                unescape(argv[1]);
+                unescape(argv[2]);
+                result = repl_invoke(argv[1], argv[2], argc-3, (const char**)(argv+3));
+            }
         } else if (argv[0][0] == ':') {
             result = "no such command";
         } else {

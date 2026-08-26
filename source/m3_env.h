@@ -22,10 +22,20 @@ typedef struct M3MemoryInfo
     u32     initPages;
     u32     maxPages;
     u32     pageSize;
+    bool    hasMax;         // a declared maximum of 0 is not the same as none
 }
 M3MemoryInfo;
 
 
+// One linear memory. Memories belong to the module that declares them, not to
+// the runtime: two modules loaded into the same runtime each get their own, and
+// the interpreter reaches the one it is currently running against through the
+// _mem pseudo-register (see M3MemoryHeader).
+//
+// Every entry is individually allocated so that a slot may later be pointed at
+// a memory another module owns - growing one has to be visible through every
+// name it has. 'owner' says which module allocated it, and so which module
+// frees it.
 typedef struct M3Memory
 {
     M3MemoryHeader *        mallocated;
@@ -33,6 +43,13 @@ typedef struct M3Memory
     u32                     numPages;
     u32                     maxPages;
     u32                     pageSize;
+    u32                     initPages;
+    bool                    hasMax;         // see M3MemoryInfo
+
+    struct M3Module *       owner;          // the module that allocated it
+    M3ImportInfo            import;         // when declared as an import
+    cstr_t                  exportName;     // when exported
+    bool                    imported;
 }
 M3Memory;
 
@@ -54,8 +71,18 @@ typedef struct M3Table
     // element type is not nullable has to say what to fill itself with.
     bytes_t                 initExpr;
     u32                     initExprSize;
+
+    u32                     initSize;       // the declared minimum
+    bool                    hasMax;         // a declared maximum of 0 is not the same as none
+
+    struct M3Module *       owner;          // the module that allocated it
+    M3ImportInfo            import;         // when declared as an import
+    cstr_t                  exportName;     // when exported
+    bool                    imported;
 }
 M3Table;
+
+typedef M3Table *           IM3Table;
 
 // Element segment modes, from the low two bits of the segment's flags
 typedef enum
@@ -103,6 +130,12 @@ M3DataSegment;
 typedef struct M3Global
 {
     M3ImportInfo            import;
+
+    // An import linked to another module's export: the global that actually
+    // holds the value. Reads and writes go there, so a mutable global stays one
+    // cell seen under two names. NULL for anything else, including an import a
+    // host supplied a value for through m3_LinkGlobal.
+    struct M3Global *       resolved;
 
     union
     {
@@ -221,15 +254,30 @@ typedef struct M3Module
     M3ElementSegment *      elementSegments;
     bytes_t                 elementSectionEnd;
 
-    M3Table *               tables;
+    // The module's table index space, imported entries first. Entries are
+    // borrowed pointers, individually allocated so a slot can be pointed at a
+    // table another module owns - see M3Table.owner, and M3Module.memories,
+    // which works the same way.
+    IM3Table *              tables;
     u32                     numTables;
-    const char*             table0ExportName;
 
-    M3MemoryInfo            memoryInfo;
-    M3ImportInfo            memoryImport;
-    bool                    memoryImported;
-    bool                    memoryDeclared;     // has a memory section entry
-    const char*             memoryExportName;
+    // The module's memory index space: imported entries first, then declared
+    // ones, exactly as the Wasm index space orders them. Entries are borrowed
+    // pointers - see M3Memory.owner.
+    IM3Memory *             memories;
+    u32                     numMemories;
+
+    // The interpreter always carries a valid memory header in _mem - the
+    // stack-limit check, the backtrace recorder and the call ops all reach the
+    // runtime through it. A module that declares no memory still needs one, so
+    // it gets this zero-length stand-in rather than a NULL _mem.
+    M3Memory                emptyMemory;
+
+    // memories[0], or emptyMemory when there are none. Resolved once by
+    // InitMemory - the index space is fixed by then and linking has already
+    // repointed whatever it was going to - so the call ops can read it straight
+    // instead of branching. NULL until the module is loaded.
+    IM3Memory               memory0;
 
     //bool                    hasWasmCodeCopy;
 
@@ -237,8 +285,22 @@ typedef struct M3Module
 }
 M3Module;
 
+M3Result                    Module_AddMemory            (IM3Module io_module, IM3Memory * o_memory, const M3MemoryInfo * i_info, bool i_isImported);
+
+// Memory 0 of a module - the one the interpreter's _mem register tracks while
+// that module's code is running. Never NULL once the module has been loaded.
+static inline IM3Memory  Module_Memory0  (IM3Module i_module)
+{
+    return i_module->memory0;
+}
+
+static inline M3MemoryHeader *  Module_MemoryHeader  (IM3Module i_module)
+{
+    return i_module->memory0->mallocated;
+}
+
 M3Result                    Module_AddGlobal            (IM3Module io_module, IM3Global * o_global, m3type_t i_type, bool i_mutable, bool i_isImported);
-M3Result                    Module_AddTable             (IM3Module io_module, m3type_t i_type, u32 i_size, u32 i_maxSize);
+M3Result                    Module_AddTable             (IM3Module io_module, IM3Table * o_table, m3type_t i_type, u32 i_size, u32 i_maxSize, bool i_hasMax, bool i_isImported);
 #if d_m3HasExceptionHandling
 M3Result                    Module_AddTag               (IM3Module io_module, IM3Tag * o_tag, IM3FuncType i_type, bool i_isImported);
 #endif
@@ -305,7 +367,6 @@ typedef struct M3Runtime
 
     void *                  userdata;
 
-    M3Memory                memory;
     u32                     memoryLimit;
 
 #if d_m3EnableStrace >= 2
@@ -350,7 +411,7 @@ M3Runtime;
 void                        InitRuntime                 (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void                        Runtime_Release             (IM3Runtime io_runtime);
 
-M3Result                    ResizeMemory                (IM3Runtime io_runtime, u32 i_numPages);
+M3Result                    ResizeMemory                (IM3Runtime io_runtime, IM3Memory io_memory, u32 i_numPages);
 
 typedef void *              (* ModuleVisitor)           (IM3Module i_module, void * i_info);
 void *                      ForEachModule               (IM3Runtime i_runtime, ModuleVisitor i_visitor, void * i_info);

@@ -260,14 +260,23 @@ class Wasm3():
         self.loaded = fn
         return res
 
-    def invoke(self, cmd):
+    def invoke(self, cmd, module=None):
+        if module:
+            return self._run_cmd(":invoke-in " + module + " " + " ".join(map(str, cmd)) + "\n")
         return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
 
-    def get_global(self, name):
+    def get_global(self, name, module=None):
+        if module:
+            return self._run_cmd(":get-global-in " + module + " " + name + "\n")
         return self._run_cmd(":get-global " + name + "\n")
 
-    def register(self, name):
+    def register(self, name, module=None):
+        if module:
+            return self._run_cmd(":register " + name + " " + module + "\n")
         return self._run_cmd(":register " + name + "\n")
+
+    def name_module(self, module):
+        return self._run_cmd(":name " + module + "\n")
 
     def _run_cmd(self, cmd):
         if self.autorestart and not self._is_running():
@@ -443,12 +452,7 @@ blacklist = Blacklist([
   # wasm3 quiets f32 signaling NaNs, see the note in normalizeResults()
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
 
-  # wasm3 links imports only against host functions, never against another
-  # module's exports, so an imported function has no body and an imported global
-  # reads as zero. imports-compact.wast is the same set of tests with the import
-  # section written in the compact encoding, and fails for the same reason.
-  "imports.wast:*",
-  "imports-compact.wast:*",
+  # the compact import encoding of a module whose imports wasm3 cannot satisfy
   "binary-compact-imports.wast:* binary-compact-imports.10.wasm *",
 
   # not a gap: wasm3 implements multi-value, which the older v1.1 testsuite
@@ -456,14 +460,41 @@ blacklist = Blacklist([
   "* assert_invalid (invalid result arity)",
   # likewise for reference types, which lifted the one-table limit
   "* assert_invalid (multiple tables)",
-  # wasm3 links imports lazily, and only against host functions, so a missing or
-  # mistyped import is not detected until the importing function is compiled
+  # and for multiple memories, which lifted the one-memory limit and turned the
+  # reserved zero byte of the memory instructions into a memory index. A
+  # non-minimal LEB encoding of index 0 is a valid index, so these modules are
+  # no longer malformed - wasm3 still rejects an index that names a memory the
+  # module does not have, which is what wg-3.0's binary.wast checks.
+  # wasm 2.0 made instantiation apply element and data segments one at a time,
+  # so whatever ran before one of them traps stays applied - and the 2.0/3.0
+  # linking.wast checks exactly that. The 1.1 suites still expect a failed
+  # instantiation to leave nothing behind. (These two .wasm files are only ever
+  # assert_unlinkable/assert_uninstantiable filenames in the newer suites, never
+  # the module an action runs against, so naming them here is unambiguous.)
+  "linking.wast:* linking.14.wasm call(7)",
+  "linking.wast:* linking.24.wasm load(0)",
+
+  "* assert_invalid (multiple memories)",
+  "binary.wast:* assert_malformed (zero flag expected)",
+  "binary.wast:* assert_malformed (zero byte expected)",
+  # Linking is best-effort: an import nothing satisfies is left alone rather than
+  # rejected, because m3_LinkRawFunction needs the runtime and so can only run
+  # after m3_LoadModule. So a missing or mistyped import is not reported at
+  # instantiation, which is when these expect it.
   "* assert_unlinkable (unknown import)",
   "* assert_unlinkable (incompatible import type)",
-  # wasm 2.0 allows an element expression to be global.get of an imported
-  # funcref global; wasm3 never links imported globals, so the value stays 0 and
-  # the segment can't be resolved -- same gap as the imports.wast entry above
-  "elem.wast:* * call_imported_elem*",
+
+  # the spec's "spectest" module is faked with host functions rather than being
+  # a real module, so it exports no memory. These grow a memory imported from
+  # it, and get the local stand-in built from the import's own limits instead.
+  "imports4.wast:* imports4.1.wasm grow(*)",
+
+  # The repl talks in whitespace-separated tokens, so a module registered under
+  # the empty name has nothing to send: the token disappears. Any placeholder
+  # would be a string some other test could legitimately register under, so the
+  # one test that does this is left out instead.
+  "imports-compact.wast:* imports-compact.25.wasm call-empty()",
+
   # names containing NUL bytes are valid UTF-8 but wasm3 uses C strings
   # internally, so embedded NUL truncates the name during function lookup
   "names.wast:* *.wasm \\x00*",
@@ -657,6 +688,11 @@ trapmap = {
   "unreachable": "unreachable executed",
   # the bulk-memory suite appends the offending index to this one trap text
   "uninitialized element 2": "uninitialized element",
+  # wasm 2.0 renamed three call_indirect traps; wasm3 uses the newer wording, so
+  # the v1.1 and opam suites spell them the old way
+  "uninitialized": "uninitialized element",
+  "undefined": "undefined element",
+  "indirect call": "indirect call type mismatch",
 }
 
 def runInvoke(test):
@@ -685,9 +721,9 @@ def runInvoke(test):
 
     try:
         if test.action.type == "get":
-            output = wasm3.get_global(test.cmd[0])
+            output = wasm3.get_global(test.cmd[0], test.action.module)
         else:
-            output = wasm3.invoke(test.cmd)
+            output = wasm3.invoke(test.cmd, test.action.module)
     except Exception as e:
         actual = f"<{e}>"
         force_fail = True
@@ -768,7 +804,7 @@ def runInvoke(test):
         showTestResult()
         #sys.exit(1)
 
-def runValidation(test, cmd, wasm_dir):
+def runValidation(test, cmd, wasm_dir, keep_modules=False):
     # assert_invalid/assert_malformed/assert_uninstantiable: the module must be
     # rejected at load. wasm3's error strings don't match the spec's, so we only
     # check that it *is* rejected; the expected text is kept for the log.
@@ -801,7 +837,11 @@ def runValidation(test, cmd, wasm_dir):
 
     detail = ""
     try:
-        wasm3.init()
+        # Once modules are being kept, the runtime holds the registered ones the
+        # rest of the file still needs - and an unlinkable/uninstantiable module
+        # is only meaningful against them - so it must not be reset here.
+        if not keep_modules:
+            wasm3.init()
         detail = wasm3.load(os.path.join(wasm_dir, test.wasm))
         actual = "rejected" if detail else "accepted"
     except Exception as e:
@@ -822,6 +862,22 @@ def runValidation(test, cmd, wasm_dir):
         print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
         print(f"Expected: {ansi.OKGREEN}rejected ({expected_text}){ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
+
+# A build without the "multi-memory" feature rejects any module with more than
+# one memory, so the whole proposal suite is out of reach for it. Its files share
+# wast names with core/ (memory_grow.wast and friends), so they are dropped at
+# discovery rather than by blacklisting.
+hasMultiMemory = wasm3_ver in Blacklist(["*multi-memory*"])
+if not hasMultiMemory:
+    warning("build has no multiple memories, skipping the multi-memory suite", True)
+    # these live in the compact-import suite but import two memories apiece, so
+    # they need the feature just as much as the multi-memory suite does
+    blacklist.add([
+      "imports-compact.wast:* imports-compact.16.wasm sum()",
+      "imports-compact.wast:* imports-compact.17.wasm sizes()",
+      "imports-compact.wast:* imports-compact.18.wasm sizes()",
+      "imports-compact.wast:* imports-compact.19.wasm sum()",
+    ])
 
 if args.file:
     jsonFiles = args.file
@@ -846,7 +902,7 @@ else:
             "custom-page-sizes",
             "bulk-memory",
             "compact-import-section",
-        ):
+        ) + (("multi-memory",) if hasMultiMemory else ()):
             jsonFiles += glob.glob(os.path.join(spec_dir, stage, subdir, "*.json"))
 
     # Exception handling. 3.0 keeps it in core/exceptions; the earlier suites are irrelevant/outdated
@@ -867,8 +923,10 @@ for fn in jsonFiles:
     # be put back before the next invoke
     reload_module = False
 
-    # once a module is registered, later ones import from it, so the runtime
-    # must keep them all. Lookups hit the most recently loaded module first.
+    # Once a module is registered, later ones import from it; once one is given
+    # a name, a later action can address it. Either way the runtime has to keep
+    # them all from that point on. Unqualified lookups hit the most recently
+    # loaded module first.
     keep_modules = False
 
     print(f"Running {fn}")
@@ -895,6 +953,11 @@ for fn in jsonFiles:
                 res = wasm3.load(wasm_fn)
                 if res:
                     warning(res)
+                elif cmd.get("name"):
+                    # the .wast gave this module a variable name; later actions
+                    # address its exports by it, so it has to stay loaded
+                    wasm3.name_module(cmd["name"])
+                    keep_modules = True
             except Exception as e:
                 pass #fatal(str(e))
 
@@ -944,12 +1007,10 @@ for fn in jsonFiles:
             test.action = dotdict(cmd["action"])
             if test.action.type in ("invoke", "get"):
 
-                # wasm3 has no module-to-module linking, so a registered module's
-                # exports can't be addressed by name
+                # an action may name the module whose export it means, which is
+                # how a test reaches past the most recently loaded one
                 if test.action.module:
-                    stats.skipped += 1
-                    warning(f"Skipped {test.source} ({test.action.type} in module)")
-                    continue
+                    test.action.module = escape_str(test.action.module)
 
                 test.action.field = escape_str(test.action.field)
                 test.action.args = test.action.get("args", [])
@@ -971,12 +1032,15 @@ for fn in jsonFiles:
             if not args.validation:
                 continue
 
-            runValidation(test, cmd, pathname(fn))
-            reload_module = True
+            runValidation(test, cmd, pathname(fn), keep_modules)
+            # the module under test was replaced in the runtime, so it has to go
+            # back before the next action - unless modules are being kept, where
+            # nothing was reset in the first place
+            reload_module = not keep_modules
 
         elif test.type == "register":
             try:
-                res = wasm3.register(cmd["as"])
+                res = wasm3.register(cmd["as"], cmd.get("name"))
                 if res:
                     warning(res)
                 else:

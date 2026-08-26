@@ -44,9 +44,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                     if (f) {
                         m3_CallV (f, 10);
                     }*/
-                } else {
-                    m3_FreeModule (module);
                 }
+                // on failure too, the runtime owns the module now
             }
 
             m3_FreeRuntime(runtime);

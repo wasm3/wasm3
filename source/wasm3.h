@@ -268,13 +268,21 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
 
     void                m3_FreeRuntime              (IM3Runtime             i_runtime);
 
-    // Wasm currently only supports one memory region. i_memoryIndex should be zero.
-    uint8_t *           m3_GetMemory                (IM3Runtime             i_runtime,
+    // A memory belongs to the module that declares it, so these take the module
+    // rather than the runtime - a runtime can hold several modules, each with
+    // its own memories. Returns NULL when the module has no memory at that
+    // index; o_memorySizeInBytes is set either way.
+    uint8_t *           m3_GetMemory                (IM3Module              i_module,
                                                      uint32_t *             o_memorySizeInBytes,
                                                      uint32_t               i_memoryIndex);
 
-    // This is used internally by Raw Function helpers
-    uint32_t            m3_GetMemorySize            (IM3Runtime             i_runtime);
+    uint32_t            m3_GetMemorySize            (IM3Module              i_module,
+                                                     uint32_t               i_memoryIndex);
+
+    // Size of the memory a pointer addresses into - specifically the _mem a raw
+    // function is handed, which is the memory of whichever module is calling,
+    // and need not be any particular module's. Used by m3ApiCheckMem.
+    uint32_t            m3_GetMemorySizeAt          (const void *           i_memory);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
 
@@ -289,12 +297,15 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
                                                      const uint8_t * const  i_wasmBytes,
                                                      uint32_t               i_numWasmBytes);
 
-    // Only modules not loaded into a M3Runtime need to be freed. A module is considered unloaded if
-    // a. m3_LoadModule has not yet been called on that module. Or,
-    // b. m3_LoadModule returned a result.
+    // Only a module that was never handed to m3_LoadModule needs to be freed.
     void                m3_FreeModule               (IM3Module i_module);
 
-    //  LoadModule transfers ownership of a module to the runtime. Do not free modules once successfully loaded into the runtime
+    //  Transfers ownership of the module to the runtime - whether or not it
+    //  succeeds. A failed instantiation can already have written this module's
+    //  functions into a table another module owns, and the spec keeps whatever
+    //  it managed to do, so those entries stay callable; the module has to
+    //  outlive the failure for them not to dangle. m3_FreeRuntime releases it.
+    //  Do not call m3_FreeModule on a module after passing it here.
     M3Result            m3_LoadModule               (IM3Runtime io_runtime,  IM3Module io_module);
 
     // Optional, compiles all functions in the module
@@ -331,6 +342,11 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
     void                m3_SetModuleName            (IM3Module i_module, const char* name);
     IM3Runtime          m3_GetModuleRuntime         (IM3Module i_module);
 
+    // The module registered under i_moduleName, or NULL. Most recently loaded
+    // first, so a name registered twice names the newer module.
+    IM3Module           m3_FindModule               (IM3Runtime             i_runtime,
+                                                     const char * const     i_moduleName);
+
 //-------------------------------------------------------------------------------------------------------------------------------
 //  globals
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -350,9 +366,15 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
 //-------------------------------------------------------------------------------------------------------------------------------
     M3Result            m3_Yield                    (void);
 
-    // o_function is valid during the lifetime of the originating runtime
+    // o_function is valid during the lifetime of the originating runtime.
+    // m3_FindFunction searches every module loaded into the runtime, most
+    // recently loaded first; m3_FindFunctionIn searches just the one, which is
+    // what naming a module's export means.
     M3Result            m3_FindFunction             (IM3Function *          o_function,
                                                      IM3Runtime             i_runtime,
+                                                     const char * const     i_functionName);
+    M3Result            m3_FindFunctionIn           (IM3Function *          o_function,
+                                                     IM3Module              i_module,
                                                      const char * const     i_functionName);
     M3Result            m3_GetTableFunction         (IM3Function *          o_function,
                                                      IM3Module              i_module,
@@ -406,7 +428,7 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
 # define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 # define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
-# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < _mem) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < _mem) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySizeAt(_mem)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
 
 # define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
 # define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}

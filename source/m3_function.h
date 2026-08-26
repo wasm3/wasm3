@@ -56,6 +56,14 @@ typedef struct M3Function
 
     M3ImportInfo            import;
 
+    // An import linked to another module's export: the function that actually
+    // implements it. Everything that calls through an import resolves to this
+    // first, so the call carries the defining module with it - which is what
+    // says whose linear memory the body runs against. NULL for a function with
+    // a body of its own, and for an import bound to a host function (that one
+    // runs against the importing module's memory).
+    struct M3Function *     resolved;
+
     bytes_t                 wasm;
     bytes_t                 wasmEnd;
 
@@ -91,6 +99,14 @@ typedef struct M3Function
     void *                  constants;
 }
 M3Function;
+
+
+// The function that actually runs when this one is called: an import linked to
+// another module resolves to that module's function, everything else to itself.
+static inline IM3Function  Function_Implementation  (IM3Function i_function)
+{
+    return i_function->resolved ? i_function->resolved : i_function;
+}
 
 void        Function_Release            (IM3Function i_function);
 void        Function_FreeCompiledCode   (IM3Function i_function);

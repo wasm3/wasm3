@@ -134,11 +134,18 @@ typedef void /*const*/ *                    code_t;
 typedef code_t const * /*__restrict__*/     pc_t;
 
 
+// Sits immediately before the linear memory it describes, so m3MemData() is
+// just (header + 1). The interpreter carries a pointer to one of these in the
+// _mem pseudo-register, and reaches everything else about the memory - its page
+// counts, its owning runtime - through the back-pointers here. 'memory' is what
+// makes that possible without going through the runtime, which is the
+// prerequisite for a runtime holding more than one memory.
 typedef struct M3MemoryHeader
 {
-    IM3Runtime      runtime;
-    void *          maxStack;
-    size_t          length;
+    IM3Runtime          runtime;
+    void *              maxStack;
+    size_t              length;
+    struct M3Memory *   memory;         // the M3Memory this block belongs to
 }
 M3MemoryHeader;
 
@@ -183,6 +190,7 @@ M3CodePageHeader;
 #define d_m3MaxSaneElementSegments          10000000
 #define d_m3MaxSaneDataSegments             100000
 #define d_m3MaxSaneTableSize                10000000
+#define d_m3MaxSaneMemoriesCount            10000
 #if d_m3HasRefTypes
 #  define d_m3MaxSaneTableCount             1000
 #else
@@ -374,6 +382,12 @@ M3Result    Read_opcode             (m3opcode_t * o_value, bytes_t  * io_bytes, 
 M3Result    ReadLebUnsigned         (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLebSigned           (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_u32             (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+
+// The memarg immediate of a load or store: an alignment hint, then a static
+// offset. Multi-memory reinterprets the alignment as a bitfield -- bit 6 says a
+// memory index sits between the two -- so the hint is returned with that bit
+// masked off and the index defaults to 0 when it is clear.
+M3Result    ReadMemoryArg           (u32 * o_align, u32 * o_memoryIdx, u32 * o_offset, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_u7              (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_i7              (i8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_i32             (i32 * o_value, bytes_t * io_bytes, cbytes_t i_end);

@@ -311,8 +311,10 @@ namespace wasm3 {
 
         void load_into(IM3Runtime runtime) {
             M3Result err = m3_LoadModule(runtime, m_module.get());
-            detail::check_error(err);
+            /* the runtime owns the module from here, error or not, so the
+             * deleter must not free it even when this throws */
             m_loaded = true;
+            detail::check_error(err);
         }
 
 

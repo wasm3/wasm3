@@ -14,7 +14,7 @@ d_m3BeginExternC
 
 # define m3MemData(mem)                 (u8*)(((M3MemoryHeader*)(mem))+1)
 # define m3MemRuntime(mem)              (((M3MemoryHeader*)(mem))->runtime)
-# define m3MemInfo(mem)                 (&(((M3MemoryHeader*)(mem))->runtime->memory))
+# define m3MemInfo(mem)                 (((M3MemoryHeader*)(mem))->memory)
 
 # define d_m3BaseOpSig                  pc_t _pc, m3stack_t _sp, M3MemoryHeader * _mem, m3reg_t _r0
 # define d_m3BaseOpArgs                 _sp, _mem, _r0

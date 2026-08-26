@@ -43,6 +43,7 @@ stats = dotdict(total_run=0, failed=0, crashed=0, timeout=0, known_issues=0)
 #
 # "expect_pattern" is fnmatch syntax, matched against stdout+stderr. Keep '['
 # out of it: fnmatch reads it as a character class.
+# "args" precede the module path; "func_args" follow it.
 #
 
 tests = [
@@ -63,9 +64,6 @@ tests = [
     "issue":          462,
     "wasm":           "./regression/github-462.wasm",
     "args":           ["--func", "_start"],
-    # wasm3 cannot satisfy a memory import, so runtime->memory.mallocated stays
-    # NULL and op_Entry dereferences it. Must be rejected or trapped instead.
-    "known_issue":    "segfaults in op_Entry: _mem is NULL when the memory import is unlinked",
   }, {
     "name":           "br out of a typed block",
     "issue":          465,
@@ -77,6 +75,27 @@ tests = [
     "wasm":           "./regression/github-477.wasm",
     "args":           ["--func", "main"],
     "expect_pattern": "*Result: *",
+  }, {
+    "name":           "Non-numeric function argument",
+    "issue":          367,
+    "wasm":           "./lang/fib32.wasm",
+    "args":           ["--func", "fib"],
+    "func_args":      ["abc"],
+    "expect_pattern": "*argument is not a number*",
+  }, {
+    "name":           "Partially numeric function argument",
+    "issue":          367,
+    "wasm":           "./lang/fib32.wasm",
+    "args":           ["--func", "fib"],
+    "func_args":      ["12abc"],
+    "expect_pattern": "*argument is not a number*",
+  }, {
+    "name":           "Function argument out of range",
+    "issue":          367,
+    "wasm":           "./lang/fib32.wasm",
+    "args":           ["--func", "fib"],
+    "func_args":      ["4294967296"],
+    "expect_pattern": "*argument out of range*",
   }, {
     "name":           "Native stack exhaustion",
     "issue":          479,
@@ -151,7 +170,9 @@ sanitizer_markers = [
 #
 
 for test in tests:
-    command = args.exec.split(' ') + test.get('args', []) + [test['wasm']]
+    # "args" go before the module path, "func_args" after it - that is where
+    # wasm3 expects the arguments of the function being called
+    command = args.exec.split(' ') + test.get('args', []) + [test['wasm']] + test.get('func_args', [])
     command = list(map(str, command))
 
     issue = test.get('issue')

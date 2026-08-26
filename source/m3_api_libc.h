@@ -13,8 +13,6 @@
 d_m3BeginExternC
 
 M3Result    m3_LinkLibC     (IM3Module io_module);
-M3Result    m3_LinkSpecTest (IM3Module io_module);
-M3Result    m3_LinkSpecTestGlobals (IM3Module io_module);   // call before m3_LoadModule
 
 d_m3EndExternC
 

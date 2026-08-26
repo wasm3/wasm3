@@ -88,7 +88,7 @@ _   (NormalizeType (& plainType, wasmType));
 // Reads an elem type and limits without registering anything: an import
 // descriptor holds on to the fields and only adds the table once it has a name.
 static
-M3Result  ReadType_TableType  (IM3Module i_module, m3type_t * o_elemType, u32 * o_initSize, u32 * o_maxSize, bytes_t * io_bytes, cbytes_t i_end)
+M3Result  ReadType_TableType  (IM3Module i_module, m3type_t * o_elemType, u32 * o_initSize, u32 * o_maxSize, bool * o_hasMax, bytes_t * io_bytes, cbytes_t i_end)
 {
     M3Result result = m3Err_none;
 
@@ -121,6 +121,7 @@ _       (ReadLEB_u32 (& maxSize, io_bytes, i_end));
     * o_elemType = elemType;
     * o_initSize = initSize;
     * o_maxSize  = maxSize;
+    * o_hasMax   = (flag & 0x01u) != 0;
 
     return result;
 }
@@ -133,9 +134,10 @@ M3Result  ParseType_TableType  (IM3Module io_module, bytes_t * io_bytes, cbytes_
 
     m3type_t elemType;
     u32 initSize, maxSize;
+    bool hasMax;
 
-_   (ReadType_TableType (io_module, & elemType, & initSize, & maxSize, io_bytes, i_end));
-_   (Module_AddTable (io_module, elemType, initSize, maxSize));
+_   (ReadType_TableType (io_module, & elemType, & initSize, & maxSize, & hasMax, io_bytes, i_end));
+_   (Module_AddTable (io_module, NULL, elemType, initSize, maxSize, hasMax, false /* isImport */));
 
     _catch: return result;
 }
@@ -174,7 +176,7 @@ _           (Read_u8 (& reserved, & i_bytes, i_end));
 
         if (hasInitExpr)
         {
-            M3Table * table = & io_module->tables [tableIndex];
+            IM3Table table = io_module->tables [tableIndex];
 
             m3type_t initType;
 
@@ -189,7 +191,7 @@ _           (Parse_InitExprTyped (io_module, & i_bytes, i_end, & initType));
         {
             // no initializer means null, which only a nullable type can hold
             _throwif ("table of non-nullable type requires an initializer",
-                      not IsNullableRef (io_module->tables [tableIndex].type));
+                      not IsNullableRef (io_module->tables [tableIndex]->type));
         }
 #else
 _       (ParseType_TableType (io_module, & i_bytes, i_end));
@@ -222,6 +224,7 @@ _   (ReadLEB_u7 (& flag, io_bytes, i_end));
 _   (ReadLEB_u32 (& o_memory->initPages, io_bytes, i_end));
 
     o_memory->maxPages = 0;
+    o_memory->hasMax = (flag & (1u << 0)) != 0;
     if (flag & (1u << 0))
     {
 _       (ReadLEB_u32 (& o_memory->maxPages, io_bytes, i_end));
@@ -358,6 +361,7 @@ typedef struct M3ImportDesc
     m3type_t        type;                       // table element type / global type
     u8              isMutable;                  // global
     u32             initSize, maxSize;          // table
+    bool            tableHasMax;                // table
     M3MemoryInfo    memory;
 }
 M3ImportDesc;
@@ -405,7 +409,7 @@ _           (ReadLEB_u32 (& o_desc->typeIndex, io_bytes, i_end));
             break;
 
         case d_externalKind_table:
-_           (ReadType_TableType (i_module, & o_desc->type, & o_desc->initSize, & o_desc->maxSize, io_bytes, i_end));
+_           (ReadType_TableType (i_module, & o_desc->type, & o_desc->initSize, & o_desc->maxSize, & o_desc->tableHasMax, io_bytes, i_end));
             break;
 
         case d_externalKind_memory:
@@ -455,17 +459,27 @@ _           (Module_AddFunction (io_module, i_desc->typeIndex, io_import))
 
         case d_externalKind_table:
         {
-_           (Module_AddTable (io_module, i_desc->type, i_desc->initSize, i_desc->maxSize));
+            IM3Table table;
+_           (Module_AddTable (io_module, & table, i_desc->type, i_desc->initSize, i_desc->maxSize,
+                              i_desc->tableHasMax, true /* isImport */));
+            table->import = * io_import;
+            * io_import = clearImport;
         }
         break;
 
         case d_externalKind_memory:
         {
-            _throwif (m3Err_tooManyMemorySections, io_module->memoryImported or io_module->memoryDeclared);
+            IM3Memory memory;
 
-            io_module->memoryInfo = i_desc->memory;
-            io_module->memoryImported = true;
-            io_module->memoryImport = * io_import;
+#if d_m3HasMultiMemory
+            _throwif (m3Err_tooManyMemorySections, io_module->numMemories >= d_m3MaxSaneMemoriesCount);
+#else
+            // MVP: one memory per module, imported or declared
+            _throwif (m3Err_tooManyMemorySections, io_module->numMemories >= 1);
+#endif
+
+_           (Module_AddMemory (io_module, & memory, & i_desc->memory, true /* isImport */));
+            memory->import = * io_import;
             * io_import = clearImport;
         }
         break;
@@ -729,19 +743,19 @@ _           (Module_DeclareFunction (io_module, index));
         }
         else if (exportKind == d_externalKind_memory)
         {
-            _throwif(m3Err_wasmMalformed, index != 0);
-            _throwif(m3Err_wasmMalformed, not (io_module->memoryImported or io_module->memoryDeclared));
-            m3_Free (io_module->memoryExportName);
-            io_module->memoryExportName = utf8;
-            utf8 = NULL; // ownership transferred to M3Module
+            _throwif(m3Err_wasmMalformed, index >= io_module->numMemories);
+            IM3Memory memory = io_module->memories [index];
+            m3_Free (memory->exportName);
+            memory->exportName = utf8;
+            utf8 = NULL; // ownership transferred to M3Memory
         }
         else if (exportKind == d_externalKind_table)
         {
-            _throwif(m3Err_wasmMalformed, index != 0);
-            _throwif(m3Err_wasmMalformed, io_module->numTables == 0);
-            m3_Free (io_module->table0ExportName);
-            io_module->table0ExportName = utf8;
-            utf8 = NULL; // ownership transferred to M3Module
+            _throwif(m3Err_wasmMalformed, index >= io_module->numTables);
+            IM3Table table = io_module->tables [index];
+            m3_Free (table->exportName);
+            table->exportName = utf8;
+            utf8 = NULL; // ownership transferred to M3Table
         }
 #if d_m3HasExceptionHandling
         else if (exportKind == d_externalKind_tag)
@@ -896,7 +910,7 @@ _               (Read_u8 (& elemKind, & pos, i_end));
         }
 
         if (isActive)
-            _throwif (m3Err_typeMismatch, io_module->tables [segment->tableIndex].type != segment->type);
+            _throwif (m3Err_typeMismatch, io_module->tables [segment->tableIndex]->type != segment->type);
 
 _       (ReadLEB_u32 (& segment->numElements, & pos, i_end));
         _throwif ("table overflow", segment->numElements > d_m3MaxSaneTableSize);
@@ -1022,9 +1036,12 @@ _           (ReadLEB_u32 (& segment->memoryRegion, & i_bytes, i_end));
 
         if (not segment->isPassive)
         {
-            // Spec: MVP only supports memory index 0, and it has to exist
+            // The segment names the memory it initializes; only multi-memory
+            // lets that be anything other than 0.
+#if ! d_m3HasMultiMemory
             _throwif (m3Err_wasmMalformed, segment->memoryRegion != 0);
-            _throwif (m3Err_wasmMalformed, not (io_module->memoryImported or io_module->memoryDeclared));
+#endif
+            _throwif (m3Err_wasmMalformed, segment->memoryRegion >= io_module->numMemories);
 
             segment->initExpr = i_bytes;
 _           (Parse_InitExpr (io_module, & i_bytes, i_end));
@@ -1072,14 +1089,20 @@ M3Result  ParseSection_Memory  (M3Module * io_module, bytes_t i_bytes, cbytes_t 
     u32 numMemories;
 _   (ReadLEB_u32 (& numMemories, & i_bytes, i_end));                             m3log (parse, "** Memory [%d]", numMemories);
 
+#if d_m3HasMultiMemory
+    _throwif (m3Err_tooManyMemorySections,
+              (u64) numMemories + io_module->numMemories > d_m3MaxSaneMemoriesCount);
+#else
     // MVP: at most one memory, counting any that was already imported
     _throwif (m3Err_tooManyMemorySections, numMemories > 1);
-    _throwif (m3Err_tooManyMemorySections, numMemories and io_module->memoryImported);
+    _throwif (m3Err_tooManyMemorySections, (u64) numMemories + io_module->numMemories > 1);
+#endif
 
-    if (numMemories)
+    for (u32 i = 0; i < numMemories; ++i)
     {
-_       (ParseType_Memory (& io_module->memoryInfo, & i_bytes, i_end));
-        io_module->memoryDeclared = true;
+        M3MemoryInfo info;
+_       (ParseType_Memory (& info, & i_bytes, i_end));
+_       (Module_AddMemory (io_module, NULL, & info, false /* isImport */));
     }
 
     _throwif (m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch

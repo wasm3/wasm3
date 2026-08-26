@@ -539,6 +539,36 @@ M3Result  ReadLEB_u32  (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 }
 
 
+// Bit 6 of the alignment is the flag; it is a bit of the first LEB byte, so
+// testing the decoded value for it is the same test.
+#define d_memArgHasMemoryIdx    0x40u
+
+M3Result  ReadMemoryArg  (u32 * o_align, u32 * o_memoryIdx, u32 * o_offset, bytes_t * io_bytes, cbytes_t i_end)
+{
+    M3Result result;
+
+    u32 align;
+    result = ReadLEB_u32 (& align, io_bytes, i_end);
+    if (result) return result;
+
+    * o_memoryIdx = 0;
+
+#if d_m3HasMultiMemory
+    if (align & d_memArgHasMemoryIdx)
+    {
+        align &= ~d_memArgHasMemoryIdx;
+
+        result = ReadLEB_u32 (o_memoryIdx, io_bytes, i_end);
+        if (result) return result;
+    }
+#endif
+
+    * o_align = align;
+
+    return ReadLEB_u32 (o_offset, io_bytes, i_end);
+}
+
+
 M3Result  ReadLEB_u7  (u8 * o_value, bytes_t * io_bytes, cbytes_t i_end)
 {
     u64 value;

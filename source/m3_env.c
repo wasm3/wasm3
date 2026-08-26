@@ -7,6 +7,9 @@
 
 #include <stdarg.h>
 #include <limits.h>
+#include <errno.h>
+#include <float.h>
+#include <ctype.h>
 
 #include "m3_env.h"
 #include "m3_compile.h"
@@ -249,7 +252,6 @@ void  Runtime_Release  (IM3Runtime i_runtime)
     Environment_ReleaseCodePages (i_runtime->environment, i_runtime->pagesFull);
 
     m3_Free (i_runtime->originStack);
-    m3_Free (i_runtime->memory.mallocated);
 }
 
 
@@ -344,53 +346,272 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, m3type_t 
 }
 
 
-M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
+//---------------------------------------------------------------------------------------------------------------------------------
+//  Linking a module's imports against the exports of the modules already loaded
+//  into the same runtime, matched on the name a module was registered under.
+//
+//  This is best-effort: an import nothing satisfies is left alone rather than
+//  rejected, because a host function may still be bound to it after the module
+//  is loaded (m3_LinkRawFunction needs the runtime, so it cannot run earlier),
+//  and because an unsatisfiable memory or global still has to be backed by
+//  something for the module to be loadable at all.
+//---------------------------------------------------------------------------------------------------------------------------------
+
+// Whether an exporting memory or table satisfies what an import asks for. The
+// exporter's *current* size is its minimum - one that has been grown satisfies
+// a larger import than its declaration would - and it may be no less bounded.
+static
+bool  LimitsSatisfy  (u32 i_exportedSize, bool i_exportedHasMax, u32 i_exportedMax,
+                      u32 i_importMin,    bool i_importHasMax,   u32 i_importMax)
 {
-    M3Result result = m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
+    if (i_exportedSize < i_importMin)
+        return false;
 
-    if (not i_module->memoryImported)
-    {
-        u32 maxPages = i_module->memoryInfo.maxPages;
-        u32 pageSize = i_module->memoryInfo.pageSize ? i_module->memoryInfo.pageSize : d_m3DefaultMemPageSize;
+    if (i_importHasMax and (not i_exportedHasMax or i_exportedMax > i_importMax))
+        return false;
 
-        io_runtime->memory.pageSize = pageSize;
-
-        // Without a declared maximum a memory may grow to the spec limit of
-        // 2^32/pagesize pages, which is the usual 65536 at the default page
-        // size and a whole u32 of them when a page is a single byte.
-        u64 pageLimit = 0x100000000ull / pageSize;
-
-        io_runtime->memory.maxPages = maxPages ? maxPages
-                                    : (u32) M3_MIN (pageLimit, 0xFFFFFFFFull);
-
-        result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
-    }
-
-    return result;
+    return true;
 }
 
 
-M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
+static
+IM3Function  Module_FindExportedFunction  (IM3Module i_module, cstr_t i_name)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function f = & i_module->functions [i];
+
+        if (f->export_name and strcmp (f->export_name, i_name) == 0)
+        {
+            // A module that re-exports an import names the placeholder here.
+            // Resolve to the function that actually runs, or a host-side call
+            // would run it against the importing module's memory.
+            return Function_Implementation (f);
+        }
+    }
+
+    return NULL;
+}
+
+
+static
+IM3Memory  Module_FindExportedMemory  (IM3Module i_module, cstr_t i_name)
+{
+    for (u32 i = 0; i < i_module->numMemories; ++i)
+    {
+        IM3Memory memory = i_module->memories [i];
+
+        if (memory->exportName and strcmp (memory->exportName, i_name) == 0)
+            return memory;
+    }
+
+    return NULL;
+}
+
+
+static
+IM3Table  Module_FindExportedTable  (IM3Module i_module, cstr_t i_name)
+{
+    for (u32 i = 0; i < i_module->numTables; ++i)
+    {
+        IM3Table table = i_module->tables [i];
+
+        if (table->exportName and strcmp (table->exportName, i_name) == 0)
+            return table;
+    }
+
+    return NULL;
+}
+
+
+static
+IM3Global  Module_FindExportedGlobal  (IM3Module i_module, cstr_t i_name)
+{
+    for (u32 i = 0; i < i_module->numGlobals; ++i)
+    {
+        IM3Global g = & i_module->globals [i];
+
+        if (g->name and strcmp (g->name, i_name) == 0)
+            return g;
+    }
+
+    return NULL;
+}
+
+
+// Points each of the module's imports at whatever already-loaded module exports
+// it. Runs before anything is allocated or initialized: a memory import has to
+// be resolved before InitMemory would give it pages of its own, and a global
+// import before InitGlobals runs an initializer that reads it.
+static
+M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
+{
+    M3Result result = m3Err_none;
+
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+
+        if (f->wasm or not (f->import.moduleUtf8 and f->import.fieldUtf8))
+            continue;
+
+        IM3Module from = m3_FindModule (io_runtime, f->import.moduleUtf8);
+        if (not from)
+            continue;
+
+        IM3Function exported = Module_FindExportedFunction (from, f->import.fieldUtf8);
+        if (not exported)
+            continue;
+
+        // func types are canonical within an environment, so this is the
+        // structural equivalence the spec asks for
+        _throwif (m3Err_functionImportMissing, exported->funcType != f->funcType);
+
+        f->resolved = Function_Implementation (exported);
+    }
+
+    for (u32 i = 0; i < io_module->numMemories; ++i)
+    {
+        IM3Memory memory = io_module->memories [i];
+
+        if (not memory->imported or memory->owner != io_module)
+            continue;
+
+        IM3Module from = m3_FindModule (io_runtime, memory->import.moduleUtf8);
+        if (not from)
+            continue;
+
+        IM3Memory exported = Module_FindExportedMemory (from, memory->import.fieldUtf8);
+        if (not exported)
+            continue;
+
+        _throwif ("incompatible import type",
+                  not LimitsSatisfy (exported->numPages, exported->hasMax, exported->maxPages,
+                                     memory->initPages,  memory->hasMax,   memory->maxPages));
+
+        // hand the slot over to the exporter's memory, and drop the placeholder
+        m3_Free (memory->mallocated);
+        m3_Free (memory->exportName);
+        FreeImportInfo (& memory->import);
+        m3_Free (memory);
+
+        io_module->memories [i] = exported;
+    }
+
+    for (u32 i = 0; i < io_module->numTables; ++i)
+    {
+        IM3Table table = io_module->tables [i];
+
+        if (not table->imported or table->owner != io_module)
+            continue;
+
+        IM3Module from = m3_FindModule (io_runtime, table->import.moduleUtf8);
+        if (not from)
+            continue;
+
+        IM3Table exported = Module_FindExportedTable (from, table->import.fieldUtf8);
+        if (not exported)
+            continue;
+
+        _throwif ("incompatible import type", exported->type != table->type);
+        _throwif ("incompatible import type",
+                  not LimitsSatisfy (exported->size,    exported->hasMax, exported->maxSize,
+                                     table->initSize,   table->hasMax,    table->maxSize));
+
+        // hand the slot over to the exporter's table, and drop the placeholder
+        m3_Free (table->elements);
+        m3_Free (table->exportName);
+        FreeImportInfo (& table->import);
+        m3_Free (table);
+
+        io_module->tables [i] = exported;
+    }
+
+    for (u32 i = 0; i < io_module->numGlobals; ++i)
+    {
+        IM3Global g = & io_module->globals [i];
+
+        if (not g->imported or not (g->import.moduleUtf8 and g->import.fieldUtf8))
+            continue;
+
+        IM3Module from = m3_FindModule (io_runtime, g->import.moduleUtf8);
+        if (not from)
+            continue;
+
+        IM3Global exported = Module_FindExportedGlobal (from, g->import.fieldUtf8);
+        if (not exported)
+            continue;
+
+        _throwif ("incompatible import type", exported->type != g->type);
+        _throwif ("incompatible import type", exported->isMutable != g->isMutable);
+
+        g->resolved = exported->resolved ? exported->resolved : exported;
+    }
+
+    _catch: return result;
+}
+
+
+// Backs each of the module's memories with pages. LinkImports has already
+// pointed any import it could satisfy at the exporting module's memory, and
+// those are skipped here. An import nothing satisfied is still backed locally
+// from its own declared limits, so that the module remains loadable.
+M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
+{
+    M3Result result = m3Err_none;
+
+    // Fixed from here on: the index space stops changing after parse, and
+    // linking has already repointed any slot it was going to.
+    i_module->memory0 = i_module->numMemories ? i_module->memories [0]
+                                              : & i_module->emptyMemory;
+
+    if (i_module->numMemories == 0)
+    {
+        // nothing addressable, but _mem still has to point somewhere
+        i_module->emptyMemory.owner    = i_module;
+        i_module->emptyMemory.pageSize = d_m3DefaultMemPageSize;
+
+_       (ResizeMemory (io_runtime, & i_module->emptyMemory, 0));
+    }
+
+    for (u32 i = 0; i < i_module->numMemories; ++i)
+    {
+        IM3Memory memory = i_module->memories [i];
+
+        // a slot that already points at another module's memory is that
+        // module's to allocate
+        if (memory->owner != i_module or memory->mallocated)
+            continue;
+
+        u32 pageSize = memory->pageSize ? memory->pageSize : d_m3DefaultMemPageSize;
+
+        memory->pageSize = pageSize;
+
+        // Without a declared maximum a memory may grow to the spec limit of
+        // 2^32/pagesize pages, which is the usual 65536 at the default page
+        // size and a whole u32 of them when a page is a single byte. A declared
+        // maximum of zero is a real limit, not the absence of one.
+        u64 pageLimit = 0x100000000ull / pageSize;
+
+        if (not memory->hasMax)
+            memory->maxPages = (u32) M3_MIN (pageLimit, 0xFFFFFFFFull);
+
+_       (ResizeMemory (io_runtime, memory, memory->initPages));
+    }
+
+    _catch: return result;
+}
+
+
+M3Result  ResizeMemory  (IM3Runtime io_runtime, IM3Memory memory, u32 i_numPages)
 {
     M3Result result = m3Err_none;
 
     u32 numPagesToAlloc = i_numPages;
 
-    M3Memory * memory = & io_runtime->memory;
-
-#if 0 // Temporary fix for memory allocation
-    if (memory->mallocated) {
-        memory->numPages = i_numPages;
-        memory->mallocated->end = memory->wasmPages + (memory->numPages * io_runtime->memory.pageSize);
-        return result;
-    }
-
-    i_numPagesToAlloc = 256;
-#endif
-
     if (numPagesToAlloc <= memory->maxPages)
     {
-        u64 numPageBytes = (u64) numPagesToAlloc * io_runtime->memory.pageSize;
+        u64 numPageBytes = (u64) numPagesToAlloc * memory->pageSize;
 
 #if d_m3MaxLinearMemoryPages > 0
         // the limit is a memory size, counted in default-sized pages; comparing
@@ -409,7 +630,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         size_t numBytes = (size_t) numPageBytes + sizeof (M3MemoryHeader);
 
-        size_t numPreviousBytes = (size_t) memory->numPages * io_runtime->memory.pageSize;
+        size_t numPreviousBytes = (size_t) memory->numPages * memory->pageSize;
         if (numPreviousBytes)
             numPreviousBytes += sizeof (M3MemoryHeader);
 
@@ -426,6 +647,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
 
         memory->mallocated->length =  numPageBytes;
         memory->mallocated->runtime = io_runtime;
+        memory->mallocated->memory  = memory;
 
         memory->mallocated->maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
 
@@ -479,7 +701,7 @@ M3Result  InitGlobals  (IM3Module io_module)
 }
 
 
-M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
+M3Result  InitDataSegments  (IM3Module io_module)
 {
     M3Result result = m3Err_none;
 
@@ -491,6 +713,11 @@ M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
         // An active one is copied here and then counts as dropped.
         if (segment->isPassive)
             continue;
+
+        _throwif ("data segment memory index out of range",
+                  segment->memoryRegion >= io_module->numMemories);
+
+        IM3Memory io_memory = io_module->memories [segment->memoryRegion];
 
         _throwif ("unallocated linear memory", !(io_memory->mallocated));
 
@@ -540,7 +767,7 @@ _           (Read_opcode (& opcode, & pos, end));
             {
 _               (ReadLEB_u32 (& funcIndex, & pos, end));
                 _throwif ("function index out of range", funcIndex >= io_module->numFunctions);
-                ref = & io_module->functions [funcIndex];
+                ref = Function_Implementation (& io_module->functions [funcIndex]);
             }
             else if (opcode == c_waOp_refNull)
             {
@@ -549,6 +776,27 @@ _               (ReadLEB_u32 (& funcIndex, & pos, end));
 _               (ReadLEB_i7 (& waType, & pos, end));
 _               (NormalizeType (& nullType, waType));
                 _throwif (m3Err_typeMismatch, nullType != i_segment->type);
+            }
+            else if (opcode == c_waOp_getGlobal)
+            {
+                // wasm 2.0 lets an element expression read an imported
+                // immutable global, which is how one module seeds another's
+                // table with a reference it exported.
+                u32 globalIndex;
+_               (ReadLEB_u32 (& globalIndex, & pos, end));
+                _throwif (m3Err_globaIndexOutOfBounds, globalIndex >= io_module->numGlobals);
+
+                IM3Global global = & io_module->globals [globalIndex];
+
+                _throwif (m3Err_globaIndexOutOfBounds, not global->imported);
+                _throwif (m3Err_wasmMalformed, global->isMutable);
+                _throwif (m3Err_typeMismatch, BaseTypeOf (global->type) != BaseTypeOf (i_segment->type));
+
+                // read the cell the import was linked to, not the placeholder
+                if (global->resolved)
+                    global = global->resolved;
+
+                ref = (void *) (uintptr_t) global->i64Value;
             }
             else _throw ("constant expression required");
 
@@ -559,7 +807,7 @@ _           (Read_opcode (& opcode, & pos, end));
         {
 _           (ReadLEB_u32 (& funcIndex, & pos, end));
             _throwif ("function index out of range", funcIndex >= io_module->numFunctions);
-            ref = & io_module->functions [funcIndex];
+            ref = Function_Implementation (& io_module->functions [funcIndex]);
         }
 
         o_elements [e] = ref;
@@ -578,7 +826,11 @@ M3Result  InitTableAndElements  (IM3Module io_module)
 
     for (u32 i = 0; i < io_module->numTables; ++i)
     {
-        table = & io_module->tables [i];
+        table = io_module->tables [i];
+
+        // a slot pointing at another module's table is that module's to fill
+        if (table->owner != io_module)
+            continue;
 
         if (table->size)
         {
@@ -621,7 +873,7 @@ _               (ResolveElements (io_module, segment, segment->resolved));
             continue;
         }
 
-        table = & io_module->tables [segment->tableIndex];
+        table = io_module->tables [segment->tableIndex];
 
         i32 offset;
         bytes_t expr = segment->initExpr;
@@ -724,8 +976,14 @@ void  FreeExceptions  (IM3Runtime io_runtime)
 // duration of the call. The outermost invocation establishes the stack limit;
 // nested ones (an imported function calling back into Wasm) inherit it.
 static inline
-M3Result  RunCodeChecked  (IM3Runtime i_runtime, pc_t i_pc)
+M3Result  RunCodeChecked  (IM3Runtime i_runtime, IM3Function i_function)
 {
+    pc_t i_pc = i_function->compiled;
+
+    // execution runs against the memory of the module the entry point belongs
+    // to, not against some runtime-wide one
+    M3MemoryHeader * _mem = Module_MemoryHeader (i_function->module);
+
     d_m3StackLimitEnter (i_runtime);
 #if d_m3HasExceptionHandling
     // handler stacks don't nest across a call boundary: a host function calling
@@ -735,9 +993,9 @@ M3Result  RunCodeChecked  (IM3Runtime i_runtime, pc_t i_pc)
     i_runtime->exceptionNesting++;
 #endif
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-    M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs, d_m3BaseCstr);
+    M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
-    M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, i_runtime->memory.mallocated, d_m3OpDefaultArgs);
+    M3Result result = (M3Result) RunCode (i_pc, (m3stack_t) i_runtime->stack, _mem, d_m3OpDefaultArgs);
 # endif
 #if d_m3HasExceptionHandling
     i_runtime->tryDepth = savedTryDepth;
@@ -783,7 +1041,7 @@ _           (CompileFunction (function));
         startFunctionTmp = io_module->startFunction;
         io_module->startFunction = -1;
 
-        result = RunCodeChecked (runtime, function->compiled);
+        result = RunCodeChecked (runtime, function);
 
         if (result)
         {
@@ -806,12 +1064,17 @@ M3Result  m3_LoadModule  (IM3Runtime io_runtime, IM3Module io_module)
     }
 
     io_module->runtime = io_runtime;
-    M3Memory * memory = & io_runtime->memory;
+
+    // linking first: a memory import has to be resolved before InitMemory would
+    // give it pages of its own, and a global import before an initializer reads it
+_   (LinkImports (io_runtime, io_module));
 
 _   (InitMemory (io_runtime, io_module));
 _   (InitGlobals (io_module));
-_   (InitDataSegments (memory, io_module));
+    // Spec order: element segments are applied before data segments. It matters
+    // when one of them traps - whatever ran before the trap stays done.
 _   (InitTableAndElements (io_module));
+_   (InitDataSegments (io_module));
 
     // Start func might use imported functions, which are not liked here yet,
     // so it will be called before a function call is attempted (in m3_FindFunction)
@@ -825,7 +1088,21 @@ _   (InitTableAndElements (io_module));
     return result; // ok
 
 _catch:
-    io_module->runtime = NULL;
+    // The runtime owns the module either way. Instantiation may already have
+    // written this module's functions into a table another module owns, and the
+    // spec keeps whatever it managed to do before the trap, so those entries
+    // stay callable - retaining the module is what stops them dangling.
+    //
+    // It goes on the tail of the list rather than the head: it is not a module
+    // anyone should find by name, only one whose functions may still be
+    // reachable through someone else's table.
+    io_module->next = NULL;
+
+    IM3Module * tail = & io_runtime->modules;
+    while (* tail)
+        tail = & (* tail)->next;
+    * tail = io_module;
+
     return result;
 }
 
@@ -838,7 +1115,9 @@ IM3Global  m3_FindGlobal  (IM3Module               io_module,
         IM3Global g = & io_module->globals [i];
         if (g->name and strcmp (g->name, i_globalName) == 0)
         {
-            return g;
+            // a re-exported global is the one that was imported, so reads and
+            // writes have to reach the cell that actually holds the value
+            return g->resolved ? g->resolved : g;
         }
     }
 
@@ -851,7 +1130,7 @@ IM3Global  m3_FindGlobal  (IM3Module               io_module,
         {
             if (strcmp (g->import.fieldUtf8, i_globalName) == 0)
             {
-                return g;
+                return g->resolved ? g->resolved : g;
             }
         }
     }
@@ -912,7 +1191,12 @@ void *  v_FindFunction  (IM3Module i_module, void * i_info)
     {
         IM3Function f = & i_module->functions [i];
         if (f->export_name and strcmp (f->export_name, i_name) == 0)
-            return f;
+        {
+            // A module that re-exports an import names the placeholder here.
+            // Resolve to the function that actually runs, or a host-side call
+            // would run it against the importing module's memory.
+            return Function_Implementation (f);
+        }
     }
 
     // Search internal functions
@@ -936,34 +1220,84 @@ void *  v_FindFunction  (IM3Module i_module, void * i_info)
 }
 
 
+// Shared tail of the two lookups: a function is only usable once it has code.
+static
+M3Result  PrepareFoundFunction  (IM3Function * o_function, IM3Function i_function)
+{
+    M3Result result = m3Err_none;
+
+    if (not i_function->compiled)
+    {
+_       (CompileFunction (i_function))
+    }
+
+    _catch:
+    * o_function = result ? NULL : i_function;
+
+    return result;
+}
+
+
+// Searches every module in the runtime, most recently loaded first. That is a
+// guess once more than one module is loaded and two of them export the same
+// name - m3_FindFunctionIn says which module is meant.
 M3Result  m3_FindFunction  (IM3Function * o_function, IM3Runtime i_runtime, const char * const i_functionName)
 {
-    M3Result result = m3Err_none;                               d_m3Assert (o_function and i_runtime and i_functionName);
-
+                                                                d_m3Assert (o_function and i_runtime and i_functionName);
     IM3Function function = NULL;
 
     if (not i_runtime->modules) {
-        _throw ("no modules loaded");
+        * o_function = NULL;
+        return "no modules loaded";
     }
 
     function = (IM3Function) ForEachModule (i_runtime, v_FindFunction, (void *) i_functionName);
 
-    if (function)
+    if (not function)
     {
-        if (not function->compiled)
-        {
-_           (CompileFunction (function))
-        }
+        * o_function = NULL;
+        return ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName);
     }
-    else _throw (ErrorModule (m3Err_functionLookupFailed, i_runtime->modules, "'%s'", i_functionName));
 
-    _catch:
-    if (result)
-        function = NULL;
+    return PrepareFoundFunction (o_function, function);
+}
 
-    * o_function = function;
 
-    return result;
+IM3Module  m3_FindModule  (IM3Runtime i_runtime, const char * const i_moduleName)
+{
+    if (not i_runtime or not i_moduleName)
+        return NULL;
+
+    // the list is newest-first, so a name registered twice names the newer one
+    for (IM3Module m = i_runtime->modules; m; m = m->next)
+    {
+        if (m->name and strcmp (m->name, i_moduleName) == 0)
+            return m;
+    }
+
+    return NULL;
+}
+
+
+// Searches one module's exports, which is what naming a module means.
+M3Result  m3_FindFunctionIn  (IM3Function * o_function, IM3Module i_module, const char * const i_functionName)
+{
+                                                                d_m3Assert (o_function and i_functionName);
+    if (not i_module)
+    {
+        * o_function = NULL;
+        return m3Err_functionLookupFailed;      // ErrorModule would deref it
+    }
+
+    IM3Function function = (IM3Function) v_FindFunction (i_module, (void *) i_functionName);
+
+    if (not function)
+    {
+        * o_function = NULL;
+        return ErrorModule (m3Err_functionLookupFailed, i_module, "'%s'", i_functionName);
+    }
+
+    return PrepareFoundFunction (o_function, function);
 }
 
 
@@ -975,7 +1309,7 @@ _try {
 
     _throwif ("no table", i_module->numTables == 0);
 
-    table = & i_module->tables [0];
+    table = i_module->tables [0];
     _throwif ("function index out of range", i_index >= table->size);
 
     function = (IM3Function) table->elements [i_index];
@@ -1121,7 +1455,7 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
-    result = RunCodeChecked (runtime, i_function->compiled);
+    result = RunCodeChecked (runtime, i_function);
     ReportNativeStackUsage ();
 
     runtime->lastCalled = result ? NULL : i_function;
@@ -1169,7 +1503,7 @@ _   (checkStartFunction(i_function->module))
         }
     }
 
-    result = RunCodeChecked (runtime, i_function->compiled);
+    result = RunCodeChecked (runtime, i_function);
 
     ReportNativeStackUsage ();
 
@@ -1177,6 +1511,103 @@ _   (checkStartFunction(i_function->module))
 
     _catch: return result;
 }
+
+// Argument parsing for m3_CallArgv. Strict on purpose: the whole string has to
+// be consumed, so "12abc" is rejected rather than read as 12, and an empty or
+// unparseable argument is an error rather than the zero that strtoul with a
+// NULL end pointer used to hand back. See wasm3/wasm3#367.
+static
+M3Result  ParseArgInteger  (ccstr_t i_arg, u32 i_numBits, u64 * o_value)
+{
+    if (not i_arg or not * i_arg)
+        return "empty argument";
+
+    // strtoull would skip leading space, but trailing space is rejected below;
+    // accepting one and not the other would just be confusing
+    if (isspace ((unsigned char) * i_arg))
+        return "argument is not a number";
+
+    char * end = NULL;
+    u64 value;
+
+    errno = 0;
+
+    // an argument may be spelled signed or unsigned: -1 and 4294967295 name the
+    // same i32
+    if (* i_arg == '-')
+    {
+        i64 signedValue = strtoll (i_arg, & end, 10);
+
+        if (i_numBits == 32 and (signedValue < INT32_MIN or signedValue > INT32_MAX))
+            return "argument out of range";
+
+        value = (u64) signedValue;
+    }
+    else
+    {
+        value = strtoull (i_arg, & end, 10);
+
+        if (i_numBits == 32 and value > UINT32_MAX)
+            return "argument out of range";
+    }
+
+    if (errno == ERANGE)
+        return "argument out of range";
+
+    if (end == i_arg or * end)
+        return "argument is not a number";
+
+    * o_value = value;
+
+    return m3Err_none;
+}
+
+
+#if d_m3HasFloat
+static
+M3Result  ParseArgFloat  (ccstr_t i_arg, f64 * o_value)
+{
+    if (not i_arg or not * i_arg)
+        return "empty argument";
+
+    if (isspace ((unsigned char) * i_arg))
+        return "argument is not a number";
+
+    char * end = NULL;
+
+    errno = 0;
+
+    f64 value = strtod (i_arg, & end);
+
+    if (end == i_arg or * end)
+        return "argument is not a number";
+
+    // strtod reports underflow through ERANGE as well, and a denormal result is
+    // perfectly usable, so only an overflow to infinity is out of range
+    if (errno == ERANGE and (value > DBL_MAX or value < -DBL_MAX))
+        return "argument out of range";
+
+    * o_value = value;
+
+    return m3Err_none;
+}
+#endif
+
+
+// A reference argument is either the null reference or a host handle written as
+// an integer.
+static
+M3Result  ParseArgReference  (ccstr_t i_arg, u64 * o_value)
+{
+    if (i_arg and strcmp (i_arg, "null") == 0)
+    {
+        * o_value = 0;
+        return m3Err_none;
+    }
+
+    return ParseArgInteger (i_arg, 64, o_value);
+}
+
 
 M3Result  m3_CallArgv  (IM3Function i_function, uint32_t i_argc, const char * i_argv[])
 {
@@ -1204,21 +1635,27 @@ _   (checkStartFunction(i_function->module))
 
     for (u32 i = 0; i < ftype->numArgs; ++i)
     {
+        u64 value = 0;
+# if d_m3HasFloat
+        f64 fvalue = 0;
+# endif
         switch (d_FuncArgType(ftype, i)) {
-        case c_m3Type_i32:  *(i32*)(s) = strtoul(i_argv[i], NULL, 10);  s += 8; break;
-        case c_m3Type_i64:  *(i64*)(s) = strtoull(i_argv[i], NULL, 10); s += 8; break;
+        case c_m3Type_i32:  _ (ParseArgInteger   (i_argv[i], 32, & value)) *(i32*)(s) = (i32) value; s += 8; break;
+        case c_m3Type_i64:  _ (ParseArgInteger   (i_argv[i], 64, & value)) *(i64*)(s) = (i64) value; s += 8; break;
         case c_m3Type_funcref:
         case c_m3Type_externref:
-        case c_m3Type_exnref:    *(uintptr_t*)(s) = (uintptr_t)strtoull(i_argv[i], NULL, 10); s += 8; break;
+        case c_m3Type_exnref:
+                            _ (ParseArgReference (i_argv[i], & value)) *(uintptr_t*)(s) = (uintptr_t) value; s += 8; break;
 # if d_m3HasFloat
-        case c_m3Type_f32:  *(f32*)(s) = strtod(i_argv[i], NULL);       s += 8; break;  // strtof would be less portable
-        case c_m3Type_f64:  *(f64*)(s) = strtod(i_argv[i], NULL);       s += 8; break;
+                                                                    // strtof would be less portable
+        case c_m3Type_f32:  _ (ParseArgFloat     (i_argv[i], & fvalue)) *(f32*)(s) = (f32) fvalue; s += 8; break;
+        case c_m3Type_f64:  _ (ParseArgFloat     (i_argv[i], & fvalue)) *(f64*)(s) = fvalue; s += 8; break;
 # endif
-        default: return "unknown argument type";
+        default: _throw ("unknown argument type");
         }
     }
 
-    result = RunCodeChecked (runtime, i_function->compiled);
+    result = RunCodeChecked (runtime, i_function);
 
     ReportNativeStackUsage ();
 
@@ -1414,28 +1851,51 @@ void m3_ResetErrorInfo (IM3Runtime i_runtime)
     }
 }
 
-uint8_t *  m3_GetMemory  (IM3Runtime i_runtime, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
+uint8_t *  m3_GetMemory  (IM3Module i_module, uint32_t * o_memorySizeInBytes, uint32_t i_memoryIndex)
 {
-    uint8_t * memory = NULL;                                                    d_m3Assert (i_memoryIndex == 0);
+    uint8_t * memory = NULL;
+    u32 size = 0;
 
-    if (i_runtime)
+    if (i_module and i_memoryIndex < i_module->numMemories)
     {
-        u32 size = (u32) i_runtime->memory.mallocated->length;
+        IM3Memory mem = i_module->memories [i_memoryIndex];
 
-        if (o_memorySizeInBytes)
-            * o_memorySizeInBytes = size;
+        if (mem->mallocated)
+        {
+            size = (u32) mem->mallocated->length;
 
-        if (size)
-            memory = m3MemData (i_runtime->memory.mallocated);
+            if (size)
+                memory = m3MemData (mem->mallocated);
+        }
     }
+
+    if (o_memorySizeInBytes)
+        * o_memorySizeInBytes = size;
 
     return memory;
 }
 
 
-uint32_t  m3_GetMemorySize  (IM3Runtime i_runtime)
+uint32_t  m3_GetMemorySize  (IM3Module i_module, uint32_t i_memoryIndex)
 {
-    return i_runtime->memory.mallocated->length;
+    if (not i_module or i_memoryIndex >= i_module->numMemories)
+        return 0;
+
+    IM3Memory mem = i_module->memories [i_memoryIndex];
+
+    return mem->mallocated ? (uint32_t) mem->mallocated->length : 0;
+}
+
+
+uint32_t  m3_GetMemorySizeAt  (const void * i_memory)
+{
+    if (not i_memory)
+        return 0;
+
+    // the header sits immediately before the data it describes
+    const M3MemoryHeader * header = ((const M3MemoryHeader *) i_memory) - 1;
+
+    return (uint32_t) header->length;
 }
 
 

@@ -1477,9 +1477,15 @@ _   (ReadLEB_u32 (& globalIndex, & o->wasm, o->wasmEnd));
             // Spec: a constant expression may only read an imported immutable
             // global. The module's own globals are counted before their
             // initializer is walked, so a bare index check would let one
-            // reference itself.
+            // reference itself. These describe how the module declared the
+            // global, so they are checked before following any link.
             _throwif (m3Err_globaIndexOutOfBounds, o->isInitExpr and not global->imported);
             _throwif (m3Err_wasmMalformed, o->isInitExpr and global->isMutable);
+
+            // an import linked to another module reads and writes that module's
+            // cell, not the placeholder standing in for it here
+            if (global->resolved)
+                global = global->resolved;
 
 _           ((i_opcode == c_waOp_getGlobal) ? Compile_GetGlobal (o, global) : Compile_SetGlobal (o, global));
         }
@@ -1950,45 +1956,6 @@ _       (Pop (o));
     } _catch: return result;
 }
 
-// An import that no host function was bound to may still be satisfied by another
-// module loaded into the same runtime, matched on the module's registered name.
-// Only functions can be linked this way: the runtime owns a single linear memory,
-// so a callee reaching for its own memory would find the caller's.
-static
-M3Result  ResolveImportedFunction  (IM3Function io_function)
-{
-    M3Result result = m3Err_none;
-
-    ccstr_t moduleName = io_function->import.moduleUtf8;
-    ccstr_t fieldName  = io_function->import.fieldUtf8;
-
-    if (not (moduleName and fieldName and io_function->module))
-        return result;
-
-    for (IM3Module m = io_function->module->runtime->modules; m; m = m->next)
-    {
-        if (m == io_function->module or not m->name or strcmp (m->name, moduleName) != 0)
-            continue;
-
-        for (u32 i = 0; i < m->numFunctions; ++i)
-        {
-            IM3Function f = & m->functions [i];
-
-            if (f->export_name and strcmp (f->export_name, fieldName) == 0)
-            {
-                _throwif (m3Err_functionImportMissing, f->funcType != io_function->funcType);
-
-                if (not f->compiled)
-_                   (CompileFunction (f));
-
-                io_function->compiled = f->compiled;
-                return result;
-            }
-        }
-    }
-
-    _catch: return result;
-}
 
 
 #if d_m3HasTypedRefs
@@ -2086,6 +2053,34 @@ _       (Push (o, nonNull, slot));
 #endif // d_m3HasTypedRefs
 
 
+// Swaps the _mem register onto a given memory. Only ever emitted in pairs --
+// see op_SetMemory.
+static
+M3Result  EmitSetMemoryPtr  (IM3Compilation o, IM3Memory i_memory)
+{
+    M3Result result = m3Err_none;
+
+_   (EmitOp (o, op_SetMemory));
+    EmitPointer (o, i_memory);
+
+    _catch: return result;
+}
+
+
+// ...onto one of the compiling module's own memories, by index. Only reached
+// with a non-zero index under multi-memory, but the index has already been
+// bounds-checked by ReadMemoryIndex either way.
+static inline
+M3Result  EmitSetMemory  (IM3Compilation o, u32 i_memoryIdx)
+{
+#if d_m3HasMultiMemory
+    return EmitSetMemoryPtr (o, o->module->memories [i_memoryIdx]);
+#else
+    (void) o; (void) i_memoryIdx;
+    return m3Err_unknownMemory;
+#endif
+}
+
 static
 M3Result  Compile_Call  (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -2095,43 +2090,52 @@ _   (ReadLEB_u32 (& functionIndex, & o->wasm, o->wasmEnd));
 
     IM3Function function = Module_GetFunction (o->module, functionIndex);
 
-    if (function and not function->compiled)
-_       (ResolveImportedFunction (function));
-
     if (function)
     {                                                                   m3log (compile, d_indent " (func= [%d] '%s'; args= %d)",
                                                                                 get_indention_string (o), functionIndex, m3_GetFunctionName (function), function->funcType->numArgs);
-        if (function->module)
+        // an import linked to another module's export runs that module's body
+        IM3Function target = Function_Implementation (function);
+
+        if (target->module)
         {
             bool isReturnCall = (i_opcode == c_waOp_returnCall);
-            bool useTailCall  = isReturnCall and d_m3CanTailCall;
+
+            // The callee's body runs against its own module's memory, so a call
+            // that crosses modules is bracketed by a pair of op_SetMemory. A
+            // tail call never returns to run the second one, so those compile
+            // as a plain call followed by a return instead.
+            bool crossModule = (target->module != o->module);
+            bool useTailCall = isReturnCall and d_m3CanTailCall and not crossModule;
 
             u16 slotTop, numArgSlots = 0;
 
             if (useTailCall) {
-_               (CompileTailCallArgs (o, & slotTop, & numArgSlots, function->funcType, false));
+_               (CompileTailCallArgs (o, & slotTop, & numArgSlots, target->funcType, false));
             } else {
-_               (CompileCallArgsAndReturn (o, & slotTop, function->funcType, false));
+_               (CompileCallArgsAndReturn (o, & slotTop, target->funcType, false));
             }
 
             IM3Operation op;
             const void * operand;
 
-            if (function->compiled)
+            if (target->compiled)
             {
                 op = useTailCall ? op_ReturnCall : op_Call;
-                operand = function->compiled;
+                operand = target->compiled;
             }
             else
             {
                 op = useTailCall ? op_CompileReturnCall : op_Compile;
-                operand = function;
+                operand = target;
             }
 
 #if d_m3HasExceptionHandling
             if (isReturnCall)
 _               (EmitPopTryFramesForReturnCall (o));
 #endif
+
+            if (crossModule)
+_               (EmitSetMemoryPtr (o, Module_Memory0 (target->module)));
 
 _           (EmitOp     (o, op));
             EmitPointer (o, operand);
@@ -2144,8 +2148,14 @@ _           (EmitOp     (o, op));
 
 _               (SetStackPolymorphic (o));
             }
-            else if (isReturnCall)
-_               (Compile_Return (o, i_opcode));
+            else
+            {
+                if (crossModule)
+_                   (EmitSetMemoryPtr (o, Module_Memory0 (o->module)));
+
+                if (isReturnCall)
+_                   (Compile_Return (o, i_opcode));
+            }
         }
         else
         {
@@ -2169,7 +2179,7 @@ _   (ReadLEB_u32 (& tableIndex, & o->wasm, o->wasmEnd));
 
     _throwif ("function call type index out of range", typeIndex >= o->module->numFuncTypes);
     _throwif ("table index out of range", tableIndex >= o->module->numTables);
-    _throwif (m3Err_typeMismatch, BaseTypeOf(o->module->tables [tableIndex].type) != c_m3Type_funcref);
+    _throwif (m3Err_typeMismatch, BaseTypeOf(o->module->tables [tableIndex]->type) != c_m3Type_funcref);
 
     if (IsStackTopInRegister (o))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_i32));
@@ -2195,7 +2205,7 @@ _       (EmitPopTryFramesForReturnCall (o));
 
 _   (EmitOp         (o, useTailCall ? op_ReturnCallIndirect : op_CallIndirect));
     EmitSlotOffset  (o, tableIndexSlot);
-    EmitPointer     (o, & o->module->tables [tableIndex]);
+    EmitPointer     (o, o->module->tables [tableIndex]);
     EmitPointer     (o, type);              // TODO: unify all types in M3Environment
     EmitSlotOffset  (o, execTop);
 
@@ -2213,17 +2223,38 @@ _       (Compile_Return (o, i_opcode));
     return result;
 }
 
+// Reads the memory index a memory instruction names, and checks it against the
+// module's index space. Without multi-memory the immediate is a reserved byte
+// that has to be zero, which is the same check.
+static
+M3Result  ReadMemoryIndex  (IM3Compilation o, u32 * o_memoryIdx)
+{
+    M3Result result;
+
+_   (ReadLEB_u32 (o_memoryIdx, & o->wasm, o->wasmEnd));
+
+    _throwif (m3Err_unknownMemory, * o_memoryIdx >= o->module->numMemories);
+
+    _catch: return result;
+}
+
 static
 M3Result  Compile_Memory_Size  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    u32 memoryIdx;
+_   (ReadMemoryIndex (o, & memoryIdx));
 
 _   (PreserveRegisterIfOccupied (o, c_m3Type_i32));
 
+    if (memoryIdx)
+_       (EmitSetMemory (o, memoryIdx));
+
 _   (EmitOp     (o, op_MemSize));
+
+    if (memoryIdx)
+_       (EmitSetMemory (o, 0));
 
 _   (PushRegister (o, c_m3Type_i32));
 
@@ -2235,13 +2266,19 @@ M3Result  Compile_Memory_Grow  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    i8 reserved;
-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
+    u32 memoryIdx;
+_   (ReadMemoryIndex (o, & memoryIdx));
 
 _   (CopyStackTopToRegister (o, false));
 _   (PopType (o, c_m3Type_i32));
 
+    if (memoryIdx)
+_       (EmitSetMemory (o, memoryIdx));
+
 _   (EmitOp     (o, op_MemGrow));
+
+    if (memoryIdx)
+_       (EmitSetMemory (o, 0));
 
 _   (PushRegister (o, c_m3Type_i32));
 
@@ -2253,28 +2290,43 @@ M3Result  Compile_Memory_CopyFill  (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result = m3Err_none;
 
-    u32 sourceMemoryIdx, targetMemoryIdx;
-    IM3Operation op;
+    // memory.copy names the destination first and then the source; memory.fill
+    // names only the one it writes.
+    u32 sourceMemoryIdx = 0, targetMemoryIdx = 0;
+    bool isCopy = (i_opcode == c_waOp_memoryCopy);
 
-    _throwif (m3Err_wasmMalformed, not (o->module->memoryImported or o->module->memoryDeclared));
+    _throwif (m3Err_wasmMalformed, o->module->numMemories == 0);
 
-    if (i_opcode == c_waOp_memoryCopy)
-    {
-_       (ReadLEB_u32 (& sourceMemoryIdx, & o->wasm, o->wasmEnd));
-        _throwif (m3Err_wasmMalformed, sourceMemoryIdx != 0);
-        op = op_MemCopy;
-    }
-    else op = op_MemFill;
+_   (ReadMemoryIndex (o, & targetMemoryIdx));
 
-_   (ReadLEB_u32 (& targetMemoryIdx, & o->wasm, o->wasmEnd));
-    _throwif (m3Err_wasmMalformed, targetMemoryIdx != 0);
+    if (isCopy)
+_       (ReadMemoryIndex (o, & sourceMemoryIdx));
 
 _   (CopyStackTopToRegister (o, false));
 
-_   (EmitOp  (o, op));
+#if d_m3HasMultiMemory
+    if (isCopy and sourceMemoryIdx != targetMemoryIdx)
+    {
+        // two memories at once: _mem can only name one, so the op takes both
+_       (EmitOp     (o, op_MemCopy_x));
+        EmitPointer (o, o->module->memories [targetMemoryIdx]);
+        EmitPointer (o, o->module->memories [sourceMemoryIdx]);
+    }
+    else
+#endif
+    {
+        if (targetMemoryIdx)
+_           (EmitSetMemory (o, targetMemoryIdx));
+
+_       (EmitOp (o, isCopy ? op_MemCopy : op_MemFill));
+    }
+
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
 _   (EmitSlotNumOfStackTopAndPop (o));
+
+    if (targetMemoryIdx and not (isCopy and sourceMemoryIdx != targetMemoryIdx))
+_       (EmitSetMemory (o, 0));
 
     _catch: return result;
 }
@@ -2306,19 +2358,24 @@ M3Result  Compile_Memory_Init  (IM3Compilation o, m3opcode_t i_opcode)
     M3DataSegment * segment = NULL;
     u32 memoryIdx;
 
-    _throwif (m3Err_wasmMalformed, not (o->module->memoryImported or o->module->memoryDeclared));
+    _throwif (m3Err_wasmMalformed, o->module->numMemories == 0);
 
 _   (ReadDataSegment (o, & segment));
-_   (ReadLEB_u32 (& memoryIdx, & o->wasm, o->wasmEnd));
-    _throwif (m3Err_wasmMalformed, memoryIdx != 0);
+_   (ReadMemoryIndex (o, & memoryIdx));
 
 _   (CopyStackTopToRegister (o, false));
+
+    if (memoryIdx)
+_       (EmitSetMemory (o, memoryIdx));
 
 _   (EmitOp (o, op_MemInit));
     EmitPointer (o, segment);
 _   (PopType (o, c_m3Type_i32));
 _   (EmitSlotNumOfStackTopAndPop (o));
 _   (EmitSlotNumOfStackTopAndPop (o));
+
+    if (memoryIdx)
+_       (EmitSetMemory (o, 0));
 
     _catch: return result;
 }
@@ -2428,6 +2485,7 @@ M3Result  Compile_Ref_Func  (IM3Compilation o, m3opcode_t i_opcode)
 
     // declared before the throws below, which jump past this point to _catch
     m3type_t refType = c_m3Type_funcref;
+    IM3Function reference = NULL;
 
 _   (ReadLEB_u32 (& funcIndex, & o->wasm, o->wasmEnd));
     _throwif ("function index out of range", funcIndex >= o->module->numFunctions);
@@ -2444,7 +2502,12 @@ _       (Module_DeclareFunction (o->module, funcIndex));
     refType = RefTypeOfFuncType (o->module->functions [funcIndex].funcType, true);
 #endif
 
-_   (PushConst (o, (u64) (uintptr_t) & o->module->functions [funcIndex], refType));
+    // A reference denotes the function that actually runs, so a ref.func naming
+    // an import linked to another module is the same reference that module's
+    // own ref.func would produce - and carries the defining module with it.
+    reference = Function_Implementation (& o->module->functions [funcIndex]);
+
+_   (PushConst (o, (u64) (uintptr_t) reference, refType));
 
     _catch: return result;
 }
@@ -2461,7 +2524,7 @@ M3Result  ReadTable  (IM3Compilation o, M3Table ** o_table)
 _   (ReadLEB_u32 (& index, & o->wasm, o->wasmEnd));
     _throwif ("table index out of range", index >= o->module->numTables);
 
-    * o_table = & o->module->tables [index];
+    * o_table = o->module->tables [index];
 
     _catch: return result;
 }
@@ -3377,20 +3440,28 @@ static
 M3Result  Compile_Load_Store  (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
-    u32 alignHint, memoryOffset;
+    u32 alignHint, memoryOffset, memoryIdx;
 
-_   (ReadLEB_u32 (& alignHint, & o->wasm, o->wasmEnd));  // checked by the validator
-_   (ReadLEB_u32 (& memoryOffset, & o->wasm, o->wasmEnd));
-                                                                        m3log (compile, d_indent " (offset = %d)", get_indention_string (o), memoryOffset);
+    // alignHint is checked by the validator
+_   (ReadMemoryArg (& alignHint, & memoryIdx, & memoryOffset, & o->wasm, o->wasmEnd));
+                                                                        m3log (compile, d_indent " (memory = %d; offset = %d)", get_indention_string (o), memoryIdx, memoryOffset);
+    _throwif (m3Err_unknownMemory, memoryIdx >= o->module->numMemories);
+
     IM3OpInfo opInfo = GetOpInfo (i_opcode);
     _throwif (m3Err_unknownOpcode, not opInfo);
 
     if (IsFpType (opInfo->type))
 _       (PreserveRegisterIfOccupied (o, c_m3Type_f64));
 
+    if (memoryIdx)
+_       (EmitSetMemory (o, memoryIdx));
+
 _   (Compile_Operator (o, i_opcode));
 
     EmitConstant32 (o, memoryOffset);
+
+    if (memoryIdx)
+_       (EmitSetMemory (o, 0));
 }
     _catch: return result;
 }
@@ -4158,9 +4229,23 @@ M3Result  CompileFunction  (IM3Function io_function)
 {
     if (!io_function->wasm)
     {
-        // an import: it may still be satisfied by another module in the runtime
-        M3Result r = ResolveImportedFunction (io_function);
-        if (r) return r;
+        // An import. Either linking pointed it at another module's function -
+        // in which case that one carries the body - or a host function was
+        // bound to it, or it is simply unsatisfied.
+        IM3Function impl = Function_Implementation (io_function);
+
+        if (impl != io_function)
+        {
+            if (not impl->compiled)
+            {
+                M3Result r = CompileFunction (impl);
+                if (r) return r;
+            }
+
+            // keep the placeholder callable too, for anything still holding it
+            io_function->compiled = impl->compiled;
+            return m3Err_none;
+        }
 
         return io_function->compiled ? m3Err_none : "function body is missing";
     }

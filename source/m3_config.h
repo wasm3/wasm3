@@ -179,6 +179,14 @@
 #   define d_m3HasExtendedConst                 1       // implement the extended constant expressions proposal
 # endif
 
+// More than one linear memory per module, each memory instruction naming the
+// one it addresses. Memory 0 keeps the fast path -- the interpreter carries it
+// in the _mem register -- and the others are reached by swapping that register
+// around the access, so the cost lands only on modules that use them.
+# ifndef d_m3HasMultiMemory
+#   define d_m3HasMultiMemory                   1       // implement the multiple memories proposal
+# endif
+
 // The import section's compact encodings: one module name shared by a run of
 // imports, optionally with one externtype shared as well. Decoding only - a
 // module means exactly what it would spelled out the long way.

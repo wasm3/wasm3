@@ -678,11 +678,14 @@ d_m3Op  (CallIndirect)
 
                 if (M3_LIKELY(not r))
                 {
+                    // a table may hold functions from another module, and those
+                    // run against their own module's memory
+                    M3MemoryHeader * calleeMem = Module_MemoryHeader (function->module);
 
 # if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
-                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
+                    r = Call (function->compiled, sp, calleeMem, d_m3OpDefaultArgs, d_m3BaseCstr);
 # else
-                    r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
+                    r = Call (function->compiled, sp, calleeMem, d_m3OpDefaultArgs);
 # endif
 
                     _mem = memory->mallocated;
@@ -903,7 +906,7 @@ d_m3Op  (MemSize)
 d_m3Op  (MemGrow)
 {
     IM3Runtime runtime          = m3MemRuntime(_mem);
-    IM3Memory memory            = & runtime->memory;
+    IM3Memory memory            = m3MemInfo (_mem);
 
     i32 numPagesToGrow = _r0;
     if (numPagesToGrow >= 0) {
@@ -913,7 +916,7 @@ d_m3Op  (MemGrow)
         {
             u32 requiredPages = memory->numPages + numPagesToGrow;
 
-            M3Result r = ResizeMemory (runtime, requiredPages);
+            M3Result r = ResizeMemory (runtime, memory, requiredPages);
             if (r)
                 _r0 = -1;
 
@@ -949,6 +952,53 @@ d_m3Op  (MemCopy)
     }
     else d_outOfBoundsMemOp (destination, size);
 }
+
+
+// Points the _mem register at another memory: one of the module's own, or
+// memory 0 of a module being called into. The compiler emits these in pairs,
+// around a single access or a single cross-module call, so _mem is back where
+// it belongs before anything that reads it for another purpose - a backtrace,
+// the stack-limit check - can run.
+d_m3Op  (SetMemory)
+{
+    IM3Memory memory = immediate (IM3Memory);
+
+    _mem = memory->mallocated;
+
+    nextOp ();
+}
+
+
+#if d_m3HasMultiMemory
+
+// memory.copy between two different memories. The pair-of-SetMemory trick only
+// reaches one memory at a time, so this one names both outright.
+d_m3Op  (MemCopy_x)
+{
+    IM3Memory destMemory   = immediate (IM3Memory);
+    IM3Memory sourceMemory = immediate (IM3Memory);
+
+    M3MemoryHeader * destMem   = destMemory->mallocated;
+    M3MemoryHeader * sourceMem = sourceMemory->mallocated;
+
+    u32 size = (u32) _r0;
+    u64 source = slot (u32);
+    u64 destination = slot (u32);
+
+    if (M3_LIKELY(destination + size <= destMem->length))
+    {
+        if (M3_LIKELY(source + size <= sourceMem->length))
+        {
+            memmove (m3MemData (destMem) + destination, m3MemData (sourceMem) + source, size);
+
+            nextOp ();
+        }
+        else d_outOfBoundsMemOp (source, size);
+    }
+    else d_outOfBoundsMemOp (destination, size);
+}
+
+#endif // d_m3HasMultiMemory
 
 
 d_m3Op  (MemFill)
