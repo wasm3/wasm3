@@ -179,6 +179,7 @@ typedef struct M3Global
         f64 f64Value;
         f32 f32Value;
 #endif
+        void * refValue;
     };
 
     cstr_t                  name;

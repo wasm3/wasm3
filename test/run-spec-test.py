@@ -664,9 +664,12 @@ if wasm3_ver in Blacklist(["* self-hosting *"]):
       "conversions.wast:* i32.reinterpret_f32(2141192192)",
       "conversions.wast:* i32.reinterpret_f32(4288675840)",
       # the i32.load right after "f32.store" of an f32 sNaN; the other i32.loads in
-      # these modules read back a data segment or an i32.store, and are unaffected
+      # these modules read back a data segment or an i32.store, and are unaffected.
+      # float_memory.wast:125 stores a NaN that is already quiet, so it survives.
       "float_memory.wast:21 *",
       "float_memory.wast:73 *",
+      # multi-memory's own copy of the same module, addressing memory 3
+      "float_memory0.wast:26 *",
     ])
 
 # Without the "tail-call" build feature, return_call still runs correctly, it just doesn't

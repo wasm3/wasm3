@@ -829,7 +829,7 @@ _               (ReadLEB_u32 (& globalIndex, & pos, end));
                 if (global->resolved)
                     global = global->resolved;
 
-                ref = (void *) (uintptr_t) global->i64Value;
+                ref = global->refValue;
             }
             else _throw ("constant expression required");
 
@@ -872,13 +872,13 @@ M3Result  InitTableAndElements  (IM3Module io_module)
 
             if (table->initExpr)
             {
-                u64 value = 0;
+                void * value = NULL;
                 bytes_t start = table->initExpr;
 _               (EvaluateExpression (io_module, & value, BaseTypeOf(table->type),
                                      & start, table->initExpr + table->initExprSize));
 
                 for (u32 e = 0; e < table->size; ++e)
-                    table->elements [e] = (void *) (uintptr_t) value;
+                    table->elements [e] = value;
             }
         }
     }
