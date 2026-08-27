@@ -413,6 +413,7 @@ jobs:
         python-version: '3.x'
     - name: Update and Build Python module
       run: |
+        rm -rf ./pywasm3/external/wasm3
         cp -r wasm3 ./pywasm3/external/wasm3
         pip install ./pywasm3
     - name: Install WABT
