@@ -1,0 +1,82 @@
+name: zig
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*.*.*"]
+    paths-ignore: ['**.md', '**.svg', '**.png']
+  pull_request:
+    paths-ignore: ['**.md', '**.svg', '**.png']
+  workflow_dispatch:
+
+jobs:
+  native:
+    name: zig-native-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            py: python3
+          - os: macos-latest
+            py: python3
+          - os: windows-latest
+            py: python
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build
+        run: zig build -Doptimize=ReleaseFast -Dbuild_wasi=simple
+      - name: Test WebAssembly spec
+        working-directory: test
+        run: ${{ matrix.py }} run-spec-test.py --exec "../zig-out/bin/wasm3 --spec-repl"
+      - name: Test WASI apps
+        working-directory: test
+        run: ${{ matrix.py }} run-wasi-test.py --fast --exec ../zig-out/bin/wasm3
+
+  wasi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Install Wasmtime
+        run: curl https://wasmtime.dev/install.sh -sSf | bash
+      - name: Build (native)
+        run: zig build -Doptimize=ReleaseFast -Dbuild_wasi=simple
+      - name: Build (wasm32-wasi, metawasi)
+        run: zig build -Doptimize=ReleaseFast -Dtarget=wasm32-wasi -Dbuild_wasi=metawasi
+      - name: Prepare wasm
+        run: |
+          cp zig-out/bin/wasm3.wasm ./test/wasm3.wasm
+          cp zig-out/bin/wasm3.wasm ./wasm3-wasi-zig.wasm
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm3-wasi-zig
+          path: ./wasm3-wasi-zig.wasm
+          if-no-files-found: error
+      - name: Test WebAssembly spec (in Wasmtime)
+        run: |
+          export PATH="$HOME/.wasmtime/bin:$PATH"
+          cd test
+          python3 run-spec-test.py --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm --spec-repl"
+      - name: Test WASI apps (in Wasmtime)
+        run: |
+          export PATH="$HOME/.wasmtime/bin:$PATH"
+          cd test
+          python3 run-wasi-test.py --fast --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm"
+      - name: Test WebAssembly spec (self-hosting)
+        run: |
+          cd test
+          python3 run-spec-test.py --exec "../zig-out/bin/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
+      - name: Test WASI apps (self-hosting)
+        run: |
+          cd test
+          python3 run-wasi-test.py --fast --exec "../zig-out/bin/wasm3 --stack-size 2097152 wasm3.wasm"
