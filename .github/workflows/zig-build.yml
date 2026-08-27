@@ -48,8 +48,8 @@ jobs:
           version: 0.16.0
       - name: Install Wasmtime
         run: curl https://wasmtime.dev/install.sh -sSf | bash
-      - name: Build (native)
-        run: zig build -Doptimize=ReleaseFast -Dbuild_wasi=simple
+      # Self-hosting tests are deferred until build.zig supports uvwasi
+      # The CMake CI runs them against a uvwasi host, which the zig build cannot provide yet
       - name: Build (wasm32-wasi, metawasi)
         run: zig build -Doptimize=ReleaseFast -Dtarget=wasm32-wasi -Dbuild_wasi=metawasi
       - name: Prepare wasm
@@ -72,11 +72,3 @@ jobs:
           export PATH="$HOME/.wasmtime/bin:$PATH"
           cd test
           python3 run-wasi-test.py --fast --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm"
-      - name: Test WebAssembly spec (self-hosting)
-        run: |
-          cd test
-          python3 run-spec-test.py --exec "../zig-out/bin/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
-      - name: Test WASI apps (self-hosting)
-        run: |
-          cd test
-          python3 run-wasi-test.py --fast --exec "../zig-out/bin/wasm3 --stack-size 2097152 wasm3.wasm"
