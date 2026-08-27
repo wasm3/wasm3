@@ -1,9 +1,11 @@
-name: zig
+name: zig-build
 
 on:
   push:
-    branches: ["**"]
-    tags: ["v*.*.*"]
+    branches:
+    - "**"
+    tags:
+    - "v*.*.*"
     paths-ignore: ['**.md', '**.svg', '**.png']
   pull_request:
     paths-ignore: ['**.md', '**.svg', '**.png']
@@ -48,7 +50,7 @@ jobs:
           version: 0.16.0
       - name: Install Wasmtime
         run: curl https://wasmtime.dev/install.sh -sSf | bash
-      # Self-hosting tests are deferred until build.zig supports uvwasi
+      # Self-hosting tests are deferred until build.zig supports uvwasi.
       # The CMake CI runs them against a uvwasi host, which the zig build cannot provide yet
       - name: Build (wasm32-wasi, metawasi)
         run: zig build -Doptimize=ReleaseFast -Dtarget=wasm32-wasi -Dbuild_wasi=metawasi
