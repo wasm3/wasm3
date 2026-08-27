@@ -46,7 +46,7 @@ jobs:
       if: ${{ matrix.config.install }}
       env:
         GCC_MUSL_URL:   https://github.com/prepkg/gcc-toolchain/releases/download/1.0.0-beta/gcc-x86_64-linux-musl.tar.gz
-        CLANG_MUSL_URL: https://github.com/cross-tools/clang-cross/releases/download/20260430/x86_64-unknown-linux-musl.tar.xz
+        CLANG_MUSL_URL: https://github.com/cross-tools/clang-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
       run: |
         mkdir -p .toolchains
         if [ "${{ matrix.config.install }}" = "gcc-musl" ]; then
@@ -413,8 +413,7 @@ jobs:
         python-version: '3.x'
     - name: Update and Build Python module
       run: |
-        rm -rf ./pywasm3/wasm3
-        cp -r wasm3/source ./pywasm3/wasm3
+        cp -r wasm3 ./pywasm3/external/wasm3
         pip install ./pywasm3
     - name: Install WABT
       run: |
