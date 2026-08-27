@@ -816,33 +816,6 @@ jobs:
         path: build-cross/wasm3-${{ matrix.target.name }}
         if-no-files-found: error
 
-  dist-linux-cross:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    needs: cross
-
-    steps:
-    - name: Download the cross-built binaries
-      uses: actions/download-artifact@v7
-      with:
-        path: build-cross
-        pattern: cross-*
-        merge-multiple: true
-    - name: Combine into one archive
-      run: |
-        # an artifact archive doesn't keep the executable bit, so put it back
-        chmod +x build-cross/wasm3-linux-*
-        cd build-cross
-        tar -czvf ../wasm3-linux-other.tar.gz wasm3-linux-*
-    - name: Upload artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: wasm3-linux-other
-        path: wasm3-linux-other.tar.gz
-        if-no-files-found: error
-
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -856,7 +829,7 @@ jobs:
       - cosmopolitan
       - cosmopolitan-test
       - android
-      - dist-linux-cross
+      - cross
 
     permissions:
       contents: write
@@ -871,6 +844,21 @@ jobs:
           path: dist
           pattern: wasm3-*
           merge-multiple: true
+
+      # The cross builds ship as one archive rather than 19 separate assets
+      - name: Download the cross-built binaries
+        uses: actions/download-artifact@v7
+        with:
+          path: build-cross
+          pattern: cross-*
+          merge-multiple: true
+
+      - name: Combine the cross builds into one archive
+        run: |
+          # an artifact archive doesn't keep the executable bit, so put it back
+          chmod +x build-cross/wasm3-linux-*
+          cd build-cross
+          tar -czvf ../dist/wasm3-linux-other.tar.gz wasm3-linux-*
 
       - name: List artifacts
         run: |
