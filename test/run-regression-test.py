@@ -60,6 +60,16 @@ tests = [
     "args":           ["--func", "to_test"],
     "expect_pattern": "*Result: -1*",
   }, {
+    # _start is the WASI entry point, so the app takes a separate path for it.
+    # A plain module can still export _start with results, and those used to be
+    # dropped instead of printed. 0/0 leaves the NaN sign up to the host, so the
+    # sign of the copysign result is not part of the assertion.
+    "name":           "_start with a return value",
+    "issue":          351,
+    "wasm":           "./regression/github-351.wasm",
+    "args":           ["--func", "_start"],
+    "expect_pattern": "*Result: *0.000000*",
+  }, {
     "name":           "Unlinked memory import",
     "issue":          462,
     "wasm":           "./regression/github-462.wasm",

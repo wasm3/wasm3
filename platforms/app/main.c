@@ -329,6 +329,37 @@ void print_backtrace()
     fprintf(stderr, "\n");
 }
 
+M3Result repl_print_results  (IM3Function func)
+{
+    int ret_count = m3_GetRetCount(func);
+
+    static uint64_t    valbuff[128];
+    static const void* valptrs[128];
+    memset(valbuff, 0, sizeof(valbuff));
+    for (int i = 0; i < ret_count; i++) {
+        valptrs[i] = &valbuff[i];
+    }
+    M3Result result = m3_GetResults (func, ret_count, valptrs);
+    if (result) return result;
+
+    if (ret_count <= 0) {
+        fprintf (stderr, "Result: <Empty Stack>\n");
+    }
+    for (int i = 0; i < ret_count; i++) {
+        switch (m3_GetRetType(func, i)) {
+        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)valptrs[i]);  break;
+        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)valptrs[i]);  break;
+# if d_m3HasFloat
+        case c_m3Type_f32:  fprintf (stderr, "Result: %" PRIf32 "\n", *(f32*)valptrs[i]);  break;
+        case c_m3Type_f64:  fprintf (stderr, "Result: %" PRIf64 "\n", *(f64*)valptrs[i]);  break;
+# endif
+        default: return "unknown return type";
+        }
+    }
+
+    return m3Err_none;
+}
+
 M3Result repl_call  (const char* name, int argc, const char* argv[])
 {
     IM3Function func;
@@ -357,6 +388,14 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
         if (result == m3Err_trapExit) {
             exit(wasi_ctx->exit_code);
         }
+        if (result) return result;
+
+        // A WASI command's _start takes and returns nothing, but a plain
+        // module can export _start with results. Print those instead of
+        // silently dropping them.
+        if (m3_GetRetCount(func) > 0) {
+            result = repl_print_results (func);
+        }
 
         return result;
 #else
@@ -365,7 +404,6 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
     }
 
     int arg_count = m3_GetArgCount(func);
-    int ret_count = m3_GetRetCount(func);
     if (argc < arg_count) {
         return "not enough arguments";
     } else if (argc > arg_count) {
@@ -378,31 +416,7 @@ M3Result repl_call  (const char* name, int argc, const char* argv[])
 
     if (result) return result;
 
-    static uint64_t    valbuff[128];
-    static const void* valptrs[128];
-    memset(valbuff, 0, sizeof(valbuff));
-    for (int i = 0; i < ret_count; i++) {
-        valptrs[i] = &valbuff[i];
-    }
-    result = m3_GetResults (func, ret_count, valptrs);
-    if (result) return result;
-
-    if (ret_count <= 0) {
-        fprintf (stderr, "Result: <Empty Stack>\n");
-    }
-    for (int i = 0; i < ret_count; i++) {
-        switch (m3_GetRetType(func, i)) {
-        case c_m3Type_i32:  fprintf (stderr, "Result: %" PRIi32 "\n", *(i32*)valptrs[i]);  break;
-        case c_m3Type_i64:  fprintf (stderr, "Result: %" PRIi64 "\n", *(i64*)valptrs[i]);  break;
-# if d_m3HasFloat
-        case c_m3Type_f32:  fprintf (stderr, "Result: %" PRIf32 "\n", *(f32*)valptrs[i]);  break;
-        case c_m3Type_f64:  fprintf (stderr, "Result: %" PRIf64 "\n", *(f64*)valptrs[i]);  break;
-# endif
-        default: return "unknown return type";
-        }
-    }
-
-    return result;
+    return repl_print_results (func);
 }
 
 // A reference is an opaque pointer-sized word to the engine, with 0 for null, so
