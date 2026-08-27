@@ -83,7 +83,11 @@
 # endif
 
 # if !defined(M3_HAS_TAIL_CALL)
-#  define M3_HAS_TAIL_CALL 1
+#  if defined(__m68k__)
+#    define M3_HAS_TAIL_CALL 0
+#  else
+#    define M3_HAS_TAIL_CALL 1
+#  endif
 # endif
 
 # if M3_HAS_TAIL_CALL && M3_COMPILER_HAS_ATTRIBUTE(musttail)

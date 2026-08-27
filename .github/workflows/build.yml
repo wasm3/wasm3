@@ -45,13 +45,13 @@ jobs:
     - name: Install ${{ matrix.config.install }} toolchain
       if: ${{ matrix.config.install }}
       env:
-        GCC_MUSL_URL:   https://github.com/prepkg/gcc-toolchain/releases/download/1.0.0-beta/gcc-x86_64-linux-musl.tar.gz
+        GCC_MUSL_URL:   https://github.com/cross-tools/musl-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
         CLANG_MUSL_URL: https://github.com/cross-tools/clang-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
       run: |
         mkdir -p .toolchains
         if [ "${{ matrix.config.install }}" = "gcc-musl" ]; then
-          wget -qO- ${GCC_MUSL_URL} | tar xz -C .toolchains
-          echo "TOOLCHAIN_ARGS=-DCMAKE_TOOLCHAIN_FILE=${GITHUB_WORKSPACE}/.toolchains/x86_64-linux-musl/toolchain.cmake" >> $GITHUB_ENV
+          wget -qO- ${GCC_MUSL_URL} | tar xJ -C .toolchains
+          echo "TOOLCHAIN_ARGS=-DCMAKE_TOOLCHAIN_FILE=${GITHUB_WORKSPACE}/.toolchains/x86_64-unknown-linux-musl/toolchain.cmake" >> $GITHUB_ENV
         elif [ "${{ matrix.config.install }}" = "clang-musl" ]; then
           wget -qO- ${CLANG_MUSL_URL} | tar xJ -C .toolchains
           echo "TOOLCHAIN_ARGS=-DCMAKE_C_COMPILER=${GITHUB_WORKSPACE}/.toolchains/x86_64-unknown-linux-musl/bin/x86_64-unknown-linux-musl-clang" >> $GITHUB_ENV

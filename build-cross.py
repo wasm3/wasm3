@@ -16,16 +16,16 @@ musl_targets = [
     #{ "name": "win-i686"       , "arch": "i686-w64-mingw32"            },
     #{ "name": "win-x64"        , "arch": "x86_64-w64-mingw32"          },
 
-    { "name": "linux-armv6"     , "arch": "armv6-linux-musleabihf"      , "runner": "qemu-arm-static"       },
-    { "name": "linux-armv7l"    , "arch": "armv7l-linux-musleabihf"     , "runner": "qemu-arm-static"       },
-    { "name": "linux-mipsel-sf" , "arch": "mipsel-linux-muslsf"         , "runner": "qemu-mipsel-static"    },
-    { "name": "linux-mipsel"    , "arch": "mipsel-linux-musl"           , "runner": "qemu-mipsel-static"    },
-    { "name": "linux-mips-sf"   , "arch": "mips-linux-muslsf"           , "runner": "qemu-mips-static"      },
-    { "name": "linux-mips"      , "arch": "mips-linux-musl"             , "runner": "qemu-mips-static"      },
-    { "name": "linux-mips64el"  , "arch": "mips64el-linux-musl"         , "runner": "qemu-mips64el-static"  },
-    { "name": "linux-mips64"    , "arch": "mips64-linux-musl"           , "runner": "qemu-mips64-static"    },
-    { "name": "linux-ppc"       , "arch": "powerpc-linux-musl"          , "runner": "qemu-ppc-static"       },
-    { "name": "linux-ppc64"     , "arch": "powerpc64-linux-musl"        , "runner": "qemu-ppc64-static"     },
+    { "name": "linux-armv6"     , "arch": "arm-unknown-linux-musleabihf"      , "runner": "qemu-arm-static"       },
+    { "name": "linux-armv7l"    , "arch": "armv7-unknown-linux-musleabihf"    , "runner": "qemu-arm-static"       },
+    { "name": "linux-mipsel-sf" , "arch": "mipsel-unknown-linux-muslsf"       , "runner": "qemu-mipsel-static"    },
+    { "name": "linux-mipsel"    , "arch": "mipsel-unknown-linux-musl"         , "runner": "qemu-mipsel-static"    },
+    { "name": "linux-mips-sf"   , "arch": "mips-unknown-linux-muslsf"         , "runner": "qemu-mips-static"      },
+    { "name": "linux-mips"      , "arch": "mips-unknown-linux-musl"           , "runner": "qemu-mips-static"      },
+    { "name": "linux-mips64el"  , "arch": "mips64el-unknown-linux-musl"       , "runner": "qemu-mips64el-static"  },
+    { "name": "linux-mips64"    , "arch": "mips64-unknown-linux-musl"         , "runner": "qemu-mips64-static"    },
+    { "name": "linux-ppc"       , "arch": "powerpc-unknown-linux-musl"        , "runner": "qemu-ppc-static"       },
+    { "name": "linux-ppc64"     , "arch": "powerpc64-unknown-linux-musl"      , "runner": "qemu-ppc64-static"     },
 
     { "name": "linux-aarch64"   , "arch": "aarch64-unknown-linux-musl"        , "runner": "qemu-aarch64-static"   },
     { "name": "linux-rv32"      , "arch": "riscv32-unknown-linux-musl"        , "runner": "qemu-riscv32-static"   },
@@ -33,8 +33,10 @@ musl_targets = [
     { "name": "linux-s390x"     , "arch": "s390x-ibm-linux-musl"              , "runner": "qemu-s390x-static"     },
     { "name": "linux-loong64"   , "arch": "loongarch64-unknown-linux-musl"    , "runner": "qemu-loong64-static"   },
 
-    #{ "name": "linux-m68k"      , "arch": "m68k-linux-musl"             , "runner": "qemu-m68k-static"       },
-    #{ "name": "linux-microblaze", "arch": "microblaze-linux-musl"       , "runner": "qemu-microblaze-static" },
+    # clang-cross has no toolchain for either of these, so they come from musl-cross
+    # instead - the same project's gcc build, tagged and laid out the same way
+    { "name": "linux-m68k"      , "arch": "m68k-unknown-linux-musl"           , "runner": "qemu-m68k-static"      , "gcc": True },
+    { "name": "linux-microblaze", "arch": "microblaze-xilinx-linux-musl"      , "runner": "qemu-microblaze-static", "gcc": True },
 
     #{ "name": "linux-armv7l-vfpv3"      , "arch": "armv7l-linux-musleabihf" , "runner": "qemu-arm-static"       , "cflags": "-march=armv7-a -mfpu=vfpv3 -mthumb -Wa,-mimplicit-it=thumb" },
     #{ "name": "linux-mipsel-24kc-sf"    , "arch": "mipsel-linux-muslsf"     , "runner": "qemu-mipsel-static"    , "cflags": "-march=24kc" },
@@ -42,15 +44,6 @@ musl_targets = [
     { "name": "wasi-sdk-8"      , "arch": "wasi-sdk-8.0"  , "sdk": 8    , "runner": "wasmer" },
     { "name": "wasi-sdk-11"     , "arch": "wasi-sdk-11.0" , "sdk": 11   , "runner": "wasmer" },
     #{ "name": "wasi-sdk-16"     , "arch": "wasi-sdk-16.0" , "sdk": 16   , "runner": "wasmer" },
-]
-
-gcc_targets = [
-    "linux-armv6"     , "linux-armv7l",
-    "linux-mipsel-sf" , "linux-mipsel",
-    "linux-mips-sf"   , "linux-mips",
-    "linux-mips64el"  , "linux-mips64",
-    "linux-ppc"       , "linux-ppc64",
-    "linux-m68k",
 ]
 
 VERBOSE = False
@@ -66,15 +59,15 @@ def build_target(target):
     if target['name'].startswith("wasi"):
         if not NOWASI:
             build_wasi(target)
-    elif target['name'] in gcc_targets:
+    elif target.get('gcc'):
         build_musl(target,
-                   cc=f".toolchains/{target['arch']}-cross/bin/{target['arch']}-gcc",
-                   toolchain_src="https://github.com/vshymanskyy/muslcc-mirror/releases/download/11-20211120",
-                   tar_name=f"{target['arch']}-cross.tgz")
+                   cc=f".toolchains/{target['arch']}/bin/{target['arch']}-gcc",
+                   toolchain_src="https://github.com/cross-tools/musl-cross/releases/download/20260823",
+                   tar_name=f"{target['arch']}.tar.xz")
     else:
         build_musl(target,
                    cc=f".toolchains/{target['arch']}/bin/{target['arch']}-clang",
-                   toolchain_src="https://github.com/cross-tools/clang-cross/releases/download/20260430",
+                   toolchain_src="https://github.com/cross-tools/clang-cross/releases/download/20260823",
                    tar_name=f"{target['arch']}.tar.xz")
 
 def build_wasi(target):
