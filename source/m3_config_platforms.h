@@ -83,7 +83,7 @@
 # endif
 
 # if !defined(M3_HAS_TAIL_CALL)
-#  if defined(__m68k__)
+#  if defined(__m68k__) || defined(__microblaze__) || defined(__powerpc__) || defined(__sh__)
 #    define M3_HAS_TAIL_CALL 0
 #  else
 #    define M3_HAS_TAIL_CALL 1

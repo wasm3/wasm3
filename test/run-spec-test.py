@@ -657,6 +657,44 @@ elif wasm3_ver in Blacklist(["* on sparc* GCC *"]):
     blacklist.add([
       "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
     ])
+elif wasm3_ver in Blacklist(["* on sh* GCC *"]):
+    # The SH4 FPU answers 0x7FBFFFFF where the spec asks for the canonical 0x7FC00000,
+    # and gives back an infinity where an operation on a signaling NaN should produce a
+    # quiet one. The no_fold_* tests watch what an operation does to a NaN to prove it
+    # was not optimized away, so they go the same way - the same pair of patterns MIPS
+    # needs above.
+    warning("sh4 has NaN representation issues, skipping some tests", True)
+    blacklist.add([
+      "float_exprs.wast:* *_nan_bitpattern(*",
+      "float_exprs.wast:* *no_fold_*",
+    ])
+elif wasm3_ver in Blacklist(["* on m68k* GCC *"]):
+    warning("m68k quiets NaNs its own way and computes in extended precision, skipping some tests", True)
+    blacklist.add([
+      # the 68881 quiets to an all-ones payload rather than the canonical pattern the
+      # spec asks for, and these read the result back as an integer, so comparing NaNs
+      # by class cannot paper over it
+      "float_exprs.wast:* *_nan_bitpattern(*",
+      # and it keeps 80-bit intermediates, so an f64 is rounded twice - the same gap x87
+      # has. The last of these answers inf only because the wider exponent range did not
+      # overflow before the result was rounded back down to f64.
+      "float_misc.wast:* f64.add(4845873199050653696, 4607182463836013682)",
+      "float_misc.wast:* f64.add(4845873199050653697, 4607182281361063936)",
+      "float_misc.wast:* f64.add(9218868437227405311, 8975674057349398527)",
+    ])
+elif wasm3_ver in Blacklist(["* on microblaze* GCC *"]):
+    # TODO: work out whose bug this is. 64-bit signed remainder answers nonsense here,
+    # and plain C does too with no wasm3 in the picture - a cross-built "0 % 1" returned
+    # 1153103198903336960 and then hung. MicroBlaze has no 64-bit divide, so this all
+    # goes through libgcc's __moddi3; either that or QEMU's emulation of it is at fault.
+    # Worth retrying against real hardware. Only the 64-bit one is affected - every i32
+    # rem_s passes - so those stay checked, as do the tests that name i64 rem_s to pin
+    # down evaluation order or a trap rather than the value it computes.
+    warning("microblaze: 64-bit signed remainder is broken below wasm3, skipping those tests", True)
+    blacklist.add([
+      "i64.wast:* rem_s(*",
+      "int_exprs.wast:* i64.*rem_s*",
+    ])
 
 # Wasm3 keeps f32 and f64 in one shared f64 register, so an f32 routed through it is
 # promoted and demoted, which quiets a signaling NaN (the same gap as the blacklisted

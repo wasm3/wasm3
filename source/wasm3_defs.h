@@ -207,6 +207,20 @@
 #  elif defined(__m68k__)
 #   define M3_ARCH "m68k"
 
+#  elif defined(__microblaze__)
+#   if defined(__MICROBLAZEEL__)
+#    define M3_ARCH "microblazeel"
+#   else
+#    define M3_ARCH "microblaze"
+#   endif
+
+#  elif defined(__sh__)
+#   if defined(__SH4__)
+#    define M3_ARCH "sh4"
+#   else
+#    define M3_ARCH "sh"
+#   endif
+
 #  elif defined(__xtensa__)
 #   define M3_ARCH "xtensa"
 

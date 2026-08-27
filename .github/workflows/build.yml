@@ -501,64 +501,6 @@ jobs:
         cd test
         ${{ matrix.config.python }} run-wasi-test.py --fast --exec "${{ matrix.config.exec }}"
 
-  cross-qemu:
-    runs-on: ubuntu-latest
-    name: cross-qemu-${{ matrix.config.target }}
-    timeout-minutes: 20
-
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-        #- {target: i386,    toolchain: gcc-multilib,              cc: clang -m32,                 qemu: qemu-i386-static    }
-        - {target: arm,     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static     }
-        - {target: armhf,   toolchain: gcc-arm-linux-gnueabihf,   cc: arm-linux-gnueabihf-gcc,    qemu: qemu-arm-static     }
-        - {target: aarch64, toolchain: gcc-aarch64-linux-gnu,     cc: aarch64-linux-gnu-gcc,      qemu: qemu-aarch64-static }
-        - {target: riscv64, toolchain: gcc-riscv64-linux-gnu,     cc: riscv64-linux-gnu-gcc,      qemu: qemu-riscv64-static }
-        - {target: ppc,     toolchain: gcc-powerpc-linux-gnu,     cc: powerpc-linux-gnu-gcc,      qemu: qemu-ppc-static     }
-        - {target: ppc64,   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static   }
-        #- {target: ppc64le, toolchain: gcc-powerpc64le-linux-gnu, cc: powerpc64le-linux-gnu-gcc,  qemu: qemu-ppc64le-static }
-        - {target: s390x,   toolchain: gcc-s390x-linux-gnu,       cc: s390x-linux-gnu-gcc,        qemu: qemu-s390x-static   }
-        - {target: mips,    toolchain: gcc-mips-linux-gnu,        cc: mips-linux-gnu-gcc,         qemu: qemu-mips-static     }
-        - {target: mips64,  toolchain: gcc-mips64-linux-gnuabi64, cc: mips64-linux-gnuabi64-gcc,  qemu: qemu-mips64-static   }
-        - {target: mipsel,  toolchain: gcc-mipsel-linux-gnu,      cc: mipsel-linux-gnu-gcc,       qemu: qemu-mipsel-static   }
-        - {target: mips64el,toolchain: gcc-mips64el-linux-gnuabi64, cc: mips64el-linux-gnuabi64-gcc,qemu: qemu-mips64el-static }
-        - {target: alpha,   toolchain: gcc-alpha-linux-gnu,       cc: alpha-linux-gnu-gcc,        qemu: qemu-alpha-static   }
-        # TODO: - {target: sparc64, toolchain: gcc-sparc64-linux-gnu,     cc: sparc64-linux-gnu-gcc,      qemu: qemu-sparc64-static, skip_wasi: true }
-
-        #- {target: i386 (u64 slots),    toolchain: gcc-multilib,              cc: clang -m32,                 qemu: qemu-i386-static,     cflags: -Dd_m3Use32BitSlots=0  }
-        - {target: arm (u64 slots),     toolchain: gcc-arm-linux-gnueabi,     cc: arm-linux-gnueabi-gcc,      qemu: qemu-arm-static,      cflags: -Dd_m3Use32BitSlots=0  }
-        - {target: aarch64 (u64 slots), toolchain: gcc-aarch64-linux-gnu,     cc: aarch64-linux-gnu-gcc,      qemu: qemu-aarch64-static,  cflags: -Dd_m3Use32BitSlots=0  }
-        - {target: ppc (u64 slots),     toolchain: gcc-powerpc-linux-gnu,     cc: powerpc-linux-gnu-gcc,      qemu: qemu-ppc-static,      cflags: -Dd_m3Use32BitSlots=0  }
-        - {target: ppc64 (u64 slots),   toolchain: gcc-powerpc64-linux-gnu,   cc: powerpc64-linux-gnu-gcc,    qemu: qemu-ppc64-static,    cflags: -Dd_m3Use32BitSlots=0  }
-
-    steps:
-    - uses: actions/checkout@v7
-    - name: Install QEMU
-      run: |
-        sudo apt update
-        sudo apt install qemu-user-static
-    - name: Install ${{ matrix.config.toolchain }}
-      run: |
-        sudo apt install ${{ matrix.config.toolchain }}
-    - name: Build
-      run: |
-        mkdir build
-        cd build
-        ${{ matrix.config.cc }} -DASSERTS -Dd_m3HasWASI ${{ matrix.config.cflags }} \
-            -I../source ../source/*.c ../platforms/app/main.c \
-            -O3 -g0 -flto -lm -static \
-            -o wasm3
-    - name: Test WebAssembly spec
-      run: |
-        cd test
-        python3 run-spec-test.py --exec "${{ matrix.config.qemu }} ../build/wasm3 --spec-repl"
-    - name: Test WASI apps
-      if: ${{ !matrix.config.skip_wasi }}
-      run: |
-        cd test
-        python3 run-wasi-test.py --fast --exec "${{ matrix.config.qemu }} ../build/wasm3"
-
   platformio:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -818,23 +760,82 @@ jobs:
         codespell
 
   #
-  # Cross-compiled release builds. Kept separate: build-cross.py drives its own
-  # toolchain matrix, and these binaries are not exercised here (see cross-qemu).
+  # Cross-compiled release builds. build-cross.py owns the toolchain matrix, so the
+  # target list comes from it rather than being duplicated here.
   #
 
-  dist-linux-cross:
+  cross-targets:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
 
     steps:
     - uses: actions/checkout@v7
+    - id: list
+      run: echo "targets=$(python3 build-cross.py --list --nowasi)" >> $GITHUB_OUTPUT
 
-    - name: Build for all targets
+  cross:
+    runs-on: ubuntu-latest
+    name: cross-${{ matrix.target.name }}
+    # more than cross-qemu needs: a full cmake build with uvwasi, then both the spec
+    # and WASI suites under emulation
+    timeout-minutes: 15
+
+    needs: cross-targets
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.cross-targets.outputs.targets) }}
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install QEMU
       run: |
-        python3 build-cross.py --notest --nowasi
+        sudo apt update
+        sudo apt install -y qemu-user-static
+    # a few targets have no cross toolchain to download, so they use the distro's
+    - name: Install ${{ matrix.target.apt }}
+      if: ${{ matrix.target.apt }}
+      run: sudo apt install -y ${{ matrix.target.apt }}
+    # Split so a compile error and a failing test are distinguishable at a glance.
+    # A single --target streams its output, so a failure is readable in the log.
+    - name: Build
+      run: python3 build-cross.py --target ${{ matrix.target.name }} --notest
+    - name: Test
+      run: python3 build-cross.py --target ${{ matrix.target.name }} --nobuild
+    # The variants that only exist to exercise a build option or an ABI are tested
+    # like the rest, but nothing collects them for the release
+    - name: Upload artifact
+      if: ${{ matrix.target.dist }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: cross-${{ matrix.target.name }}
+        path: build-cross/wasm3-${{ matrix.target.name }}
+        if-no-files-found: error
+
+  dist-linux-cross:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    needs: cross
+
+    steps:
+    - name: Download the cross-built binaries
+      uses: actions/download-artifact@v7
+      with:
+        path: build-cross
+        pattern: cross-*
+        merge-multiple: true
+    - name: Combine into one archive
+      run: |
+        # an artifact archive doesn't keep the executable bit, so put it back
+        chmod +x build-cross/wasm3-linux-*
         cd build-cross
         tar -czvf ../wasm3-linux-other.tar.gz wasm3-linux-*
-
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:
