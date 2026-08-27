@@ -5,7 +5,19 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const libm3_only = b.option(bool, "libm3", "Build libwasm3 only") orelse false;
-    const build_wasi = b.option(enum {simple, metawasi, uvwasi}, "build_wasi", "How to enable wasi");
+
+    const BuildWasiOptions = enum { none, simple, metawasi, uvwasi };
+    const build_wasi: BuildWasiOptions = b.option(BuildWasiOptions, "build_wasi", "How to enable wasi") orelse default: {
+        if (target.result.cpu.arch.isWasm() and
+            target.result.os.tag == .wasi) break :default .metawasi;
+        if (target.result.os.tag != .freestanding) break :default .simple;
+        break :default .none;
+    };
+
+    if (build_wasi == .metawasi) {
+        if (!target.result.cpu.arch.isWasm() or
+            target.result.os.tag != .wasi) @panic("MetaWASI is only supported on WASI target");
+    }
 
     const libwasm3 = b.addLibrary(.{
         .linkage = .static,
@@ -23,13 +35,13 @@ pub fn build(b: *std.Build) !void {
     if (optimize == .Debug)
         libwasm3.root_module.addCMacro("DEBUG", "1");
 
-    if (build_wasi) |wasi| {
-        switch (wasi) {
-            .simple => libwasm3.root_module.addCMacro("d_m3HasWASI", ""),
-            .metawasi => libwasm3.root_module.addCMacro("d_m3HasMetaWASI", ""),
-            .uvwasi => @panic("build.zig does not yet support this option."),
-        }
+    switch (build_wasi) {
+        .simple => libwasm3.root_module.addCMacro("d_m3HasWASI", ""),
+        .metawasi => libwasm3.root_module.addCMacro("d_m3HasMetaWASI", ""),
+        .uvwasi => @panic("build.zig does not yet support this option."),
+        else => {},
     }
+
     if (libwasm3.rootModuleTarget().cpu.arch.isWasm()) {
         if (libwasm3.rootModuleTarget().os.tag == .wasi) {
             libwasm3.root_module.addCMacro("_WASI_EMULATED_PROCESS_CLOCKS", "");
@@ -118,13 +130,13 @@ pub fn build(b: *std.Build) !void {
         if (optimize == .Debug)
             wasm3.root_module.addCMacro("DEBUG", "1");
 
-        if (build_wasi) |wasi| {
-            switch (wasi) {
-                .simple => wasm3.root_module.addCMacro("d_m3HasWASI", ""),
-                .metawasi => wasm3.root_module.addCMacro("d_m3HasMetaWASI", ""),
-                .uvwasi => @panic("build.zig does not yet support this option."),
-            }
+        switch (build_wasi) {
+            .simple => wasm3.root_module.addCMacro("d_m3HasWASI", ""),
+            .metawasi => wasm3.root_module.addCMacro("d_m3HasMetaWASI", ""),
+            .uvwasi => @panic("build.zig does not yet support this option."),
+            else => {},
         }
+
         wasm3.root_module.linkLibrary(libwasm3);
         b.installArtifact(wasm3);
     } else b.installArtifact(libwasm3);
