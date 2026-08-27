@@ -4446,7 +4446,12 @@ M3Result  CompileFunction  (IM3Function io_function)
             return m3Err_none;
         }
 
-        return io_function->compiled ? m3Err_none : "function body is missing";
+        if (io_function->compiled)
+            return m3Err_none;
+
+        return ErrorModule (m3Err_functionImportMissing, io_function->module, "'%s.%s'",
+                            GetFunctionImportModuleName (io_function),
+                            m3_GetFunctionName (io_function));
     }
 
 #if d_m3EnableValidation
