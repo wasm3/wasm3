@@ -110,7 +110,7 @@ commands_fast = [
     "wasm":           "./wasi/test.wasm",
     "args":           ["trap"],
     "can_crash":      True,
-    "expect_pattern": "Hello world*Constructor OK*Args: *; trap;* wasm backtrace:* 6: 0x*Error:* unreachable executed*"
+    "expect_pattern": "Hello world*Constructor OK*Args: *; trap;* wasm backtrace:* 6: 0x*Error:* unreachable*"
   }, {
     "name":           "mandelbrot",
     "wasm":           "./wasi/mandelbrot/mandel.wasm",

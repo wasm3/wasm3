@@ -1,0 +1,74 @@
+# wasm3 code style.
+#
+# IMPORTANT: do not run bare `clang-format` on this tree.
+#
+# Three wasm3 conventions cannot be expressed in clang-format at all, and are
+# restored by a post-pass in extra/format.py:
+#
+#   1. `_ (TRY)` exception macro hoisted to column 0
+#   2. d_m3Assert / m3log kept in a right-hand sidebar
+#   3. `static` + `Type  Name  (args)` function signature layout
+#   4. #define bodies, which are held out of the run entirely and restored verbatim
+#
+# Pin clang-format 22.x: output differs between major releases.
+#
+# Use `python extra/format.py` to format, `python extra/format.py --check` to verify.
+# Hand-aligned tables are fenced with `// clang-format off` / `on`.
+
+Language:        Cpp
+BasedOnStyle:    LLVM
+
+IndentWidth:     4
+ContinuationIndentWidth: 4
+UseTab:          Never
+
+# Required by the `_ (TRY)` post-pass: with a column limit, a long `_` line could
+# wrap and the re-hoist would misalign the continuation. It also means clang-format
+# preserves the author's line breaks instead of reflowing this fairly dense code.
+ColumnLimit:     0
+
+BreakBeforeBraces: Allman
+PointerAlignment: Middle
+DerivePointerAlignment: false
+
+SpaceBeforeParens: Always
+SpaceBeforeSquareBrackets: true
+SpaceAfterCStyleCast: true
+SpacesInParens:  Never
+SpacesBeforeTrailingComments: 1
+
+# wasm3 writes a lot of `if (cond) stmt;` and `else stmt;` on one line (285 sites).
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortFunctionsOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+
+IndentCaseLabels: true
+IndentGotoLabels: false
+
+# Carries the d_m3Assert / m3log sidebar while it is disguised as a comment.
+AlignTrailingComments:
+  Kind:            Always
+  OverEmptyLines:  1
+# wasm3 lays struct members and declaration groups out in aligned columns.
+AlignConsecutiveDeclarations:
+  Enabled:         true
+  AcrossEmptyLines: true
+  AcrossComments:  true
+
+# wasm3 indents nested preprocessor directives after the hash (863 sites).
+IndentPPDirectives: AfterHash
+
+# wasm3 does not indent the body of `extern "C"`.
+IndentExternBlock: NoIndent
+
+MaxEmptyLinesToKeep: 2
+KeepEmptyLines:
+  AtStartOfBlock:  true
+  AtStartOfFile:   true
+  AtEndOfFile:     false
+
+# Comment blocks here are hand-wrapped; do not re-flow them.
+ReflowComments:  Never
+SortIncludes:    Never
+InsertNewlineAtEOF: true

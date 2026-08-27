@@ -3,10 +3,10 @@
 # Author: Volodymyr Shymanskyy
 # Usage:
 #   ./run-spec-test.py
-#   ./run-spec-test.py --spec=opam-1.1.1
-#   ./run-spec-test.py .spec-v1.1/core/i32.json
-#   ./run-spec-test.py .spec-v1.1/core/float_exprs.json --line 2070
-#   ./run-spec-test.py .spec-v1.1/proposals/tail-call/*.json
+#   ./run-spec-test.py --spec=wg-2.0
+#   ./run-spec-test.py .spec-wg-3.0/core/i32.json
+#   ./run-spec-test.py .spec-wg-3.0/core/float_exprs.json --line 2070
+#   ./run-spec-test.py .spec-wg-2.0/proposals/tail-call/*.json
 #   ./run-spec-test.py --exec "../build-custom/wasm3 --spec-repl"
 #   ./run-spec-test.py --no-validation   # skip the checks that invalid modules are rejected
 #   ./run-spec-test.py --no-relax-nan    # compare NaN results by class, not just "is a NaN"
@@ -53,6 +53,10 @@ parser = argparse.ArgumentParser()
 # --spec-repl is --repl plus --compile: disabling lazy compilation makes a
 # function body that fails validation get rejected at load, as the spec requires
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --spec-repl")
+# wg-3.0 and wg-2.0 are the revisions this harness accommodates. Anything older
+# needs its own workarounds - wasm 2.0 renamed traps, gave validation a bottom
+# type and changed how a failed instantiation unwinds - and carrying those was
+# not worth what the suites still covered.
 parser.add_argument("--spec",                          default="wg-3.0")
 parser.add_argument("--timeout", type=int,             default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
@@ -455,50 +459,18 @@ blacklist = Blacklist([
   # the compact import encoding of a module whose imports wasm3 cannot satisfy
   "binary-compact-imports.wast:* binary-compact-imports.10.wasm *",
 
-  # not a gap: wasm3 implements multi-value, which the older v1.1 testsuite
-  # still expects to be rejected
-  "* assert_invalid (invalid result arity)",
-  # likewise for reference types, which lifted the one-table limit
-  "* assert_invalid (multiple tables)",
-  # and for multiple memories, which lifted the one-memory limit and turned the
-  # reserved zero byte of the memory instructions into a memory index. A
-  # non-minimal LEB encoding of index 0 is a valid index, so these modules are
-  # no longer malformed - wasm3 still rejects an index that names a memory the
-  # module does not have, which is what wg-3.0's binary.wast checks.
-  # wasm 2.0 made instantiation apply element and data segments one at a time,
-  # so whatever ran before one of them traps stays applied - and the 2.0/3.0
-  # linking.wast checks exactly that. The 1.1 suites still expect a failed
-  # instantiation to leave nothing behind. (These two .wasm files are only ever
-  # assert_unlinkable/assert_uninstantiable filenames in the newer suites, never
-  # the module an action runs against, so naming them here is unambiguous.)
-  "linking.wast:* linking.14.wasm call(7)",
-  "linking.wast:* linking.24.wasm load(0)",
-
+  # not a gap: multiple memories lifted the one-memory limit, so the modules
+  # these expect to be rejected are legal
   "* assert_invalid (multiple memories)",
-  "binary.wast:* assert_malformed (zero flag expected)",
-  "binary.wast:* assert_malformed (zero byte expected)",
-  # and for memory64, which widened the memarg offset from u32 to u64. Two
-  # modules per suite encode a small offset in six LEB bytes: one too many for a
-  # u32, and well within a u64, so they are no longer malformed. An offset a
-  # 32-bit memory cannot address is still rejected - as invalid rather than
-  # malformed, which is what the memory64 suite expects - and wg-3.0 no longer
-  # asserts these. The same two modules are binary-leb128.wast in some suites
-  # and binary.wast in others.
-  "binary-leb128.wast:* binary-leb128.40.wasm *",
-  "binary-leb128.wast:* binary-leb128.43.wasm *",
-  "binary.wast:* binary.80.wasm *",
-  "binary.wast:* binary.83.wasm *",
-  # Linking is best-effort: an import nothing satisfies is left alone rather than
-  # rejected, because m3_LinkRawFunction needs the runtime and so can only run
-  # after m3_LoadModule. So a missing or mistyped import is not reported at
-  # instantiation, which is when these expect it.
-  "* assert_unlinkable (unknown import)",
-  "* assert_unlinkable (incompatible import type)",
 
-  # the spec's "spectest" module is faked with host functions rather than being
-  # a real module, so it exports no memory. These grow a memory imported from
-  # it, and get the local stand-in built from the import's own limits instead.
-  "imports4.wast:* imports4.1.wasm grow(*)",
+  # An import naming a module the runtime has not loaded is left unresolved
+  # rather than rejected: m3_LinkRawFunction needs the runtime and so can only
+  # run after m3_LoadModule, and a host function may still turn up for it. Only
+  # a module that is loaded settles an import, and LinkImports does check those.
+  # One module in each suite imports from a name nothing ever registers, so
+  # nothing is there to check it against.
+  "imports.wast:* imports.141.wasm assert_unlinkable (unknown import)",   # wg-2.0
+  "imports.wast:* imports.177.wasm assert_unlinkable (unknown import)",   # wg-3.0
 
   # The repl talks in whitespace-separated tokens, so a module registered under
   # the empty name has nothing to send: the token disappears. Any placeholder
@@ -507,8 +479,10 @@ blacklist = Blacklist([
   "imports-compact.wast:* imports-compact.25.wasm call-empty()",
 
   # names containing NUL bytes are valid UTF-8 but wasm3 uses C strings
-  # internally, so embedded NUL truncates the name during function lookup
-  "names.wast:* *.wasm \\x00*",
+  # internally, so embedded NUL truncates the name during function lookup.
+  # escape_str spells the empty name "\x00" as well, so the pattern names the
+  # second byte to leave that test - which passes - alone.
+  "names.wast:* *.wasm \\x00\\x01*",
 
   # exception handling: a tag import is a fresh tag, not an alias of the
   # exporting module's, since wasm3 does not link modules to each other. An
@@ -538,6 +512,17 @@ blacklist.add([
   for n in range(2, 17)
 ])
 
+# Multiple memories turned the reserved zero byte of the memory instructions
+# into a memory index, and the format spends up to five bytes on a u32, so a
+# non-minimal encoding of 0 names memory 0 rather than making the module
+# malformed. Only the modules that encode a zero that way are affected: binary.41
+# and binary.46 name memory 1, which their module does not have, and are still
+# rejected. wg-3.0 no longer asserts any of this.
+blacklist.add([
+  f"binary.wast:* binary.{n}.wasm assert_malformed (zero byte expected)"
+  for n in (42, 43, 44, 45, 47, 48, 49, 50)
+])
+
 # Wasm 3.0 folded several proposals into the core suite. wasm3 implements typed
 # function references, but not all of it and not the proposals that arrived with
 # it, so a handful of modules are still refused or answer differently. Skipped by
@@ -553,19 +538,10 @@ if args.spec == "wg-3.0":
       "br_on_non_null.wast:* br_on_non_null.2.wasm *",
 
       # local initialization is not tracked, so a local whose type has no default
-      # is accepted when read before it is set, instead of being rejected
+      # is accepted when read before it is set, instead of being rejected. The
+      # rest of local_init.wast only gets that far with typed refs on - see below
       "local_init.wast:* local_init.0.wasm *",
-      "local_init.wast:* local_init.1.wasm *",
-      "local_init.wast:* local_init.2.wasm *",
-      "local_init.wast:* local_init.4.wasm *",
       "local_init.wast:* local_init.5.wasm *",
-      "func.wast:* func.21.wasm *",
-
-      # the validator reasons in storage types, so it does not reject a nullable
-      # reference where a non-nullable one is required
-      "br_if.wast:* br_if.30.wasm *",
-      "local_tee.wast:* local_tee.36.wasm *",
-      "ref_as_non_null.wast:* ref_as_non_null.1.wasm *",
 
       # garbage collection: the abstract heap types (any, eq, i31, struct, array,
       # none) and exception handling's exnref
@@ -581,14 +557,18 @@ if args.spec == "wg-3.0":
       "type-equivalence.wast:* type-equivalence.9.wasm *",
 
       # a tag import is a fresh tag rather than an alias (see the exception
-      # handling entries above), so a tag imported at the wrong type is accepted
+      # handling entries above). LinkImports has no tag loop at all, so a tag
+      # import is neither resolved nor type-checked
       "tag.wast:* tag.7.wasm assert_unlinkable (incompatible import)",
+      "imports.wast:* imports.41.wasm assert_unlinkable (unknown import)",
+      "imports.wast:* imports.42.wasm assert_unlinkable (incompatible import type)",
+      "imports.wast:* imports.43.wasm assert_unlinkable (incompatible import type)",
+      "imports.wast:* imports.44.wasm assert_unlinkable (incompatible import type)",
+      "imports.wast:* imports.45.wasm assert_unlinkable (incompatible import type)",
 
       # multiple memories
-      "instance.wast:* instance.1.wasm *",
       "instance.wast:* instance.2.wasm *",
       "instance.wast:* instance.4.wasm *",
-      "custom-page-sizes.wast:* custom-page-sizes.6.wasm *",
 
       # wasm 3.0 lets a constant expression read any global declared before it,
       # where wasm3 still allows only imported ones
@@ -620,16 +600,41 @@ if args.spec == "wg-3.0":
             "table.wast:* table.33.wasm *",
             "type-equivalence.wast:* type-equivalence.7.wasm *",
             "unreached-valid.wast:* * call_ref-unreached*",
-        ])
 
-if args.spec in ("v1.1", "opam-1.1.1"):
-    # not a gap: wasm 2.0 gave validation a bottom type, so a br_table in
-    # unreachable code may name targets whose result types differ. The pre-2.0
-    # suites still expect this module to be rejected; 2.0 moved the very same
-    # module to unreached-valid.wast as "meet-bottom" and expects it to run
-    blacklist.add([
-      "unreached-invalid.wast:539 unreached-invalid.87.wasm assert_invalid (type mismatch)",
-    ])
+            # linking.wast registers a module of typed-ref globals as $Mref_ex
+            # and one of typed-ref tables as $Mtable_ex. Both are refused at
+            # load, so neither ever registers and the imports naming them find
+            # no module to check against. The mismatches the rest of the file
+            # asserts are caught, since those exporters do load.
+            "linking.wast:* linking.11.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.22.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.23.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.24.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.25.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.38.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.39.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.40.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.41.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.54.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.55.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.58.wasm assert_unlinkable (incompatible import type)",
+            "linking.wast:* linking.59.wasm assert_unlinkable (incompatible import type)",
+        ])
+    else:
+        # These parse only once typed references are on - without them the module
+        # is refused for an unknown value type, which is the rejection the test
+        # asks for. Once it does parse, the validator lets it through: it does
+        # not track local initialization, and it reasons in storage types, so a
+        # nullable reference passes where a non-nullable one is required.
+        blacklist.add([
+            "local_init.wast:* local_init.1.wasm *",
+            "local_init.wast:* local_init.2.wasm *",
+            "local_init.wast:* local_init.4.wasm *",
+            "func.wast:* func.21.wasm *",
+            "br_if.wast:* br_if.30.wasm *",
+            "local_tee.wast:* local_tee.36.wasm *",
+            "ref_as_non_null.wast:* ref_as_non_null.1.wasm *",
+        ])
 
 if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"]):
     warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True)
@@ -699,14 +704,8 @@ stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success
 
 # Convert some trap names from the original spec
 trapmap = {
-  "unreachable": "unreachable executed",
   # the bulk-memory suite appends the offending index to this one trap text
   "uninitialized element 2": "uninitialized element",
-  # wasm 2.0 renamed three call_indirect traps; wasm3 uses the newer wording, so
-  # the v1.1 and opam suites spell them the old way
-  "uninitialized": "uninitialized element",
-  "undefined": "undefined element",
-  "indirect call": "indirect call type mismatch",
 }
 
 def runInvoke(test):
@@ -891,6 +890,9 @@ if not hasMultiMemory:
       "imports-compact.wast:* imports-compact.17.wasm sizes()",
       "imports-compact.wast:* imports-compact.18.wasm sizes()",
       "imports-compact.wast:* imports-compact.19.wasm sum()",
+      # and these two wg-3.0 modules, which declare two memories of their own
+      "instance.wast:* instance.1.wasm *",
+      "custom-page-sizes.wast:* custom-page-sizes.6.wasm *",
     ])
 
 if args.file:
@@ -902,15 +904,11 @@ else:
     # suite still keeps out of the core suite. Which ones exist depends on the
     # version - a proposal moves into core/ once it ships - so a glob that comes
     # up empty just means this suite already covers it in core/:
-    #   up to v1.1: sign-extension, non-trapping float-to-int, tail call
-    #   up to 2.0:  tail call, extended const
-    #   3.0:        bulk memory moved to core/bulk-memory; exception handling
-    #               moved to core/exceptions; custom page sizes is still a
-    #               proposal
+    #   2.0: tail call, extended const
+    #   3.0: bulk memory moved to core/bulk-memory; exception handling moved to
+    #        core/exceptions; custom page sizes is still a proposal
     for stage in ('proposals', 'core'):
         for subdir in (
-            "sign-extension-ops",
-            "nontrapping-float-to-int-conversions",
             "tail-call",
             "extended-const",
             "custom-page-sizes",

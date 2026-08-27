@@ -90,7 +90,7 @@ _start () {
           a () {
             b () {
               c () {
-              } !trap = [trap] unreachable executed
+              } !trap = [trap] unreachable
 ...
 ==== wasm backtrace:
   0: 0x000c59 - .unnamed!c
@@ -101,5 +101,5 @@ _start () {
   5: 0x0037c9 - .unnamed!__main_void
   6: 0x000edb - .unnamed!__original_main
   7: 0x0002f3 - .unnamed!_start
-Error: [trap] unreachable executed
+Error: [trap] unreachable
 ```

@@ -93,7 +93,7 @@ M3Result  ReadType_TableType  (IM3Module i_module, M3TableInfo * o_info, bytes_t
     M3Result result = m3Err_none;
 
     m3type_t elemType = c_m3Type_none;
-    u8 flag;
+    u8 flag = 0;
     u64 initSize = 0, maxSize = 0;
 
     // the width of the limits, and of every index into the table

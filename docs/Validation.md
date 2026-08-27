@@ -243,7 +243,7 @@ WebAssembly test suite, which it downloads on first run.
 cd test
 python3 run-spec-test.py                    # includes validation
 python3 run-spec-test.py --no-validation    # functional assertions only
-python3 run-spec-test.py --spec=v1.1
+python3 run-spec-test.py --spec=wg-2.0      # the previous revision
 python3 run-spec-test.py --exec "../build/wasm3 --spec-repl"
 ```
 
@@ -293,15 +293,21 @@ whole class of check, which survives module filenames like `binary.57.wasm`
 being renumbered when the test suite is regenerated.
 
 ```python
-  # a section whose declared size doesn't match its contents is accepted:
-  # the section parsers don't report how many bytes they consumed
-  "binary.wast:* * assert_malformed (section size mismatch)",
+  # not a gap: multiple memories lifted the one-memory limit, so the modules
+  # these expect to be rejected are legal
+  "* assert_invalid (multiple memories)",
 ```
 
 A blacklist entry should always say whether it is a gap to be fixed or an
-intentional deviation. For example, wasm3 implements multi-value while the older
-v1.1 suite still expects multi-result function types to be rejected - that entry
-is marked as *not* a gap.
+intentional deviation - the entry above is one wasm3 will never satisfy, because
+the feature the suite predates is implemented.
+
+Which revision an entry applies to matters. The harness accommodates **wg-3.0**
+and **wg-2.0** only; the 1.1-era suites were dropped, along with the workarounds
+they needed for renamed traps, the pre-2.0 lack of a bottom type, and the older
+unwinding of a failed instantiation. An entry that holds for one revision and
+not the other belongs in that revision's `if args.spec ==` block rather than the
+top-level list.
 
 ### NaN comparison
 
@@ -340,7 +346,7 @@ requires an arithmetic one - is still a failure, and f64 stays strict.
 ```sh
 cd test
 python3 run-spec-test.py
-python3 run-spec-test.py --spec=v1.1
+python3 run-spec-test.py --spec=wg-2.0
 python3 run-wasi-test.py
 ```
 

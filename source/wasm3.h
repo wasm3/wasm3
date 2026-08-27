@@ -10,8 +10,8 @@
 
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 9
-#define M3_VERSION_REV   0
-#define M3_VERSION       "0.9.0"
+#define M3_VERSION_REV   1
+#define M3_VERSION       "0.9.1-beta.1"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -177,6 +177,8 @@ d_m3ErrorConst  (moduleNotLinked,               "attempting to use module that i
 d_m3ErrorConst  (moduleAlreadyLinked,           "attempting to bind module to multiple runtimes")
 d_m3ErrorConst  (functionLookupFailed,          "function lookup failed")
 d_m3ErrorConst  (functionImportMissing,         "missing imported function")
+d_m3ErrorConst  (unknownImport,                 "unknown import")
+d_m3ErrorConst  (incompatibleImportType,        "incompatible import type")
 
 d_m3ErrorConst  (malformedFunctionSignature,    "malformed function signature")
 
@@ -232,7 +234,7 @@ d_m3ErrorConst  (trapNullFunctionRef,           "[trap] null function reference"
 d_m3ErrorConst  (trapTableOutOfBounds,          "[trap] out of bounds table access")
 d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
 d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
-d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable executed")
+d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 d_m3ErrorConst  (trapUncaughtException,         "[trap] uncaught exception")
 

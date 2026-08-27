@@ -439,6 +439,59 @@ IM3Global  Module_FindExportedGlobal  (IM3Module i_module, cstr_t i_name)
 }
 
 
+// Whether the module exports anything at all under this name. Export names are
+// unique within a module, so a name one of the lookups above missed but this
+// one finds is exported as something else - a kind the import cannot be
+// satisfied by, rather than a name the module never exported.
+static
+bool  Module_HasExport  (IM3Module i_module, cstr_t i_name)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function f = & i_module->functions [i];
+
+        if (f->export_name and strcmp (f->export_name, i_name) == 0)
+            return true;
+    }
+
+    for (u32 i = 0; i < i_module->numMemories; ++i)
+    {
+        IM3Memory memory = i_module->memories [i];
+
+        if (memory->exportName and strcmp (memory->exportName, i_name) == 0)
+            return true;
+    }
+
+    for (u32 i = 0; i < i_module->numTables; ++i)
+    {
+        IM3Table table = i_module->tables [i];
+
+        if (table->exportName and strcmp (table->exportName, i_name) == 0)
+            return true;
+    }
+
+    for (u32 i = 0; i < i_module->numGlobals; ++i)
+    {
+        IM3Global g = & i_module->globals [i];
+
+        if (g->name and strcmp (g->name, i_name) == 0)
+            return true;
+    }
+
+#if d_m3HasExceptionHandling
+    for (u32 i = 0; i < i_module->numTags; ++i)
+    {
+        IM3Tag tag = & i_module->tags [i];
+
+        if (tag->name and strcmp (tag->name, i_name) == 0)
+            return true;
+    }
+#endif
+
+    return false;
+}
+
+
 // Points each of the module's imports at whatever already-loaded module exports
 // it. Runs before anything is allocated or initialized: a memory import has to
 // be resolved before InitMemory would give it pages of its own, and a global
@@ -461,11 +514,17 @@ M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
 
         IM3Function exported = Module_FindExportedFunction (from, f->import.fieldUtf8);
         if (not exported)
-            continue;
+        {
+            // the import names a module that is loaded, so its exports settle the
+            // question: a name it exports as something else is a type mismatch, and
+            // one it does not export at all is an unknown import
+            _throwif (m3Err_incompatibleImportType, Module_HasExport (from, f->import.fieldUtf8));
+            _throw (m3Err_unknownImport);
+        }
 
         // func types are canonical within an environment, so this is the
         // structural equivalence the spec asks for
-        _throwif (m3Err_functionImportMissing, exported->funcType != f->funcType);
+        _throwif (m3Err_incompatibleImportType, exported->funcType != f->funcType);
 
         f->resolved = Function_Implementation (exported);
     }
@@ -483,13 +542,18 @@ M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
 
         IM3Memory exported = Module_FindExportedMemory (from, memory->import.fieldUtf8);
         if (not exported)
-            continue;
+        {
+            _throwif (m3Err_incompatibleImportType, Module_HasExport (from, memory->import.fieldUtf8));
+            _throw (m3Err_unknownImport);
+        }
 
         // the address type is part of the memory type, so an i64 memory does
-        // not satisfy an i32 import, or the other way round
-        _throwif ("incompatible import type", exported->isMemory64 != memory->isMemory64);
+        // not satisfy an i32 import, or the other way round - and so is the page
+        // size, which custom page sizes made a declared property of a memory
+        _throwif (m3Err_incompatibleImportType, exported->isMemory64 != memory->isMemory64);
+        _throwif (m3Err_incompatibleImportType, Memory_PageSize (exported) != Memory_PageSize (memory));
 
-        _throwif ("incompatible import type",
+        _throwif (m3Err_incompatibleImportType,
                   not LimitsSatisfy (exported->numPages, exported->hasMax, exported->maxPages,
                                      memory->initPages,  memory->hasMax,   memory->maxPages));
 
@@ -515,14 +579,17 @@ M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
 
         IM3Table exported = Module_FindExportedTable (from, table->import.fieldUtf8);
         if (not exported)
-            continue;
+        {
+            _throwif (m3Err_incompatibleImportType, Module_HasExport (from, table->import.fieldUtf8));
+            _throw (m3Err_unknownImport);
+        }
 
-        _throwif ("incompatible import type", exported->type != table->type);
+        _throwif (m3Err_incompatibleImportType, exported->type != table->type);
 
         // the index type is part of the table type, the same way it is for a memory
-        _throwif ("incompatible import type", exported->isTable64 != table->isTable64);
+        _throwif (m3Err_incompatibleImportType, exported->isTable64 != table->isTable64);
 
-        _throwif ("incompatible import type",
+        _throwif (m3Err_incompatibleImportType,
                   not LimitsSatisfy (exported->size,    exported->hasMax, exported->maxSize,
                                      table->initSize,   table->hasMax,    table->maxSize));
 
@@ -548,10 +615,13 @@ M3Result  LinkImports  (IM3Runtime io_runtime, IM3Module io_module)
 
         IM3Global exported = Module_FindExportedGlobal (from, g->import.fieldUtf8);
         if (not exported)
-            continue;
+        {
+            _throwif (m3Err_incompatibleImportType, Module_HasExport (from, g->import.fieldUtf8));
+            _throw (m3Err_unknownImport);
+        }
 
-        _throwif ("incompatible import type", exported->type != g->type);
-        _throwif ("incompatible import type", exported->isMutable != g->isMutable);
+        _throwif (m3Err_incompatibleImportType, exported->type != g->type);
+        _throwif (m3Err_incompatibleImportType, exported->isMutable != g->isMutable);
 
         g->resolved = exported->resolved ? exported->resolved : exported;
     }
@@ -591,7 +661,7 @@ _       (ResizeMemory (io_runtime, & i_module->emptyMemory, 0));
         if (memory->owner != i_module or memory->mallocated)
             continue;
 
-        u32 pageSize = memory->pageSize ? memory->pageSize : d_m3DefaultMemPageSize;
+        u32 pageSize = Memory_PageSize (memory);
 
         memory->pageSize = pageSize;
 

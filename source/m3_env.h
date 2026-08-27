@@ -68,6 +68,15 @@ static inline m3type_t  Memory_AddrType  (const M3Memory * i_memory)
 }
 
 
+// A module that declares no custom page size means the default one. The parser
+// leaves that as zero, and InitMemory only fills it in when it allocates, so a
+// memory has to be asked rather than read directly until then.
+static inline u32  Memory_PageSize  (const M3Memory * i_memory)
+{
+    return i_memory->pageSize ? i_memory->pageSize : d_m3DefaultMemPageSize;
+}
+
+
 //---------------------------------------------------------------------------------------------------------------------------------
 
 // A table type as the module declared it. Sizes stay u32 - a table64 may name

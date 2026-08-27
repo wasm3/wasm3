@@ -97,8 +97,6 @@ jobs:
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
-        python3 run-spec-test.py --spec=v1.1
-        python3 run-spec-test.py --spec=opam-1.1.1
         python3 run-spec-test.py --spec=wg-2.0
     - name: Test WASI apps
       if: ${{ !matrix.config.notest }}
@@ -172,8 +170,6 @@ jobs:
     - name: Test previous WebAssembly spec versions
       run: |
         cd test
-        python3 run-spec-test.py --spec=v1.1
-        python3 run-spec-test.py --spec=opam-1.1.1
         python3 run-spec-test.py --spec=wg-2.0
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
@@ -241,8 +237,6 @@ jobs:
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
-        python run-spec-test.py --spec=v1.1
-        python run-spec-test.py --spec=opam-1.1.1
         python run-spec-test.py --spec=wg-2.0
     - name: Test WASI apps
       if: ${{ !matrix.config.notest }}
@@ -501,9 +495,7 @@ jobs:
     - name: Test previous WebAssembly spec versions
       run: |
         cd test
-        ${{ matrix.config.python }} run-spec-test.py --spec=v1.1        --exec "${{ matrix.config.exec }} --spec-repl"
-        ${{ matrix.config.python }} run-spec-test.py --spec=opam-1.1.1  --exec "${{ matrix.config.exec }} --spec-repl"
-        ${{ matrix.config.python }} run-spec-test.py --spec=wg-2.0      --exec "${{ matrix.config.exec }} --spec-repl"
+        ${{ matrix.config.python }} run-spec-test.py --spec=wg-2.0 --exec "${{ matrix.config.exec }} --spec-repl"
     - name: Test WASI apps
       run: |
         cd test
