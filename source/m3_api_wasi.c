@@ -329,6 +329,19 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
 
+#if !defined(_WIN32)
+static
+__wasi_filetype_t  filetype_from_stat_mode  (int mode)
+{
+    return (S_ISBLK(mode)   ? __WASI_FILETYPE_BLOCK_DEVICE     : 0) |
+           (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
+           (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
+           (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
+           //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
+           (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
+}
+#endif
+
 m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 {
     m3ApiReturnType  (uint32_t)
@@ -359,13 +372,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 #endif
 
     fstat(fd, &fd_stat);
-    int mode = fd_stat.st_mode;
-    fdstat->fs_filetype = (S_ISBLK(mode)   ? __WASI_FILETYPE_BLOCK_DEVICE     : 0) |
-                          (S_ISCHR(mode)   ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
-                          (S_ISDIR(mode)   ? __WASI_FILETYPE_DIRECTORY        : 0) |
-                          (S_ISREG(mode)   ? __WASI_FILETYPE_REGULAR_FILE     : 0) |
-                          //(S_ISSOCK(mode)  ? __WASI_FILETYPE_SOCKET_STREAM    : 0) |
-                          (S_ISLNK(mode)   ? __WASI_FILETYPE_SYMBOLIC_LINK    : 0);
+    fdstat->fs_filetype = filetype_from_stat_mode(fd_stat.st_mode);
 #if !defined(APE)
     m3ApiWriteMem16(&fdstat->fs_flags,
                        ((fl & O_APPEND)    ? __WASI_FDFLAGS_APPEND    : 0) |
@@ -395,6 +402,94 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
 
     // TODO
 
+    m3ApiReturn(__WASI_ERRNO_SUCCESS);
+}
+
+m3ApiRawFunction(m3_wasi_generic_fd_advise)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (__wasi_fd_t          , fd)
+    m3ApiGetArg      (__wasi_filesize_t    , offset)
+    m3ApiGetArg      (__wasi_filesize_t    , length)
+    m3ApiGetArg      (__wasi_advice_t      , advice)
+
+    // Purely advisory: passing it on is a best effort, and dropping it is
+    // still a conforming implementation. Only the fd has to be valid.
+#if defined(POSIX_FADV_NORMAL) && !defined(APE)
+    int adv;
+    switch (advice) {
+    case __WASI_ADVICE_NORMAL:     adv = POSIX_FADV_NORMAL;     break;
+    case __WASI_ADVICE_SEQUENTIAL: adv = POSIX_FADV_SEQUENTIAL; break;
+    case __WASI_ADVICE_RANDOM:     adv = POSIX_FADV_RANDOM;     break;
+    case __WASI_ADVICE_WILLNEED:   adv = POSIX_FADV_WILLNEED;   break;
+    case __WASI_ADVICE_DONTNEED:   adv = POSIX_FADV_DONTNEED;   break;
+    case __WASI_ADVICE_NOREUSE:    adv = POSIX_FADV_NOREUSE;    break;
+    default:                       m3ApiReturn(__WASI_ERRNO_INVAL);
+    }
+
+    int ret = posix_fadvise(fd, offset, length, adv);
+    if (ret != 0) { m3ApiReturn(errno_to_wasi(ret)); }
+#else
+    if (advice > __WASI_ADVICE_NOREUSE) { m3ApiReturn(__WASI_ERRNO_INVAL); }
+
+    struct stat fd_stat;
+    if (fstat(fd, &fd_stat) != 0) { m3ApiReturn(errno_to_wasi(errno)); }
+#endif
+
+    m3ApiReturn(__WASI_ERRNO_SUCCESS);
+}
+
+m3ApiRawFunction(m3_wasi_generic_fd_filestat_get)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (__wasi_fd_t          , fd)
+    m3ApiGetArgMem   (__wasi_filestat_t *  , buf)
+
+    m3ApiCheckMem(buf, sizeof(__wasi_filestat_t));
+
+#ifdef _WIN32
+
+    // TODO: This needs a proper implementation, as for fd_fdstat_get
+    memset(buf, 0, sizeof(__wasi_filestat_t));
+    buf->filetype = (fd < PREOPEN_CNT) ? __WASI_FILETYPE_DIRECTORY
+                                       : __WASI_FILETYPE_REGULAR_FILE;
+    m3ApiReturn(__WASI_ERRNO_SUCCESS);
+#else
+    struct stat fd_stat;
+    if (fstat(fd, &fd_stat) != 0) { m3ApiReturn(errno_to_wasi(errno)); }
+
+    // the struct carries padding the guest can see; leave none of it undefined
+    memset(buf, 0, sizeof(__wasi_filestat_t));
+
+    m3ApiWriteMem64  (&buf->dev,   fd_stat.st_dev);
+    m3ApiWriteMem64  (&buf->ino,   fd_stat.st_ino);
+    buf->filetype = filetype_from_stat_mode(fd_stat.st_mode);
+    m3ApiWriteMem64  (&buf->nlink, fd_stat.st_nlink);
+    m3ApiWriteMem64  (&buf->size,  fd_stat.st_size);
+    m3ApiWriteMem64  (&buf->atim,  (uint64_t) fd_stat.st_atime * 1000000000ULL);
+    m3ApiWriteMem64  (&buf->mtim,  (uint64_t) fd_stat.st_mtime * 1000000000ULL);
+    m3ApiWriteMem64  (&buf->ctim,  (uint64_t) fd_stat.st_ctime * 1000000000ULL);
+
+    m3ApiReturn(__WASI_ERRNO_SUCCESS);
+#endif
+}
+
+m3ApiRawFunction(m3_wasi_generic_fd_tell)
+{
+    m3ApiReturnType  (uint32_t)
+    m3ApiGetArg      (__wasi_fd_t          , fd)
+    m3ApiGetArgMem   (__wasi_filesize_t *  , result)
+
+    m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
+
+    int64_t ret;
+#if defined(M3_COMPILER_MSVC) || defined(__MINGW32__)
+    ret = _lseeki64(fd, 0, SEEK_CUR);
+#else
+    ret = lseek(fd, 0, SEEK_CUR);
+#endif
+    if (ret < 0) { m3ApiReturn(errno_to_wasi(errno)); }
+    m3ApiWriteMem64(result, ret);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
 
@@ -831,8 +926,8 @@ M3Result  m3_LinkWASI  (IM3Module module)
     // Some functions are incompatible between WASI versions
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "fd_seek",     "i(iIi*)", &m3_wasi_unstable_fd_seek)));
 _   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "fd_seek",     "i(iIi*)", &m3_wasi_snapshot_preview1_fd_seek)));
-//_ (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "fd_filestat_get",   "i(i*)",     &m3_wasi_unstable_fd_filestat_get)));
-//_ (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "fd_filestat_get",   "i(i*)",     &m3_wasi_snapshot_preview1_fd_filestat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "fd_filestat_get",   "i(i*)",     &m3_wasi_generic_fd_filestat_get)));
+_   (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "fd_filestat_get",   "i(i*)",     &m3_wasi_generic_fd_filestat_get)));
 //_ (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_unstable",          "path_filestat_get", "i(ii*i*)",  &m3_wasi_unstable_path_filestat_get)));
 //_ (SuppressLookupFailure (m3_LinkRawFunction (module, "wasi_snapshot_preview1", "path_filestat_get", "i(ii*i*)",  &m3_wasi_snapshot_preview1_path_filestat_get)));
 
@@ -847,7 +942,7 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "clock_time_ge
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "environ_get",          "i(**)",   &m3_wasi_generic_environ_get)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "environ_sizes_get",    "i(**)",   &m3_wasi_generic_environ_sizes_get)));
 
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_advise",            "i(iIIi)", )));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_advise",            "i(iIIi)", &m3_wasi_generic_fd_advise)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_allocate",          "i(iII)",  )));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_close",             "i(i)",    &m3_wasi_generic_fd_close)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_datasync",          "i(i)",    &m3_wasi_generic_fd_datasync)));
@@ -864,7 +959,7 @@ _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_read",    
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_readdir",           "i(i*iI*)",)));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_renumber",          "i(ii)",   )));
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_sync",              "i(i)",    )));
-//_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_tell",              "i(i*)",   )));
+_       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_tell",              "i(i*)",   &m3_wasi_generic_fd_tell)));
 _       (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "fd_write",             "i(i*i*)", &m3_wasi_generic_fd_write)));
 
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "path_create_directory",    "i(i*i)",       )));
