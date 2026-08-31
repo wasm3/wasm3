@@ -1628,7 +1628,7 @@ _   (checkStartFunction(i_function->module))
 
 // Argument parsing for m3_CallArgv. Strict on purpose: the whole string has to
 // be consumed, so "12abc" is rejected rather than read as 12, and an empty or
-// unparseable argument is an error rather than the zero that strtoul with a
+// unparsable argument is an error rather than the zero that strtoul with a
 // NULL end pointer used to hand back. See wasm3/wasm3#367.
 static
 M3Result  ParseArgInteger  (ccstr_t i_arg, u32 i_numBits, u64 * o_value)

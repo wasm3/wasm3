@@ -1,5 +1,4 @@
 [codespell]
-skip = ./test/wasi/brotli/alice29.txt,./test/.spec-*,./build*
+skip = ./test/wasi/brotli/alice29.txt,./platforms/embedded/fomu/include/*,./test/.spec-*,./build*
 quiet-level = 2
-ignore-words-list = gameboy,iif,strng,woh
-
+ignore-words-list = gameboy,iif,strng,woh,wast,SEH

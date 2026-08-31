@@ -185,7 +185,7 @@ Useful `clang` options:
 
 - **-Wl,--max-memory=\<value\>** Maximum size of the linear memory, which must be a multiple of 65536
 
-- **-z stack-size=\<vlaue\>** The auxiliary stack size, which is an area of linear memory, and must be smaller than initial memory size.
+- **-z stack-size=\<value\>** The auxiliary stack size, which is an area of linear memory, and must be smaller than initial memory size.
 
 - **-Wl,--strip-all** Strip all symbols
 

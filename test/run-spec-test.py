@@ -151,12 +151,12 @@ def formatValueFloat(num, t):
         result = "{0:.{1}e}".format(binaryToFloat(num, t), s)
     return result
 
-formaters = {
+formatters = {
     'raw': formatValueRaw,
     'hex': formatValueHex,
     'fp':  formatValueFloat,
 }
-formatValue = formaters[args.format]
+formatValue = formatters[args.format]
 
 if args.format == "fp":
     print("When using fp display format, values are compared loosely (some tests may produce false positives)")

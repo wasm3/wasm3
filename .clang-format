@@ -6,36 +6,54 @@
 # restored by a post-pass in extra/format.py:
 #
 #   1. `_ (TRY)` exception macro hoisted to column 0
-#   2. d_m3Assert / m3log kept in a right-hand sidebar
-#   3. `static` + `Type  Name  (args)` function signature layout
-#   4. #define bodies, which are held out of the run entirely and restored verbatim
+#   2. d_m3Assert / m3log kept in a right-hand sidebar, in the author's column
+#   3. lines held out of the run and restored verbatim: #define bodies, the
+#      `_try {` / `} _catch:` pair, and sidebars whose call wraps onto a second line
 #
-# Pin clang-format 22.x: output differs between major releases.
+# Needs clang-format 23.x: output differs between major releases. extra/format.py checks
+# this and refuses to run on another major unless passed --any-version.
 #
 # Use `python extra/format.py` to format, `python extra/format.py --check` to verify.
-# Hand-aligned tables are fenced with `// clang-format off` / `on`.
+#
+# Hand-aligned tables -- the opcode and fold tables in m3_compile.c, the op tables in
+# m3_exec.h, and the whole body of the three config headers -- are fenced in the source
+# with `// clang-format off` / `on`. Their columns carry meaning that no setting here
+# can reproduce, so they are excluded rather than approximated.
 
-Language:        Cpp
-BasedOnStyle:    LLVM
+Language: Cpp
+BasedOnStyle: LLVM
 
-IndentWidth:     4
-ContinuationIndentWidth: 4
-UseTab:          Never
+IndentWidth: 4
+ContinuationIndentWidth: 2
+UseTab: Never
+InsertBraces: true
 
 # Required by the `_ (TRY)` post-pass: with a column limit, a long `_` line could
 # wrap and the re-hoist would misalign the continuation. It also means clang-format
 # preserves the author's line breaks instead of reflowing this fairly dense code.
-ColumnLimit:     0
+ColumnLimit: 0
 
-BreakBeforeBraces: Allman
-PointerAlignment: Middle
+BreakBeforeBraces: Linux
+PointerAlignment: Left
 DerivePointerAlignment: false
 
-SpaceBeforeParens: Always
-SpaceBeforeSquareBrackets: true
-SpaceAfterCStyleCast: true
-SpacesInParens:  Never
-SpacesBeforeTrailingComments: 1
+# Without these, the return type of an attributed signature is read as a declaration of
+# its own and indented under the attribute. Note that ColumnLimit 0 keeps whatever break
+# the author wrote, so an attribute must stay on the signature's line to be left alone.
+AttributeMacros: [M3_NOINLINE, M3_WEAK, M3_NO_UBSAN, d_m3RetSig, WASM_EXPORT]
+BreakBeforeReturnType: All
+
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterFunctionDeclarationName: true
+  AfterFunctionDefinitionName: true
+  AfterNot: true
+
+SpaceBeforeSquareBrackets: false
+SpaceAfterCStyleCast: false
+SpacesInParens: Never
+SpacesBeforeTrailingComments: 3
 
 # wasm3 writes a lot of `if (cond) stmt;` and `else stmt;` on one line (285 sites).
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
@@ -43,32 +61,96 @@ AllowShortFunctionsOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
 
-IndentCaseLabels: true
+# wasm3 keeps case labels at the switch's own indent (364 sites, vs 93 indented).
+IndentCaseLabels: false
 IndentGotoLabels: false
 
-# Carries the d_m3Assert / m3log sidebar while it is disguised as a comment.
+# Trailing comments are hand-placed here, and the d_m3Assert / m3log sidebar carries its
+# own column across the run (extra/format.py), so there is nothing to re-align.
 AlignTrailingComments:
-  Kind:            Always
-  OverEmptyLines:  1
+  Kind: Leave
 # wasm3 lays struct members and declaration groups out in aligned columns.
 AlignConsecutiveDeclarations:
-  Enabled:         true
-  AcrossEmptyLines: true
-  AcrossComments:  true
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
 
-# wasm3 indents nested preprocessor directives after the hash (863 sites).
+AlignConsecutiveAssignments:
+  EnumAssignments: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+
+AlignArrayOfStructures: Left
+
+Cpp11BracedListStyle: Block
+
+# wasm3 indents nested preprocessor directives after the hash (863 sites), two columns
+# per level. The include guard does not count as a level -- extra/format.py keeps the
+# `#ifndef X` / `#define X` pair visible so clang-format recognises it as a guard.
 IndentPPDirectives: AfterHash
+PPIndentWidth: 2
 
 # wasm3 does not indent the body of `extern "C"`.
 IndentExternBlock: NoIndent
 
+# Macros that stand in for a whole statement or definition and so carry no trailing
+# semicolon: the op tables, and the m3Api argument/return declarations at the top of
+# every binding. Without this clang-format reads each as a continuation of the one
+# above and cascades the indent off the right edge.
+StatementMacros:
+- expect
+- m3ApiGetArg
+- m3ApiGetArgMem
+- m3ApiRawFunction
+- m3ApiReturnType
+- m3ApiMultiValueReturnType
+- d_m3BeginExternC
+- d_m3EndExternC
+- d_m3CheckTypeTable
+- d_m3CommutativeCmpOp_f
+- d_m3CommutativeOpFunc_i
+- d_m3CommutativeOpMacro
+- d_m3CommutativeOp_f
+- d_m3CommutativeOp_i
+- d_m3CompareOp_f
+- d_m3Decoder
+- d_m3ErrorConst
+- d_m3FoldCommutativeOpMacro
+- d_m3FoldCommutativeOp_f
+- d_m3FoldCommutativeOp_i
+- d_m3FoldOp_f
+- d_m3FoldOp_i
+- d_m3FusedCmpBranch
+- d_m3LoadFold
+- d_m3Load_f
+- d_m3Load_i
+- d_m3Op
+- d_m3OpFunc_f
+- d_m3OpFunc_i
+- d_m3OpMacro_i
+- d_m3Op_f
+- d_m3Op_i
+- d_m3ReinterpretOp
+- d_m3Select_f
+- d_m3Select_i
+- d_m3SetRegisterSetSlot
+- d_m3Store_f
+- d_m3Store_i
+- d_m3TraceLocal
+- d_m3TraceMemory
+- d_m3TruncMacro
+- d_m3TypeConvertOp
+- d_m3TypeModifyOp
+- d_m3UnaryOp_f
+- d_m3UnaryOp_i
+
 MaxEmptyLinesToKeep: 2
 KeepEmptyLines:
-  AtStartOfBlock:  true
-  AtStartOfFile:   true
-  AtEndOfFile:     false
+  AtStartOfBlock: true
+  AtStartOfFile: true
+  AtEndOfFile: false
 
 # Comment blocks here are hand-wrapped; do not re-flow them.
-ReflowComments:  Never
-SortIncludes:    Never
+ReflowComments: Never
+SortIncludes: Never
 InsertNewlineAtEOF: true
