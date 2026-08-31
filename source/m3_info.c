@@ -552,7 +552,7 @@ void  m3_PrintProfilerInfo  ()
 
         if (maxSlot->opName)
         {
-            fprintf (stderr, "%13llu  %s\n", maxSlot->hitCount, maxSlot->opName);
+            fprintf (stderr, "%13" PRIu64 "  %s\n", maxSlot->hitCount, maxSlot->opName);
             maxSlot->opName = NULL;
         }
     }

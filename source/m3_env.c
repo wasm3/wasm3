@@ -2013,6 +2013,77 @@ size_t  m3_GetMemorySizeAt  (const void * i_memory)
 }
 
 
+M3Result  m3_FindExportedMemory  (IM3Module i_module, cstr_t i_name, u32 * o_memoryIndex)
+{
+    if (not i_module or not i_name or not o_memoryIndex)
+        return m3Err_unknownMemory;
+
+    for (u32 i = 0; i < i_module->numMemories; ++i)
+    {
+        IM3Memory memory = i_module->memories [i];
+
+        if (memory->exportName and strcmp (memory->exportName, i_name) == 0)
+        {
+            * o_memoryIndex = i;
+            return m3Err_none;
+        }
+    }
+
+    return m3Err_unknownMemory;
+}
+
+
+bool  Module_HasLinkedHostImport  (IM3Module i_module, cstr_t i_importModule)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function f = & i_module->functions [i];
+
+        // hostMemory is set when a host function is bound to the import, so it
+        // is also the mark of one - see CompileRawFunction
+        if (not f->hostMemory or f->wasm or f->resolved)
+            continue;
+
+        if (f->import.moduleUtf8 and strcmp (f->import.moduleUtf8, i_importModule) == 0)
+            return true;
+    }
+
+    return false;
+}
+
+
+M3Result  m3_BindImportMemory  (IM3Module io_module, cstr_t i_importModule, u32 i_memoryIndex)
+{
+    if (not io_module or not i_importModule)
+        return m3Err_moduleNotLinked;
+
+    if (i_memoryIndex >= io_module->numMemories)
+        return m3Err_unknownMemory;
+
+    // the memory itself, not the index: linking may have pointed this slot at
+    // another module's memory, and growing one reallocates behind it
+    IM3Memory memory = io_module->memories [i_memoryIndex];
+
+    const bool wildcardModule = (strcmp (i_importModule, "*") == 0);
+
+    for (u32 i = 0; i < io_module->numFunctions; ++i)
+    {
+        IM3Function f = & io_module->functions [i];
+
+        // only an import that a host function was bound to has a memory to
+        // pin: one with a body of its own reads memory through the interpreter,
+        // and one resolved to another module's export runs that module's code
+        if (not f->hostMemory or f->wasm or f->resolved)
+            continue;
+
+        if (wildcardModule or (f->import.moduleUtf8 and strcmp (f->import.moduleUtf8, i_importModule) == 0))
+            f->hostMemory = memory;
+    }
+
+    return m3Err_none;
+}
+
+
 M3BacktraceInfo *  m3_GetBacktrace  (IM3Runtime i_runtime)
 {
 # if d_m3RecordBacktraces

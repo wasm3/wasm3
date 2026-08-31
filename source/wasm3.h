@@ -235,6 +235,7 @@ d_m3ErrorConst  (trapTableOutOfBounds,          "[trap] out of bounds table acce
 d_m3ErrorConst  (trapExit,                      "[trap] program called exit")
 d_m3ErrorConst  (trapAbort,                     "[trap] program called abort")
 d_m3ErrorConst  (trapUnreachable,               "[trap] unreachable")
+d_m3ErrorConst  (trapUnsupportedInstruction,    "[trap] unsupported instruction")
 d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 d_m3ErrorConst  (trapUncaughtException,         "[trap] uncaught exception")
 
@@ -290,6 +291,24 @@ d_m3ErrorConst  (pendingException,              "[internal] exception in flight"
     size_t              m3_GetMemorySizeAt          (const void *           i_memory);
 
     void *              m3_GetUserData              (IM3Runtime             i_runtime);
+
+    // The index of the memory the module exports under i_name. A host module
+    // whose ABI names the memory it addresses looks it up this way - WASI names
+    // it "memory". Returns m3Err_unknownMemory when no memory is exported
+    // under that name.
+    M3Result            m3_FindExportedMemory       (IM3Module              i_module,
+                                                     const char * const     i_name,
+                                                     uint32_t *             o_memoryIndex);
+
+    // Pin which of the module's memories the host functions imported from
+    // i_importModule address ("*" for every namespace, as in
+    // m3_LinkRawFunction). Applies to imports already bound to a host function,
+    // so call it after linking them. Left alone, a host function addresses
+    // memory 0 - what a bare i32 guest pointer means when nothing says
+    // otherwise - so this is only needed by a host module that names a memory.
+    M3Result            m3_BindImportMemory         (IM3Module              io_module,
+                                                     const char * const     i_importModule,
+                                                     uint32_t               i_memoryIndex);
 
 
 //-------------------------------------------------------------------------------------------------------------------------------

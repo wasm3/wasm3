@@ -66,7 +66,31 @@ d_m3BeginExternC
 #   define nextOp()                 nextOpDirect()
 # endif
 
-#define jumpOp(PC)                  jumpOpDirect(PC)
+// Next-operation preloading. The dispatch load and the indirect jump that consumes it
+// sit next to each other, so the jump cannot resolve until the load returns. An
+// operation's _pc is final as soon as it has taken its immediates -- the offsets are
+// compile-time constants -- so the load can be issued there instead, leaving the
+// operation's own work as cover for its latency.
+//
+// Preloading is dropped in profiling and tracing builds, where dispatch goes through a
+// hook instead and the loaded pointer would be the wrong thing to call.
+# if d_m3PreloadNextOp && !(d_m3EnableOpProfiling || d_m3EnableOpTracing)
+#   define d_m3PreloadNext()        const IM3Operation _nextOp = (IM3Operation) (* _pc)
+#   define nextOpPreloaded()        M3_MUSTTAIL return _nextOp (_pc + 1, d_m3OpArgs)
+# else
+#   define d_m3PreloadNext()
+#   define nextOpPreloaded()        nextOp()
+# endif
+
+# if d_m3EnableOpProfiling
+                                    d_m3RetSig  profileJumpOp (d_m3OpSig, cstr_t i_operationName);
+    // An operation that leaves by a branch never reaches nextOp, so without this it is
+    // absent from the profile entirely and its outgoing edges are attributed to whatever
+    // ran before it. Has to stay one statement: jumpOp appears in brace-less else arms.
+#   define jumpOp(PC)               M3_MUSTTAIL return profileJumpOp ((pc_t)(PC), d_m3OpArgs, __FUNCTION__)
+# else
+#   define jumpOp(PC)               jumpOpDirect(PC)
+# endif
 
 #if d_m3RecordBacktraces
     #define pushBacktraceFrame()            (PushBacktraceFrame (_mem->runtime, _pc - 1))
@@ -105,7 +129,7 @@ d_m3BeginExternC
     #define d_m3TracePrint(fmt, ...)            fprintf(stderr, fmt "\n", ##__VA_ARGS__)
 #elif d_m3EnableStrace >= 2
     // Structured trace
-    #define d_m3TracePrepare                    const IM3Runtime trace_rt = m3MemRuntime(_mem);
+    #define d_m3TracePrepare                    const IM3Runtime trace_rt = m3MemRuntime(_mem); (void) trace_rt;
     #define d_m3TracePrint(fmt, ...)            fprintf(stderr, "%*s" fmt "\n", (trace_rt->callDepth)*2, "", ##__VA_ARGS__)
 #else
     #define d_m3TracePrepare
@@ -153,23 +177,26 @@ d_m3RetSig  Call  (d_m3OpSig)
 d_m3Op(TYPE##_##NAME##_rs)                              \
 {                                                       \
     TYPE operand = slot (TYPE);                         \
+    d_m3PreloadNext ();                                 \
     OP((RES), operand, ((TYPE) REG), ##__VA_ARGS__);    \
-    nextOp ();                                          \
+    nextOpPreloaded ();                                 \
 }                                                       \
 d_m3Op(TYPE##_##NAME##_ss)                              \
 {                                                       \
     TYPE operand2 = slot (TYPE);                        \
     TYPE operand1 = slot (TYPE);                        \
+    d_m3PreloadNext ();                                 \
     OP((RES), operand1, operand2, ##__VA_ARGS__);       \
-    nextOp ();                                          \
+    nextOpPreloaded ();                                 \
 }
 
 #define d_m3OpMacro(RES, REG, TYPE, NAME, OP, ...)      \
 d_m3Op(TYPE##_##NAME##_sr)                              \
 {                                                       \
     TYPE operand = slot (TYPE);                         \
+    d_m3PreloadNext ();                                 \
     OP((RES), ((TYPE) REG), operand, ##__VA_ARGS__);    \
-    nextOp ();                                          \
+    nextOpPreloaded ();                                 \
 }                                                       \
 d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 
@@ -251,6 +278,96 @@ d_m3CommutativeOp_i (u32, Xor,              ^)
 d_m3CommutativeOp_i (u64, And,              &)
 d_m3CommutativeOp_i (u64, Or,               |)
 d_m3CommutativeOp_i (u64, Xor,              ^)
+
+#if d_m3FoldSetLocal
+
+// destination-folded ("_f") variants: same operand shapes as _rs/_sr/_ss, but the result is
+// written to a trailing destination slot instead of _r0 — a producer fused with its local.set.
+// operand immediates keep their normal order; the destination slot is the last immediate.
+// The destination immediate is taken as a pointer before the operation runs, rather
+// than written through at the end: that leaves _pc final early enough for the dispatch
+// load to be issued ahead of the arithmetic instead of after it.
+// The result is written through to the register as well as to the destination slot.
+// Destination folding only ever replaces an operation that computed into the register,
+// so the old value there is already dead and keeping the result costs nothing -- and it
+// lets a local.tee carry on in the register instead of reloading the slot it just wrote.
+#define d_m3FoldCommutativeOpMacro(REG, TYPE, NAME, OP, ...) \
+d_m3Op(TYPE##_##NAME##_rs_f)                            \
+{                                                       \
+    TYPE operand = slot (TYPE);                         \
+    TYPE * dest = slot_ptr (TYPE);                      \
+    d_m3PreloadNext ();                                 \
+    TYPE result;                                        \
+    OP((result), operand, ((TYPE) REG), ##__VA_ARGS__); \
+    * dest = result;  REG = result;                     \
+    nextOpPreloaded ();                                 \
+}                                                       \
+d_m3Op(TYPE##_##NAME##_ss_f)                            \
+{                                                       \
+    TYPE operand2 = slot (TYPE);                        \
+    TYPE operand1 = slot (TYPE);                        \
+    TYPE * dest = slot_ptr (TYPE);                      \
+    d_m3PreloadNext ();                                 \
+    TYPE result;                                        \
+    OP((result), operand1, operand2, ##__VA_ARGS__);    \
+    * dest = result;  REG = result;                     \
+    nextOpPreloaded ();                                 \
+}
+
+#define d_m3FoldOpMacro(REG, TYPE, NAME, OP, ...)       \
+d_m3Op(TYPE##_##NAME##_sr_f)                            \
+{                                                       \
+    TYPE operand = slot (TYPE);                         \
+    TYPE * dest = slot_ptr (TYPE);                      \
+    d_m3PreloadNext ();                                 \
+    TYPE result;                                        \
+    OP((result), ((TYPE) REG), operand, ##__VA_ARGS__); \
+    * dest = result;  REG = result;                     \
+    nextOpPreloaded ();                                 \
+}                                                       \
+d_m3FoldCommutativeOpMacro(REG, TYPE, NAME, OP, ##__VA_ARGS__)
+
+// A commutative operator has no _sr form in its variant table, so the fold set skips
+// the _sr_f handler it could never be patched to.
+#define d_m3FoldOp_i(TYPE, NAME, OP, ...)               d_m3FoldOpMacro             ( _r0, TYPE, NAME, OP, ##__VA_ARGS__)
+#define d_m3FoldOp_f(TYPE, NAME, OP, ...)               d_m3FoldOpMacro             (_fp0, TYPE, NAME, OP, ##__VA_ARGS__)
+#define d_m3FoldCommutativeOp_i(TYPE, NAME, OP, ...)    d_m3FoldCommutativeOpMacro  ( _r0, TYPE, NAME, OP, ##__VA_ARGS__)
+#define d_m3FoldCommutativeOp_f(TYPE, NAME, OP, ...)    d_m3FoldCommutativeOpMacro  (_fp0, TYPE, NAME, OP, ##__VA_ARGS__)
+
+d_m3FoldCommutativeOp_i (i32, Add,          M3_FUNC, OP_ADD_32)
+d_m3FoldOp_i            (i32, Subtract,     M3_FUNC, OP_SUB_32)
+d_m3FoldCommutativeOp_i (i32, Multiply,     M3_FUNC, OP_MUL_32)
+d_m3FoldCommutativeOp_i (u32, And,          M3_OPER, &)
+d_m3FoldCommutativeOp_i (u32, Or,           M3_OPER, |)
+d_m3FoldCommutativeOp_i (u32, Xor,          M3_OPER, ^)
+d_m3FoldOp_i            (u32, ShiftLeft,    M3_FUNC, OP_SHL_32)
+d_m3FoldOp_i            (i32, ShiftRight,   M3_FUNC, OP_SHR_32)
+d_m3FoldOp_i            (u32, ShiftRight,   M3_FUNC, OP_SHR_32)
+
+d_m3FoldCommutativeOp_i (i64, Add,          M3_FUNC, OP_ADD_64)
+d_m3FoldOp_i            (i64, Subtract,     M3_FUNC, OP_SUB_64)
+d_m3FoldCommutativeOp_i (i64, Multiply,     M3_FUNC, OP_MUL_64)
+d_m3FoldCommutativeOp_i (u64, And,          M3_OPER, &)
+d_m3FoldCommutativeOp_i (u64, Or,           M3_OPER, |)
+d_m3FoldCommutativeOp_i (u64, Xor,          M3_OPER, ^)
+d_m3FoldOp_i            (u64, ShiftLeft,    M3_FUNC, OP_SHL_64)
+d_m3FoldOp_i            (i64, ShiftRight,   M3_FUNC, OP_SHR_64)
+d_m3FoldOp_i            (u64, ShiftRight,   M3_FUNC, OP_SHR_64)
+
+#if d_m3HasFloat
+// Without these a float result round-trips through _fp0 and a separate SetSlot, which
+// on float-heavy code is about one dispatch in five.
+d_m3FoldCommutativeOp_f (f32, Add,          M3_OPER, +)
+d_m3FoldOp_f            (f32, Subtract,     M3_OPER, -)
+d_m3FoldCommutativeOp_f (f32, Multiply,     M3_OPER, *)
+d_m3FoldOp_f            (f32, Divide,       M3_OPER, /)
+d_m3FoldCommutativeOp_f (f64, Add,          M3_OPER, +)
+d_m3FoldOp_f            (f64, Subtract,     M3_OPER, -)
+d_m3FoldCommutativeOp_f (f64, Multiply,     M3_OPER, *)
+d_m3FoldOp_f            (f64, Divide,       M3_OPER, /)
+#endif
+
+#endif // d_m3FoldSetLocal
 
 #if d_m3HasFloat
 d_m3CommutativeOp_f (f32, Add,              +)      d_m3CommutativeOp_f (f64, Add,              +)
@@ -848,7 +965,6 @@ d_m3Op  (CallRawFunction)
 #if d_m3EnableStrace
     IM3FuncType ftype = ctx.function->funcType;
 
-    FILE* out = stderr;
     char outbuff[1024];
     char* outp = outbuff;
     char* oute = outbuff+1024;
@@ -879,7 +995,10 @@ d_m3Op  (CallRawFunction)
     // I.e. exported/table function can be called from an impoted function.
     void* stack_backup = runtime->stack;
     runtime->stack = sp;
-    m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
+    // the memory this import was bound to, which is memory 0 unless the host
+    // module named another one. _mem itself stays on the caller's memory:
+    // the trap path below and the backtrace recorder still read it.
+    m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData (ctx.function->hostMemory->mallocated));
     runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
@@ -1710,25 +1829,30 @@ d_m3Op  (BranchTable)
 #define d_m3SetRegisterSetSlot(TYPE, REG) \
 d_m3Op  (SetRegister_##TYPE)            \
 {                                       \
-    REG = slot (TYPE);                  \
-    nextOp ();                          \
+    TYPE * src = slot_ptr (TYPE);       \
+    d_m3PreloadNext ();                 \
+    REG = * src;                        \
+    nextOpPreloaded ();                 \
 }                                       \
                                         \
 d_m3Op (SetSlot_##TYPE)                 \
 {                                       \
-    slot (TYPE) = (TYPE) REG;           \
-    nextOp ();                          \
+    TYPE * dst = slot_ptr (TYPE);       \
+    d_m3PreloadNext ();                 \
+    * dst = (TYPE) REG;                 \
+    nextOpPreloaded ();                 \
 }                                       \
                                         \
 d_m3Op (PreserveSetSlot_##TYPE)         \
 {                                       \
     TYPE * stack     = slot_ptr (TYPE); \
     TYPE * preserve  = slot_ptr (TYPE); \
+    d_m3PreloadNext ();                 \
                                         \
     * preserve = * stack;               \
     * stack = (TYPE) REG;               \
                                         \
-    nextOp ();                          \
+    nextOpPreloaded ();                 \
 }
 
 d_m3SetRegisterSetSlot (i32, _r0)
@@ -1742,10 +1866,11 @@ d_m3Op (CopySlot_32)
 {
     u32 * dst = slot_ptr (u32);
     u32 * src = slot_ptr (u32);
+    d_m3PreloadNext ();
 
     * dst = * src;
 
-    nextOp ();
+    nextOpPreloaded ();
 }
 
 
@@ -1754,11 +1879,12 @@ d_m3Op (PreserveCopySlot_32)
     u32 * dest      = slot_ptr (u32);
     u32 * src       = slot_ptr (u32);
     u32 * preserve  = slot_ptr (u32);
+    d_m3PreloadNext ();
 
     * preserve = * dest;
     * dest = * src;
 
-    nextOp ();
+    nextOpPreloaded ();
 }
 
 
@@ -1766,10 +1892,11 @@ d_m3Op (CopySlot_64)
 {
     u64 * dst = slot_ptr (u64);
     u64 * src = slot_ptr (u64);
+    d_m3PreloadNext ();
 
     * dst = * src;                  // printf ("copy: %p <- %" PRIi64 " <- %p\n", dst, * dst, src);
 
-    nextOp ();
+    nextOpPreloaded ();
 }
 
 
@@ -1778,11 +1905,12 @@ d_m3Op (PreserveCopySlot_64)
     u64 * dest      = slot_ptr (u64);
     u64 * src       = slot_ptr (u64);
     u64 * preserve  = slot_ptr (u64);
+    d_m3PreloadNext ();
 
     * preserve = * dest;
     * dest = * src;
 
-    nextOp ();
+    nextOpPreloaded ();
 }
 
 
@@ -1949,6 +2077,111 @@ d_m3Op  (BranchIf_s)
     else nextOp ();
 }
 
+#if d_m3FuseBranch
+
+// fused compare+branch and compare+if: a compare retro-patched by the compiler when a br_if or if
+// immediately consumes its result. operand shapes and immediate order match the plain compare
+// (_rs/_sr/_ss); the branch/else target pointer is the last immediate.
+#define d_m3FusedCmpBranch(TYPE, NAME, OPER)                \
+d_m3Op(TYPE##_BranchIf_##NAME##_rs)                         \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t branch  = immediate (pc_t);                        \
+    if (operand OPER ((TYPE) _r0))                          \
+        jumpOp (branch);                                    \
+    else nextOp ();                                         \
+}                                                           \
+d_m3Op(TYPE##_BranchIf_##NAME##_sr)                         \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t branch  = immediate (pc_t);                        \
+    if (((TYPE) _r0) OPER operand)                          \
+        jumpOp (branch);                                    \
+    else nextOp ();                                         \
+}                                                           \
+d_m3Op(TYPE##_BranchIf_##NAME##_ss)                         \
+{                                                           \
+    TYPE operand2 = slot (TYPE);                            \
+    TYPE operand1 = slot (TYPE);                            \
+    pc_t branch   = immediate (pc_t);                       \
+    if (operand1 OPER operand2)                             \
+        jumpOp (branch);                                    \
+    else nextOp ();                                         \
+}                                                           \
+d_m3Op(TYPE##_If_##NAME##_rs)                               \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t elsePC  = immediate (pc_t);                        \
+    if (operand OPER ((TYPE) _r0))                          \
+        nextOp ();                                          \
+    else jumpOp (elsePC);                                   \
+}                                                           \
+d_m3Op(TYPE##_If_##NAME##_sr)                               \
+{                                                           \
+    TYPE operand = slot (TYPE);                             \
+    pc_t elsePC  = immediate (pc_t);                        \
+    if (((TYPE) _r0) OPER operand)                          \
+        nextOp ();                                          \
+    else jumpOp (elsePC);                                   \
+}                                                           \
+d_m3Op(TYPE##_If_##NAME##_ss)                               \
+{                                                           \
+    TYPE operand2 = slot (TYPE);                            \
+    TYPE operand1 = slot (TYPE);                            \
+    pc_t elsePC   = immediate (pc_t);                       \
+    if (operand1 OPER operand2)                             \
+        nextOp ();                                          \
+    else jumpOp (elsePC);                                   \
+}
+
+d_m3FusedCmpBranch (i32, Equal,                 ==)
+d_m3FusedCmpBranch (i32, NotEqual,              !=)
+d_m3FusedCmpBranch (i32, LessThan,              < )
+d_m3FusedCmpBranch (i32, GreaterThan,           > )
+d_m3FusedCmpBranch (i32, LessThanOrEqual,       <=)
+d_m3FusedCmpBranch (i32, GreaterThanOrEqual,    >=)
+d_m3FusedCmpBranch (u32, LessThan,              < )
+d_m3FusedCmpBranch (u32, GreaterThan,           > )
+d_m3FusedCmpBranch (u32, LessThanOrEqual,       <=)
+d_m3FusedCmpBranch (u32, GreaterThanOrEqual,    >=)
+
+// i32.eqz is unary: form _r has the operand in _r0 (no operand immediate), _s reads a slot
+d_m3Op (i32_BranchIfEqz_r)
+{
+    pc_t branch = immediate (pc_t);
+    if (((i32) _r0) == 0)
+        jumpOp (branch);
+    else nextOp ();
+}
+
+d_m3Op (i32_BranchIfEqz_s)
+{
+    i32 operand = slot (i32);
+    pc_t branch = immediate (pc_t);
+    if (operand == 0)
+        jumpOp (branch);
+    else nextOp ();
+}
+
+d_m3Op (i32_IfEqz_r)
+{
+    pc_t elsePC = immediate (pc_t);
+    if (((i32) _r0) == 0)
+        nextOp ();
+    else jumpOp (elsePC);
+}
+
+d_m3Op (i32_IfEqz_s)
+{
+    i32 operand = slot (i32);
+    pc_t elsePC = immediate (pc_t);
+    if (operand == 0)
+        nextOp ();
+    else jumpOp (elsePC);
+}
+
+#endif // d_m3FuseBranch
+
 
 d_m3Op  (BranchIfPrologue_r)
 {
@@ -2022,7 +2255,7 @@ d_m3Op  (Const64)
 
 d_m3Op  (Unsupported)
 {
-    newTrap ("unsupported instruction executed");
+    newTrap (m3Err_trapUnsupportedInstruction);
 }
 
 d_m3Op  (Unreachable)
@@ -2128,6 +2361,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
 {                                                       \
     d_m3TracePrepare                                    \
     u32 offset = immediate (u32);                       \
+    d_m3PreloadNext ();                                 \
     u64 operand = (u32) _r0;                            \
     operand += offset;                                  \
                                                         \
@@ -2142,7 +2376,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
             REG = (DEST_TYPE)value;                     \
             d_m3TraceLoad(DEST_TYPE, operand, REG);     \
         }                                               \
-        nextOp ();                                      \
+        nextOpPreloaded ();                             \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
@@ -2150,6 +2384,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     d_m3TracePrepare                                    \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
+    d_m3PreloadNext ();                                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
@@ -2163,7 +2398,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
             REG = (DEST_TYPE)value;                     \
             d_m3TraceLoad(DEST_TYPE, operand, REG);     \
         }                                               \
-        nextOp ();                                      \
+        nextOpPreloaded ();                             \
     } else d_outOfBounds;                               \
 }
 
@@ -2192,12 +2427,85 @@ d_m3Load_i (i64, i32);
 d_m3Load_i (i64, u32);
 d_m3Load_i (i64, i64);
 
+#if d_m3FoldSetLocal
+
+// destination-folded loads: the value goes to a trailing destination slot instead of _r0.
+// operand immediates keep d_m3Load's order; the destination slot is the last immediate
+#define d_m3LoadFold(REG, DEST_TYPE, SRC_TYPE)          \
+d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r_f)               \
+{                                                       \
+    d_m3TracePrepare                                    \
+    u32 offset = immediate (u32);                       \
+    DEST_TYPE * dest = slot_ptr (DEST_TYPE);            \
+    d_m3PreloadNext ();                                 \
+    u64 operand = (u32) _r0;                            \
+    operand += offset;                                  \
+                                                        \
+    if (m3MemCheck(                                     \
+        operand + sizeof (SRC_TYPE) <= _mem->length     \
+    )) {                                                \
+        u8* src8 = m3MemData(_mem) + operand;           \
+        SRC_TYPE value;                                 \
+        memcpy(&value, src8, sizeof(value));            \
+        M3_BSWAP_##SRC_TYPE(value);                     \
+        DEST_TYPE result = (DEST_TYPE)value;            \
+        * dest = result;  REG = result;                 \
+        d_m3TraceLoad(DEST_TYPE, operand, result);      \
+        nextOpPreloaded ();                             \
+    } else d_outOfBounds;                               \
+}                                                       \
+d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s_f)               \
+{                                                       \
+    d_m3TracePrepare                                    \
+    u64 operand = slot (u32);                           \
+    u32 offset = immediate (u32);                       \
+    DEST_TYPE * dest = slot_ptr (DEST_TYPE);            \
+    d_m3PreloadNext ();                                 \
+    operand += offset;                                  \
+                                                        \
+    if (m3MemCheck(                                     \
+        operand + sizeof (SRC_TYPE) <= _mem->length     \
+    )) {                                                \
+        u8* src8 = m3MemData(_mem) + operand;           \
+        SRC_TYPE value;                                 \
+        memcpy(&value, src8, sizeof(value));            \
+        M3_BSWAP_##SRC_TYPE(value);                     \
+        DEST_TYPE result = (DEST_TYPE)value;            \
+        * dest = result;  REG = result;                 \
+        d_m3TraceLoad(DEST_TYPE, operand, result);      \
+        nextOpPreloaded ();                             \
+    } else d_outOfBounds;                               \
+}
+
+d_m3LoadFold ( _r0, i32, i8)
+d_m3LoadFold ( _r0, i32, u8)
+d_m3LoadFold ( _r0, i32, i16)
+d_m3LoadFold ( _r0, i32, u16)
+d_m3LoadFold ( _r0, i32, i32)
+
+// The fold forms take the address from _r0 and write the result straight to the
+// destination slot, so they never touch _fp0 and the float widths need no register form.
+d_m3LoadFold ( _r0, i64, i8)
+d_m3LoadFold ( _r0, i64, u8)
+d_m3LoadFold ( _r0, i64, i16)
+d_m3LoadFold ( _r0, i64, u16)
+d_m3LoadFold ( _r0, i64, i32)
+d_m3LoadFold ( _r0, i64, u32)
+d_m3LoadFold ( _r0, i64, i64)
+#if d_m3HasFloat
+d_m3LoadFold (_fp0, f32, f32)
+d_m3LoadFold (_fp0, f64, f64)
+#endif
+
+#endif // d_m3FoldSetLocal
+
 #define d_m3Store(REG, SRC_TYPE, DEST_TYPE)             \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
 {                                                       \
     d_m3TracePrepare                                    \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
+    d_m3PreloadNext ();                                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
@@ -2210,7 +2518,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
             M3_BSWAP_##DEST_TYPE(val);                  \
             memcpy(mem8, &val, sizeof(val));            \
         }                                               \
-        nextOp ();                                      \
+        nextOpPreloaded ();                             \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
@@ -2219,6 +2527,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     const SRC_TYPE value = slot (SRC_TYPE);             \
     u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
+    d_m3PreloadNext ();                                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
@@ -2231,7 +2540,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
             M3_BSWAP_##DEST_TYPE(val);                  \
             memcpy(mem8, &val, sizeof(val));            \
         }                                               \
-        nextOp ();                                      \
+        nextOpPreloaded ();                             \
     } else d_outOfBounds;                               \
 }                                                       \
 d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
@@ -2240,6 +2549,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     const SRC_TYPE value = slot (SRC_TYPE);             \
     u64 operand = slot (u32);                           \
     u32 offset = immediate (u32);                       \
+    d_m3PreloadNext ();                                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
@@ -2252,7 +2562,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
             M3_BSWAP_##DEST_TYPE(val);                  \
             memcpy(mem8, &val, sizeof(val));            \
         }                                               \
-        nextOp ();                                      \
+        nextOpPreloaded ();                             \
     } else d_outOfBounds;                               \
 }
 
@@ -2263,6 +2573,7 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
     d_m3TracePrepare                                    \
     u64 operand = (u32) _r0;                            \
     u32 offset = immediate (u32);                       \
+    d_m3PreloadNext ();                                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
@@ -2275,7 +2586,7 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
             M3_BSWAP_##TYPE(val);                       \
             memcpy(mem8, &val, sizeof(val));            \
         }                                               \
-        nextOp ();                                      \
+        nextOpPreloaded ();                             \
     } else d_outOfBounds;                               \
 }
 
@@ -2320,6 +2631,15 @@ d_m3RetSig  debugOp  (d_m3OpSig, cstr_t i_opcode)
 
 # if d_m3EnableOpProfiling
 d_m3RetSig  profileOp  (d_m3OpSig, cstr_t i_operationName)
+{
+    ProfileHit (i_operationName);
+
+    nextOpDirect();
+}
+
+// Same, for an operation leaving by a branch: jumpOp hands the target pc in as _pc,
+// so dispatching from here lands exactly where jumpOpDirect would have.
+d_m3RetSig  profileJumpOp  (d_m3OpSig, cstr_t i_operationName)
 {
     ProfileHit (i_operationName);
 

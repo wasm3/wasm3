@@ -70,6 +70,28 @@ tests = [
     "args":           ["--func", "_start"],
     "expect_pattern": "*Result: *0.000000*",
   }, {
+    # WASI addresses the memory the module exports as "memory". These three
+    # modules are the same program with that export moved: a host that assumes
+    # memory 0 reads a zeroed iovec out of the wrong memory and writes nothing,
+    # so the first case is silence rather than a crash.
+    "name":           "WASI uses the exported memory, not memory 0",
+    "issue":          418,
+    "wasm":           "./regression/wasi-memory-export-index1.wasm",
+    "args":           ["--func", "_start"],
+    "expect_pattern": "*HI*",
+  }, {
+    "name":           "WASI still uses memory 0 when that is the export",
+    "issue":          418,
+    "wasm":           "./regression/wasi-memory-export-index0.wasm",
+    "args":           ["--func", "_start"],
+    "expect_pattern": "*HI*",
+  }, {
+    "name":           "WASI without an exported memory is refused",
+    "issue":          418,
+    "wasm":           "./regression/wasi-memory-export-missing.wasm",
+    "args":           ["--func", "_start"],
+    "expect_pattern": "*module to export its memory*",
+  }, {
     "name":           "Unlinked memory import",
     "issue":          462,
     "wasm":           "./regression/github-462.wasm",

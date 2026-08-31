@@ -163,6 +163,25 @@
 #   define d_m3HasFloat                         1       // implement floating point ops
 # endif
 
+// Issue the dispatch load for the next operation as soon as this one's immediates are
+// consumed, rather than at the point of the jump that consumes it, so the operation's
+// own work covers the load latency. See the comment in m3_exec.h.
+# ifndef d_m3PreloadNextOp
+#   define d_m3PreloadNextOp                    0
+# endif
+
+# ifndef d_m3FoldSetLocal
+#   define d_m3FoldSetLocal                     1       // fuse a value-producing op with an immediately
+# endif                                                 // following local.set by retro-patching its destination
+
+# ifndef d_m3FuseBranch
+#   define d_m3FuseBranch                       1       // fuse a compare with an immediately following
+# endif                                                 // br_if/if into one op (needs d_m3FoldSetLocal)
+# if d_m3FuseBranch && !d_m3FoldSetLocal
+#   undef  d_m3FuseBranch
+#   define d_m3FuseBranch                       0       // the fusion candidate tracking lives in the fold machinery
+# endif
+
 #if !d_m3HasFloat && !defined(d_m3NoFloatDynamic)
 #   define d_m3NoFloatDynamic                   1       // if no floats, do not fail until flops are actually executed
 #endif

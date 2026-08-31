@@ -1202,6 +1202,23 @@ _       (SuppressLookupFailure (m3_LinkRawFunctionEx (module, wasi, "sched_yield
 //_     (SuppressLookupFailure (m3_LinkRawFunction (module, wasi, "sock_shutdown",        "i(ii)",            )));
     }
 
+    // WASI addresses the memory the module exports as "memory", not whichever
+    // one the calling code happens to be running against. Resolve it once, here,
+    // rather than per call. A module that linked none of the above imports has
+    // no WASI to satisfy, so it is not asked for the export - link_all offers
+    // WASI to every module, and most have neither the imports nor a memory.
+    if (Module_HasLinkedHostImport (module, "wasi_unstable") or
+        Module_HasLinkedHostImport (module, "wasi_snapshot_preview1"))
+    {
+        u32 memoryIndex;
+
+        if (m3_FindExportedMemory (module, "memory", & memoryIndex))
+            _throw ("WASI requires the module to export its memory as \"memory\"");
+
+_       (m3_BindImportMemory (module, "wasi_unstable", memoryIndex));
+_       (m3_BindImportMemory (module, "wasi_snapshot_preview1", memoryIndex));
+    }
+
 _catch:
     return result;
 }

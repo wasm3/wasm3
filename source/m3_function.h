@@ -56,6 +56,15 @@ typedef struct M3Function
 
     M3ImportInfo            import;
 
+    // The linear memory a host function bound to this import addresses. Set to
+    // the module's memory 0 when the host function is bound - what a bare i32
+    // guest pointer means when nothing says otherwise - and repointed by
+    // m3_BindImportMemory for a host module whose ABI names a memory instead.
+    // Holds the memory rather than its index: a slot can alias another module's
+    // memory, and growing one reallocates behind it. NULL for anything that is
+    // not an import bound to a host function.
+    struct M3Memory *       hostMemory;
+
     // An import linked to another module's export: the function that actually
     // implements it. Everything that calls through an import resolves to this
     // first, so the call carries the defining module with it - which is what

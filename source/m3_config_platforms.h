@@ -155,7 +155,10 @@ typedef int8_t          i8;
  * Apply settings
  */
 
-# if defined (M3_COMPILER_MSVC)
+# if M3_COMPILER_HAS_ATTRIBUTE(preserve_none) && M3_GUARANTEED_TAIL_CALL && \
+     (defined(__x86_64__) || defined(__aarch64__))
+#   define vectorcall   __attribute__((preserve_none))
+# elif defined (M3_COMPILER_MSVC)
 #   define vectorcall   // For MSVC, better not to specify any call convention
 # elif defined(__x86_64__)
 #   define vectorcall
@@ -213,21 +216,21 @@ typedef int8_t          i8;
 # ifndef d_m3CascadedOpcodes
 #   define d_m3CascadedOpcodes                  0
 # endif
-#  ifndef d_m3VerboseErrorMessages
-#    define d_m3VerboseErrorMessages            0
-#  endif
+# ifndef d_m3VerboseErrorMessages
+#   define d_m3VerboseErrorMessages             0
+# endif
 # ifndef d_m3MaxConstantTableSize
 #   define d_m3MaxConstantTableSize             64
 # endif
-#  ifndef d_m3MaxFunctionStackHeight
-#    define d_m3MaxFunctionStackHeight          128
-#  endif
-#  ifndef d_m3MaxNativeStack
-#    define d_m3MaxNativeStack                  0
-#  endif
-#  ifndef d_m3CodePageAlignSize
-#    define d_m3CodePageAlignSize               1024
-#  endif
+# ifndef d_m3MaxFunctionStackHeight
+#   define d_m3MaxFunctionStackHeight           128
+# endif
+# ifndef d_m3MaxNativeStack
+#   define d_m3MaxNativeStack                   0
+# endif
+# ifndef d_m3CodePageAlignSize
+#   define d_m3CodePageAlignSize                1024
+# endif
 # ifndef d_m3HasMultiMemory
 #   define d_m3HasMultiMemory                   0
 # endif
@@ -239,10 +242,15 @@ typedef int8_t          i8;
 /*
  * Arch-specific defaults
  */
+
 #if defined(__riscv) && (__riscv_xlen == 64)
-#  ifndef d_m3Use32BitSlots
-#    define d_m3Use32BitSlots                   0
-#  endif
+# ifndef d_m3Use32BitSlots
+#   define d_m3Use32BitSlots                    0
+# endif
+#elif defined(__aarch64__)
+# ifndef d_m3PreloadNextOp
+#   define d_m3PreloadNextOp                    1
+# endif
 #endif
 
 #endif // m3_config_platforms_h
