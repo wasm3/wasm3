@@ -12,8 +12,8 @@
 
 d_m3BeginExternC
 
-u8          ConvertTypeCharToTypeId     (char i_code);
-M3Result    SignatureToFuncType         (IM3FuncType * o_functionType, ccstr_t i_signature);
+u8       ConvertTypeCharToTypeId (char i_code);
+M3Result SignatureToFuncType (IM3FuncType* o_functionType, ccstr_t i_signature);
 
 d_m3EndExternC
 

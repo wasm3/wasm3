@@ -11,6 +11,8 @@
 
 #if d_m3EnableValidation
 
+// clang-format off
+
 // The spec's bottom type: an operand of unknown type on an unreachable stack,
 // which unifies with every concrete type. Deliberately not c_m3Type_unknown -
 // that one means "invalid type" and must never be accepted by a type check.
@@ -81,23 +83,23 @@ static m3type_t v_table_addrtype (ValCtx * v, u32 i_tableIdx)
 static u32 v_max_align (m3opcode_t opcode)
 {
     switch (opcode) {
-        case 0x2c: case 0x2d:   // i32.load8_s, i32.load8_u
-        case 0x30: case 0x31:   // i64.load8_s, i64.load8_u
-        case 0x3a:              // i32.store8
-        case 0x3c:              // i64.store8
-            return 0;
-        case 0x2e: case 0x2f:   // i32.load16_s, i32.load16_u
-        case 0x32: case 0x33:   // i64.load16_s, i64.load16_u
-        case 0x3b:              // i32.store16
-        case 0x3d:              // i64.store16
-            return 1;
-        case 0x29:              // i64.load
-        case 0x2b:              // f64.load
-        case 0x37:              // i64.store
-        case 0x39:              // f64.store
-            return 3;
-        default:                // 32-bit accesses, and a safe fallback
-            return 2;
+    case 0x2c: case 0x2d:   // i32.load8_s, i32.load8_u
+    case 0x30: case 0x31:   // i64.load8_s, i64.load8_u
+    case 0x3a:              // i32.store8
+    case 0x3c:              // i64.store8
+        return 0;
+    case 0x2e: case 0x2f:   // i32.load16_s, i32.load16_u
+    case 0x32: case 0x33:   // i64.load16_s, i64.load16_u
+    case 0x3b:              // i32.store16
+    case 0x3d:              // i64.store16
+        return 1;
+    case 0x29:              // i64.load
+    case 0x2b:              // f64.load
+    case 0x37:              // i64.store
+    case 0x39:              // f64.store
+        return 3;
+    default:                // 32-bit accesses, and a safe fallback
+        return 2;
     }
 }
 
@@ -1340,5 +1342,7 @@ M3Result  ValidateFunction  (IM3Function i_function)
     (void)i_function;
     return m3Err_none;
 }
+
+// clang-format on
 
 #endif // d_m3EnableValidation

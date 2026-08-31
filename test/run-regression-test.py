@@ -20,10 +20,9 @@ import subprocess
 import sys
 import fnmatch
 
-sys.path.append('../extra')
+sys.path.append("../extra")
 
 from testutils import *
-from pprint import pprint
 
 #
 # Args handling
@@ -31,12 +30,12 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
-parser.add_argument("--timeout", type=int,             default=120)
-parser.add_argument("-v", "--verbose", action='store_true')
+parser.add_argument("--timeout", type=int, default=120)
+parser.add_argument("-v", "--verbose", action="store_true")
 
 args = parser.parse_args()
 
-stats = dotdict(total_run=0, failed=0, crashed=0, timeout=0, known_issues=0)
+stats = SimpleNamespace(total_run=0, failed=0, crashed=0, timeout=0, known_issues=0)
 
 #
 # Test cases
@@ -46,6 +45,7 @@ stats = dotdict(total_run=0, failed=0, crashed=0, timeout=0, known_issues=0)
 # "args" precede the module path; "func_args" follow it.
 #
 
+# fmt: off
 tests = [
   {
     "name":           "f32.max NaN propagation",
@@ -222,14 +222,16 @@ tests = [
     "expect_pattern": "*Result: 1*",
   },
 ]
+# fmt: on
 
 #
 # Helpers
 #
 
+
 def exit_info(rc):
     """(died, human readable) for a process return code."""
-    if os.name == 'nt':
+    if os.name == "nt":
         # Unhandled SEH exceptions surface as NTSTATUS codes (0xC0000005 = AV).
         status = rc & 0xFFFFFFFF
         if status & 0xC0000000 == 0xC0000000:
@@ -244,6 +246,7 @@ def exit_info(rc):
         return True, f"killed by {name}"
 
     return False, f"exit code {rc}"
+
 
 # ASan/UBSan/valgrind keep the process alive but say so on the way out
 sanitizer_markers = [
@@ -264,22 +267,31 @@ sanitizer_markers = [
 for test in tests:
     # "args" go before the module path, "func_args" after it - that is where
     # wasm3 expects the arguments of the function being called
-    command = args.exec.split(' ') + test.get('args', []) + [test['wasm']] + test.get('func_args', [])
+    command = (
+        args.exec.split(" ")
+        + test.get("args", [])
+        + [test["wasm"]]
+        + test.get("func_args", [])
+    )
     command = list(map(str, command))
 
-    issue = test.get('issue')
-    title = f"issue #{issue}: {test['name']}" if issue else test['name']
+    issue = test.get("issue")
+    title = f"issue #{issue}: {test['name']}" if issue else test["name"]
     print(f"=== {title} ===")
     if args.verbose:
-        print(' '.join(command))
+        print(" ".join(command))
 
     stats.total_run += 1
     problems = []
 
     timed_out = False
     try:
-        p = subprocess.run(command, timeout=args.timeout,
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.run(
+            command,
+            timeout=args.timeout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
         output = p.stdout.decode("utf-8", errors="replace")
         died, how = exit_info(p.returncode)
     except subprocess.TimeoutExpired:
@@ -295,10 +307,10 @@ for test in tests:
             break
 
     if not died and "expect_pattern" in test:
-        if not fnmatch.fnmatch(output, test['expect_pattern']):
+        if not fnmatch.fnmatch(output, test["expect_pattern"]):
             problems.append(f"output does not match {test['expect_pattern']!r}")
 
-    known = test.get('known_issue')
+    known = test.get("known_issue")
 
     if problems:
         if known:
@@ -316,15 +328,17 @@ for test in tests:
     else:
         if known:
             stats.failed += 1
-            print(f"{ansi.FAIL}FAIL:{ansi.ENDC} marked as a known issue, but it passes now. "
-                  f"Drop known_issue from the case.")
+            print(
+                f"{ansi.FAIL}FAIL:{ansi.ENDC} marked as a known issue, but it passes now. "
+                f"Drop known_issue from the case."
+            )
         elif args.verbose:
             print(output.rstrip())
         print(f"{ansi.OKGREEN}OK{ansi.ENDC} ({how})")
 
     print()
 
-pprint(stats)
+print_stats(stats)
 
 if stats.failed:
     print(f"{ansi.FAIL}=======================")
@@ -335,5 +349,7 @@ else:
     print(f"{ansi.OKGREEN}=======================")
     print(f" All {stats.total_run} tests OK")
     if stats.known_issues:
-        print(f"{ansi.WARNING} {stats.known_issues} known issue(s), not failing the build{ansi.OKGREEN}")
+        print(
+            f"{ansi.WARNING} {stats.known_issues} known issue(s), not failing the build{ansi.OKGREEN}"
+        )
     print(f"======================={ansi.ENDC}")

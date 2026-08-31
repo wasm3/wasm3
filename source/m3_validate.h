@@ -18,7 +18,7 @@ d_m3BeginExternC
 // Performs full type-checking per the WebAssembly spec algorithm:
 //   operand type stack + control stack with polymorphic handling.
 // Returns m3Err_none on success or a validation error.
-M3Result  ValidateFunction  (IM3Function i_function);
+M3Result ValidateFunction (IM3Function i_function);
 
 d_m3EndExternC
 

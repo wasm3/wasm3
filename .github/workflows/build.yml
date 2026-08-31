@@ -45,8 +45,10 @@ jobs:
     - name: Install ${{ matrix.config.install }} toolchain
       if: ${{ matrix.config.install }}
       env:
-        GCC_MUSL_URL:   https://github.com/cross-tools/musl-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
-        CLANG_MUSL_URL: https://github.com/cross-tools/clang-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
+        GCC_MUSL_URL:
+          https://github.com/cross-tools/musl-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
+        CLANG_MUSL_URL:
+          https://github.com/cross-tools/clang-cross/releases/download/20260823/x86_64-unknown-linux-musl.tar.xz
       run: |
         mkdir -p .toolchains
         if [ "${{ matrix.config.install }}" = "gcc-musl" ]; then
@@ -110,7 +112,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64 ]  # TODO: s390x, ppc64le, arm64v8
+        arch: [amd64]    # TODO: s390x, ppc64le, arm64v8
 
     steps:
     - uses: actions/checkout@v7
@@ -249,13 +251,70 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
-      - name: Set up Cygwin
-        uses: egor-tensin/setup-cygwin@v4
-        with:
-            packages: make gcc-g++ cmake
-      - run: cd $GITHUB_WORKSPACE && cmake -DBUILD_WASI=simple . && make
-        shell: C:\tools\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
+    - uses: actions/checkout@v7
+    - name: Set up Cygwin
+      uses: egor-tensin/setup-cygwin@v4
+      with:
+        packages: make gcc-g++ cmake
+    - run: cd $GITHUB_WORKSPACE && cmake -DBUILD_WASI=simple . && make
+      shell: C:\tools\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
+
+  #
+  # Cross-compiled builds. build-cross.py owns the toolchain matrix, so the
+  # target list comes from it rather than being duplicated here.
+  #
+
+  cross-targets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+
+    steps:
+    - uses: actions/checkout@v7
+    - id: list
+      run: echo "targets=$(python3 build-cross.py --list --nowasi)" >> $GITHUB_OUTPUT
+
+  cross:
+    runs-on: ubuntu-latest
+    name: cross-${{ matrix.target.name }}
+    # more than cross-qemu needs: a full cmake build with uvwasi, then both the spec
+    # and WASI suites under emulation
+    timeout-minutes: 15
+
+    needs: cross-targets
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.cross-targets.outputs.targets) }}
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install QEMU
+      run: |
+        sudo apt update
+        sudo apt install -y qemu-user-static
+    # a few targets have no cross toolchain to download, so they use the distro's
+    - name: Install ${{ matrix.target.apt }}
+      if: ${{ matrix.target.apt }}
+      run: sudo apt install -y ${{ matrix.target.apt }}
+    # Split so a compile error and a failing test are distinguishable at a glance.
+    # A single --target streams its output, so a failure is readable in the log.
+    - name: Build
+      run: python3 build-cross.py --target ${{ matrix.target.name }} --notest
+    - name: Test
+      run: python3 build-cross.py --target ${{ matrix.target.name }} --nobuild
+    # The variants that only exist to exercise a build option or an ABI are tested
+    # like the rest, but nothing collects them for the release
+    - name: Upload artifact
+      if: ${{ matrix.target.dist }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: cross-${{ matrix.target.name }}
+        path: build-cross/wasm3-${{ matrix.target.name }}
+        if-no-files-found: error
 
   wasi:
     runs-on: ubuntu-latest
@@ -377,7 +436,7 @@ jobs:
     - name: Set up JDK 11
       uses: actions/setup-java@v5
       with:
-        distribution: 'zulu'
+        distribution: zulu
         java-version: 11
     - name: Build
       run: |
@@ -410,7 +469,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.x'
+        python-version: 3.x
     - name: Update and Build Python module
       run: |
         rm -rf ./pywasm3/external/wasm3
@@ -510,7 +569,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.x'
+        python-version: 3.x
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
@@ -540,11 +599,11 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.x'
+        python-version: 3.x
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio
+        pip install --upgrade platformio
     - name: Build Arduino MKR1000
       run: |
         cd platforms/embedded/arduino
@@ -572,11 +631,11 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.x'
+        python-version: 3.x
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install -U platformio
+        pip install --upgrade platformio
     - name: Build HiFive1
       run: |
         cd platforms/embedded/hifive1
@@ -589,7 +648,7 @@ jobs:
   particle:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: "github.event_name == 'push'"
+    if: github.event_name == 'push'
 
     steps:
     - uses: actions/checkout@v7
@@ -659,21 +718,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
-      - name: Configure
-        run: |
-          cd platforms/cpp
-          mkdir build
-          cd build
-          cmake ..
-      - name: Build
-        run: |
-          cd platforms/cpp
-          cmake --build build
-      - name: Run
-        run: |
-          cd platforms/cpp/build
-          ./wasm3_cpp_example
+    - uses: actions/checkout@v7
+    - name: Configure
+      run: |
+        cd platforms/cpp
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build
+      run: |
+        cd platforms/cpp
+        cmake --build build
+    - name: Run
+      run: |
+        cd platforms/cpp/build
+        ./wasm3_cpp_example
 
   as-cpp:
     name: maintenance (build as C++)
@@ -705,6 +764,7 @@ jobs:
         mkdir build
         cd build
         clang -xc++ -Dd_m3HasWASI -DDEBUG \
+            -Dd_m3HasTypedRefs=1        \
             -Dd_m3EnableOpTracing=1     \
             -Dd_m3EnableStrace=1        \
             -Dd_m3LogParse=1            \
@@ -745,76 +805,35 @@ jobs:
     - name: Test
       run: ./build/wasm3 ./test/wasi/simple/test.wasm
 
-  spellcheck:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.x'
-    - name: Install codespell
-      run: |
-        pip install codespell
-    - name: Spellcheck
-      run: |
-        codespell
-
-  #
-  # Cross-compiled release builds. build-cross.py owns the toolchain matrix, so the
-  # target list comes from it rather than being duplicated here.
-  #
-
-  cross-targets:
+  check-format:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
-    outputs:
-      targets: ${{ steps.list.outputs.targets }}
-
     steps:
     - uses: actions/checkout@v7
-    - id: list
-      run: echo "targets=$(python3 build-cross.py --list --nowasi)" >> $GITHUB_OUTPUT
 
-  cross:
-    runs-on: ubuntu-latest
-    name: cross-${{ matrix.target.name }}
-    # more than cross-qemu needs: a full cmake build with uvwasi, then both the spec
-    # and WASI suites under emulation
-    timeout-minutes: 15
-
-    needs: cross-targets
-
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJSON(needs.cross-targets.outputs.targets) }}
-
-    steps:
-    - uses: actions/checkout@v7
-    - name: Install QEMU
-      run: |
-        sudo apt update
-        sudo apt install -y qemu-user-static
-    # a few targets have no cross toolchain to download, so they use the distro's
-    - name: Install ${{ matrix.target.apt }}
-      if: ${{ matrix.target.apt }}
-      run: sudo apt install -y ${{ matrix.target.apt }}
-    # Split so a compile error and a failing test are distinguishable at a glance.
-    # A single --target streams its output, so a failure is readable in the log.
-    - name: Build
-      run: python3 build-cross.py --target ${{ matrix.target.name }} --notest
-    - name: Test
-      run: python3 build-cross.py --target ${{ matrix.target.name }} --nobuild
-    # The variants that only exist to exercise a build option or an ABI are tested
-    # like the rest, but nothing collects them for the release
-    - name: Upload artifact
-      if: ${{ matrix.target.dist }}
-      uses: actions/upload-artifact@v7
+    - name: Set up Python
+      uses: actions/setup-python@v6
       with:
-        name: cross-${{ matrix.target.name }}
-        path: build-cross/wasm3-${{ matrix.target.name }}
-        if-no-files-found: error
+        python-version: 3.x
+    - name: Install tools
+      run: |
+        pip install --upgrade   \
+          codespell pyyaml      \
+          clang-format==23.1.0  \
+          black==26.1.0
+    - name: Spellcheck
+      if: always()
+      run: |
+        codespell
+    - name: Check formatting
+      if: always()
+      run: |
+        python3 extra/format.py --check
+
+  #
+  # Publish a release if the push was a tag that starts with "v"
+  #
 
   release:
     runs-on: ubuntu-latest
@@ -822,14 +841,14 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     needs:
-      - linux
-      - macos
-      - windows
-      - wasi
-      - cosmopolitan
-      - cosmopolitan-test
-      - android
-      - cross
+    - linux
+    - macos
+    - windows
+    - wasi
+    - cosmopolitan
+    - cosmopolitan-test
+    - android
+    - cross
 
     permissions:
       contents: write
@@ -838,36 +857,36 @@ jobs:
       draft: true
 
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v7
-        with:
-          path: dist
-          pattern: wasm3-*
-          merge-multiple: true
+    - name: Download artifacts
+      uses: actions/download-artifact@v7
+      with:
+        path: dist
+        pattern: wasm3-*
+        merge-multiple: true
 
       # The cross builds ship as one archive rather than 19 separate assets
-      - name: Download the cross-built binaries
-        uses: actions/download-artifact@v7
-        with:
-          path: build-cross
-          pattern: cross-*
-          merge-multiple: true
+    - name: Download the cross-built binaries
+      uses: actions/download-artifact@v7
+      with:
+        path: build-cross
+        pattern: cross-*
+        merge-multiple: true
 
-      - name: Combine the cross builds into one archive
-        run: |
-          # an artifact archive doesn't keep the executable bit, so put it back
-          chmod +x build-cross/wasm3-linux-*
-          cd build-cross
-          tar -czvf ../dist/wasm3-linux-other.tar.gz wasm3-linux-*
+    - name: Combine the cross builds into one archive
+      run: |
+        # an artifact archive doesn't keep the executable bit, so put it back
+        chmod +x build-cross/wasm3-linux-*
+        cd build-cross
+        tar -czvf ../dist/wasm3-linux-other.tar.gz wasm3-linux-*
 
-      - name: List artifacts
-        run: |
-          find dist -type f -maxdepth 2 -print
+    - name: List artifacts
+      run: |
+        find dist -type f -maxdepth 2 -print
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v3
-        with:
-          draft: ${{ env.draft }}
-          files: dist/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Publish release
+      uses: softprops/action-gh-release@v3
+      with:
+        draft: ${{ env.draft }}
+        files: dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

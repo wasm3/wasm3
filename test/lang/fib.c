@@ -7,15 +7,16 @@
 #define WASM_EXPORT __attribute__((used)) __attribute__((visibility ("default")))
 
 WASM_EXPORT
-uint32_t fib(uint32_t n)
+uint32_t fib (uint32_t n)
 {
-    if(n < 2) {
+    if (n < 2) {
         return n;
     }
-    return fib(n-1) + fib(n-2);
+    return fib(n - 1) + fib(n - 2);
 }
 
-int parseInt(char* str) {
+int parseInt (char* str)
+{
     int res = 0;
     for (int i = 0; str[i] != '\0'; ++i) {
         res = res * 10 + str[i] - '0';
@@ -24,7 +25,8 @@ int parseInt(char* str) {
 }
 
 WASM_EXPORT
-int main(int args, char* argv[]) {
+int main (int args, char* argv[])
+{
     uint32_t n = parseInt(argv[1]);
     return fib(n);
 }

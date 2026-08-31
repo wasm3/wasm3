@@ -12,7 +12,7 @@
 
 d_m3BeginExternC
 
-M3Result    m3_LinkTracer       (IM3Module io_module);
+M3Result m3_LinkTracer (IM3Module io_module);
 
 d_m3EndExternC
 

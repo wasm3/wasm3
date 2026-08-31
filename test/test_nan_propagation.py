@@ -16,11 +16,17 @@ import subprocess
 import sys
 import tempfile
 
-WASM3 = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "build", "wasm3")
+WASM3 = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "build", "wasm3"
+    )
+)
 
 tests_passed = 0
 tests_failed = 0
+
 
 def leb128_u(val):
     """Encode unsigned LEB128."""
@@ -35,6 +41,7 @@ def leb128_u(val):
             break
     return bytes(result)
 
+
 def make_module(sections):
     """Create a wasm module from sections list [(id, bytes), ...]."""
     data = b"\x00asm\x01\x00\x00\x00"
@@ -42,9 +49,11 @@ def make_module(sections):
         data += bytes([sec_id]) + leb128_u(len(sec_data)) + sec_data
     return data
 
+
 # opcodes
 F32_MIN, F32_MAX = 0x96, 0x97
 F64_MIN, F64_MAX = 0xA4, 0xA5
+
 
 def make_binop_module(cases):
     """One exported nullary function per case, each folding two constants.
@@ -55,16 +64,24 @@ def make_binop_module(cases):
     funcs = leb128_u(len(cases)) + b"".join(leb128_u(c[1]) for c in cases)
     exports = leb128_u(len(cases)) + b"".join(
         leb128_u(len(c[0])) + c[0].encode() + b"\x00" + leb128_u(i)
-        for i, c in enumerate(cases))
+        for i, c in enumerate(cases)
+    )
     bodies = []
     for name, is_f64, op, a, b, expected in cases:
         const, pack = (0x44, "<Q") if is_f64 else (0x43, "<I")
-        code = (b"\x00" + bytes([const]) + struct.pack(pack, a)
-                        + bytes([const]) + struct.pack(pack, b)
-                        + bytes([op]) + b"\x0b")
+        code = (
+            b"\x00"
+            + bytes([const])
+            + struct.pack(pack, a)
+            + bytes([const])
+            + struct.pack(pack, b)
+            + bytes([op])
+            + b"\x0b"
+        )
         bodies.append(leb128_u(len(code)) + code)
     code_sec = leb128_u(len(bodies)) + b"".join(bodies)
     return make_module([(1, types), (3, funcs), (7, exports), (10, code_sec)])
+
 
 def run_cases(cases):
     """Invoke every case through the repl, which prints raw float bits."""
@@ -75,14 +92,21 @@ def run_cases(cases):
         f.write(wasm)
         f.flush()
         try:
-            r = subprocess.run([WASM3, "--repl", f.name],
-                               input="".join(":invoke " + c[0] + "\n" for c in cases),
-                               capture_output=True, text=True, timeout=10)
+            r = subprocess.run(
+                [WASM3, "--repl", f.name],
+                input="".join(":invoke " + c[0] + "\n" for c in cases),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
         finally:
             os.unlink(f.name)
 
-    results = [line.split("Result: ")[1].split(":")[0]
-               for line in r.stderr.splitlines() if "Result: " in line]
+    results = [
+        line.split("Result: ")[1].split(":")[0]
+        for line in r.stderr.splitlines()
+        if "Result: " in line
+    ]
 
     if len(results) != len(cases):
         print(f"FAIL: expected {len(cases)} results, got {len(results)}")
@@ -98,7 +122,12 @@ def run_cases(cases):
             print(f"PASS: {name}")
         else:
             tests_failed += 1
-            print(f"FAIL: {name} -- got 0x{got:0{width}x}, expected 0x{expected:0{width}x}")
+            print(
+                f"FAIL: {name} -- got 0x{got:0{width}x}, expected 0x{expected:0{width}x}"
+            )
+
+
+# fmt: off
 
 NUM32   = 0xFEDB7F8C          # ordinary negative number, the operand from #405
 PNAN32  = 0x7FC00000          # +nan, canonical
@@ -152,6 +181,8 @@ run_cases([
     ("d_max_nz_pz", 1, F64_MAX, 0x8000000000000000, 0x0000000000000000, 0x0000000000000000),
     ("d_min_nz_pz", 1, F64_MIN, 0x8000000000000000, 0x0000000000000000, 0x8000000000000000),
 ])
+
+# fmt: on
 
 print(f"\n=== Results: {tests_passed} passed, {tests_failed} failed ===")
 sys.exit(0 if tests_failed == 0 else 1)
