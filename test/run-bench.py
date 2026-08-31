@@ -31,7 +31,7 @@ import subprocess
 import sys
 import time
 
-sys.path.append('../extra')
+sys.path.append("../extra")
 
 from testutils import ansi
 
@@ -51,6 +51,7 @@ REPO_DIR = os.path.dirname(TEST_DIR)
 # to put a metric in units worth reading (c-ray in Kpixel/s rather than renders/ms).
 #
 
+# fmt: off
 WORKLOADS = [
     {
         "name":     "coremark",
@@ -103,6 +104,7 @@ WORKLOADS = [
         "metrics":  [("selfhost-fib", "re_inv", r"Elapsed:\s*([0-9]+) ms", 1000)],
     },
 ]
+# fmt: on
 
 
 def fatal(msg):
@@ -128,28 +130,35 @@ def run(cmd, quiet=True, **kwargs):
 # Variants
 #
 
+
 class Variant:
     def __init__(self, spec, build_root, deps_dir):
-        if '=' not in spec:
+        if "=" not in spec:
             fatal(f"variant '{spec}' is not <name>=<source>[:<cmake args>]")
-        name, rest = spec.split('=', 1)
-        source, _, cmake_args = rest.partition(':')
+        name, rest = spec.split("=", 1)
+        source, _, cmake_args = rest.partition(":")
 
-        self.name       = name
-        self.source     = source or '.'
+        self.name = name
+        self.source = source or "."
         # shlex, not split(): a variant usually carries a quoted -DCMAKE_C_FLAGS="..."
         self.cmake_args = shlex.split(cmake_args)
-        self.build_dir  = os.path.join(build_root, name)
-        self.deps_dir   = deps_dir
-        self.export     = None if self.source == '.' else os.path.join(build_root, "src-" + name)
-        self.exe        = os.path.join(self.build_dir, "wasm3")
-        self.rev        = self._resolve_rev()
+        self.build_dir = os.path.join(build_root, name)
+        self.deps_dir = deps_dir
+        self.export = (
+            None if self.source == "." else os.path.join(build_root, "src-" + name)
+        )
+        self.exe = os.path.join(self.build_dir, "wasm3")
+        self.rev = self._resolve_rev()
 
     def _resolve_rev(self):
-        ref = "HEAD" if self.source == '.' else self.source
+        ref = "HEAD" if self.source == "." else self.source
         try:
-            r = subprocess.run(["git", "-C", REPO_DIR, "rev-parse", "--short", ref],
-                               capture_output=True, text=True, check=True)
+            r = subprocess.run(
+                ["git", "-C", REPO_DIR, "rev-parse", "--short", ref],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             return r.stdout.strip()
         except subprocess.CalledProcessError:
             fatal(f"{self.name}: '{self.source}' is not a git ref")
@@ -159,7 +168,7 @@ class Variant:
         return self.export or REPO_DIR
 
     def describe(self):
-        args = ' '.join(self.cmake_args) or '(default config)'
+        args = " ".join(self.cmake_args) or "(default config)"
         return f"{self.name}: {self.source} @{self.rev} {args}"
 
     def prepare_source(self):
@@ -170,8 +179,11 @@ class Variant:
         if os.path.isdir(self.export):
             shutil.rmtree(self.export)
         os.makedirs(self.export)
-        archive = subprocess.run(["git", "-C", REPO_DIR, "archive", self.source],
-                                 check=True, stdout=subprocess.PIPE).stdout
+        archive = subprocess.run(
+            ["git", "-C", REPO_DIR, "archive", self.source],
+            check=True,
+            stdout=subprocess.PIPE,
+        ).stdout
         subprocess.run(["tar", "-x", "-C", self.export], check=True, input=archive)
 
     def stamp(self):
@@ -192,11 +204,15 @@ class Variant:
             if old != self.stamp():
                 shutil.rmtree(self.build_dir)
 
-        cmake = ["cmake",
-                 "-S", self.src_dir,
-                 "-B", self.build_dir,
-                 "-DCMAKE_BUILD_TYPE=Release",
-                 f"-DFETCHCONTENT_BASE_DIR={self.deps_dir}"]
+        cmake = [
+            "cmake",
+            "-S",
+            self.src_dir,
+            "-B",
+            self.build_dir,
+            "-DCMAKE_BUILD_TYPE=Release",
+            f"-DFETCHCONTENT_BASE_DIR={self.deps_dir}",
+        ]
         if shutil.which("ninja"):
             cmake += ["-G", "Ninja"]
         cmake += self.cmake_args
@@ -212,10 +228,15 @@ class Variant:
     def compiler(self):
         """Who actually produced the binary. Read out of the ELF rather than out of
         CMakeCache.txt -- the project assigns CMAKE_C_COMPILER as a normal variable, so
-        it never reaches the cache, and a stale build dir would otherwise go unnoticed."""
+        it never reaches the cache, and a stale build dir would otherwise go unnoticed.
+        """
         try:
-            r = subprocess.run(["readelf", "-p", ".comment", self.exe],
-                               capture_output=True, text=True, check=True)
+            r = subprocess.run(
+                ["readelf", "-p", ".comment", self.exe],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
         except (OSError, subprocess.CalledProcessError):
             return "?"
         seen = []
@@ -233,6 +254,7 @@ class Variant:
 # Measurement
 #
 
+
 def measure(variant, wl, taskset, timeout):
     """Run one workload once, return {label: rate}."""
     cmd = []
@@ -243,8 +265,14 @@ def measure(variant, wl, taskset, timeout):
     stdin = open(wl["stdin"], "rb") if "stdin" in wl else None
     try:
         t0 = time.perf_counter()
-        proc = subprocess.run(cmd, cwd=TEST_DIR, stdin=stdin, timeout=timeout,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        proc = subprocess.run(
+            cmd,
+            cwd=TEST_DIR,
+            stdin=stdin,
+            timeout=timeout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
         wall = time.perf_counter() - t0
     except subprocess.TimeoutExpired:
         fatal(f"{variant.name}/{wl['name']}: timed out after {timeout}s")
@@ -257,7 +285,9 @@ def measure(variant, wl, taskset, timeout):
 
     text = proc.stdout.decode("utf-8", errors="replace")
     if "expect" in wl and wl["expect"] not in text:
-        fatal(f"{variant.name}/{wl['name']}: output missing '{wl['expect']}'\n{text[-2000:]}")
+        fatal(
+            f"{variant.name}/{wl['name']}: output missing '{wl['expect']}'\n{text[-2000:]}"
+        )
 
     out = {}
     for metric in wl["metrics"]:
@@ -268,11 +298,15 @@ def measure(variant, wl, taskset, timeout):
             continue
         m = re.search(pattern, text, re.MULTILINE)
         if not m:
-            fatal(f"{variant.name}/{wl['name']}: no match for /{pattern}/\n{text[-2000:]}")
+            fatal(
+                f"{variant.name}/{wl['name']}: no match for /{pattern}/\n{text[-2000:]}"
+            )
         value = float(m.group(1))
         if value <= 0:
-            fatal(f"{variant.name}/{wl['name']}: metric {label} is {value}; "
-                  f"the workload is too small to time on this machine")
+            fatal(
+                f"{variant.name}/{wl['name']}: metric {label} is {value}; "
+                f"the workload is too small to time on this machine"
+            )
         out[label] = value if kind == "re" else scale / value
     return out
 
@@ -280,6 +314,7 @@ def measure(variant, wl, taskset, timeout):
 #
 # Reporting
 #
+
 
 def spread(values):
     return (max(values) / min(values) - 1.0) * 100.0
@@ -300,11 +335,13 @@ def report(variants, labels, samples, baseline):
     base = variants[baseline]
 
     name_w = max(len(l) for l in labels) + 1
-    col_w  = max(11, max(len(v.name) for v in variants) + 2)
+    col_w = max(11, max(len(v.name) for v in variants) + 2)
 
     print()
     print(f"{ansi.BOLD}Median rate (higher is better){ansi.ENDC}")
-    header = " " * name_w + "".join(f"{v.name:>{col_w}}" for v in variants) + "   spread"
+    header = (
+        " " * name_w + "".join(f"{v.name:>{col_w}}" for v in variants) + "   spread"
+    )
     print(header)
     print("-" * len(header))
     for label in labels:
@@ -325,14 +362,16 @@ def report(variants, labels, samples, baseline):
     for label in labels:
         row = f"{label:<{name_w}}"
         for v in variants:
-            ratios = [a / b for a, b in zip(samples[(v.name, label)],
-                                            samples[(base.name, label)])]
+            ratios = [
+                a / b
+                for a, b in zip(samples[(v.name, label)], samples[(base.name, label)])
+            ]
             r = statistics.median(ratios)
             totals[v.name].append(r)
             if v is base:
                 row += f"{'--':>{col_w}}"
             else:
-                colour = ansi.OKGREEN if r > 1.005 else (ansi.FAIL if r < 0.995 else '')
+                colour = ansi.OKGREEN if r > 1.005 else (ansi.FAIL if r < 0.995 else "")
                 cell = f"{r:.3f}x"
                 row += f"{colour}{cell:>{col_w}}{ansi.ENDC if colour else ''}"
         print(row)
@@ -344,7 +383,7 @@ def report(variants, labels, samples, baseline):
             row += f"{'--':>{col_w}}"
         else:
             g = statistics.geometric_mean(totals[v.name])
-            colour = ansi.OKGREEN if g > 1.005 else (ansi.FAIL if g < 0.995 else '')
+            colour = ansi.OKGREEN if g > 1.005 else (ansi.FAIL if g < 0.995 else "")
             cell = f"{g:.3f}x"
             row += f"{colour}{cell:>{col_w}}{ansi.ENDC if colour else ''}"
     print(row)
@@ -357,15 +396,20 @@ def report(variants, labels, samples, baseline):
 
 
 def main():
-    default_root = os.environ.get("WASM3_BENCH_DIR") or \
-                   os.path.join(os.path.expanduser("~"), ".cache", "wasm3-bench")
+    default_root = os.environ.get("WASM3_BENCH_DIR") or os.path.join(
+        os.path.expanduser("~"), ".cache", "wasm3-bench"
+    )
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--variant", action="append", metavar="NAME=SRC[:CMAKE]", default=[])
-    parser.add_argument("--rounds",  type=int, default=5)
-    parser.add_argument("--filter",  metavar="GLOB[,GLOB...]", default="*")
-    parser.add_argument("--cpu",     metavar="LIST", help="pin runs to these cores (taskset)")
-    parser.add_argument("--jobs",    type=int, default=os.cpu_count())
+    parser.add_argument(
+        "--variant", action="append", metavar="NAME=SRC[:CMAKE]", default=[]
+    )
+    parser.add_argument("--rounds", type=int, default=5)
+    parser.add_argument("--filter", metavar="GLOB[,GLOB...]", default="*")
+    parser.add_argument(
+        "--cpu", metavar="LIST", help="pin runs to these cores (taskset)"
+    )
+    parser.add_argument("--jobs", type=int, default=os.cpu_count())
     parser.add_argument("--timeout", type=int, default=600)
     parser.add_argument("--build-root", default=default_root)
     parser.add_argument("--no-build", action="store_true")
@@ -390,9 +434,12 @@ def main():
     if len(set(v.name for v in variants)) != len(variants):
         fatal("variant names must be unique")
 
-    patterns = args.filter.split(',')
-    workloads = [w for w in WORKLOADS
-                 if any(fnmatch.fnmatch(w["name"], p.strip()) for p in patterns)]
+    patterns = args.filter.split(",")
+    workloads = [
+        w
+        for w in WORKLOADS
+        if any(fnmatch.fnmatch(w["name"], p.strip()) for p in patterns)
+    ]
     if not workloads:
         fatal(f"no workload matches '{args.filter}'")
     labels = [m[0] for w in workloads for m in w["metrics"]]
@@ -415,11 +462,13 @@ def main():
 
     samples = {(v.name, label): [] for v in variants for label in labels}
 
-    print(f"\n{ansi.BOLD}Running{ansi.ENDC} {len(labels)} metrics x {len(variants)} variants "
-          f"x {args.rounds} rounds" + (f", pinned to cpu {args.cpu}" if args.cpu else ""))
+    print(
+        f"\n{ansi.BOLD}Running{ansi.ENDC} {len(labels)} metrics x {len(variants)} variants "
+        f"x {args.rounds} rounds" + (f", pinned to cpu {args.cpu}" if args.cpu else "")
+    )
     for r in range(args.rounds):
         # rotate the order so no variant is always first or always last
-        order = variants[r % len(variants):] + variants[:r % len(variants)]
+        order = variants[r % len(variants) :] + variants[: r % len(variants)]
         print(f"  round {r + 1}/{args.rounds}: ", end="", flush=True)
         for v in order:
             print(f"{v.name} ", end="", flush=True)
@@ -432,12 +481,23 @@ def main():
 
     if args.json:
         with open(args.json, "w") as f:
-            json.dump({
-                "variants": [{"name": v.name, "source": v.source,
-                              "cmake": v.cmake_args, "rev": v.rev,
-                              "size": v.size()} for v in variants],
-                "samples": {f"{k[0]}/{k[1]}": v for k, v in samples.items()},
-            }, f, indent=2)
+            json.dump(
+                {
+                    "variants": [
+                        {
+                            "name": v.name,
+                            "source": v.source,
+                            "cmake": v.cmake_args,
+                            "rev": v.rev,
+                            "size": v.size(),
+                        }
+                        for v in variants
+                    ],
+                    "samples": {f"{k[0]}/{k[1]}": v for k, v in samples.items()},
+                },
+                f,
+                indent=2,
+            )
         print(f"\nraw samples -> {args.json}")
 
 

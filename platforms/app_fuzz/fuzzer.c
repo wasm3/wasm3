@@ -20,26 +20,28 @@
 // loads are bounded by the allocated length, not the declared page count.
 #define d_m3FuzzMemoryLimit  (64*1024*1024)
 
-int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
 {
     M3Result result = m3Err_none;
 
-    if (size < 8 || size > 256*1024) {
+    if (size < 8 || size > 256 * 1024) {
         return 0;
     }
 
-    IM3Environment env = m3_NewEnvironment ();
+    IM3Environment env = m3_NewEnvironment();
     if (env) {
-        IM3Runtime runtime = m3_NewRuntime (env, 128, NULL);
+        IM3Runtime runtime = m3_NewRuntime(env, 128, NULL);
         if (runtime) {
             runtime->memoryLimit = d_m3FuzzMemoryLimit;
-            IM3Module module = NULL;
-            result = m3_ParseModule (env, &module, data, size);
+            IM3Module module     = NULL;
+
+            result = m3_ParseModule(env, &module, data, size);
             if (module) {
-                result = m3_LoadModule (runtime, module);
+                result = m3_LoadModule(runtime, module);
                 if (result == 0) {
                     IM3Function f = NULL;
-                    result = m3_FindFunction (&f, runtime, "fib");
+
+                    result = m3_FindFunction(&f, runtime, "fib");
                     /* TODO:
                     if (f) {
                         m3_CallV (f, 10);

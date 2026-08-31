@@ -7,4 +7,4 @@
 
 #include "m3_api_wasi.h"
 
-void m3_FreeWasi(m3_wasi_context_t* wasi);
+void m3_FreeWasi (m3_wasi_context_t* wasi);

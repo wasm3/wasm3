@@ -8,13 +8,13 @@ jobs:
       id: build
       uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
       with:
-        oss-fuzz-project-name: 'wasm3'
+        oss-fuzz-project-name: wasm3
         dry-run: false
         language: c
     - name: Run Fuzzers
       uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
       with:
-        oss-fuzz-project-name: 'wasm3'
+        oss-fuzz-project-name: wasm3
         fuzz-seconds: 300
         dry-run: false
         language: c

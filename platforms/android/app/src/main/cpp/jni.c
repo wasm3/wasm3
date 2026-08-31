@@ -13,7 +13,8 @@
 #include <unistd.h>
 #include <jni.h>
 
-extern int main();
+extern
+int main ();
 
 /*
  * JNI init
@@ -25,22 +26,23 @@ jclass  activityClz;
 jobject activityObj;
 
 JNIEXPORT jint JNICALL
-JNI_OnLoad(JavaVM* vm, void* reserved)
+JNI_OnLoad (JavaVM* vm, void* reserved)
 {
     if ((*vm)->GetEnv(vm, (void**)&jniEnv, JNI_VERSION_1_6) != JNI_OK) {
         return JNI_ERR; // JNI version not supported
     }
     javaVM = vm;
-    return  JNI_VERSION_1_6;
+    return JNI_VERSION_1_6;
 }
 
-static int pfd[2];
+static int       pfd[2];
 static pthread_t pumpThread;
 static pthread_t mainThread;
 
-static void* runOutputPump(void* ctx)
+static
+void* runOutputPump (void* ctx)
 {
-    int readSize;
+    int  readSize;
     char buff[128];
 
     JNIEnv* env;
@@ -50,8 +52,7 @@ static void* runOutputPump(void* ctx)
                                                  "outputText",
                                                  "(Ljava/lang/String;)V");
 
-    while ((readSize = read(pfd[0], buff, sizeof(buff) - 1)) > 0)
-    {
+    while ((readSize = read(pfd[0], buff, sizeof(buff) - 1)) > 0) {
         buff[readSize] = '\0';
 
         jstring javaMsg = (*env)->NewStringUTF(env, buff);
@@ -62,7 +63,8 @@ static void* runOutputPump(void* ctx)
     return 0;
 }
 
-static void* runMain(void* ctx)
+static
+void* runMain (void* ctx)
 {
     (*javaVM)->AttachCurrentThread(javaVM, &jniEnv, NULL);
     main();
@@ -70,7 +72,7 @@ static void* runMain(void* ctx)
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_wasm3_MainActivity_runMain(JNIEnv* env, jobject instance)
+Java_com_example_wasm3_MainActivity_runMain (JNIEnv* env, jobject instance)
 {
     setvbuf(stdout, 0, _IOLBF, 0); // stdout: line-buffered
     setvbuf(stderr, 0, _IONBF, 0); // stderr: unbuffered
@@ -80,17 +82,17 @@ Java_com_example_wasm3_MainActivity_runMain(JNIEnv* env, jobject instance)
     dup2(pfd[1], 1);
     dup2(pfd[1], 2);
 
-    jclass clz = (*env)->GetObjectClass(env, instance);
+    jclass clz  = (*env)->GetObjectClass(env, instance);
     activityClz = (*env)->NewGlobalRef(env, clz);
     activityObj = (*env)->NewGlobalRef(env, instance);
 
-    pthread_attr_t  threadAttr;
+    pthread_attr_t threadAttr;
     pthread_attr_init(&threadAttr);
     pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_DETACHED);
 
-    pthread_create( &pumpThread, &threadAttr, runOutputPump, NULL);
+    pthread_create(&pumpThread, &threadAttr, runOutputPump, NULL);
 
-    pthread_create( &mainThread, &threadAttr, runMain, NULL);
+    pthread_create(&mainThread, &threadAttr, runMain, NULL);
 
     pthread_attr_destroy(&threadAttr);
 }

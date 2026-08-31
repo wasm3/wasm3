@@ -39,11 +39,9 @@ import math
 import pathlib
 
 scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
-sys.path.append(os.path.join(scriptDir, '..', 'extra'))
+sys.path.append(os.path.join(scriptDir, "..", "extra"))
 
 from testutils import *
-from pprint import pprint
-
 
 #
 # Args handling
@@ -52,29 +50,44 @@ from pprint import pprint
 parser = argparse.ArgumentParser()
 # --spec-repl is --repl plus --compile: disabling lazy compilation makes a
 # function body that fails validation get rejected at load, as the spec requires
-parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3 --spec-repl")
+parser.add_argument(
+    "--exec", metavar="<interpreter>", default="../build/wasm3 --spec-repl"
+)
 # wg-3.0 and wg-2.0 are the revisions this harness accommodates. Anything older
 # needs its own workarounds - wasm 2.0 renamed traps, gave validation a bottom
 # type and changed how a failed instantiation unwinds - and carrying those was
 # not worth what the suites still covered.
-parser.add_argument("--spec",                          default="wg-3.0")
-parser.add_argument("--timeout", type=int,             default=30)
+parser.add_argument("--spec", default="wg-3.0")
+parser.add_argument("--timeout", type=int, default=30)
 parser.add_argument("--line", metavar="<source line>", type=int)
 parser.add_argument("--all", action="store_true")
-parser.add_argument("--no-validation", dest="validation", action="store_false",
-                    help="skip assert_invalid/assert_malformed/assert_uninstantiable, "
-                         "i.e. don't check that invalid modules are rejected")
-parser.add_argument("--relax-nan", dest="relax_nan", action="store_true", default=True,
-                    help="accept any NaN where a NaN is expected (default). Targets without "
-                         "IEEE-754-2008 float hardware -- x87, ARM soft-float, MIPS with the "
-                         "legacy -mnan encoding -- disagree with the spec on the quiet bit")
-parser.add_argument("--no-relax-nan", dest="relax_nan", action="store_false",
-                    help="compare NaN results by class (canonical/arithmetic/signaling)")
+parser.add_argument(
+    "--no-validation",
+    dest="validation",
+    action="store_false",
+    help="skip assert_invalid/assert_malformed/assert_uninstantiable, "
+    "i.e. don't check that invalid modules are rejected",
+)
+parser.add_argument(
+    "--relax-nan",
+    dest="relax_nan",
+    action="store_true",
+    default=True,
+    help="accept any NaN where a NaN is expected (default). Targets without "
+    "IEEE-754-2008 float hardware -- x87, ARM soft-float, MIPS with the "
+    "legacy -mnan encoding -- disagree with the spec on the quiet bit",
+)
+parser.add_argument(
+    "--no-relax-nan",
+    dest="relax_nan",
+    action="store_false",
+    help="compare NaN results by class (canonical/arithmetic/signaling)",
+)
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
-parser.add_argument("file", nargs='*')
+parser.add_argument("file", nargs="*")
 
 args = parser.parse_args()
 
@@ -85,8 +98,9 @@ if args.line:
 # Utilities
 #
 
-log = open("spec-test.log","w+")
+log = open("spec-test.log", "w+")
 log.write("======================\n")
+
 
 def warning(msg, force=False):
     log.write("Warning: " + msg + "\n")
@@ -94,47 +108,55 @@ def warning(msg, force=False):
     if args.verbose or force:
         print(f"{ansi.WARNING}Warning:{ansi.ENDC} {msg}")
 
+
 def fatal(msg):
     log.write("Fatal: " + msg + "\n")
     log.flush()
     print(f"{ansi.FAIL}Fatal:{ansi.ENDC} {msg}")
     sys.exit(1)
-    
+
+
 def safe_fn(fn):
-    keepcharacters = (' ','.','_','-')
+    keepcharacters = (" ", ".", "_", "-")
     return "".join(c for c in fn if c.isalnum() or c in keepcharacters).strip()
+
 
 def binaryToFloat(num, t):
     if t == "f32":
-        return struct.unpack('!f', struct.pack('!L', int(num)))[0]
+        return struct.unpack("!f", struct.pack("!L", int(num)))[0]
     elif t == "f64":
-        return struct.unpack('!d', struct.pack('!Q', int(num)))[0]
+        return struct.unpack("!d", struct.pack("!Q", int(num)))[0]
     else:
         fatal(f"Unknown type '{t}'")
 
+
 def escape_str(s):
     if s == "":
-        return r'\x00'
+        return r"\x00"
 
     if all((ord(c) < 128 and c.isprintable() and c not in " \n\r\t\\") for c in s):
         return s
 
-    return '\\x' + '\\x'.join('{0:02x}'.format(x) for x in s.encode('utf-8'))
+    return "\\x" + "\\x".join("{0:02x}".format(x) for x in s.encode("utf-8"))
+
 
 #
 # Value format options
 #
 
+
 def formatValueRaw(num, t):
     return str(num)
 
+
 def formatValueHex(num, t):
     if t == "f32" or t == "i32":
-        return "{0:#0{1}x}".format(int(num), 8+2)
+        return "{0:#0{1}x}".format(int(num), 8 + 2)
     elif t == "f64" or t == "i64":
-        return "{0:#0{1}x}".format(int(num), 16+2)
+        return "{0:#0{1}x}".format(int(num), 16 + 2)
     else:
         return str(num)
+
 
 def formatValueFloat(num, t):
     if t == "f32":
@@ -144,25 +166,30 @@ def formatValueFloat(num, t):
     else:
         return str(num)
 
-    result = "{0:.{1}f}".format(binaryToFloat(num, t), s).rstrip('0')
-    if result.endswith('.'):
-        result = result + '0'
-    if len(result) > s*2:
+    result = "{0:.{1}f}".format(binaryToFloat(num, t), s).rstrip("0")
+    if result.endswith("."):
+        result = result + "0"
+    if len(result) > s * 2:
         result = "{0:.{1}e}".format(binaryToFloat(num, t), s)
     return result
 
+
 formatters = {
-    'raw': formatValueRaw,
-    'hex': formatValueHex,
-    'fp':  formatValueFloat,
+    "raw": formatValueRaw,
+    "hex": formatValueHex,
+    "fp": formatValueFloat,
 }
 formatValue = formatters[args.format]
 
 if args.format == "fp":
-    print("When using fp display format, values are compared loosely (some tests may produce false positives)")
+    print(
+        "When using fp display format, values are compared loosely (some tests may produce false positives)"
+    )
 
 if args.relax_nan:
-    print("NaN results are compared as 'any NaN' (--no-relax-nan compares canonical/arithmetic/signaling)")
+    print(
+        "NaN results are compared as 'any NaN' (--no-relax-nan compares canonical/arithmetic/signaling)"
+    )
 
 #
 # Spec tests preparation
@@ -175,7 +202,9 @@ if not (os.path.isdir(spec_dir)):
     from zipfile import ZipFile
     from urllib.request import urlopen
 
-    officialSpec = f"https://github.com/wasm3/wasm-core-testsuite/archive/{args.spec}.zip"
+    officialSpec = (
+        f"https://github.com/wasm3/wasm-core-testsuite/archive/{args.spec}.zip"
+    )
 
     print(f"Downloading {officialSpec}")
     resp = urlopen(officialSpec)
@@ -184,7 +213,7 @@ if not (os.path.isdir(spec_dir)):
             if re.match(r".*-.*/.*/.*(\.wasm|\.json)", zipInfo.filename):
                 parts = pathlib.Path(zipInfo.filename).parts
                 newpath = str(pathlib.Path(*parts[1:-1]))
-                newfn   = str(pathlib.Path(*parts[-1:]))
+                newfn = str(pathlib.Path(*parts[-1:]))
                 ensure_path(os.path.join(spec_dir, newpath))
                 newpath = os.path.join(spec_dir, newpath, newfn)
                 zipInfo.filename = newpath
@@ -200,7 +229,8 @@ from queue import Queue, Empty
 
 import shlex
 
-class Wasm3():
+
+class Wasm3:
     def __init__(self, exe):
         self.exe = exe
         self.p = None
@@ -216,13 +246,13 @@ class Wasm3():
 
         cmd = shlex.split(self.exe)
 
-        #print(f"wasm3: Starting {' '.join(cmd)}")
+        # print(f"wasm3: Starting {' '.join(cmd)}")
 
         self.q = Queue()
         self.p = Popen(cmd, bufsize=0, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
 
         def _read_output(out, queue):
-            for data in iter(lambda: out.read(1024), b''):
+            for data in iter(lambda: out.read(1024), b""):
                 queue.put(data)
             queue.put(None)
 
@@ -258,7 +288,7 @@ class Wasm3():
 
     def load(self, fn):
         self.loaded = None
-        with open(fn,"rb") as f:
+        with open(fn, "rb") as f:
             wasm = f.read()
         res = self._run_cmd(f":load-hex {len(wasm)}\n{wasm.hex()}\n")
         self.loaded = fn
@@ -266,7 +296,9 @@ class Wasm3():
 
     def invoke(self, cmd, module=None):
         if module:
-            return self._run_cmd(":invoke-in " + module + " " + " ".join(map(str, cmd)) + "\n")
+            return self._run_cmd(
+                ":invoke-in " + module + " " + " ".join(map(str, cmd)) + "\n"
+            )
         return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
 
     def get_global(self, name, module=None):
@@ -287,7 +319,7 @@ class Wasm3():
             self.restart()
         self._flush_input()
 
-        #print(f"wasm3: {cmd.strip()}")
+        # print(f"wasm3: {cmd.strip()}")
         self._write(cmd)
         return self._read_until("wasm3> ")
 
@@ -331,17 +363,22 @@ class Wasm3():
         self.p.wait(timeout=1.0)
         self.p = None
 
+
 #
 # Multi-value result handling
 #
+
 
 def parseResults(s, expected=None):
     values = s.split(", ")
     values = [x.split(":") for x in values]
     # reference results print as "null" rather than a number
-    values = [{ "type": x[1], "value": x[0] if x[0] == "null" else int(x[0]) } for x in values]
+    values = [
+        {"type": x[1], "value": x[0] if x[0] == "null" else int(x[0])} for x in values
+    ]
 
     return normalizeResults(values, expected)
+
 
 #
 # NaN results are compared by class, not by exact bits: the spec leaves the sign
@@ -354,8 +391,9 @@ def parseResults(s, expected=None):
 # arithmetic (quiet) NaN out.
 #
 
-NAN_PAYLOAD_MASK = { "f32": 0x007FFFFF, "f64": 0x000FFFFFFFFFFFFF }
-NAN_QUIET_BIT    = { "f32": 0x00400000, "f64": 0x0008000000000000 }
+NAN_PAYLOAD_MASK = {"f32": 0x007FFFFF, "f64": 0x000FFFFFFFFFFFFF}
+NAN_QUIET_BIT = {"f32": 0x00400000, "f64": 0x0008000000000000}
+
 
 def nanClass(v, t):
     # "nan:canonical" and "nan:arithmetic" arrive as labels from the spec tests,
@@ -370,18 +408,25 @@ def nanClass(v, t):
     else:
         return "nan:signaling"
 
+
 def isNan(v, t):
     if v == "nan:canonical" or v == "nan:arithmetic":
         return True
     return math.isnan(binaryToFloat(v, t))
+
 
 # wasm 3.0 states some reference results without a value: "refnull" and the
 # null<T>ref types mean "a null reference" whose exact type is left open, and a
 # bare "funcref" means "any non-null function reference".
 REF_NULL_TYPES = ("refnull", "nullref", "nullfuncref", "nullexternref", "nullexnref")
 
-VALUE_BITS = { "i32": 0xFFFFFFFF, "i64": 0xFFFFFFFFFFFFFFFF,
-               "f32": 0xFFFFFFFF, "f64": 0xFFFFFFFFFFFFFFFF }
+VALUE_BITS = {
+    "i32": 0xFFFFFFFF,
+    "i64": 0xFFFFFFFFFFFFFFFF,
+    "f32": 0xFFFFFFFF,
+    "f64": 0xFFFFFFFFFFFFFFFF,
+}
+
 
 def normalizeResults(values, expected=None):
     for i, x in enumerate(values):
@@ -395,7 +440,7 @@ def normalizeResults(values, expected=None):
         if "value" not in exp:
             isNull = t in REF_NULL_TYPES or x.get("value") == "null"
             x["value"] = "null" if isNull else "ref"
-            x["type"]  = "ref"
+            x["type"] = "ref"
             continue
 
         # wasm 3.0 states integer results as signed decimals ("-1") where the
@@ -413,7 +458,9 @@ def normalizeResults(values, expected=None):
 
                 cls = nanClass(v, t)
                 exp = expected[i]["value"] if (expected and i < len(expected)) else None
-                expCls = nanClass(exp, t) if (exp is not None and isNan(exp, t)) else None
+                expCls = (
+                    nanClass(exp, t) if (exp is not None and isNan(exp, t)) else None
+                )
 
                 # A canonical NaN is also an arithmetic NaN.
                 if cls == "nan:canonical" and expCls == "nan:arithmetic":
@@ -438,9 +485,11 @@ def normalizeResults(values, expected=None):
             x["value"] = formatValue(v, t)
     return values
 
+
 def combineResults(values):
-    values = [x["value"]+":"+x["type"] for x in values]
+    values = [x["value"] + ":" + x["type"] for x in values]
     return ", ".join(values)
+
 
 #
 # Actual test
@@ -451,55 +500,50 @@ wasm3 = Wasm3(args.exec)
 wasm3_ver = wasm3.version()
 print(wasm3_ver)
 
-blacklist = Blacklist([
-  # returns the bit pattern as i32, so it can't be compared by NaN class:
-  # wasm3 quiets f32 signaling NaNs, see the note in normalizeResults()
-  "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
-
-  # the compact import encoding of a module whose imports wasm3 cannot satisfy
-  "binary-compact-imports.wast:* binary-compact-imports.10.wasm *",
-
-  # not a gap: multiple memories lifted the one-memory limit, so the modules
-  # these expect to be rejected are legal
-  "* assert_invalid (multiple memories)",
-
-  # An import naming a module the runtime has not loaded is left unresolved
-  # rather than rejected: m3_LinkRawFunction needs the runtime and so can only
-  # run after m3_LoadModule, and a host function may still turn up for it. Only
-  # a module that is loaded settles an import, and LinkImports does check those.
-  # One module in each suite imports from a name nothing ever registers, so
-  # nothing is there to check it against.
-  "imports.wast:* imports.141.wasm assert_unlinkable (unknown import)",   # wg-2.0
-  "imports.wast:* imports.177.wasm assert_unlinkable (unknown import)",   # wg-3.0
-
-  # The repl talks in whitespace-separated tokens, so a module registered under
-  # the empty name has nothing to send: the token disappears. Any placeholder
-  # would be a string some other test could legitimately register under, so the
-  # one test that does this is left out instead.
-  "imports-compact.wast:* imports-compact.25.wasm call-empty()",
-
-  # names containing NUL bytes are valid UTF-8 but wasm3 uses C strings
-  # internally, so embedded NUL truncates the name during function lookup.
-  # escape_str spells the empty name "\x00" as well, so the pattern names the
-  # second byte to leave that test - which passes - alone.
-  "names.wast:* *.wasm \\x00\\x01*",
-
-  # exception handling: a tag import is a fresh tag, not an alias of the
-  # exporting module's, since wasm3 does not link modules to each other. An
-  # exception thrown through an imported tag therefore never carries the tag a
-  # catch clause names, and a mismatched imported tag type goes unnoticed.
-  "try_table.wast:* try_table.*.wasm catch-imported()",
-  "try_table.wast:* try_table.*.wasm catch-imported-alias()",
-
-  # one try_table module spells its types as (ref $t) and (ref exn), which need
-  # typed function references and the exn heap type. Neither is implemented, so
-  # the module is refused before any of its functions run.
-  "try_table.wast:* try_table.*.wasm catch()",
-  "try_table.wast:* try_table.*.wasm catch_ref1()",
-  "try_table.wast:* try_table.*.wasm catch_ref2()",
-  "try_table.wast:* try_table.*.wasm catch_all_ref1()",
-  "try_table.wast:* try_table.*.wasm catch_all_ref2()",
-])
+blacklist = Blacklist(
+    [
+        # returns the bit pattern as i32, so it can't be compared by NaN class:
+        # wasm3 quiets f32 signaling NaNs, see the note in normalizeResults()
+        "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
+        # the compact import encoding of a module whose imports wasm3 cannot satisfy
+        "binary-compact-imports.wast:* binary-compact-imports.10.wasm *",
+        # not a gap: multiple memories lifted the one-memory limit, so the modules
+        # these expect to be rejected are legal
+        "* assert_invalid (multiple memories)",
+        # An import naming a module the runtime has not loaded is left unresolved
+        # rather than rejected: m3_LinkRawFunction needs the runtime and so can only
+        # run after m3_LoadModule, and a host function may still turn up for it. Only
+        # a module that is loaded settles an import, and LinkImports does check those.
+        # One module in each suite imports from a name nothing ever registers, so
+        # nothing is there to check it against.
+        "imports.wast:* imports.141.wasm assert_unlinkable (unknown import)",  # wg-2.0
+        "imports.wast:* imports.177.wasm assert_unlinkable (unknown import)",  # wg-3.0
+        # The repl talks in whitespace-separated tokens, so a module registered under
+        # the empty name has nothing to send: the token disappears. Any placeholder
+        # would be a string some other test could legitimately register under, so the
+        # one test that does this is left out instead.
+        "imports-compact.wast:* imports-compact.25.wasm call-empty()",
+        # names containing NUL bytes are valid UTF-8 but wasm3 uses C strings
+        # internally, so embedded NUL truncates the name during function lookup.
+        # escape_str spells the empty name "\x00" as well, so the pattern names the
+        # second byte to leave that test - which passes - alone.
+        "names.wast:* *.wasm \\x00\\x01*",
+        # exception handling: a tag import is a fresh tag, not an alias of the
+        # exporting module's, since wasm3 does not link modules to each other. An
+        # exception thrown through an imported tag therefore never carries the tag a
+        # catch clause names, and a mismatched imported tag type goes unnoticed.
+        "try_table.wast:* try_table.*.wasm catch-imported()",
+        "try_table.wast:* try_table.*.wasm catch-imported-alias()",
+        # one try_table module spells its types as (ref $t) and (ref exn), which need
+        # typed function references and the exn heap type. Neither is implemented, so
+        # the module is refused before any of its functions run.
+        "try_table.wast:* try_table.*.wasm catch()",
+        "try_table.wast:* try_table.*.wasm catch_ref1()",
+        "try_table.wast:* try_table.*.wasm catch_ref2()",
+        "try_table.wast:* try_table.*.wasm catch_all_ref1()",
+        "try_table.wast:* try_table.*.wasm catch_all_ref2()",
+    ]
+)
 
 # wasm3 takes any power-of-two page size from 1 to 65536, where the custom page
 # sizes proposal admits only the two endpoints. Nothing in the engine cares which
@@ -507,10 +551,12 @@ blacklist = Blacklist([
 # refused, and the tests asserting they are refused don't apply. Modules 2 to 16
 # are 2^1 through 2^15; the ceiling itself still holds, and modules 17 and 18 ask
 # for 2^17 and 2^65 and are still rejected.
-blacklist.add([
-  f"custom-page-sizes-invalid.wast:* custom-page-sizes-invalid.{n}.wasm *"
-  for n in range(2, 17)
-])
+blacklist.add(
+    [
+        f"custom-page-sizes-invalid.wast:* custom-page-sizes-invalid.{n}.wasm *"
+        for n in range(2, 17)
+    ]
+)
 
 # Multiple memories turned the reserved zero byte of the memory instructions
 # into a memory index, and the format spends up to five bytes on a u32, so a
@@ -518,145 +564,152 @@ blacklist.add([
 # malformed. Only the modules that encode a zero that way are affected: binary.41
 # and binary.46 name memory 1, which their module does not have, and are still
 # rejected. wg-3.0 no longer asserts any of this.
-blacklist.add([
-  f"binary.wast:* binary.{n}.wasm assert_malformed (zero byte expected)"
-  for n in (42, 43, 44, 45, 47, 48, 49, 50)
-])
+blacklist.add(
+    [
+        f"binary.wast:* binary.{n}.wasm assert_malformed (zero byte expected)"
+        for n in (42, 43, 44, 45, 47, 48, 49, 50)
+    ]
+)
 
 # Wasm 3.0 folded several proposals into the core suite. wasm3 implements typed
 # function references, but not all of it and not the proposals that arrived with
 # it, so a handful of modules are still refused or answer differently. Skipped by
 # module rather than by file: the rest of each file runs.
 if args.spec == "wg-3.0":
-    blacklist.add([
-      # br_on_null / br_on_non_null (0xd5, 0xd6) are not implemented: they branch
-      # on the null-ness of a reference and pass it on non-null, which needs the
-      # branch to carry a different stack shape than the fall-through
-      "br_on_null.wast:* br_on_null.0.wasm *",
-      "br_on_null.wast:* br_on_null.2.wasm *",
-      "br_on_non_null.wast:* br_on_non_null.0.wasm *",
-      "br_on_non_null.wast:* br_on_non_null.2.wasm *",
+    blacklist.add(
+        [
+            # br_on_null / br_on_non_null (0xd5, 0xd6) are not implemented: they branch
+            # on the null-ness of a reference and pass it on non-null, which needs the
+            # branch to carry a different stack shape than the fall-through
+            "br_on_null.wast:* br_on_null.0.wasm *",
+            "br_on_null.wast:* br_on_null.2.wasm *",
+            "br_on_non_null.wast:* br_on_non_null.0.wasm *",
+            "br_on_non_null.wast:* br_on_non_null.2.wasm *",
+            # local initialization is not tracked, so a local whose type has no default
+            # is accepted when read before it is set, instead of being rejected. The
+            # rest of local_init.wast only gets that far with typed refs on - see below
+            "local_init.wast:* local_init.0.wasm *",
+            "local_init.wast:* local_init.5.wasm *",
+            # garbage collection: the abstract heap types (any, eq, i31, struct, array,
+            # none) and exception handling's exnref
+            "ref_null.wast:* ref_null.0.wasm *",
+            "ref_null.wast:* ref_null.1.wasm *",
+            "ref_is_null.wast:* ref_is_null.0.wasm *",
+            # recursive type groups, also from garbage collection
+            "type-rec.wast:* type-rec.17.wasm *",
+            "type-rec.wast:* type-rec.18.wasm *",
+            "type-rec.wast:* type-rec.19.wasm *",
+            "type-equivalence.wast:* type-equivalence.8.wasm *",
+            "type-equivalence.wast:* type-equivalence.9.wasm *",
+            # a tag import is a fresh tag rather than an alias (see the exception
+            # handling entries above). LinkImports has no tag loop at all, so a tag
+            # import is neither resolved nor type-checked
+            "tag.wast:* tag.7.wasm assert_unlinkable (incompatible import)",
+            "imports.wast:* imports.41.wasm assert_unlinkable (unknown import)",
+            "imports.wast:* imports.42.wasm assert_unlinkable (incompatible import type)",
+            "imports.wast:* imports.43.wasm assert_unlinkable (incompatible import type)",
+            "imports.wast:* imports.44.wasm assert_unlinkable (incompatible import type)",
+            "imports.wast:* imports.45.wasm assert_unlinkable (incompatible import type)",
+            # multiple memories
+            "instance.wast:* instance.2.wasm *",
+            "instance.wast:* instance.4.wasm *",
+            # wasm 3.0 lets a constant expression read any global declared before it,
+            # where wasm3 still allows only imported ones
+            "global.wast:* global.50.wasm *",
+            # wasm3 never links imported globals, so a table initialized from one fills
+            # with null - the same gap as the elem.wast entry above
+            "table.wast:* table.33.wasm get4*",
+            "table.wast:* table.33.wasm get5*",
+            # a reference is an opaque host handle to wasm3, so a test that pins which
+            # function a funcref names can't be matched against what the repl prints
+            "br_table.wast:* * meet-funcref*",
+            "select.wast:* * join-funcnull(1)",
+        ]
+    )
 
-      # local initialization is not tracked, so a local whose type has no default
-      # is accepted when read before it is set, instead of being rejected. The
-      # rest of local_init.wast only gets that far with typed refs on - see below
-      "local_init.wast:* local_init.0.wasm *",
-      "local_init.wast:* local_init.5.wasm *",
-
-      # garbage collection: the abstract heap types (any, eq, i31, struct, array,
-      # none) and exception handling's exnref
-      "ref_null.wast:* ref_null.0.wasm *",
-      "ref_null.wast:* ref_null.1.wasm *",
-      "ref_is_null.wast:* ref_is_null.0.wasm *",
-
-      # recursive type groups, also from garbage collection
-      "type-rec.wast:* type-rec.17.wasm *",
-      "type-rec.wast:* type-rec.18.wasm *",
-      "type-rec.wast:* type-rec.19.wasm *",
-      "type-equivalence.wast:* type-equivalence.8.wasm *",
-      "type-equivalence.wast:* type-equivalence.9.wasm *",
-
-      # a tag import is a fresh tag rather than an alias (see the exception
-      # handling entries above). LinkImports has no tag loop at all, so a tag
-      # import is neither resolved nor type-checked
-      "tag.wast:* tag.7.wasm assert_unlinkable (incompatible import)",
-      "imports.wast:* imports.41.wasm assert_unlinkable (unknown import)",
-      "imports.wast:* imports.42.wasm assert_unlinkable (incompatible import type)",
-      "imports.wast:* imports.43.wasm assert_unlinkable (incompatible import type)",
-      "imports.wast:* imports.44.wasm assert_unlinkable (incompatible import type)",
-      "imports.wast:* imports.45.wasm assert_unlinkable (incompatible import type)",
-
-      # multiple memories
-      "instance.wast:* instance.2.wasm *",
-      "instance.wast:* instance.4.wasm *",
-
-      # wasm 3.0 lets a constant expression read any global declared before it,
-      # where wasm3 still allows only imported ones
-      "global.wast:* global.50.wasm *",
-
-      # wasm3 never links imported globals, so a table initialized from one fills
-      # with null - the same gap as the elem.wast entry above
-      "table.wast:* table.33.wasm get4*",
-      "table.wast:* table.33.wasm get5*",
-
-      # a reference is an opaque host handle to wasm3, so a test that pins which
-      # function a funcref names can't be matched against what the repl prints
-      "br_table.wast:* * meet-funcref*",
-      "select.wast:* * join-funcnull(1)",
-    ])
-
-    if (wasm3_ver not in Blacklist(["*typed-refs*"])):
-        blacklist.add([
-            "br_table.wast:* br_table.0.wasm *",
-            "call_ref.wast:* call_ref.0.wasm *",
-            "call_ref.wast:* call_ref.1.wasm *",
-            "call_ref.wast:* call_ref.2.wasm *",
-            "call_ref.wast:* call_ref.3.wasm *",
-            "return_call_ref.wast:* return_call_ref.0.wasm *",
-            "return_call_ref.wast:* return_call_ref.8.wasm *",
-            "return_call_ref.wast:* return_call_ref.9.wasm *",
-            "return_call_ref.wast:* return_call_ref.10.wasm *",
-            "ref_as_non_null.wast:* ref_as_non_null.0.wasm *",
-            "table.wast:* table.33.wasm *",
-            "type-equivalence.wast:* type-equivalence.7.wasm *",
-            "unreached-valid.wast:* * call_ref-unreached*",
-
-            # linking.wast registers a module of typed-ref globals as $Mref_ex
-            # and one of typed-ref tables as $Mtable_ex. Both are refused at
-            # load, so neither ever registers and the imports naming them find
-            # no module to check against. The mismatches the rest of the file
-            # asserts are caught, since those exporters do load.
-            "linking.wast:* linking.11.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.22.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.23.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.24.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.25.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.38.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.39.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.40.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.41.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.54.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.55.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.58.wasm assert_unlinkable (incompatible import type)",
-            "linking.wast:* linking.59.wasm assert_unlinkable (incompatible import type)",
-        ])
+    if wasm3_ver not in Blacklist(["*typed-refs*"]):
+        blacklist.add(
+            [
+                "br_table.wast:* br_table.0.wasm *",
+                "call_ref.wast:* call_ref.0.wasm *",
+                "call_ref.wast:* call_ref.1.wasm *",
+                "call_ref.wast:* call_ref.2.wasm *",
+                "call_ref.wast:* call_ref.3.wasm *",
+                "return_call_ref.wast:* return_call_ref.0.wasm *",
+                "return_call_ref.wast:* return_call_ref.8.wasm *",
+                "return_call_ref.wast:* return_call_ref.9.wasm *",
+                "return_call_ref.wast:* return_call_ref.10.wasm *",
+                "ref_as_non_null.wast:* ref_as_non_null.0.wasm *",
+                "table.wast:* table.33.wasm *",
+                "type-equivalence.wast:* type-equivalence.7.wasm *",
+                "unreached-valid.wast:* * call_ref-unreached*",
+                # linking.wast registers a module of typed-ref globals as $Mref_ex
+                # and one of typed-ref tables as $Mtable_ex. Both are refused at
+                # load, so neither ever registers and the imports naming them find
+                # no module to check against. The mismatches the rest of the file
+                # asserts are caught, since those exporters do load.
+                "linking.wast:* linking.11.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.22.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.23.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.24.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.25.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.38.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.39.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.40.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.41.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.54.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.55.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.58.wasm assert_unlinkable (incompatible import type)",
+                "linking.wast:* linking.59.wasm assert_unlinkable (incompatible import type)",
+            ]
+        )
     else:
         # These parse only once typed references are on - without them the module
         # is refused for an unknown value type, which is the rejection the test
         # asks for. Once it does parse, the validator lets it through: it does
         # not track local initialization, and it reasons in storage types, so a
         # nullable reference passes where a non-nullable one is required.
-        blacklist.add([
-            "local_init.wast:* local_init.1.wasm *",
-            "local_init.wast:* local_init.2.wasm *",
-            "local_init.wast:* local_init.4.wasm *",
-            "func.wast:* func.21.wasm *",
-            "br_if.wast:* br_if.30.wasm *",
-            "local_tee.wast:* local_tee.36.wasm *",
-            "ref_as_non_null.wast:* ref_as_non_null.1.wasm *",
-        ])
+        blacklist.add(
+            [
+                "local_init.wast:* local_init.1.wasm *",
+                "local_init.wast:* local_init.2.wasm *",
+                "local_init.wast:* local_init.4.wasm *",
+                "func.wast:* func.21.wasm *",
+                "br_if.wast:* br_if.30.wasm *",
+                "local_tee.wast:* local_tee.36.wasm *",
+                "ref_as_non_null.wast:* ref_as_non_null.1.wasm *",
+            ]
+        )
 
 if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"]):
-    warning("Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True)
+    warning(
+        "Win32 x86 has i64->f32 conversion precision issues, skipping some tests", True
+    )
     # See: https://docs.microsoft.com/en-us/cpp/c-runtime-library/floating-point-support
-    blacklist.add([
-      "conversions.wast:* f32.convert_i64_u(9007199791611905)",
-      "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
-      "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
-      "conversions.wast:* i64.trunc_f64_u(4895412794951729151)",
-      "conversions.wast:* i64.trunc_sat_f64_u(4895412794951729151)",
-    ])
+    blacklist.add(
+        [
+            "conversions.wast:* f32.convert_i64_u(9007199791611905)",
+            "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
+            "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
+            "conversions.wast:* i64.trunc_f64_u(4895412794951729151)",
+            "conversions.wast:* i64.trunc_sat_f64_u(4895412794951729151)",
+        ]
+    )
 elif wasm3_ver in Blacklist(["* on mips* GCC *"]):
     warning("MIPS has NaN representation issues, skipping some tests", True)
-    blacklist.add([
-      "float_exprs.wast:* *_nan_bitpattern(*",
-      "float_exprs.wast:* *no_fold_*",
-    ])
+    blacklist.add(
+        [
+            "float_exprs.wast:* *_nan_bitpattern(*",
+            "float_exprs.wast:* *no_fold_*",
+        ]
+    )
 elif wasm3_ver in Blacklist(["* on sparc* GCC *"]):
     warning("SPARC has NaN representation issues, skipping some tests", True)
-    blacklist.add([
-      "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
-    ])
+    blacklist.add(
+        [
+            "float_exprs.wast:* *.canonical_nan_bitpattern(0, 0)",
+        ]
+    )
 elif wasm3_ver in Blacklist(["* on sh* GCC *"]):
     # The SH4 FPU answers 0x7FBFFFFF where the spec asks for the canonical 0x7FC00000,
     # and gives back an infinity where an operation on a signaling NaN should produce a
@@ -664,24 +717,31 @@ elif wasm3_ver in Blacklist(["* on sh* GCC *"]):
     # was not optimized away, so they go the same way - the same pair of patterns MIPS
     # needs above.
     warning("sh4 has NaN representation issues, skipping some tests", True)
-    blacklist.add([
-      "float_exprs.wast:* *_nan_bitpattern(*",
-      "float_exprs.wast:* *no_fold_*",
-    ])
+    blacklist.add(
+        [
+            "float_exprs.wast:* *_nan_bitpattern(*",
+            "float_exprs.wast:* *no_fold_*",
+        ]
+    )
 elif wasm3_ver in Blacklist(["* on m68k* GCC *"]):
-    warning("m68k quiets NaNs its own way and computes in extended precision, skipping some tests", True)
-    blacklist.add([
-      # the 68881 quiets to an all-ones payload rather than the canonical pattern the
-      # spec asks for, and these read the result back as an integer, so comparing NaNs
-      # by class cannot paper over it
-      "float_exprs.wast:* *_nan_bitpattern(*",
-      # and it keeps 80-bit intermediates, so an f64 is rounded twice - the same gap x87
-      # has. The last of these answers inf only because the wider exponent range did not
-      # overflow before the result was rounded back down to f64.
-      "float_misc.wast:* f64.add(4845873199050653696, 4607182463836013682)",
-      "float_misc.wast:* f64.add(4845873199050653697, 4607182281361063936)",
-      "float_misc.wast:* f64.add(9218868437227405311, 8975674057349398527)",
-    ])
+    warning(
+        "m68k quiets NaNs its own way and computes in extended precision, skipping some tests",
+        True,
+    )
+    blacklist.add(
+        [
+            # the 68881 quiets to an all-ones payload rather than the canonical pattern the
+            # spec asks for, and these read the result back as an integer, so comparing NaNs
+            # by class cannot paper over it
+            "float_exprs.wast:* *_nan_bitpattern(*",
+            # and it keeps 80-bit intermediates, so an f64 is rounded twice - the same gap x87
+            # has. The last of these answers inf only because the wider exponent range did not
+            # overflow before the result was rounded back down to f64.
+            "float_misc.wast:* f64.add(4845873199050653696, 4607182463836013682)",
+            "float_misc.wast:* f64.add(4845873199050653697, 4607182281361063936)",
+            "float_misc.wast:* f64.add(9218868437227405311, 8975674057349398527)",
+        ]
+    )
 elif wasm3_ver in Blacklist(["* on microblaze* GCC *"]):
     # TODO: work out whose bug this is. 64-bit signed remainder answers nonsense here,
     # and plain C does too with no wasm3 in the picture - a cross-built "0 % 1" returned
@@ -690,11 +750,16 @@ elif wasm3_ver in Blacklist(["* on microblaze* GCC *"]):
     # Worth retrying against real hardware. Only the 64-bit one is affected - every i32
     # rem_s passes - so those stay checked, as do the tests that name i64 rem_s to pin
     # down evaluation order or a trap rather than the value it computes.
-    warning("microblaze: 64-bit signed remainder is broken below wasm3, skipping those tests", True)
-    blacklist.add([
-      "i64.wast:* rem_s(*",
-      "int_exprs.wast:* i64.*rem_s*",
-    ])
+    warning(
+        "microblaze: 64-bit signed remainder is broken below wasm3, skipping those tests",
+        True,
+    )
+    blacklist.add(
+        [
+            "i64.wast:* rem_s(*",
+            "int_exprs.wast:* i64.*rem_s*",
+        ]
+    )
 
 # Wasm3 keeps f32 and f64 in one shared f64 register, so an f32 routed through it is
 # promoted and demoted, which quiets a signaling NaN (the same gap as the blacklisted
@@ -702,57 +767,69 @@ elif wasm3_ver in Blacklist(["* on microblaze* GCC *"]):
 # slots, but once Wasm3 is itself compiled to Wasm its f32 ops become guest f32 loads, and
 # the hosting Wasm3 does route those through the register. Self-hosting is affected.
 if wasm3_ver in Blacklist(["* self-hosting *"]):
-    warning("self-hosting: the hosting Wasm3 quiets f32 signaling NaNs, skipping some tests", True)
-    blacklist.add([
-      "conversions.wast:* i32.reinterpret_f32(2141192192)",
-      "conversions.wast:* i32.reinterpret_f32(4288675840)",
-      # the i32.load right after "f32.store" of an f32 sNaN; the other i32.loads in
-      # these modules read back a data segment or an i32.store, and are unaffected.
-      # float_memory.wast:125 stores a NaN that is already quiet, so it survives.
-      "float_memory.wast:21 *",
-      "float_memory.wast:73 *",
-      # multi-memory's own copy of the same module, addressing memory 3
-      "float_memory0.wast:26 *",
-    ])
+    warning(
+        "self-hosting: the hosting Wasm3 quiets f32 signaling NaNs, skipping some tests",
+        True,
+    )
+    blacklist.add(
+        [
+            "conversions.wast:* i32.reinterpret_f32(2141192192)",
+            "conversions.wast:* i32.reinterpret_f32(4288675840)",
+            # the i32.load right after "f32.store" of an f32 sNaN; the other i32.loads in
+            # these modules read back a data segment or an i32.store, and are unaffected.
+            # float_memory.wast:125 stores a NaN that is already quiet, so it survives.
+            "float_memory.wast:21 *",
+            "float_memory.wast:73 *",
+            # multi-memory's own copy of the same module, addressing memory 3
+            "float_memory0.wast:26 *",
+        ]
+    )
 
 # Without the "tail-call" build feature, return_call still runs correctly, it just doesn't
 # reuse the caller's frame, so the tests that recurse a million deep trap instead of
 # completing. Reusing it needs the compiler to guarantee a tail call, i.e. to support
 # musttail (Clang, and GCC from 15 on).
 if wasm3_ver not in Blacklist(["*tail-call*"]):
-    warning("build has no guaranteed tail calls, skipping unbounded tail recursion", True)
-    blacklist.add([
-      "return_call.wast:* count(1000000)",
-      "return_call.wast:* even(1000000)",
-      "return_call.wast:* even(1000001)",
-      "return_call.wast:* odd(1000000)",
-      "return_call.wast:* odd(999999)",
-      "return_call_indirect.wast:* even(100000)",
-      "return_call_indirect.wast:* even(111111)",
-      "return_call_indirect.wast:* odd(200002)",
-      "return_call_indirect.wast:* odd(300003)",
-      "return_call_ref.wast:* count(1000000)",
-      "return_call_ref.wast:* even(1000000)",
-      "return_call_ref.wast:* even(1000001)",
-      "return_call_ref.wast:* odd(1000000)",
-      "return_call_ref.wast:* odd(999999)",
-    ])
+    warning(
+        "build has no guaranteed tail calls, skipping unbounded tail recursion", True
+    )
+    blacklist.add(
+        [
+            "return_call.wast:* count(1000000)",
+            "return_call.wast:* even(1000000)",
+            "return_call.wast:* even(1000001)",
+            "return_call.wast:* odd(1000000)",
+            "return_call.wast:* odd(999999)",
+            "return_call_indirect.wast:* even(100000)",
+            "return_call_indirect.wast:* even(111111)",
+            "return_call_indirect.wast:* odd(200002)",
+            "return_call_indirect.wast:* odd(300003)",
+            "return_call_ref.wast:* count(1000000)",
+            "return_call_ref.wast:* even(1000000)",
+            "return_call_ref.wast:* even(1000001)",
+            "return_call_ref.wast:* odd(1000000)",
+            "return_call_ref.wast:* odd(999999)",
+        ]
+    )
 
-stats = dotdict(total_run=0, skipped=0, failed=0, crashed=0, timeout=0,  success=0, missing=0)
+stats = SimpleNamespace(
+    total_run=0, skipped=0, failed=0, crashed=0, timeout=0, success=0, missing=0
+)
 
 # Convert some trap names from the original spec
 trapmap = {
-  # the bulk-memory suite appends the offending index to this one trap text
-  "uninitialized element 2": "uninitialized element",
+    # the bulk-memory suite appends the offending index to this one trap text
+    "uninitialized element 2": "uninitialized element",
 }
+
 
 def runInvoke(test):
     test.cmd = [test.action.field]
 
     displayArgs = []
     for arg in test.action.args:
-        test.cmd.append(arg['value'])
-        displayArgs.append(formatValue(arg['value'], arg['type']))
+        test.cmd.append(arg["value"])
+        displayArgs.append(formatValue(arg["value"], arg["type"]))
 
     test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
     if test_id in blacklist and not args.all:
@@ -781,16 +858,18 @@ def runInvoke(test):
 
     # Parse the actual output
     if not actual:
-        result = re.findall(r'Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(r"Result: (.*?)$", "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
             actual = "result " + result[-1]
             actual_val = result[0]
     if not actual:
-        result = re.findall(r'Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(
+            r"Error: \[trap\] (.*?) \(", "\n" + output + "\n", re.MULTILINE
+        )
         if len(result) > 0:
             actual = "trap " + result[-1]
     if not actual:
-        result = re.findall(r'Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        result = re.findall(r"Error: (.*?)$", "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
             actual = "error " + result[-1]
     if not actual:
@@ -810,22 +889,24 @@ def runInvoke(test):
 
     # Prepare the expected result
     expect = None
-    if "expected" in test:
+    if hasattr(test, "expected"):
         if len(test.expected) == 0:
             expect = "result <Empty Stack>"
         else:
             if actual_val is not None:
                 # normalize the actual result first: it needs the raw expected
                 # values, which normalizeResults() rewrites in place below
-                actual = "result " + combineResults(parseResults(actual_val, test.expected))
+                actual = "result " + combineResults(
+                    parseResults(actual_val, test.expected)
+                )
             expect = "result " + combineResults(normalizeResults(test.expected))
 
-    elif "expected_trap" in test:
+    elif hasattr(test, "expected_trap"):
         if test.expected_trap in trapmap:
             test.expected_trap = trapmap[test.expected_trap]
 
         expect = "trap " + str(test.expected_trap)
-    elif "expected_anything" in test:
+    elif hasattr(test, "expected_anything"):
         expect = "<Anything>"
     else:
         expect = "<Unknown>"
@@ -840,7 +921,9 @@ def runInvoke(test):
             print(f"Log:")
             print(output)
 
-    log.write(f"{test.source}\t|\t{test.wasm} {test.action.field}({', '.join(displayArgs)})\t=>\t\t")
+    log.write(
+        f"{test.source}\t|\t{test.wasm} {test.action.field}({', '.join(displayArgs)})\t=>\t\t"
+    )
     if actual == expect or (expect == "<Anything>" and not force_fail):
         stats.success += 1
         log.write(f"OK: {actual}\n")
@@ -853,7 +936,8 @@ def runInvoke(test):
             return
 
         showTestResult()
-        #sys.exit(1)
+        # sys.exit(1)
+
 
 def runValidation(test, cmd, wasm_dir, keep_modules=False):
     # assert_invalid/assert_malformed/assert_uninstantiable: the module must be
@@ -914,6 +998,7 @@ def runValidation(test, cmd, wasm_dir, keep_modules=False):
         print(f"Expected: {ansi.OKGREEN}rejected ({expected_text}){ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
 
+
 # A build without the "multi-memory" feature rejects any module with more than
 # one memory, so the whole proposal suite is out of reach for it. Its files share
 # wast names with core/ (memory_grow.wast and friends), so they are dropped at
@@ -923,20 +1008,22 @@ if not hasMultiMemory:
     warning("build has no multiple memories, skipping the multi-memory suite", True)
     # these live in the compact-import suite but import two memories apiece, so
     # they need the feature just as much as the multi-memory suite does
-    blacklist.add([
-      "imports-compact.wast:* imports-compact.16.wasm sum()",
-      "imports-compact.wast:* imports-compact.17.wasm sizes()",
-      "imports-compact.wast:* imports-compact.18.wasm sizes()",
-      "imports-compact.wast:* imports-compact.19.wasm sum()",
-      # and these two wg-3.0 modules, which declare two memories of their own
-      "instance.wast:* instance.1.wasm *",
-      "custom-page-sizes.wast:* custom-page-sizes.6.wasm *",
-    ])
+    blacklist.add(
+        [
+            "imports-compact.wast:* imports-compact.16.wasm sum()",
+            "imports-compact.wast:* imports-compact.17.wasm sizes()",
+            "imports-compact.wast:* imports-compact.18.wasm sizes()",
+            "imports-compact.wast:* imports-compact.19.wasm sum()",
+            # and these two wg-3.0 modules, which declare two memories of their own
+            "instance.wast:* instance.1.wasm *",
+            "custom-page-sizes.wast:* custom-page-sizes.6.wasm *",
+        ]
+    )
 
 if args.file:
     jsonFiles = args.file
 else:
-    jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"))
+    jsonFiles = glob.glob(os.path.join(spec_dir, "core", "*.json"))
 
     # Directories holding tests for proposals wasm3 implements but that this
     # suite still keeps out of the core suite. Which ones exist depends on the
@@ -945,7 +1032,7 @@ else:
     #   2.0: tail call, extended const
     #   3.0: bulk memory moved to core/bulk-memory; exception handling moved to
     #        core/exceptions; custom page sizes is still a proposal
-    for stage in ('proposals', 'core'):
+    for stage in ("proposals", "core"):
         for subdir in (
             "tail-call",
             "extended-const",
@@ -963,7 +1050,7 @@ jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
 
 for fn in jsonFiles:
-    with open(fn, encoding='utf-8') as f:
+    with open(fn, encoding="utf-8") as f:
         data = json.load(f)
 
     wast_source = filename(data["source_filename"])
@@ -982,7 +1069,7 @@ for fn in jsonFiles:
     print(f"Running {fn}")
 
     for cmd in data["commands"]:
-        test = dotdict()
+        test = SimpleNamespace()
         test.line = int(cmd["line"])
         test.source = wast_source + ":" + str(test.line)
         test.wasm = wasm_module
@@ -1009,16 +1096,17 @@ for fn in jsonFiles:
                     wasm3.name_module(cmd["name"])
                     keep_modules = True
             except Exception as e:
-                pass #fatal(str(e))
+                pass  # fatal(str(e))
 
-        elif (  test.type == "action" or
-                test.type == "assert_return" or
-                test.type == "assert_trap" or
-                test.type == "assert_exhaustion" or
-                test.type == "assert_exception" or
-                test.type == "assert_return_canonical_nan" or
-                test.type == "assert_return_arithmetic_nan"):
-
+        elif (
+            test.type == "action"
+            or test.type == "assert_return"
+            or test.type == "assert_trap"
+            or test.type == "assert_exhaustion"
+            or test.type == "assert_exception"
+            or test.type == "assert_return_canonical_nan"
+            or test.type == "assert_return_arithmetic_nan"
+        ):
             if args.line and test.line != args.line:
                 continue
 
@@ -1054,28 +1142,29 @@ for fn in jsonFiles:
                 warning(f"Skipped {test.source} ({test.type} not implemented)")
                 continue
 
-            test.action = dotdict(cmd["action"])
+            test.action = SimpleNamespace(**cmd["action"])
             if test.action.type in ("invoke", "get"):
-
                 # an action may name the module whose export it means, which is
                 # how a test reaches past the most recently loaded one
-                if test.action.module:
-                    test.action.module = escape_str(test.action.module)
+                module = getattr(test.action, "module", None)
+                test.action.module = escape_str(module) if module else None
 
                 test.action.field = escape_str(test.action.field)
-                test.action.args = test.action.get("args", [])
+                test.action.args = getattr(test.action, "args", [])
 
                 runInvoke(test)
             else:
                 stats.skipped += 1
-                warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
+                warning(
+                    f"Skipped {test.source} (unknown action type '{test.action.type}')"
+                )
 
-
-        elif (test.type == "assert_invalid" or
-              test.type == "assert_malformed" or
-              test.type == "assert_uninstantiable" or
-              test.type == "assert_unlinkable"):
-
+        elif (
+            test.type == "assert_invalid"
+            or test.type == "assert_malformed"
+            or test.type == "assert_uninstantiable"
+            or test.type == "assert_unlinkable"
+        ):
             if args.line and test.line != args.line:
                 continue
 
@@ -1106,10 +1195,10 @@ for fn in jsonFiles:
 if (stats.failed + stats.success) != stats.total_run:
     warning("Statistics summary invalid", True)
 
-pprint(stats)
+print_stats(stats)
 
 if stats.failed > 0:
-    failed = (stats.failed*100)/stats.total_run
+    failed = (stats.failed * 100) / stats.total_run
     print(f"{ansi.FAIL}=======================")
     print(f" FAILED: {failed:.2f}%")
     if stats.crashed > 0:
@@ -1123,8 +1212,7 @@ elif stats.success > 0:
     if stats.skipped > 0:
         print(f"{ansi.WARNING} ({stats.skipped} tests skipped){ansi.OKGREEN}")
     print(f"======================={ansi.ENDC}")
-    
+
 elif stats.total_run == 0:
     print("Error: No tests run")
     sys.exit(1)
-

@@ -76,9 +76,9 @@ AlignConsecutiveDeclarations:
   AcrossComments: false
 
 AlignConsecutiveAssignments:
-  EnumAssignments: true
-  AcrossEmptyLines: true
-  AcrossComments: true
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
 
 AlignArrayOfStructures: Left
 
@@ -143,6 +143,8 @@ StatementMacros:
 - d_m3TypeModifyOp
 - d_m3UnaryOp_f
 - d_m3UnaryOp_i
+- d_m3Decode
+- d_m3WasiPath
 
 MaxEmptyLinesToKeep: 2
 KeepEmptyLines:

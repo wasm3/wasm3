@@ -15,10 +15,9 @@ import subprocess
 import hashlib
 import fnmatch
 
-sys.path.append('../extra')
+sys.path.append("../extra")
 
 from testutils import *
-from pprint import pprint
 
 #
 # Args handling
@@ -26,14 +25,17 @@ from pprint import pprint
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
-parser.add_argument("--separate-args",  action='store_true')      # use "--" separator for wasmer, wasmtime
-parser.add_argument("--timeout", type=int,             default=120)
-parser.add_argument("--fast",    action='store_true')
+parser.add_argument(
+    "--separate-args", action="store_true"
+)  # use "--" separator for wasmer, wasmtime
+parser.add_argument("--timeout", type=int, default=120)
+parser.add_argument("--fast", action="store_true")
 
 args = parser.parse_args()
 
-stats = dotdict(total_run=0, failed=0, crashed=0, timeout=0)
+stats = SimpleNamespace(total_run=0, failed=0, crashed=0, timeout=0)
 
+# fmt: off
 commands_full = [
   {
     "name":           "Simple WASI test",
@@ -145,10 +147,13 @@ commands_fast = [
     "expect_sha1":    "0e8af02a7207c0c617d7d38eed92853c4a619987"
   }
 ]
+# fmt: on
+
 
 def fail(msg):
     print(f"{ansi.FAIL}FAIL:{ansi.ENDC} {msg}")
     stats.failed += 1
+
 
 commands = commands_fast if args.fast else commands_full
 
@@ -156,25 +161,30 @@ for cmd in commands:
     if "skip" in cmd:
         continue
 
-    command = args.exec.split(' ')
-    command.append(cmd['wasm'])
+    command = args.exec.split(" ")
+    command.append(cmd["wasm"])
     if "args" in cmd:
         if args.separate_args:
             command.append("--")
-        command.extend(cmd['args'])
+        command.extend(cmd["args"])
 
     command = list(map(str, command))
     print(f"=== {cmd['name']} ===")
     stats.total_run += 1
     try:
         if "stdin" in cmd:
-            fn = cmd['stdin']
+            fn = cmd["stdin"]
             f = open(fn, "rb")
             print(f"cat {fn} | {' '.join(command)}")
             output = subprocess.check_output(command, timeout=args.timeout, stdin=f)
         elif "can_crash" in cmd:
             print(f"{' '.join(command)}")
-            output = subprocess.run(command, timeout=args.timeout, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout
+            output = subprocess.run(
+                command,
+                timeout=args.timeout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            ).stdout
         else:
             print(f"{' '.join(command)}")
             output = subprocess.check_output(command, timeout=args.timeout)
@@ -189,17 +199,17 @@ for cmd in commands:
 
     if "expect_sha1" in cmd:
         actual = hashlib.sha1(output).hexdigest()
-        if actual != cmd['expect_sha1']:
+        if actual != cmd["expect_sha1"]:
             fail(f"Actual sha1: {actual}")
 
     if "expect_pattern" in cmd:
         actual = output.decode("utf-8")
-        if not fnmatch.fnmatch(actual, cmd['expect_pattern']):
+        if not fnmatch.fnmatch(actual, cmd["expect_pattern"]):
             fail(f"Output does not match pattern:\n{actual}")
 
     print()
 
-pprint(stats)
+print_stats(stats)
 
 if stats.failed:
     print(f"{ansi.FAIL}=======================")

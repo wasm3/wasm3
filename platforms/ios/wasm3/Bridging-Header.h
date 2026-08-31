@@ -4,5 +4,5 @@
 
 typedef void (*print_cbk_t)(const char* buff, int len);
 
-void    redirect_output     (print_cbk_t f);
-int     run_app             (void);
+void redirect_output (print_cbk_t f);
+int  run_app (void);
