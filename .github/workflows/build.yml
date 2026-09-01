@@ -154,7 +154,7 @@ jobs:
         EOF
 
   macos:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.config.os }}
     name: macos-${{ matrix.config.target }}
     timeout-minutes: ${{ matrix.config.timeout || 10 }}
 
@@ -164,10 +164,12 @@ jobs:
         config:
         # Clang has musttail and the CFLAGS below turn typed refs on, so every
         # configuration here is expected to report every build feature
-        - {target: uvwasi,      }
-        - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
+        - {target: arm64-uvwasi,      os: macos-latest,   }
+        - {target: arm64-no-uvwasi,   os: macos-latest,   flags: -DBUILD_WASI=simple   }
+        - {target: intel-uvwasi,      os: macos-15-intel, }
+        - {target: intel-no-uvwasi,   os: macos-15-intel, flags: -DBUILD_WASI=simple   }
         # Debug build under ASan + UBSan
-        - {target: sanitize,    flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
+        - {target: arm64-sanitize,    os: macos-latest,   flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
 
     steps:
     - uses: actions/checkout@v7
@@ -200,7 +202,7 @@ jobs:
       run: cd test && python3 run-wasi-test.py
 
   windows:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.config.os }}
     name: windows-${{ matrix.config.target }}
     timeout-minutes: ${{ matrix.config.timeout || 10 }}
 
@@ -208,19 +210,21 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: clang-x64,   platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x64   }
-        - {target: msvc-x64,    platform: "-A x64",     toolset: "",            skipfeat: tail-call   }
-        - {target: clang-x86,   platform: "-A Win32",   toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x86   }
-        - {target: msvc-x86,    platform: "-A Win32",   toolset: "",            skipfeat: tail-call   }
+        - {target: clang-x64,             os: windows-latest, platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x64   }
+        - {target: msvc-x64,              os: windows-latest, platform: "-A x64",     toolset: "",            skipfeat: tail-call   }
+        - {target: clang-x86,             os: windows-latest, platform: "-A Win32",   toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x86   }
+        - {target: msvc-x86,              os: windows-latest, platform: "-A Win32",   toolset: "",            skipfeat: tail-call   }
+        - {target: msvc-arm64,            os: windows-11-arm, platform: "-A ARM64",   toolset: "",            skipfeat: tail-call   }
         # Builds without uvwasi
-        - {target: clang-x64-no-uvwasi,   platform: "-A x64",     toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
-        - {target: msvc-x64-no-uvwasi,    platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
-        - {target: clang-x86-no-uvwasi,   platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
-        - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
+        - {target: clang-x64-no-uvwasi,   os: windows-latest, platform: "-A x64",     toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
+        - {target: msvc-x64-no-uvwasi,    os: windows-latest, platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
+        - {target: clang-x86-no-uvwasi,   os: windows-latest, platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
+        - {target: msvc-x86-no-uvwasi,    os: windows-latest, platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
+        - {target: msvc-arm64-no-uvwasi,  os: windows-11-arm, platform: "-A ARM64",   toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
         # Debug build under ASan. Windows ships no UBSan. Default Debug flags carry /RTC1 and /INCREMENTAL, and ASan runs with neither
-        - {target: msvc-x64-sanitize,     platform: "-A x64",     toolset: "",            buildtype: Debug, timeout: 15, sanitize: true, skipfeat: tail-call, flags: '-DBUILD_WASI=simple -DCMAKE_C_FLAGS_DEBUG="/Zi /Ob0 /Od" -DCMAKE_EXE_LINKER_FLAGS_DEBUG="/debug /INCREMENTAL:NO"', cflags: "/fsanitize=address" }
+        - {target: msvc-x64-sanitize,     os: windows-latest, platform: "-A x64",     toolset: "",            buildtype: Debug, timeout: 15, sanitize: true, skipfeat: tail-call, flags: '-DBUILD_WASI=simple -DCMAKE_C_FLAGS_DEBUG="/Zi /Ob0 /Od" -DCMAKE_EXE_LINKER_FLAGS_DEBUG="/debug /INCREMENTAL:NO"', cflags: "/fsanitize=address" }
         # Release build with strace
-        - {target: clang-x64-strace,      platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-strace-win-x64, notest: true, strace: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
+        - {target: clang-x64-strace,      os: windows-latest, platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-strace-win-x64, notest: true, strace: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     defaults:
       run:
