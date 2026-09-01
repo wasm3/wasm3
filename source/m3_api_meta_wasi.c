@@ -244,13 +244,17 @@ m3ApiRawFunction(m3_wasi_generic_environ_get)
     m3ApiCheckMem(env, env_count * sizeof(uint32_t));
     m3ApiCheckMem(env_buf, env_buf_size);
 
-    ret = __wasi_environ_get(env, (uint8_t*)env_buf);
+    // the array is the guest's, but the host fills it with its own pointers, which
+    // are what m3ApiPtrToOffset turns back into guest offsets below
+    uint8_t** host_env = (uint8_t**)env;
+
+    ret = __wasi_environ_get(host_env, (uint8_t*)env_buf);
     if (ret != __WASI_ERRNO_SUCCESS) {
         m3ApiReturn(ret);
     }
 
     for (u32 i = 0; i < env_count; ++i) {
-        env[i] = m3ApiPtrToOffset(env[i]);
+        m3ApiWriteMem32(&env[i], m3ApiPtrToOffset(host_env[i]));
     }
 
     m3ApiReturn(ret);

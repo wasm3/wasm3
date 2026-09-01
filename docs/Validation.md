@@ -88,6 +88,26 @@ The `wasm3` CLI exposes this as `--compile` ("disable lazy compilation"), which
 applies both to a file named on the command line and to `:load` / `:load-hex`
 issued in the repl.
 
+Compiling everything up front is also what the CLI's `--validate-only <file>`
+does: it loads the file, compiles every function, runs none of them, and exits 0
+if all of that succeeded.
+
+```sh
+wasm3 --validate-only module.wasm && echo valid
+```
+
+The verdict it reports is "this build can load and run the file", which is
+slightly stronger than the spec's notion of validity - the module is also
+instantiated, so an unsatisfied import or a trapping start function fails it too.
+In a build with `d_m3EnableValidation` off the flag refuses to answer at all
+rather than passing everything, since nothing in that build type checks a body.
+
+The opposite opt-out is `m3_SetValidation (runtime, false)`, which leaves the
+pre-pass out of compilation entirely - the CLI's `--no-validate`, which applies
+to every runtime the process makes, `:init` included. The trade is the one
+`d_m3EnableValidation` makes, decided per runtime rather than per build, so read
+that knob's warning below before reaching for it.
+
 Structural checks in `m3_parse.c` are **not** lazy - they always run during
 `m3_ParseModule`, before any function body is touched.
 
@@ -191,7 +211,7 @@ pre-validated payload, and not for one loading modules from outside.
 # endif
 
 # ifndef d_m3ValCtrlDepth
-#   define d_m3ValCtrlDepth     ((d_m3MaxFunctionStackHeight)/8)
+#   define d_m3ValCtrlDepth     ((d_m3MaxFunctionStackHeight)/4)
 # endif
 ```
 
@@ -202,17 +222,31 @@ compiler already bounds, and control frames are larger than operand entries, so
 `d_m3ValCtrlDepth` dominates the total. Override either directly if the derived
 value doesn't suit.
 
-`ValCtx` is a **stack-allocated local** in `ValidateFunction`, so these decide
-how much C stack the call needs:
+They decide the size of one buffer:
 
-| `d_m3MaxFunctionStackHeight` | `ValidateFunction` frame |
-|---|---|
-| 2000 (default) | ~10 KB |
-| 128 (constrained platform configs) | ~830 bytes |
+| `d_m3MaxFunctionStackHeight` | `d_m3ValCtrlDepth` | `ValCtx` |
+|---|---|---|
+| 8000 (default) | 2000 | 62.5 KB |
+| 2000 | 500 | 15.7 KB |
+| 128 (constrained platform configs) | 32 | 1.0 KB |
 
-On a host the frame is irrelevant; on an MCU it may be the largest in the call
-graph, and it now shrinks along with the platform config rather than staying at
-its host size.
+That buffer belongs to the **runtime**, not to `ValidateFunction`'s C stack frame
+(96 bytes). `M3Runtime.validator` is allocated the first time something in that
+runtime is validated and reused for every function after it, so a runtime that
+never compiles - or one running with `m3_SetValidation (rt, false)` - never pays
+for it, and it is released with the runtime.
+
+Keeping it there rather than on the stack is not a micro-optimisation. Validation
+is a pre-pass of compiling, compiling is lazy, and lazy compiling fires from
+`op_Call` arbitrarily deep in a native call chain - against the 128 KB of real
+stack `d_m3MaxNativeStack` holds back past the point where Wasm calls start
+trapping. A 62.5 KB frame there was half the reserve. Per-runtime rather than one
+global keeps two runtimes validating on two threads apart, and a validation never
+nests - nothing in the validator compiles or executes anything - so one buffer is
+always enough.
+
+The `/4` is empirical rather than principled: `clang.wasm` (25 MB, LLVM 8) nests
+past 1000 control frames in at least one function.
 
 Exceeding either limit is reported as `m3Err_functionStackOverflow` - including
 a function declaring more locals than `d_m3ValStack` - so lowering them trades
@@ -232,6 +266,8 @@ targets.
 | Flag | Effect |
 |---|---|
 | `--compile` | Disable lazy compilation: compile (and therefore validate) every function at load, for both command-line and repl loads |
+| `--validate-only` | `--compile` the named file and exit - 0 if it loaded and every function compiled, 1 with the error otherwise. No function is called. Refuses to run in a build without validation support |
+| `--no-validate` | Skip the validator pre-pass in every runtime the process creates, `:init` included. Contradicts `--validate-only`, which refuses the combination |
 | `--spec-repl` | `--repl` plus `--compile`. What the spec test harness uses |
 
 ## Test harness

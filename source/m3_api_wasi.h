@@ -10,6 +10,21 @@
 
 #include "m3_core.h"
 
+// What every WASI backend hands the guest as its environment. A Wasm module gets
+// no host environment of its own, and a few programs want these set; WASM3 and
+// WASM3_ARCH are how a guest tells it is running under Wasm3 (see print_version).
+#if !defined(d_m3WasiDefaultEnvironment)
+#  define d_m3WasiDefaultEnvironment          \
+      "TERM=xterm-256color",                  \
+      "COLORTERM=truecolor",                  \
+      "LANG=en_US.UTF-8",                     \
+      "PWD=/",                                \
+      "HOME=/",                               \
+      "PATH=/",                               \
+      "WASM3=1",                              \
+      "WASM3_ARCH=" M3_ARCH
+#endif
+
 #if defined(d_m3HasUVWASI)
 #  include "uvwasi.h"
 #endif

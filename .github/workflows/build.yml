@@ -327,10 +327,8 @@ jobs:
     - uses: actions/checkout@v7
     - name: Setup environment
       env:
-        # v33.0 miscompiles something that makes the self-hosted smallpt test
-        # trap and then corrupt the host heap; 25 is the newest that's clean
-        WASI_VERSION: 25
-        WASI_VERSION_FULL: "25.0"
+        WASI_VERSION: 34
+        WASI_VERSION_FULL: "34.0"
       run: |
         echo "WASI_VERSION=${WASI_VERSION}" >> $GITHUB_ENV
         echo "WASI_VERSION_FULL=${WASI_VERSION_FULL}" >> $GITHUB_ENV
@@ -351,7 +349,7 @@ jobs:
       run: |
         mkdir build-wasi
         cd build-wasi
-        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk-p1.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
     - name: Build
       run: |
         cmake --build build-wasi
@@ -401,7 +399,7 @@ jobs:
       run: |
         mkdir build-strace
         cd build-strace
-        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
+        cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk-p1.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
         cmake --build .
         cp ./wasm3.wasm ../wasm3-strace.wasm
     - name: Upload artifact (strace)

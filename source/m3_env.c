@@ -202,6 +202,18 @@ IM3Runtime m3_NewRuntime (IM3Environment i_environment, u32 i_stackSizeInBytes, 
     return runtime;
 }
 
+void m3_SetValidation (IM3Runtime i_runtime, bool i_enable)
+{
+#if d_m3EnableValidation
+    if (i_runtime) {
+        i_runtime->skipValidation = not i_enable;
+    }
+#else
+    (void)i_runtime;
+    (void)i_enable;              // nothing to skip: the validator was compiled out
+#endif
+}
+
 void* m3_GetUserData (IM3Runtime i_runtime)
 {
     return i_runtime ? i_runtime->userdata : NULL;
@@ -242,6 +254,10 @@ void Runtime_Release (IM3Runtime i_runtime)
     Environment_ReleaseCodePages(i_runtime->environment, i_runtime->pagesFull);
 
     m3_Free(i_runtime->originStack);
+
+#if d_m3EnableValidation
+    m3_Free(i_runtime->validator);
+#endif
 }
 
 

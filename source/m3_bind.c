@@ -110,7 +110,7 @@ _   (SignatureToFuncType(&ftype, i_linkingSignature));
         m3log(module, "expected: %s", SPrintFuncTypeSignature(ftype));
         m3log(module, "   found: %s", SPrintFuncTypeSignature(i_function->funcType));
 
-        _throw("function signature mismatch");
+        _throw(m3Err_functionSignatureMismatch);
     }
 
     _catch:
