@@ -185,19 +185,30 @@ m3ApiRawFunction(m3_libc_printf)
     m3ApiReturn(length);
 }
 
+static
+uint64_t clock_ms ()
+{
+#ifdef CLOCKS_PER_SEC
+    const clock_t clock_divider = CLOCKS_PER_SEC / 1000;
+    if (clock_divider != 0) {
+        return (uint64_t)(clock() / clock_divider);
+    }
+#endif
+    return (uint64_t)clock();
+}
+
 m3ApiRawFunction(m3_libc_clock_ms)
 {
     m3ApiReturnType(uint32_t)
-#ifdef CLOCKS_PER_SEC
-    uint32_t clock_divider = CLOCKS_PER_SEC / 1000;
-    if (clock_divider != 0) {
-        m3ApiReturn(clock() / clock_divider);
-    } else {
-        m3ApiReturn(clock());
-    }
-#else
-    m3ApiReturn(clock());
-#endif
+
+    m3ApiReturn((uint32_t)clock_ms());
+}
+
+m3ApiRawFunction(m3_libc_clock_ms_i64)
+{
+    m3ApiReturnType(uint64_t)
+
+    m3ApiReturn(clock_ms());
 }
 
 static
@@ -208,6 +219,21 @@ M3Result SuppressLookupFailure (M3Result i_result)
     } else {
         return i_result;
     }
+}
+
+// wasm-coremark's minimal build imports `u64 env.clock_ms()`, while older ones
+// - source/extra/coremark_minimal.wasm.h among them - import the i32 form.
+// Bind whichever of the two the module actually declares.
+static
+M3Result LinkClockMs (IM3Module module, ccstr_t i_moduleName)
+{
+    M3Result result = m3_LinkRawFunction(module, i_moduleName, "clock_ms", "I()", &m3_libc_clock_ms_i64);
+
+    if (result == m3Err_functionSignatureMismatch) {
+        result = m3_LinkRawFunction(module, i_moduleName, "clock_ms", "i()", &m3_libc_clock_ms);
+    }
+
+    return SuppressLookupFailure(result);
 }
 
 M3Result m3_LinkLibC (IM3Module module)
@@ -223,7 +249,7 @@ _   (SuppressLookupFailure(m3_LinkRawFunction(module, env, "_memmove",          
 _   (SuppressLookupFailure(m3_LinkRawFunction(module, env, "_memcpy",           "*(**i)",  &m3_libc_memmove))); // just alias of memmove
 _   (SuppressLookupFailure(m3_LinkRawFunction(module, env, "_abort",            "v()",     &m3_libc_abort)));
 _   (SuppressLookupFailure(m3_LinkRawFunction(module, env, "_exit",             "v(i)",    &m3_libc_exit)));
-_   (SuppressLookupFailure(m3_LinkRawFunction(module, env, "clock_ms",          "i()",     &m3_libc_clock_ms)));
+_   (LinkClockMs(module, env));
 _   (SuppressLookupFailure(m3_LinkRawFunction(module, env, "printf",            "i(**)",   &m3_libc_printf)));
 
     // clang-format on

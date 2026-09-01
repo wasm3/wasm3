@@ -1247,12 +1247,16 @@ M3Result FindReferencedLocalWithinCurrentBlock (IM3Compilation o, u16* o_preserv
 
     for (u32 i = startIndex; i < o->stackIndex; ++i) {
         if (o->wasmStack[i] == i_localSlot) {
-            if (*o_preservedSlotNumber == i_localSlot) {
-                m3type_t type = GetStackTypeFromBottom(o, i);                     d_m3Assert (type != c_m3Type_none)
+            m3type_t type = GetStackTypeFromBottom(o, i);                         d_m3Assert (type != c_m3Type_none)
 
+            if (*o_preservedSlotNumber == i_localSlot) {
 _               (AllocateSlots(o, o_preservedSlotNumber, type));
             } else {
-_               (IncrementSlotUsageCount(o, *o_preservedSlotNumber));
+                // A 64-bit value spans two slots, and allocating or releasing it
+                // counts both, so a second reference has to count both as well.
+                for (u16 s = 0; s < GetTypeNumSlots(type); ++s) {
+_                   (IncrementSlotUsageCount(o, (u16)(*o_preservedSlotNumber + s)));
+                }
             }
 
             o->wasmStack[i] = *o_preservedSlotNumber;
@@ -4726,9 +4730,11 @@ M3Result CompileFunction (IM3Function io_function)
     }
 
 #if d_m3EnableValidation
-    M3Result vr = ValidateFunction(io_function);
-    if (vr) {
-        return vr;
+    if (not io_function->module->runtime->skipValidation) {
+        M3Result vr = ValidateFunction(io_function);
+        if (vr) {
+            return vr;
+        }
     }
 #endif
 

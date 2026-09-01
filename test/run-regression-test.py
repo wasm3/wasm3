@@ -97,6 +97,21 @@ tests = [
     "wasm":           "./regression/github-462.wasm",
     "args":           ["--func", "_start"],
   }, {
+    "name":           "clock_ms imported as i64",
+    "wasm":           "./regression/clock-ms-i64.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 1*",
+  }, {
+    "name":           "clock_ms imported as i32",
+    "wasm":           "./regression/clock-ms-i32.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 1*",
+  }, {
+    "name":           "local.tee over two live copies of an i64 local",
+    "wasm":           "./regression/preserve-two-refs.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 2*",
+  }, {
     "name":           "br out of a typed block",
     "issue":          465,
     "wasm":           "./regression/github-465.wasm",

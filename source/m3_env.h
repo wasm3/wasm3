@@ -14,6 +14,8 @@
 
 d_m3BeginExternC
 
+typedef struct ValCtx ValCtx;   // the validator's scratch, defined in m3_validate.c
+
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
@@ -392,6 +394,11 @@ typedef struct M3Runtime {
     void*          userdata;
 
     u32            memoryLimit;
+
+#if d_m3EnableValidation
+    bool    skipValidation; // m3_SetValidation: compile function bodies without type checking them first
+    ValCtx* validator;      // created on first use
+#endif
 
 #if d_m3EnableStrace >= 2
     u32 callDepth;

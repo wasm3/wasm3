@@ -932,7 +932,7 @@ void print_version ()
 
     printf("Wasm3 v" M3_VERSION "%s on %s\n",
            (wasm3_arch || wasm3_env) ? " self-hosting" : "",
-           wasm3_arch ? wasm3_arch : M3_ARCH);
+           (wasm3_arch) ? wasm3_arch : M3_ARCH);
 
     // Without "tail-call", return_call still works but doesn't reuse the caller's frame,
     // so unbounded tail recursion traps instead of running forever. See d_m3CanTailCall.
@@ -955,6 +955,8 @@ void print_usage ()
     puts("  --func <function>     function to run       default: _start");
     puts("  --stack-size <size>   stack size in bytes   default: 64KB");
     puts("  --compile             disable lazy compilation");
+    puts("  --validate-only       only validate <file>");
+    puts("  --no-validate         skip validation");
     puts("  --spec-repl           repl for the spec tests");
     puts("  --dump-on-trap        dump wasm memory");
     puts("  --gas-limit           set gas limit");
@@ -970,12 +972,14 @@ int main (int i_argc, const char* i_argv[])
     env     = m3_NewEnvironment();
     runtime = NULL;
 
-    bool        argRepl       = false;
-    bool        argDumpOnTrap = false;
-    bool        argCompile    = false;
-    const char* argFile       = NULL;
-    const char* argFunc       = "_start";
-    unsigned    argStackSize  = 64 * 1024;
+    bool        argRepl         = false;
+    bool        argDumpOnTrap   = false;
+    bool        argCompile      = false;
+    bool        argValidateOnly = false;
+    bool        argNoValidate   = false;
+    const char* argFile         = NULL;
+    const char* argFunc         = "_start";
+    unsigned    argStackSize    = 64 * 1024;
 
     // m3_PrintM3Info ();
 
@@ -1005,6 +1009,13 @@ int main (int i_argc, const char* i_argv[])
             argDumpOnTrap = true;
         } else if (!strcmp("--compile", arg)) {
             argCompile = true;
+        } else if (!strcmp("--validate-only", arg)) {
+            // validating a file is loading and compiling all of it, and then
+            // running none of it
+            argValidateOnly = true;
+            argCompile      = true;
+        } else if (!strcmp("--no-validate", arg)) {
+            argNoValidate = true;
         } else if (!strcmp("--stack-size", arg)) {
             const char* tmp = "65536";
             ARGV_SET(tmp);
@@ -1039,10 +1050,28 @@ int main (int i_argc, const char* i_argv[])
 
     ARGV_SET(argFile);
 
+    if (argValidateOnly) {
+#if d_m3EnableValidation
+        if (!argFile) {
+            print_usage();
+            return 1;
+        }
+        if (argNoValidate) {
+            fprintf(stderr, "Error: --no-validate contradicts --validate-only\n");
+            return 1;
+        }
+#else
+        fprintf(stderr, "Error: validation not available in this build of Wasm3\n");
+        return 1;
+#endif
+    }
+
     result = repl_init(argStackSize);
     if (result) {
         FATAL("repl_init: %s", result);
     }
+
+    m3_SetValidation(runtime, not argNoValidate);
 
     if (argFile) {
         result = repl_load(argFile);
@@ -1055,6 +1084,13 @@ int main (int i_argc, const char* i_argv[])
             if (result) {
                 FATAL("repl_compile: %s", result);
             }
+        }
+
+        if (argValidateOnly) {
+            // it parsed, it instantiated and every function body compiled
+            repl_free();
+            m3_FreeEnvironment(env);
+            return 0;
         }
 
         if (argFunc and not argRepl) {
@@ -1093,6 +1129,7 @@ int main (int i_argc, const char* i_argv[])
 
         if (!strcmp(":init", argv[0])) {
             result = repl_init(argStackSize);
+            m3_SetValidation(runtime, not argNoValidate);
         } else if (!strcmp(":version", argv[0])) {
             print_version();
         } else if (!strcmp(":exit", argv[0])) {

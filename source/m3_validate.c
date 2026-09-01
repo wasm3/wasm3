@@ -31,7 +31,7 @@ typedef struct {
 
 // ---------- Validator context ----------
 
-typedef struct {
+struct ValCtx {
     bytes_t     wasm;
     bytes_t     wasmEnd;
     IM3Module   module;
@@ -45,7 +45,7 @@ typedef struct {
 
     u8          localTypes [d_m3ValStack];
     u16         numLocals;
-} ValCtx;
+};
 
 // A memory op is only valid if the memory it names is in the module's index
 // space; for a module that declares none, every index is out of range.
@@ -1272,22 +1272,29 @@ M3Result  ValidateFunction  (IM3Function i_function)
     IM3FuncType funcType = i_function->funcType;
     IM3Module   module   = i_function->module;
 
-    // Set up context on stack
-    ValCtx v;
-    memset(&v, 0, sizeof(v));
-    v.module   = module;
-    v.function = i_function;
-    v.wasm     = i_function->wasm;
-    v.wasmEnd  = i_function->wasmEnd;
+    IM3Runtime runtime = module->runtime;
+
+    ValCtx* v = runtime->validator;
+    if (!v) {
+        v = m3_AllocStruct (ValCtx);
+        if (!v) return m3Err_mallocFailed;
+        runtime->validator = v;
+    }
+
+    memset(v, 0, sizeof(*v));
+    v->module   = module;
+    v->function = i_function;
+    v->wasm     = i_function->wasm;
+    v->wasmEnd  = i_function->wasmEnd;
 
     // Skip code size LEB
     u32 size;
-    M3Result r = ReadLEB_u32(&size, &v.wasm, v.wasmEnd);
+    M3Result r = ReadLEB_u32(&size, &v->wasm, v->wasmEnd);
     if (r) return r;
 
     // Parse locals
     u32 numLocalBlocks;
-    r = ReadLEB_u32(&numLocalBlocks, &v.wasm, v.wasmEnd);
+    r = ReadLEB_u32(&numLocalBlocks, &v->wasm, v->wasmEnd);
     if (r) return r;
 
     // First: params. Running out of room has to be an error, not a truncation:
@@ -1295,26 +1302,26 @@ M3Result  ValidateFunction  (IM3Function i_function)
     u16 numParams = funcType ? funcType->numArgs : 0;
     if (numParams > d_m3ValStack) return m3Err_functionStackOverflow;
     for (u16 i = 0; i < numParams; i++) {
-        v.localTypes[v.numLocals++] = BaseTypeOf(funcType->types[funcType->numRets + i]);
+        v->localTypes[v->numLocals++] = BaseTypeOf(funcType->types[funcType->numRets + i]);
     }
 
     // Then: declared locals
     for (u32 b = 0; b < numLocalBlocks; b++) {
         u32 count;
-        r = ReadLEB_u32(&count, &v.wasm, v.wasmEnd);
+        r = ReadLEB_u32(&count, &v->wasm, v->wasmEnd);
         if (r) return r;
         m3type_t localType;
-        r = ParseValueType(v.module, &localType, &v.wasm, v.wasmEnd);
+        r = ParseValueType(v->module, &localType, &v->wasm, v->wasmEnd);
         if (r) return r;
         u8 normalized = BaseTypeOf(localType);
-        if (count > (u32) (d_m3ValStack - v.numLocals)) return m3Err_functionStackOverflow;
+        if (count > (u32) (d_m3ValStack - v->numLocals)) return m3Err_functionStackOverflow;
         for (u32 c = 0; c < count; c++) {
-            v.localTypes[v.numLocals++] = normalized;
+            v->localTypes[v->numLocals++] = normalized;
         }
     }
 
     // Push the function-level control frame
-    r = v_push_ctrl(&v, 0x00, funcType); // opcode 0x00 marks function frame
+    r = v_push_ctrl(v, 0x00, funcType); // opcode 0x00 marks function frame
     if (r) return r;
 
     // Push params onto operand stack (they're part of the function body's initial stack)
@@ -1325,11 +1332,11 @@ M3Result  ValidateFunction  (IM3Function i_function)
     // The function frame's label_types = results (since it's not a loop).
 
     // Validate the body
-    r = v_validate_body(&v);
+    r = v_validate_body(v);
     if (r) return r;
 
     // After validation, control stack should be empty
-    if (v.ctrlTop != 0)
+    if (v->ctrlTop != 0)
         return m3Err_wasmMalformed;
 
     return m3Err_none;

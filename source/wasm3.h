@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "wasm3_defs.h"
@@ -179,6 +180,7 @@ d_m3ErrorConst(unknownImport,                  "unknown import")
 d_m3ErrorConst(incompatibleImportType,         "incompatible import type")
 
 d_m3ErrorConst(malformedFunctionSignature,     "malformed function signature")
+d_m3ErrorConst(functionSignatureMismatch,      "function signature mismatch")
 
 // compilation errors
 d_m3ErrorConst(noCompiler,                     "no compiler found for opcode")
@@ -267,6 +269,12 @@ IM3Runtime       m3_NewRuntime (IM3Environment io_environment,
                                 void*          i_userdata);
 
 void             m3_FreeRuntime (IM3Runtime i_runtime);
+
+// The validator runs as a pre-pass of compiling a function body, so it
+// follows lazy compilation: a body is checked the first time it is compiled.
+// Turning it off means trusting the module - nothing then checks a body's
+// types before it runs. On by default (a no-op in a build without validation).
+void             m3_SetValidation (IM3Runtime i_runtime, bool i_enable);
 
 // A memory belongs to the module that declares it, so these take the module
 // rather than the runtime - a runtime can hold several modules, each with

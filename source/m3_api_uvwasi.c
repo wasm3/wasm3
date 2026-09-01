@@ -1123,14 +1123,7 @@ m3_wasi_context_t* m3_GetWasiContext ()
 }
 
 static const char* DEFAULT_ENVIRONMENT[] = {
-    "TERM=xterm-256color",
-    "COLORTERM=truecolor",
-    "LANG=en_US.UTF-8",
-    "PWD=/",
-    "HOME=/",
-    "PATH=/",
-    "WASM3=1",
-    "WASM3_ARCH=" M3_ARCH,
+    d_m3WasiDefaultEnvironment,
     NULL,
 };
 
