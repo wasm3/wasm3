@@ -177,6 +177,7 @@ int main (int argc, const char* argv[])
         }
 
         m3_FreeRuntime(runtime);
+        m3_FreeEnvironment(env);
     }
 
     IM3Environment env = m3_NewEnvironment();
@@ -224,6 +225,8 @@ int main (int argc, const char* argv[])
 
             printf("%d %f\n", ret0, ret1);
         }
+
+        m3_FreeRuntime(runtime);
     }
 
 
@@ -286,6 +289,8 @@ int main (int argc, const char* argv[])
 			)
 #endif
     }
+
+    m3_FreeEnvironment(env);
 
     printf("\n%s\n", failures ? "FAILURES" : "all checks passed");
     return failures ? 1 : 0;

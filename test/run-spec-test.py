@@ -230,6 +230,20 @@ from queue import Queue, Empty
 import shlex
 
 
+class ReplError(Exception):
+    """A crash or a timeout in the repl.
+
+    str() stays the bare reason, since callers match on it, while .output keeps
+    whatever the process printed before it died - which is where a sanitizer
+    report or an assertion message lands. Without it a crash reaches the log as
+    the word "Crashed" and nothing else.
+    """
+
+    def __init__(self, reason, output=""):
+        super().__init__(reason)
+        self.output = output.strip()
+
+
 class Wasm3:
     def __init__(self, exe):
         self.exe = exe
@@ -344,7 +358,7 @@ class Wasm3:
             error = "Timeout"
 
         self.terminate()
-        raise Exception(error)
+        raise ReplError(error, buff)
 
     def _write(self, data):
         self.p.stdin.write(data.encode("utf-8"))
@@ -855,6 +869,7 @@ def runInvoke(test):
     except Exception as e:
         actual = f"<{e}>"
         force_fail = True
+        output = getattr(e, "output", "")
 
     # Parse the actual output
     if not actual:
@@ -917,8 +932,11 @@ def runInvoke(test):
         print(f"Args:     {', '.join(displayArgs)}")
         print(f"Expected: {ansi.OKGREEN}{expect}{ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
-        if args.show_logs and len(output):
-            print(f"Log:")
+        # a crash or a timeout is never routine, so whatever the process printed
+        # on its way out - a sanitizer report, an assertion - is shown even
+        # without --show-logs
+        if len(output) and (args.show_logs or actual in ("<Crashed>", "<Timeout>")):
+            print("Log:")
             print(output)
 
     log.write(
@@ -981,7 +999,7 @@ def runValidation(test, cmd, wasm_dir, keep_modules=False):
         actual = "rejected" if detail else "accepted"
     except Exception as e:
         actual = "<Crashed>"
-        detail = str(e)
+        detail = "\n".join(filter(None, [str(e), getattr(e, "output", "")]))
         stats.crashed += 1
 
     log.write(f"{test.source}\t|\t{test.wasm} {test.type} ({expected_text})\t=>\t\t")
@@ -991,12 +1009,19 @@ def runValidation(test, cmd, wasm_dir, keep_modules=False):
     else:
         stats.failed += 1
         log.write(f"FAIL: module {actual}, should be rejected: {expected_text}\n")
+        if detail:
+            log.write(f"{detail}\n")
         if args.silent:
             return
         print(" ----------------------")
         print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
         print(f"Expected: {ansi.OKGREEN}rejected ({expected_text}){ansi.ENDC}")
         print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
+        # only reached when the module was accepted or the process died; in the
+        # latter case detail carries the sanitizer report or assertion message
+        if actual == "<Crashed>" and detail:
+            print("Log:")
+            print(detail)
 
 
 # A build without the "multi-memory" feature rejects any module with more than

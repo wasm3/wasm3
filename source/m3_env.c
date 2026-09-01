@@ -246,8 +246,39 @@ void* _FreeModule (IM3Module i_module, void* i_info)
 }
 
 
+// A module's memory and table index spaces hold borrowed pointers: linking
+// repoints an imported slot at the memory or table the exporting module owns.
+// m3_FreeModule tells a borrowed slot from an owned one by reading that owner,
+// which only holds while the object is still allocated - and the free walk
+// below visits modules in load order, with no ordering between an owner and
+// the modules borrowing from it. So clear the borrowed slots first, in a pass
+// that frees nothing; the walk then skips them on the NULL check it already
+// does, instead of reading a memory some earlier module has freed.
+void* _ReleaseBorrowedSlots (IM3Module i_module, void* i_info)
+{
+    for (u32 i = 0; i < i_module->numMemories; ++i) {
+        IM3Memory memory = i_module->memories[i];
+
+        if (memory and memory->owner != i_module) {
+            i_module->memories[i] = NULL;
+        }
+    }
+
+    for (u32 i = 0; i < i_module->numTables; ++i) {
+        IM3Table table = i_module->tables[i];
+
+        if (table and table->owner != i_module) {
+            i_module->tables[i] = NULL;
+        }
+    }
+
+    return NULL;
+}
+
+
 void Runtime_Release (IM3Runtime i_runtime)
 {
+    ForEachModule(i_runtime, _ReleaseBorrowedSlots, NULL);
     ForEachModule(i_runtime, _FreeModule, NULL);                    d_m3Assert (i_runtime->numActiveCodePages == 0);
 
     Environment_ReleaseCodePages(i_runtime->environment, i_runtime->pagesOpen);
