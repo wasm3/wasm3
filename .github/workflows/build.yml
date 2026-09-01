@@ -300,16 +300,37 @@ jobs:
 
   cygwin-build:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        # a login shell to pick up Cygwin's own PATH, and igncr because the checkout
+        # lands with the line endings Git for Windows gives it
+        shell: C:\tools\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
 
     steps:
     - uses: actions/checkout@v7
     - name: Set up Cygwin
       uses: egor-tensin/setup-cygwin@v4
       with:
-        packages: make gcc-g++ cmake
-    - run: cd $GITHUB_WORKSPACE && cmake -DBUILD_WASI=simple . && make
-      shell: C:\tools\cygwin\bin\bash.exe --login --norc -eo pipefail -o igncr '{0}'
+        packages: make gcc-g++ cmake python3
+    # the one job that configures in the source directory, so the binary lands at
+    # the top level rather than under build/
+    - name: Build
+      run: cd $GITHUB_WORKSPACE && cmake -DBUILD_TESTS=ON -DBUILD_WASI=simple . && make
+    - name: Test embedding API
+      run: |
+        cd $GITHUB_WORKSPACE
+        ./m3_test
+        ./m3_test_reftypes
+    - name: Test regression cases
+      run: cd $GITHUB_WORKSPACE/test && python3 run-regression-test.py --exec ../wasm3
+    # the features stay on auto: which of them this build has depends on the GCC
+    # that Cygwin happens to ship
+    - name: Test WebAssembly spec
+      run: cd $GITHUB_WORKSPACE/test && python3 run-spec-test.py --exec "../wasm3 --spec-repl"
+    - name: Test WASI apps
+      run: cd $GITHUB_WORKSPACE/test && python3 run-wasi-test.py --fast --exec ../wasm3
 
   #
   # Cross-compiled builds. build-cross.py owns the toolchain matrix, so the
@@ -355,9 +376,9 @@ jobs:
     # Split so a compile error and a failing test are distinguishable at a glance.
     # A single --target streams its output, so a failure is readable in the log.
     - name: Build
-      run: python3 build-cross.py --target ${{ matrix.target.name }} --notest
+      run: python3 build-cross.py --target ${{ matrix.target.name }} --build
     - name: Test
-      run: python3 build-cross.py --target ${{ matrix.target.name }} --nobuild
+      run: python3 build-cross.py --target ${{ matrix.target.name }} --test
     # The variants that only exist to exercise a build option or an ABI are tested
     # like the rest, but nothing collects them for the release
     - name: Upload artifact
@@ -466,6 +487,38 @@ jobs:
         name: wasm3-strace-wasi
         path: ./wasm3-strace.wasm
         if-no-files-found: error
+
+  emscripten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v7
+    # deliberately not pinned: this configuration went years without being built,
+    # and following current Emscripten is what keeps it from drifting again
+    - name: Set up Emscripten
+      uses: emscripten-core/setup-emsdk@v16
+    # the app has fib32.wasm compiled into it and reports fib(40), so running it
+    # needs no filesystem
+    - name: Build and run the app
+      run: |
+        mkdir build
+        cd build
+        cmake -DEMSCRIPTEN=1 ..
+        cmake --build .
+        node wasm3.js | tee out.txt
+        grep -q "Result: 102334155" out.txt
+    # a standalone module driven from JS instead. run_wasm3.js loads, calls and
+    # unloads a module 100000 times, so the memory it reports having used at the
+    # end of that is a leak check
+    - name: Build and run the library
+      run: |
+        mkdir build-lib
+        cd build-lib
+        cmake -DEMSCRIPTEN_LIB=1 ..
+        cmake --build .
+        node ../platforms/emscripten_lib/run_wasm3.js ../test/lang/fib32.wasm fib 24 | tee out.txt
+        grep -q "Memory size: 4 MB" out.txt
 
   ios:
     runs-on: macos-latest

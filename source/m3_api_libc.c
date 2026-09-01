@@ -100,7 +100,7 @@ void internal_itoa (int n, char s[], int radix)
     s[i] = '\0';
 
     // reverse
-    for (i = 0, j = strlen(s) - 1; i < j; i++, j--) {
+    for (i = 0, j = (int)strlen(s) - 1; i < j; i++, j--) {
         c    = s[i];
         s[i] = s[j];
         s[j] = c;
@@ -154,7 +154,7 @@ m3ApiRawFunction(m3_libc_printf)
             char buffer[32] = { 0 };
             internal_itoa(int_temp, buffer, (ch == 'x') ? 16 : 10);
             fputs(buffer, file);
-            length += strnlen(buffer, sizeof(buffer));
+            length += (int32_t)strnlen(buffer, sizeof(buffer));
             break;
         }
         case 's': {
@@ -172,7 +172,7 @@ m3ApiRawFunction(m3_libc_printf)
             }
 
             fwrite(string_temp, 1, string_len, file);
-            length += string_len;
+            length += (int32_t)string_len;
             break;
         default:
             fputc(ch, file);

@@ -10,10 +10,10 @@
 #   ./run-wasi-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm" --fast
 
 import argparse
-import sys
-import subprocess
-import hashlib
 import fnmatch
+import hashlib
+import subprocess
+import sys
 
 sys.path.append("../extra")
 
@@ -28,7 +28,7 @@ parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
 parser.add_argument(
     "--separate-args", action="store_true"
 )  # use "--" separator for wasmer, wasmtime
-parser.add_argument("--timeout", type=int, default=120)
+parser.add_argument("--timeout", type=int, default=180)
 parser.add_argument("--fast", action="store_true")
 
 args = parser.parse_args()
@@ -174,6 +174,7 @@ for cmd in commands:
             print(f"{' '.join(command)}")
             output = subprocess.run(
                 command,
+                check=False,
                 timeout=args.timeout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,

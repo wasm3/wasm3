@@ -37,13 +37,13 @@ struct ValCtx {
     IM3Module   module;
     IM3Function function;
 
-    u8          opd [d_m3ValStack];
+    m3type_t    opd [d_m3ValStack];
     u16         opdTop;
 
     ValCtrlFrame ctrl [d_m3ValCtrlDepth];
     u16          ctrlTop;
 
-    u8          localTypes [d_m3ValStack];
+    m3type_t    localTypes [d_m3ValStack];
     u16         numLocals;
 };
 
@@ -105,7 +105,7 @@ static u32 v_max_align (m3opcode_t opcode)
 
 // ---------- Operand stack ----------
 
-static M3Result v_push (ValCtx * v, u8 type)
+static M3Result v_push (ValCtx * v, m3type_t type)
 {
     if (v->opdTop >= d_m3ValStack)
         return m3Err_functionStackOverflow;
@@ -113,7 +113,7 @@ static M3Result v_push (ValCtx * v, u8 type)
     return m3Err_none;
 }
 
-static M3Result v_pop (ValCtx * v, u8 * o_type)
+static M3Result v_pop (ValCtx * v, m3type_t * o_type)
 {
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
     if (v->opdTop == f->height) {
@@ -124,9 +124,9 @@ static M3Result v_pop (ValCtx * v, u8 * o_type)
     return m3Err_none;
 }
 
-static M3Result v_pop_expect (ValCtx * v, u8 expect, u8 * o_actual)
+static M3Result v_pop_expect (ValCtx * v, m3type_t expect, m3type_t * o_actual)
 {
-    u8 actual = c_valBottom;
+    m3type_t actual = c_valBottom;
     M3Result r = v_pop(v, &actual);
     if (r) return r;
     if (expect != c_valBottom && actual != c_valBottom && actual != expect)
@@ -159,7 +159,7 @@ static M3Result v_pop_ctrl (ValCtx * v, ValCtrlFrame * o_frame)
     // pop result types
     if (f->type) {
         for (u16 i = f->result_count; i > 0; i--) {
-            u8 a;
+            m3type_t a;
             M3Result r = v_pop_expect(v, BaseTypeOf(f->type->types[i - 1]), &a);
             if (r) return r;
         }
@@ -184,7 +184,7 @@ static u16 v_label_n (ValCtrlFrame * f)
     return (f->opcode == 0x03) ? f->param_count : f->result_count;
 }
 
-static u8 v_label_t (ValCtrlFrame * f, u16 i)
+static m3type_t v_label_t (ValCtrlFrame * f, u16 i)
 {
     if (!f->type) return c_m3Type_none;
     if (f->opcode == 0x03)
@@ -195,7 +195,7 @@ static u8 v_label_t (ValCtrlFrame * f, u16 i)
 // The operand i_depth below the top, without popping. Anything at or below the
 // current frame's height is implicitly bottom in an unreachable frame; reporting
 // unknown there defers a genuine underrun to the pop that follows.
-static u8 v_peek (ValCtx * v, u16 i_depth)
+static m3type_t v_peek (ValCtx * v, u16 i_depth)
 {
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
 
@@ -210,7 +210,7 @@ static M3Result v_pop_labels (ValCtx * v, ValCtrlFrame * tgt)
 {
     u16 n = v_label_n(tgt);
     for (u16 i = n; i > 0; i--) {
-        u8 a;
+        m3type_t a;
         M3Result r = v_pop_expect(v, v_label_t(tgt, i - 1), &a);
         if (r) return r;
     }
@@ -265,9 +265,9 @@ static M3Result v_read_blocktype (ValCtx * v, IM3FuncType * o_type)
 
 // ---------- Convenience ----------
 
-static M3Result v_unop (ValCtx * v, u8 in, u8 out)
+static M3Result v_unop (ValCtx * v, m3type_t in, m3type_t out)
 {
-    u8 a; M3Result r = v_pop_expect(v, in, &a);
+    m3type_t a; M3Result r = v_pop_expect(v, in, &a);
     if (r) return r;
     return v_push(v, out);
 }
@@ -292,28 +292,28 @@ static M3Result v_check_tail_results (ValCtx * v, IM3FuncType i_calleeType)
     return m3Err_none;
 }
 
-static M3Result v_binop (ValCtx * v, u8 t)
+static M3Result v_binop (ValCtx * v, m3type_t t)
 {
-    u8 a; M3Result r;
+    m3type_t a; M3Result r;
     r = v_pop_expect(v, t, &a); if (r) return r;
     r = v_pop_expect(v, t, &a); if (r) return r;
     return v_push(v, t);
 }
 
-static M3Result v_relop (ValCtx * v, u8 t)
+static M3Result v_relop (ValCtx * v, m3type_t t)
 {
-    u8 a; M3Result r;
+    m3type_t a; M3Result r;
     r = v_pop_expect(v, t, &a); if (r) return r;
     r = v_pop_expect(v, t, &a); if (r) return r;
     return v_push(v, c_m3Type_i32);
 }
 
-static M3Result v_testop (ValCtx * v, u8 t)
+static M3Result v_testop (ValCtx * v, m3type_t t)
 {
     return v_unop(v, t, c_m3Type_i32);
 }
 
-static M3Result v_cvtop (ValCtx * v, u8 in, u8 out)
+static M3Result v_cvtop (ValCtx * v, m3type_t in, m3type_t out)
 {
     return v_unop(v, in, out);
 }
@@ -377,7 +377,7 @@ static M3Result v_catch_clause (ValCtx * v)
 static M3Result v_validate_body (ValCtx * v)
 {
     M3Result r = m3Err_none;
-    u8 a = c_valBottom;
+    m3type_t a = c_valBottom;
 
     while (v->wasm < v->wasmEnd)
     {
@@ -584,8 +584,8 @@ static M3Result v_validate_body (ValCtx * v)
                 // stack, not identical to the default's. In unreachable code the
                 // operands are bottom, so the targets may legitimately differ.
                 for (u16 j = 0; j < n; j++) {
-                    u8 want = v_label_t(t, n - 1 - j);
-                    u8 have = v_peek(v, j);
+                    m3type_t want = v_label_t(t, n - 1 - j);
+                    m3type_t have = v_peek(v, j);
                     if (want != c_valBottom && have != c_valBottom && want != have)
                         return m3Err_typeMismatch;
                 }
@@ -758,10 +758,10 @@ static M3Result v_validate_body (ValCtx * v)
         {
             r = v_pop_expect(v, c_m3Type_i32, &a);
             if (r) return r;
-            u8 t2;
+            m3type_t t2;
             r = v_pop(v, &t2);
             if (r) return r;
-            u8 t1;
+            m3type_t t1;
             r = v_pop_expect(v, t2, &t1);
             if (r) return r;
             // untyped select is numeric only; references need the 0x1c form
@@ -829,7 +829,7 @@ static M3Result v_validate_body (ValCtx * v)
 
         case 0xd1: // ref.is_null
         {
-            u8 t = c_valBottom;
+            m3type_t t = c_valBottom;
             r = v_pop(v, &t);
             if (r) return r;
             if (t != c_valBottom && !IsRefType(t)) return m3Err_typeMismatch;

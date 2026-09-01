@@ -120,7 +120,7 @@ void EmitMappingEntry (IM3CodePage i_page, u32 i_moduleOffset)
     M3CodeMapEntry* entry = &page->entries[page->size++];
     pc_t            pc    = GetPagePC(i_page);
 
-    entry->pcOffset     = pc - page->basePC;
+    entry->pcOffset     = (u32)(pc - page->basePC);
     entry->moduleOffset = i_moduleOffset;
 }
 #endif // d_m3RecordBacktraces
@@ -200,7 +200,7 @@ bool MapPCToOffset (IM3CodePage i_page, pc_t i_pc, u32* o_moduleOffset)
 {
     M3CodeMappingPage* mapping = i_page->info.mapping;
 
-    u32 pcOffset = i_pc - mapping->basePC;
+    u32 pcOffset = (u32)(i_pc - mapping->basePC);
 
     u32 left  = 0;
     u32 right = mapping->size;

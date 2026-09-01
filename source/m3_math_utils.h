@@ -271,7 +271,7 @@ u32 rotl32 (u32 n, unsigned c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 31;
-    return (n << c) | (n >> ((-c) & mask));
+    return (n << c) | (n >> ((0u - c) & mask));
 }
 
 static inline
@@ -279,23 +279,23 @@ u32 rotr32 (u32 n, unsigned c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 31;
-    return (n >> c) | (n << ((-c) & mask));
+    return (n >> c) | (n << ((0u - c) & mask));
 }
 
 static inline
-u64 rotl64 (u64 n, unsigned c)
+u64 rotl64 (u64 n, u64 c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 63;
-    return (n << c) | (n >> ((-c) & mask));
+    return (n << c) | (n >> ((0u - c) & mask));
 }
 
 static inline
-u64 rotr64 (u64 n, unsigned c)
+u64 rotr64 (u64 n, u64 c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 63;
-    return (n >> c) | (n << ((-c) & mask));
+    return (n >> c) | (n << ((0u - c) & mask));
 }
 
 /*

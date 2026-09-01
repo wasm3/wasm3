@@ -275,7 +275,7 @@ m3ApiRawFunction(m3_wasi_generic_args_sizes_get)
 
     __wasi_size_t buf_len = 0;
     for (u32 i = 0; i < context->argc; ++i) {
-        buf_len += strlen(context->argv[i]) + 1;
+        buf_len += (__wasi_size_t)strlen(context->argv[i]) + 1;
     }
 
     m3ApiWriteMem32(argc, context->argc);
@@ -323,7 +323,7 @@ m3ApiRawFunction(m3_wasi_generic_environ_sizes_get)
     __wasi_size_t count = 0, buf_len = 0;
     for (const char** e = DEFAULT_ENVIRONMENT; *e; ++e) {
         count++;
-        buf_len += strlen(*e) + 1;
+        buf_len += (__wasi_size_t)strlen(*e) + 1;
     }
 
     m3ApiWriteMem32(env_count, count);
@@ -362,7 +362,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
     }
 
     m3ApiWriteMem32(buf + 0, __WASI_PREOPENTYPE_DIR);
-    m3ApiWriteMem32(buf + 4, strlen(preopen[fd].path) + 1);
+    m3ApiWriteMem32(buf + 4, (u32)strlen(preopen[fd].path) + 1);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
 
@@ -954,7 +954,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_tell)
     m3ApiCheckMem(result, sizeof(__wasi_filesize_t));
 
     int64_t ret;
-#  if defined(M3_COMPILER_MSVC) || defined(__MINGW32__)
+#  if defined(_WIN32)
     ret = _lseeki64(fd, 0, SEEK_CUR);
 #  else
     ret = lseek(fd, 0, SEEK_CUR);
@@ -986,7 +986,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     }
 
     int64_t ret;
-#  if defined(M3_COMPILER_MSVC) || defined(__MINGW32__)
+#  if defined(_WIN32)
     ret = _lseeki64(fd, offset, whence);
 #  else
     ret = lseek(fd, offset, whence);
@@ -1018,7 +1018,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
     }
 
     int64_t ret;
-#  if defined(M3_COMPILER_MSVC) || defined(__MINGW32__)
+#  if defined(_WIN32)
     ret = _lseeki64(fd, offset, whence);
 #  else
     ret = lseek(fd, offset, whence);
@@ -1155,7 +1155,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
             continue;
         }
         m3ApiCheckMem(addr, len);
-        int ret = read(fd, addr, len);
+        int ret = read(fd, addr, (unsigned)len);
         if (ret < 0) {
             m3ApiReturn(errno_to_wasi(errno));
         }
@@ -1164,7 +1164,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
             break;
         }
     }
-    m3ApiWriteMem32(nread, res);
+    m3ApiWriteMem32(nread, (__wasi_size_t)res);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 #  endif
 }
@@ -1204,7 +1204,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_pread)
             break;
         }
     }
-    m3ApiWriteMem32(nread, res);
+    m3ApiWriteMem32(nread, (__wasi_size_t)res);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 #  endif
 }
@@ -1242,7 +1242,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_pwrite)
             break;
         }
     }
-    m3ApiWriteMem32(nwritten, res);
+    m3ApiWriteMem32(nwritten, (__wasi_size_t)res);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 #  endif
 }
@@ -1280,7 +1280,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
             continue;
         }
         m3ApiCheckMem(addr, len);
-        int ret = write(fd, addr, len);
+        int ret = write(fd, addr, (unsigned)len);
         if (ret < 0) {
             m3ApiReturn(errno_to_wasi(errno));
         }
@@ -1289,7 +1289,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
             break;
         }
     }
-    m3ApiWriteMem32(nwritten, res);
+    m3ApiWriteMem32(nwritten, (__wasi_size_t)res);
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 #  endif
 }
@@ -1356,7 +1356,7 @@ m3ApiRawFunction(m3_wasi_generic_random_get)
             m3ApiReturn(__WASI_ERRNO_SUCCESS);
         } else {
             buf += retlen;
-            buf_len -= retlen;
+            buf_len -= (__wasi_size_t)retlen;
         }
     }
 }
@@ -1454,9 +1454,9 @@ M3Result _linkWASI (IM3Module module, m3_wasi_context_t* wasi_context)
     M3Result result = m3Err_none;
 
 #  ifdef _WIN32
-    setmode(fileno(stdin), O_BINARY);
-    setmode(fileno(stdout), O_BINARY);
-    setmode(fileno(stderr), O_BINARY);
+    _setmode(_fileno(stdin), O_BINARY);
+    _setmode(_fileno(stdout), O_BINARY);
+    _setmode(_fileno(stderr), O_BINARY);
 
 #  else
     // Preopen dirs
