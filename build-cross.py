@@ -72,8 +72,8 @@ musl_targets = [
 VERBOSE = False
 RETEST = False
 REBUILD = False
-NOTEST = False
-NOBUILD = False
+DO_BUILD = True
+DO_TEST = True
 NOWASI = False
 
 LOG_DIR = "build-cross/logs"
@@ -139,7 +139,7 @@ def build_wasi(target):
     WASI_VERSION = str(target["sdk"])
     WASI_VERSION_FULL = WASI_VERSION + ".0"
     WASI_SDK_PATH = f"{os.getcwd()}/.toolchains/{target['arch']}"
-    if not NOBUILD and not Path(f"{WASI_SDK_PATH}/bin").exists():
+    if DO_BUILD and not Path(f"{WASI_SDK_PATH}/bin").exists():
         print(f"Downloading {target['name']} toolchain")
         WASI_TAR = f"wasi-sdk-{WASI_VERSION_FULL}-linux.tar.gz"
         run(f"""
@@ -152,7 +152,7 @@ def build_wasi(target):
 
     wasm3_binary = f"build-cross/wasm3-{target['name']}.wasm"
 
-    if not NOBUILD and (REBUILD or not Path(wasm3_binary).exists()):
+    if DO_BUILD and (REBUILD or not Path(wasm3_binary).exists()):
         build_dir = f"build-cross/{target['name']}/"
         print(f"Building {target['name']} target")
         run(f"""
@@ -173,9 +173,9 @@ def build_wasi(target):
 def build_musl(target, cc, toolchain_src=None, tar_name=None):
     if not toolchain_src:
         # installed system-wide rather than unpacked here
-        if not NOBUILD and shutil.which(cc) is None:
+        if DO_BUILD and shutil.which(cc) is None:
             raise FileNotFoundError(f"{cc} not found - install {target.get('apt', cc)}")
-    elif not NOBUILD and not Path(cc).exists():
+    elif DO_BUILD and not Path(cc).exists():
         url = f"{toolchain_src}/{tar_name}"
         print(f"Downloading {url}")
         run(f"""
@@ -197,7 +197,7 @@ def build_musl(target, cc, toolchain_src=None, tar_name=None):
 
     wasm3_binary = f"build-cross/wasm3-{target['name']}"
 
-    if not NOBUILD and (REBUILD or not Path(wasm3_binary).exists()):
+    if DO_BUILD and (REBUILD or not Path(wasm3_binary).exists()):
         build_dir = f"build-cross/{target['name']}/"
         print(f"Building {target['name']} target")
         run(f"""
@@ -220,7 +220,7 @@ def run_tests(wasm3_binary, target, wasm3_cmd):
     name = target["name"]
     failures = []
 
-    if NOTEST or "skip_tests" in target:
+    if not DO_TEST or "skip_tests" in target:
         return failures
 
     if not Path(wasm3_binary).exists():
@@ -263,13 +263,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         epilog="A single --target streams its output; several targets each get "
                "build-cross/logs/<target>.log instead. Exits non-zero if any target failed, "
-               "so CI can split the work into two steps: --notest to build, --nobuild to test.")
+               "so CI can split the work into two steps: --build, then --test.")
     parser.add_argument('-j','--jobs', type=int, metavar='N', default=multiprocessing.cpu_count(), help='parallel builds')
     parser.add_argument('-v','--verbose', action='store_true', help='stream output instead of writing per-target logs')
     parser.add_argument('-q','--quiet', action='store_true', help='write per-target logs even for a single target')
     parser.add_argument('--retest', action='store_true', help='force tests')
-    parser.add_argument('--notest', action='store_true', help='skip tests (build only)')
-    parser.add_argument('--nobuild', action='store_true', help='skip builds (test only)')
+    parser.add_argument('--build', action='store_true', help='build only, skip tests')
+    parser.add_argument('--test', action='store_true', help='test only, skip builds')
     parser.add_argument('--nowasi', action='store_true', help='skip WASI builds')
     parser.add_argument('--rebuild', action='store_true', help='force builds')
     parser.add_argument('--target', metavar='NAME')
@@ -308,8 +308,9 @@ if __name__ == "__main__":
     VERBOSE = args.verbose or (bool(args.target) and not args.quiet)
     RETEST = args.retest
     REBUILD = args.rebuild
-    NOTEST = args.notest
-    NOBUILD = args.nobuild
+    # naming one stage selects it; naming neither, or both, runs the two of them
+    DO_BUILD = args.build or not args.test
+    DO_TEST = args.test or not args.build
     NOWASI = args.nowasi
 
     if args.jobs <= 1 or len(musl_targets) == 1:

@@ -77,6 +77,10 @@ endif()
 if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(CMAKE_C_COMPILER   "emcc")
   set(CMAKE_CXX_COMPILER "em++")
+  # naming the compiler is not enough once anything here is archived: the system
+  # ar cannot read the bitcode emcc emits, and reports it as an unknown attribute
+  set(CMAKE_AR           "emar")
+  set(CMAKE_RANLIB       "emranlib")
 
   if (EMSCRIPTEN_LIB)
     set(APP_DIR          "platforms/emscripten_lib")
@@ -123,7 +127,19 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG=1")
 if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s GLOBAL_BASE=1024 -s TOTAL_STACK=2MB -s INITIAL_MEMORY=4MB -s ALLOW_MEMORY_GROWTH")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=\"[\\\"_malloc\\\",\\\"_free\\\",\\\"_main\\\"]\"")
+
+  # The stack above is the one the guest recursion runs on, and the default budget
+  # is larger than all of it: the low-water mark would land below address zero,
+  # where every call compares as past the limit and traps on the spot
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3MaxNativeStack=1048576")
+
+  if(EMSCRIPTEN_LIB)
+    # a library has no main to enter through - the interface is the functions
+    # main.c marks EMSCRIPTEN_KEEPALIVE, plus the allocator the caller needs
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=\"[\\\"_malloc\\\",\\\"_free\\\"]\" --no-entry")
+  else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=\"[\\\"_malloc\\\",\\\"_free\\\",\\\"_main\\\"]\"")
+  endif()
 
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -Wfatal-errors -s ASSERTIONS=0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} --strip-all --gc-sections")
@@ -154,9 +170,14 @@ elseif(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer -D_CRT_SECURE_NO_WARNINGS /WX- /diagnostics:column")
 
-  string(REGEX REPLACE "/W[0-4]" "/W0" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  string(REGEX REPLACE "/W[0-4]" "/W3" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
   if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
+
+    # The traditional preprocessor does not drop the comma before an empty
+    # __VA_ARGS__, so every op built through d_m3OpMacro is passed one argument
+    # too many. It ignores the extra one, but produces unnecessary warnings.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Zc:preprocessor")
 
     if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /d2noftol3")
@@ -169,7 +190,15 @@ elseif(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
     #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG:FULL")
 
   else()
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /GS- /Qvec -Clang -O3")
+    # /W3 is Clang's own -Wall here, so it needs the same answer the GCC and Clang
+    # builds below give it: a WASI entry point has to declare every argument it is
+    # handed, including the ones its implementation ignores
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable -Wno-unused-function")
+
+    # /Oxs on its own is -Os to clang-cl, and /clang: is how a driver option gets
+    # through. The "-Clang -O3" that used to be here was dropped as unknown, so
+    # these builds have been optimising for size
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oxs /Oy /GS- /Qvec /clang:-O3")
   endif()
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608") # stack size
@@ -208,6 +237,11 @@ else()
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-O3")
 
+  # Cygwin and MinGW produce a PE, whose stack is whatever its header asks for
+  if(WIN32 OR CYGWIN)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--stack,8388608")
+  endif()
+
   target_link_libraries(${OUT_FILE} m)
   set(M3_LINK_LIBM 1)       # the internal tests link the same way, see BUILD_TESTS
 
@@ -217,8 +251,6 @@ target_link_libraries(${OUT_FILE} m3)
 
 if(BUILD_WERROR)
   if(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
-    # note that the warning level is squashed to /W0 above, so this only catches
-    # what is explicitly enabled - raising the level is its own cleanup
     set(M3_WERROR /WX)
   else()
     set(M3_WERROR -Werror)

@@ -11,7 +11,7 @@
 
 #if defined(DEBUG) || (d_m3EnableStrace >= 2)
 
-size_t SPrintArg (char* o_string, size_t i_stringBufferSize, voidptr_t i_sp, u8 i_type)
+size_t SPrintArg (char* o_string, size_t i_stringBufferSize, voidptr_t i_sp, m3type_t i_type)
 {
     int len = 0;
 
@@ -55,7 +55,7 @@ cstr_t SPrintFunctionArgList (IM3Function i_function, m3stack_t i_sp)
         u32 numArgs = funcType->numArgs;
 
         for (u32 i = 0; i < numArgs; ++i) {
-            u8 type = d_FuncArgType(funcType, i);
+            m3type_t type = d_FuncArgType(funcType, i);
 
             ret = snprintf(s, e - s, "%s: ", c_waTypes[BaseTypeOf(type)]);
             s += M3_MAX(0, ret);
@@ -183,7 +183,7 @@ cstr_t SPrintFuncTypeSignature (IM3FuncType i_funcType)
 }
 
 
-cstr_t SPrintValue (void* i_value, u8 i_type)
+cstr_t SPrintValue (void* i_value, m3type_t i_type)
 {
     static char string[100];
     SPrintArg(string, 100, (m3stack_t)i_value, i_type);
@@ -221,7 +221,7 @@ OpInfo find_operation_info (IM3Operation i_operation)
 #  undef fetch
 #  define fetch(TYPE) (* (TYPE *) ((*o_pc)++))
 
-#  define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, size_t i_stringBufferSize, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t * o_pc)
+#  define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, size_t i_stringBufferSize, m3opcode_t i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t * o_pc)
 
 d_m3Decoder(Call)
 {
@@ -288,7 +288,7 @@ d_m3Decoder(Const)
 
 #  undef fetch
 
-void DecodeOperation (char* o_string, size_t i_stringBufferSize, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t* o_pc)
+void DecodeOperation (char* o_string, size_t i_stringBufferSize, m3opcode_t i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t* o_pc)
 {
 #  define d_m3Decode(OPCODE, FUNC) case OPCODE: Decode_##FUNC (o_string, i_stringBufferSize, i_opcode, i_operation, i_opInfo, o_pc); break;
 

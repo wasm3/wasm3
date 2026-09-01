@@ -86,7 +86,7 @@ M3Result EmitOp (IM3Compilation o, IM3Operation i_operation)
                 log_emit(o, i_operation);
             }
 #if d_m3RecordBacktraces
-            EmitMappingEntry(o->page, o->lastOpcodeStart - o->module->wasmStart);
+            EmitMappingEntry(o->page, (u32)(o->lastOpcodeStart - o->module->wasmStart));
 #endif // d_m3RecordBacktraces
             EmitWord(o->page, i_operation);
         }
@@ -1641,7 +1641,7 @@ _       (FindReferencedLocalWithinCurrentBlock(o, &preserveSlot, localSlot));  /
 #endif
 
         if (folded) {
-            u8 type = GetStackTopType(o);
+            m3type_t type = GetStackTopType(o);
 _           (Pop(o));                              // the value now lives in the local's slot
 
             // A folded op writes its result through to the register as well, so a tee
@@ -3084,7 +3084,7 @@ _   (ReadLebSigned(&type, 33, &o->wasm, o->wasmEnd));
 
     if (type < 0) {
         u8 valueType;
-_       (NormalizeType(&valueType, type));                                 m3log (compile, d_indent " (type: %s)", get_indention_string (o), c_waTypes [valueType]);
+_       (NormalizeType(&valueType, (i8)type));                                 m3log (compile, d_indent " (type: %s)", get_indention_string (o), c_waTypes [valueType]);
         *o_blockType = o->module->environment->retFuncTypes[valueType];
     } else {
         _throwif("func type out of bounds", type >= o->module->numFuncTypes);

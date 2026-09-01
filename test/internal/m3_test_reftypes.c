@@ -39,7 +39,7 @@ static const unsigned char c_module [] = {
 };
 // clang-format on
 
-static const void* g_seenByHost = (const void*)0xdeadbeef;
+static const void* g_seenByHost = (const void*)(uintptr_t)0xdeadbeef;
 
 m3ApiRawFunction(host_take_ref)
 {

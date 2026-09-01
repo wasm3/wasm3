@@ -583,7 +583,7 @@ M3Result repl_invoke (const char* i_module, const char* name, int argc, const ch
     static uint64_t    valbuff[128];
     static const void* valptrs[128];
     memset(valbuff, 0, sizeof(valbuff));
-    memset(valptrs, 0, sizeof(valptrs));
+    memset((void*)valptrs, 0, sizeof(valptrs));
 
     for (int i = 0; i < argc; i++) {
         u64*      s     = &valbuff[i];
@@ -774,7 +774,7 @@ M3Result repl_global_set (const char* name, const char* value)
     switch (tagged.type) {
     case c_m3Type_i32: tagged.value.i32 = strtoul(value, NULL, 10); break;
     case c_m3Type_i64: tagged.value.i64 = strtoull(value, NULL, 10); break;
-    case c_m3Type_f32: tagged.value.f32 = strtod(value, NULL); break;
+    case c_m3Type_f32: tagged.value.f32 = (f32)strtod(value, NULL); break;
     case c_m3Type_f64: tagged.value.f64 = strtod(value, NULL); break;
     default: return m3Err_invalidTypeId;
     }
@@ -886,7 +886,7 @@ void unescape (char* buff)
             case 'x': {
                 char hex[3] = { *(buff + 2), *(buff + 3), '\0' };
 
-                *outp = strtol(hex, NULL, 16);
+                *outp = (char)strtol(hex, NULL, 16);
                 buff += 2;
                 outp += 1;
                 break;

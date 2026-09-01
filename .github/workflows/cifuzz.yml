@@ -1,5 +1,17 @@
 name: CIFuzz
-on: [pull_request]
+
+# Work here lands as pushes to a branch as often as it does through a pull
+# request, and a fuzzer that only runs on the latter is a fuzzer that mostly
+# does not run
+on:
+  push:
+    branches:
+    - "**"
+    paths-ignore: ['**.md', '**.svg', '**.png']
+  pull_request:
+    paths-ignore: ['**.md', '**.svg', '**.png']
+  workflow_dispatch:
+
 jobs:
   Fuzzing:
     runs-on: ubuntu-latest

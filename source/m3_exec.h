@@ -1115,7 +1115,7 @@ d_m3Op(MemCopy)
         if (M3_LIKELY(d_m3MemRangeOk(source, size, _mem))) {
             u8* dst = m3MemData(_mem) + destination;
             u8* src = m3MemData(_mem) + source;
-            memmove(dst, src, size);
+            memmove(dst, src, (size_t)size);
 
             nextOp();
         } else {
@@ -1140,7 +1140,7 @@ d_m3Op(MemCopy64)
         if (M3_LIKELY(d_m3MemRangeOk(source, size, _mem))) {
             u8* dst = m3MemData(_mem) + destination;
             u8* src = m3MemData(_mem) + source;
-            memmove(dst, src, size);
+            memmove(dst, src, (size_t)size);
 
             nextOp();
         } else {
@@ -1193,7 +1193,7 @@ d_m3Op(MemCopy_x)
 
     if (M3_LIKELY(d_m3MemRangeOk(destination, size, destMem))) {
         if (M3_LIKELY(d_m3MemRangeOk(source, size, sourceMem))) {
-            memmove(m3MemData(destMem) + destination, m3MemData(sourceMem) + source, size);
+            memmove(m3MemData(destMem) + destination, m3MemData(sourceMem) + source, (size_t)size);
 
             nextOp();
         } else {
@@ -1235,7 +1235,7 @@ d_m3Op(MemFill64)
 
     if (M3_LIKELY(d_m3MemRangeOk(destination, size, _mem))) {
         u8* mem8 = m3MemData(_mem) + destination;
-        memset(mem8, (u8)byte, size);
+        memset(mem8, (u8)byte, (size_t)size);
         nextOp();
     } else {
         d_outOfBoundsMemOp(destination, size);
@@ -1257,7 +1257,7 @@ d_m3Op(MemInit)
 
     if (M3_LIKELY(d_m3MemRangeOk(destination, size, _mem))) {
         if (M3_LIKELY(source <= available and size <= available - source)) {
-            memcpy(m3MemData(_mem) + destination, segment->data + source, size);
+            memcpy(m3MemData(_mem) + destination, segment->data + source, (size_t)size);
             nextOp();
         } else {
             d_outOfBoundsMemOp(source, size);
@@ -1284,7 +1284,7 @@ d_m3Op(MemInit64)
 
     if (M3_LIKELY(d_m3MemRangeOk(destination, size, _mem))) {
         if (M3_LIKELY(source <= available and size <= available - source)) {
-            memcpy(m3MemData(_mem) + destination, segment->data + source, size);
+            memcpy(m3MemData(_mem) + destination, segment->data + source, (size_t)size);
             nextOp();
         } else {
             d_outOfBoundsMemOp(source, size);
@@ -1567,7 +1567,7 @@ d_m3Op(Entry)
         if (r) {
             d_m3TracePrint("} !trap = %s", (char*)r);
         } else {
-            int rettype = GetSingleRetType(function->funcType);
+            m3type_t rettype = GetSingleRetType(function->funcType);
             if (rettype != c_m3Type_none) {
                 char str[128] = { 0 };
                 SPrintArg(str, 127, _sp, rettype);
@@ -2305,7 +2305,7 @@ d_m3Op(SetGlobal_s64)
 d_m3Op(SetGlobal_f32)
 {
     f32* global = immediate(f32*);
-    *global = _fp0;
+    *global = (f32)_fp0;
 
     nextOp();
 }

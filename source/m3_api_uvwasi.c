@@ -189,7 +189,7 @@ m3ApiRawFunction(m3_wasi_generic_args_sizes_get)
 
     uvwasi_size_t buf_len = 0;
     for (u32 i = 0; i < context->argc; ++i) {
-        buf_len += strlen(context->argv[i]) + 1;
+        buf_len += (uvwasi_size_t)strlen(context->argv[i]) + 1;
     }
 
     m3ApiWriteMem32(argc, context->argc);
@@ -231,7 +231,7 @@ m3ApiRawFunction(m3_wasi_generic_environ_get)
 
     for (u32 i = 0; i < env_count; ++i) {
         uint32_t offset = environ_buf_offset +
-                          (environment[i] - environment[0]);
+                          (uint32_t)(environment[i] - environment[0]);
         m3ApiWriteMem32(&env[i], offset);
     }
 
@@ -400,7 +400,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_filestat_get)
     m3ApiWriteMem64(buf + 0, stat.st_dev);
     m3ApiWriteMem64(buf + 8, stat.st_ino);
     m3ApiWriteMem8(buf + 16, stat.st_filetype);
-    m3ApiWriteMem32(buf + 20, stat.st_nlink);
+    m3ApiWriteMem32(buf + 20, (uint32_t)stat.st_nlink);
     m3ApiWriteMem64(buf + 24, stat.st_size);
     m3ApiWriteMem64(buf + 32, stat.st_atim);
     m3ApiWriteMem64(buf + 40, stat.st_mtim);
@@ -715,7 +715,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
     m3ApiWriteMem64(buf + 0, stat.st_dev);
     m3ApiWriteMem64(buf + 8, stat.st_ino);
     m3ApiWriteMem8(buf + 16, stat.st_filetype);
-    m3ApiWriteMem32(buf + 20, stat.st_nlink);
+    m3ApiWriteMem32(buf + 20, (uint32_t)stat.st_nlink);
     m3ApiWriteMem64(buf + 24, stat.st_size);
     m3ApiWriteMem64(buf + 32, stat.st_atim);
     m3ApiWriteMem64(buf + 40, stat.st_mtim);

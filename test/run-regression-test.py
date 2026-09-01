@@ -14,11 +14,11 @@
 # output pattern.
 
 import argparse
+import fnmatch
 import os
 import signal
 import subprocess
 import sys
-import fnmatch
 
 sys.path.append("../extra")
 
@@ -303,6 +303,7 @@ for test in tests:
     try:
         p = subprocess.run(
             command,
+            check=False,
             timeout=args.timeout,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

@@ -765,7 +765,7 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
 
         memory->numPages = numPagesToAlloc;
 
-        memory->mallocated->length  = numPageBytes;
+        memory->mallocated->length  = (size_t)numPageBytes;
         memory->mallocated->runtime = io_runtime;
         memory->mallocated->memory  = memory;
 
@@ -1575,7 +1575,7 @@ _   (checkStartFunction(i_function->module))
             break;
 #if d_m3HasFloat
         case c_m3Type_f32:
-            *(f32*)(s) = va_arg(i_args, f64);
+            *(f32*)(s) = (f32)va_arg(i_args, f64);
             s += 8;
             break; // f32 is passed as f64
         case c_m3Type_f64:
