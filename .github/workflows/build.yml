@@ -16,7 +16,7 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     name: linux-${{ matrix.config.target }}
-    timeout-minutes: 10
+    timeout-minutes: ${{ matrix.config.timeout || 10 }}
 
     strategy:
       fail-fast: false
@@ -30,9 +30,9 @@ jobs:
         - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple   }
         - {target: clang-no-uvwasi,   cc: clang,  flags: -DBUILD_WASI=simple   }
         - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64 }
-        # Debug builds
-        - {target: gcc-debug,               cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug                         }
-        - {target: clang-no-uvwasi-debug,   cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple     }
+        # Debug builds under ASan + UBSan
+        - {target: clang-sanitize,    cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
+        - {target: gcc-sanitize,      cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
         # GCC 16.2 build (static, linked against musl)
         - {target: gcc-musl,          install: gcc-musl,   ldflags: "-static -s", artifact: dev-wasm3-gcc-linux-x64 }
         # Clang builds (static, linked against musl)
@@ -143,10 +143,7 @@ jobs:
   macos:
     runs-on: macos-latest
     name: macos-${{ matrix.config.target }}
-    timeout-minutes: 10
-
-    env:
-      CFLAGS: -Dd_m3HasTypedRefs=1
+    timeout-minutes: ${{ matrix.config.timeout || 10 }}
 
     strategy:
       fail-fast: false
@@ -154,10 +151,15 @@ jobs:
         config:
         - {target: uvwasi,      }
         - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
+        # Debug build under ASan + UBSan
+        - {target: sanitize,    flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
 
     steps:
     - uses: actions/checkout@v7
     - name: Configure
+      env:
+        CFLAGS: -Dd_m3HasTypedRefs=1 ${{ matrix.config.cflags }}
+        LDFLAGS: ${{ matrix.config.ldflags }}
       run: |
         mkdir build
         cd build
@@ -179,7 +181,7 @@ jobs:
   windows:
     runs-on: windows-latest
     name: windows-${{ matrix.config.target }}
-    timeout-minutes: 10
+    timeout-minutes: ${{ matrix.config.timeout || 10 }}
 
     strategy:
       fail-fast: false
@@ -194,6 +196,8 @@ jobs:
         - {target: msvc-x64-no-uvwasi,    platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple"   }
         - {target: clang-x86-no-uvwasi,   platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
         - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple"   }
+        # Debug build under ASan. Windows ships no UBSan. CMake puts /RTC1 in the default Debug flags and ASan refuses to run with it
+        - {target: clang-x64-sanitize,    platform: "-A x64",     toolset: "-T ClangCL",  buildtype: Debug, timeout: 15, flags: '-DBUILD_WASI=simple -DCMAKE_C_FLAGS_DEBUG="/Zi /Ob0 /Od"', cflags: "-fsanitize=address" }
         # Release build with strace
         - {target: clang-x64-strace,      platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-strace-win-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
@@ -213,11 +217,11 @@ jobs:
         cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ${{ matrix.config.flags }} ..
     - name: Build
       run: |
-        cmake --build build --config Release
-        cp ./build/Release/wasm3.exe ./build/
+        cmake --build build --config ${{ matrix.config.buildtype || 'Release' }}
+        cp ./build/${{ matrix.config.buildtype || 'Release' }}/wasm3.exe ./build/
     - name: Prepare artifact
       if: ${{ matrix.config.artifact }}
-      run: cp ./build/Release/wasm3.exe ./${{ matrix.config.artifact }}.exe
+      run: cp ./build/${{ matrix.config.buildtype || 'Release' }}/wasm3.exe ./${{ matrix.config.artifact }}.exe
     - name: Upload artifact
       if: ${{ matrix.config.artifact }}
       uses: actions/upload-artifact@v7
