@@ -30,13 +30,15 @@
 # - Fix imports.wast
 
 import argparse
-import os, sys, glob, time
-import subprocess
+import glob
 import json
+import math
+import os
+import pathlib
 import re
 import struct
-import math
-import pathlib
+import sys
+import time
 
 scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.append(os.path.join(scriptDir, "..", "extra"))
@@ -83,6 +85,22 @@ parser.add_argument(
     action="store_false",
     help="compare NaN results by class (canonical/arithmetic/signaling)",
 )
+# The build features the suite branches on. Detecting them from the version
+# banner is inference: a config regression that turns one off silently drops the
+# tests that cover it, and the run stays green. A job that names them instead
+# states what it expects of the build it just made.
+features_known = ("tail-call", "typed-refs", "multi-memory")
+
+parser.add_argument(
+    "--skip-features",
+    metavar="<feature,...>",
+    default="auto",
+    help="features the build does not have, whose tests are skipped: "
+    + ", ".join(features_known)
+    + '. "auto" (the default) reads them off the version banner; "none" asks '
+    "for all of them. An explicit list is checked against the banner, so a "
+    "build that quietly loses a feature fails instead of skipping its tests",
+)
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
@@ -93,6 +111,17 @@ args = parser.parse_args()
 
 if args.line:
     args.show_logs = True
+
+if args.skip_features == "auto":
+    skipped_features = None
+else:
+    skipped_features = set(args.skip_features.replace(",", " ").split()) - {"none"}
+    unknown = skipped_features - set(features_known)
+    if unknown:
+        parser.error(
+            f"unknown feature(s) {', '.join(sorted(unknown))} in --skip-features; "
+            f"known: {', '.join(features_known)}"
+        )
 
 #
 # Utilities
@@ -514,6 +543,22 @@ wasm3 = Wasm3(args.exec)
 wasm3_ver = wasm3.version()
 print(wasm3_ver)
 
+detected_features = {f for f in features_known if wasm3_ver in Blacklist([f"*{f}*"])}
+
+if skipped_features is None:
+    features = detected_features
+else:
+    features = set(features_known) - skipped_features
+    if features != detected_features:
+        print(
+            f"{ansi.FAIL}Error:{ansi.ENDC} --skip-features does not describe this build:"
+        )
+        for f in sorted(features - detected_features):
+            print(f"  {f} was expected, but the build does not report it")
+        for f in sorted(detected_features - features):
+            print(f"  {f} is skipped, but the build reports it")
+        sys.exit(1)
+
 blacklist = Blacklist(
     [
         # returns the bit pattern as i32, so it can't be compared by NaN class:
@@ -641,7 +686,7 @@ if args.spec == "wg-3.0":
         ]
     )
 
-    if wasm3_ver not in Blacklist(["*typed-refs*"]):
+    if "typed-refs" not in features:
         blacklist.add(
             [
                 "br_table.wast:* br_table.0.wasm *",
@@ -803,7 +848,7 @@ if wasm3_ver in Blacklist(["* self-hosting *"]):
 # reuse the caller's frame, so the tests that recurse a million deep trap instead of
 # completing. Reusing it needs the compiler to guarantee a tail call, i.e. to support
 # musttail (Clang, and GCC from 15 on).
-if wasm3_ver not in Blacklist(["*tail-call*"]):
+if "tail-call" not in features:
     warning(
         "build has no guaranteed tail calls, skipping unbounded tail recursion", True
     )
@@ -1028,7 +1073,7 @@ def runValidation(test, cmd, wasm_dir, keep_modules=False):
 # one memory, so the whole proposal suite is out of reach for it. Its files share
 # wast names with core/ (memory_grow.wast and friends), so they are dropped at
 # discovery rather than by blacklisting.
-hasMultiMemory = wasm3_ver in Blacklist(["*multi-memory*"])
+hasMultiMemory = "multi-memory" in features
 if not hasMultiMemory:
     warning("build has no multiple memories, skipping the multi-memory suite", True)
     # these live in the compact-import suite but import two memories apiece, so

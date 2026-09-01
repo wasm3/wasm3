@@ -139,6 +139,25 @@ cstr_t GetTypeName (m3type_t i_m3Type)
 }
 
 
+// Appends to a string that is built up over several calls, and returns the length
+// reached. snprintf reports the length it wanted to write rather than the length
+// it wrote, so an append that truncates has to leave the cursor inside the buffer.
+static
+size_t SPrintAppend (char* o_string, size_t i_stringBufferSize, size_t i_len, ccstr_t i_format, ...)
+{
+    if (i_len + 1 >= i_stringBufferSize) {
+        return i_len;
+    }
+
+    va_list args;
+    va_start(args, i_format);
+    int ret = vsnprintf(o_string + i_len, i_stringBufferSize - i_len, i_format, args);
+    va_end(args);
+
+    return M3_MIN(i_len + (size_t)M3_MAX(0, ret), i_stringBufferSize - 1);
+}
+
+
 // TODO: these 'static char string []' aren't thread-friendly.  though these functions are
 // mainly for simple diagnostics during development, it'd be nice if they were fully reliable.
 
@@ -146,24 +165,18 @@ cstr_t SPrintFuncTypeSignature (IM3FuncType i_funcType)
 {
     static char string[256];
 
-    sprintf(string, "(");
+    size_t len = SPrintAppend(string, sizeof(string), 0, "(");
 
     for (u32 i = 0; i < i_funcType->numArgs; ++i) {
-        if (i != 0) {
-            strcat(string, ", ");
-        }
-
-        strcat(string, GetTypeName(d_FuncArgType(i_funcType, i)));
+        len = SPrintAppend(string, sizeof(string), len, "%s%s", i ? ", " : "",
+                           GetTypeName(d_FuncArgType(i_funcType, i)));
     }
 
-    strcat(string, ") -> ");
+    len = SPrintAppend(string, sizeof(string), len, ") -> ");
 
     for (u32 i = 0; i < i_funcType->numRets; ++i) {
-        if (i != 0) {
-            strcat(string, ", ");
-        }
-
-        strcat(string, GetTypeName(d_FuncRetType(i_funcType, i)));
+        len = SPrintAppend(string, sizeof(string), len, "%s%s", i ? ", " : "",
+                           GetTypeName(d_FuncRetType(i_funcType, i)));
     }
 
     return string;
@@ -208,14 +221,14 @@ OpInfo find_operation_info (IM3Operation i_operation)
 #  undef fetch
 #  define fetch(TYPE) (* (TYPE *) ((*o_pc)++))
 
-#  define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t * o_pc)
+#  define d_m3Decoder(FUNC) void Decode_##FUNC (char * o_string, size_t i_stringBufferSize, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t * o_pc)
 
 d_m3Decoder(Call)
 {
     void* function    = fetch(void*);
     i32   stackOffset = fetch(i32);
 
-    sprintf(o_string, "%p; stack-offset: %d", function, stackOffset);
+    snprintf(o_string, i_stringBufferSize, "%p; stack-offset: %d", function, stackOffset);
 }
 
 
@@ -224,7 +237,7 @@ d_m3Decoder(Entry)
     IM3Function function = fetch(IM3Function);
 
     // only prints out the first registered name for the function
-    sprintf(o_string, "%s", m3_GetFunctionName(function));
+    snprintf(o_string, i_stringBufferSize, "%s", m3_GetFunctionName(function));
 }
 
 
@@ -234,24 +247,22 @@ d_m3Decoder(f64_Store)
         u32 operand = fetch(u32);
         u32 offset  = fetch(u32);
 
-        sprintf(o_string, "offset= slot:%d + immediate:%d", operand, offset);
+        snprintf(o_string, i_stringBufferSize, "offset= slot:%d + immediate:%d", operand, offset);
     }
-
-    //    sprintf (o_string, "%s", function->name);
 }
 
 
 d_m3Decoder(Branch)
 {
     void* target = fetch(void*);
-    sprintf(o_string, "%p", target);
+    snprintf(o_string, i_stringBufferSize, "%p", target);
 }
 
 d_m3Decoder(BranchTable)
 {
     u32 slot = fetch(u32);
 
-    o_string += sprintf(o_string, "slot: %" PRIu32 "; targets: ", slot);
+    size_t len = SPrintAppend(o_string, i_stringBufferSize, 0, "slot: %" PRIu32 "; targets: ", slot);
 
     //    IM3Function function = fetch2 (IM3Function);
 
@@ -259,11 +270,11 @@ d_m3Decoder(BranchTable)
 
     for (i32 i = 0; i < targets; ++i) {
         pc_t addr = fetch(pc_t);
-        o_string += sprintf(o_string, "%" PRIi32 "=%p, ", i, addr);
+        len       = SPrintAppend(o_string, i_stringBufferSize, len, "%" PRIi32 "=%p, ", i, addr);
     }
 
     pc_t addr = fetch(pc_t);
-    sprintf(o_string, "def=%p ", addr);
+    SPrintAppend(o_string, i_stringBufferSize, len, "def=%p ", addr);
 }
 
 
@@ -271,15 +282,15 @@ d_m3Decoder(Const)
 {
     u64 value  = fetch(u64);
     i32 offset = fetch(i32);
-    sprintf(o_string, " slot [%d] = %" PRIu64, offset, value);
+    snprintf(o_string, i_stringBufferSize, " slot [%d] = %" PRIu64, offset, value);
 }
 
 
 #  undef fetch
 
-void DecodeOperation (char* o_string, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t* o_pc)
+void DecodeOperation (char* o_string, size_t i_stringBufferSize, u8 i_opcode, IM3Operation i_operation, IM3OpInfo i_opInfo, pc_t* o_pc)
 {
-#  define d_m3Decode(OPCODE, FUNC) case OPCODE: Decode_##FUNC (o_string, i_opcode, i_operation, i_opInfo, o_pc); break;
+#  define d_m3Decode(OPCODE, FUNC) case OPCODE: Decode_##FUNC (o_string, i_stringBufferSize, i_opcode, i_operation, i_opInfo, o_pc); break;
 
     switch (i_opcode) {
         //d_m3Decode (0xc0,                  Const)
@@ -312,7 +323,7 @@ void dump_code_page (IM3CodePage i_codePage, pc_t i_startPC)
         if (i.info) {
             char infoString[8 * 1024] = { 0 };
 
-            DecodeOperation(infoString, i.opcode, op, i.info, &pc);
+            DecodeOperation(infoString, sizeof(infoString), i.opcode, op, i.info, &pc);
 
             m3log(code, "%p | %20s  %s", operationPC, i.info->name, infoString);
         } else {
@@ -391,15 +402,15 @@ void dump_type_stack (IM3Compilation o)
             char item[100];
 
             if (slot >= 0) {
-                sprintf(item, "%s%s%d", type, location, slot);
+                snprintf(item, sizeof(item), "%s%s%d", type, location, slot);
             } else {
-                sprintf(item, "%s%s", type, location);
+                snprintf(item, sizeof(item), "%s%s", type, location);
             }
 
             if (p == 1) {
                 size_t s = strlen(item);
 
-                sprintf(item, "%d", i);
+                snprintf(item, sizeof(item), "%d", i);
 
                 while (strlen(item) < s) {
                     strcat(item, " ");

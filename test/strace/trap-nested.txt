@@ -1,0 +1,20 @@
+      test_trap () {
+        a () {
+          b () {
+            c () {
+            } !trap = [trap] unreachable
+          } !trap = [trap] unreachable
+        } !trap = [trap] unreachable
+      } !trap = [trap] unreachable
+    } !trap = [trap] unreachable
+  } !trap = [trap] unreachable
+} !trap = [trap] unreachable
+==== wasm backtrace:
+  0: 0x000901 - test.wasm!c
+  1: 0x000905 - test.wasm!b
+  2: 0x00090f - test.wasm!a
+  3: 0x000919 - test.wasm!test_trap
+  4: 0x00099b - test.wasm!main
+  5: 0x000b6b - test.wasm!__main_void
+  6: 0x000346 - test.wasm!_start
+Error: [trap] unreachable

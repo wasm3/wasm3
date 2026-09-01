@@ -28,10 +28,7 @@
 #  include <stdio.h>
 #  include <fcntl.h>
 
-#  if defined(APE)
-// Actually Portable Executable
-// All functions are already included in cosmopolitan.h
-#  elif defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__CYGWIN__)
+#  if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__CYGWIN__)
 #    include <unistd.h>
 #    include <sys/uio.h>
 #    if defined(__APPLE__)
@@ -96,55 +93,45 @@ Preopen preopen[PREOPEN_CNT] = {
     { -1, "./",       "." },
 };
 
-#  if defined(APE)
-#    define APE_SWITCH_BEG
-#    define APE_SWITCH_END          {}
-#    define APE_CASE_RET(e1,e2)     if (errnum == e1)    return e2;   else
-#  else
-#    define APE_SWITCH_BEG          switch (errnum) {
-#    define APE_SWITCH_END          }
-#    define APE_CASE_RET(e1,e2)     case e1:   return e2;   break;
-#  endif
-
 static
 __wasi_errno_t errno_to_wasi (int errnum)
 {
     // clang-format off
-    APE_SWITCH_BEG
-    APE_CASE_RET( EPERM   , __WASI_ERRNO_PERM   )
-    APE_CASE_RET( ENOENT  , __WASI_ERRNO_NOENT  )
-    APE_CASE_RET( ESRCH   , __WASI_ERRNO_SRCH   )
-    APE_CASE_RET( EINTR   , __WASI_ERRNO_INTR   )
-    APE_CASE_RET( EIO     , __WASI_ERRNO_IO     )
-    APE_CASE_RET( ENXIO   , __WASI_ERRNO_NXIO   )
-    APE_CASE_RET( E2BIG   , __WASI_ERRNO_2BIG   )
-    APE_CASE_RET( ENOEXEC , __WASI_ERRNO_NOEXEC )
-    APE_CASE_RET( EBADF   , __WASI_ERRNO_BADF   )
-    APE_CASE_RET( ECHILD  , __WASI_ERRNO_CHILD  )
-    APE_CASE_RET( EAGAIN  , __WASI_ERRNO_AGAIN  )
-    APE_CASE_RET( ENOMEM  , __WASI_ERRNO_NOMEM  )
-    APE_CASE_RET( EACCES  , __WASI_ERRNO_ACCES  )
-    APE_CASE_RET( EFAULT  , __WASI_ERRNO_FAULT  )
-    APE_CASE_RET( EBUSY   , __WASI_ERRNO_BUSY   )
-    APE_CASE_RET( EEXIST  , __WASI_ERRNO_EXIST  )
-    APE_CASE_RET( EXDEV   , __WASI_ERRNO_XDEV   )
-    APE_CASE_RET( ENODEV  , __WASI_ERRNO_NODEV  )
-    APE_CASE_RET( ENOTDIR , __WASI_ERRNO_NOTDIR )
-    APE_CASE_RET( EISDIR  , __WASI_ERRNO_ISDIR  )
-    APE_CASE_RET( EINVAL  , __WASI_ERRNO_INVAL  )
-    APE_CASE_RET( ENFILE  , __WASI_ERRNO_NFILE  )
-    APE_CASE_RET( EMFILE  , __WASI_ERRNO_MFILE  )
-    APE_CASE_RET( ENOTTY  , __WASI_ERRNO_NOTTY  )
-    APE_CASE_RET( ETXTBSY , __WASI_ERRNO_TXTBSY )
-    APE_CASE_RET( EFBIG   , __WASI_ERRNO_FBIG   )
-    APE_CASE_RET( ENOSPC  , __WASI_ERRNO_NOSPC  )
-    APE_CASE_RET( ESPIPE  , __WASI_ERRNO_SPIPE  )
-    APE_CASE_RET( EROFS   , __WASI_ERRNO_ROFS   )
-    APE_CASE_RET( EMLINK  , __WASI_ERRNO_MLINK  )
-    APE_CASE_RET( EPIPE   , __WASI_ERRNO_PIPE   )
-    APE_CASE_RET( EDOM    , __WASI_ERRNO_DOM    )
-    APE_CASE_RET( ERANGE  , __WASI_ERRNO_RANGE  )
-    APE_SWITCH_END
+    switch (errnum) {
+    case EPERM:    return __WASI_ERRNO_PERM;
+    case ENOENT:   return __WASI_ERRNO_NOENT;
+    case ESRCH:    return __WASI_ERRNO_SRCH;
+    case EINTR:    return __WASI_ERRNO_INTR;
+    case EIO:      return __WASI_ERRNO_IO;
+    case ENXIO:    return __WASI_ERRNO_NXIO;
+    case E2BIG:    return __WASI_ERRNO_2BIG;
+    case ENOEXEC:  return __WASI_ERRNO_NOEXEC;
+    case EBADF:    return __WASI_ERRNO_BADF;
+    case ECHILD:   return __WASI_ERRNO_CHILD;
+    case EAGAIN:   return __WASI_ERRNO_AGAIN;
+    case ENOMEM:   return __WASI_ERRNO_NOMEM;
+    case EACCES:   return __WASI_ERRNO_ACCES;
+    case EFAULT:   return __WASI_ERRNO_FAULT;
+    case EBUSY:    return __WASI_ERRNO_BUSY;
+    case EEXIST:   return __WASI_ERRNO_EXIST;
+    case EXDEV:    return __WASI_ERRNO_XDEV;
+    case ENODEV:   return __WASI_ERRNO_NODEV;
+    case ENOTDIR:  return __WASI_ERRNO_NOTDIR;
+    case EISDIR:   return __WASI_ERRNO_ISDIR;
+    case EINVAL:   return __WASI_ERRNO_INVAL;
+    case ENFILE:   return __WASI_ERRNO_NFILE;
+    case EMFILE:   return __WASI_ERRNO_MFILE;
+    case ENOTTY:   return __WASI_ERRNO_NOTTY;
+    case ETXTBSY:  return __WASI_ERRNO_TXTBSY;
+    case EFBIG:    return __WASI_ERRNO_FBIG;
+    case ENOSPC:   return __WASI_ERRNO_NOSPC;
+    case ESPIPE:   return __WASI_ERRNO_SPIPE;
+    case EROFS:    return __WASI_ERRNO_ROFS;
+    case EMLINK:   return __WASI_ERRNO_MLINK;
+    case EPIPE:    return __WASI_ERRNO_PIPE;
+    case EDOM:     return __WASI_ERRNO_DOM;
+    case ERANGE:   return __WASI_ERRNO_RANGE;
+    }
     // clang-format on
     return __WASI_ERRNO_INVAL;
 }
@@ -417,23 +404,19 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 #  else
     struct stat fd_stat;
 
-#    if !defined(APE) // TODO: not implemented in Cosmopolitan
     int fl = fcntl(fd, F_GETFL);
     if (fl < 0) {
         m3ApiReturn(errno_to_wasi(errno));
     }
-#    endif
 
     fstat(fd, &fd_stat);
     fdstat->fs_filetype = filetype_from_stat_mode(fd_stat.st_mode);
-#    if !defined(APE)
     m3ApiWriteMem16(&fdstat->fs_flags,
                     ((fl & O_APPEND) ? __WASI_FDFLAGS_APPEND : 0) |
                       ((fl & O_DSYNC) ? __WASI_FDFLAGS_DSYNC : 0) |
                       ((fl & O_NONBLOCK) ? __WASI_FDFLAGS_NONBLOCK : 0) |
                       //((fl & O_RSYNC)     ? __WASI_FDFLAGS_RSYNC     : 0) |
                       ((fl & O_SYNC) ? __WASI_FDFLAGS_SYNC : 0));
-#    endif // APE
 
     fdstat->fs_rights_base = (uint64_t)-1; // all rights
 
@@ -468,7 +451,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_advise)
 
     // Purely advisory: passing it on is a best effort, and dropping it is
     // still a conforming implementation. Only the fd has to be valid.
-#  if defined(POSIX_FADV_NORMAL) && !defined(APE)
+#  if defined(POSIX_FADV_NORMAL)
     int adv;
     switch (advice) {
     case __WASI_ADVICE_NORMAL: adv = POSIX_FADV_NORMAL; break;
@@ -596,7 +579,7 @@ m3ApiRawFunction(m3_wasi_unstable_path_filestat_get)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs an fstatat equivalent, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -641,7 +624,7 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_path_filestat_get)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs an fstatat equivalent, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -675,7 +658,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_filestat_set_size)
     m3ApiGetArg(__wasi_fd_t, fd)
     m3ApiGetArg(__wasi_filesize_t, size)
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs ftruncate
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -694,7 +677,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_filestat_set_times)
     m3ApiGetArg(__wasi_timestamp_t, mtim)
     m3ApiGetArg(__wasi_fstflags_t, flags)
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs futimens
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -751,7 +734,7 @@ m3ApiRawFunction(m3_wasi_generic_path_link)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs linkat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -782,7 +765,7 @@ m3ApiRawFunction(m3_wasi_generic_path_create_directory)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs mkdirat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -811,7 +794,7 @@ m3ApiRawFunction(m3_wasi_generic_path_remove_directory)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs unlinkat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -840,7 +823,7 @@ m3ApiRawFunction(m3_wasi_generic_path_unlink_file)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs unlinkat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -875,7 +858,7 @@ m3ApiRawFunction(m3_wasi_generic_path_rename)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs renameat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -910,7 +893,7 @@ m3ApiRawFunction(m3_wasi_generic_path_symlink)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs symlinkat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -944,7 +927,7 @@ m3ApiRawFunction(m3_wasi_generic_path_readlink)
         m3ApiReturn(__WASI_ERRNO_NAMETOOLONG);
     }
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs readlinkat, the same gap path_open has here
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -1077,33 +1060,7 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
     memcpy(host_path, path, path_len);
     host_path[path_len] = '\0'; // NULL terminator
 
-#  if defined(APE)
-    // TODO: This all needs a proper implementation
-
-    int flags = ((oflags & __WASI_OFLAGS_CREAT) ? O_CREAT : 0) |
-                ((oflags & __WASI_OFLAGS_EXCL) ? O_EXCL : 0) |
-                ((oflags & __WASI_OFLAGS_TRUNC) ? O_TRUNC : 0) |
-                ((fs_flags & __WASI_FDFLAGS_APPEND) ? O_APPEND : 0);
-
-    if ((fs_rights_base & __WASI_RIGHTS_FD_READ) &&
-        (fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {
-        flags |= O_RDWR;
-    } else if ((fs_rights_base & __WASI_RIGHTS_FD_WRITE)) {
-        flags |= O_WRONLY;
-    } else if ((fs_rights_base & __WASI_RIGHTS_FD_READ)) {
-        flags |= O_RDONLY; // no-op because O_RDONLY is 0
-    }
-    int mode = 0644;
-
-    int host_fd = open(host_path, flags, mode);
-
-    if (host_fd < 0) {
-        m3ApiReturn(errno_to_wasi(errno));
-    } else {
-        m3ApiWriteMem32(fd, host_fd);
-        m3ApiReturn(__WASI_ERRNO_SUCCESS);
-    }
-#  elif defined(_WIN32)
+#  if defined(_WIN32)
     // TODO: This all needs a proper implementation
 
     int flags = ((oflags & __WASI_OFLAGS_CREAT) ? _O_CREAT : 0) |
@@ -1226,7 +1183,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_pread)
     m3ApiCheckMem(wasi_iovs, iovs_len * sizeof(wasi_iovec_t));
     m3ApiCheckMem(nread, sizeof(__wasi_size_t));
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs pread
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else
@@ -1264,7 +1221,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_pwrite)
     m3ApiCheckMem(wasi_iovs, iovs_len * sizeof(wasi_iovec_t));
     m3ApiCheckMem(nwritten, sizeof(__wasi_size_t));
 
-#  if defined(_WIN32) || defined(APE)
+#  if defined(_WIN32)
     // TODO: needs pwrite
     m3ApiReturn(__WASI_ERRNO_NOSYS);
 #  else

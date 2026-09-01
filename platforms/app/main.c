@@ -344,7 +344,10 @@ void print_gas_used ()
 void print_backtrace ()
 {
     IM3BacktraceInfo info = m3_GetBacktrace(runtime);
-    if (!info) {
+    // A trap raised before any frame was entered - a failed function lookup, an
+    // exception that unwound past the entry - records nothing, and a header with
+    // no frames under it is worse than no header at all
+    if (!info || (!info->frames && info->lastFrame != M3_BACKTRACE_TRUNCATED)) {
         return;
     }
 

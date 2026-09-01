@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.11)
 
-# Detect WasiEnv
-if(DEFINED ENV{WASI_CC} OR DEFINED WASI_SDK_PREFIX)
-  set(WASIENV           1)
+# Detect a cross-build to Wasm itself. The WASI SDK's toolchain file is only read
+# at project(), which is too late for the choices below, so this looks for the
+# prefix that CMAKE_TOOLCHAIN_FILE is passed alongside:
+#   cmake -DCMAKE_TOOLCHAIN_FILE=$WASI_SDK_PATH/share/cmake/wasi-sdk-p1.cmake \
+#         -DWASI_SDK_PREFIX=$WASI_SDK_PATH ..
+if(DEFINED WASI_SDK_PREFIX)
+  set(WASI_SDK          1)
 endif()
 
 # Detect MinGW
@@ -16,7 +20,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "set build type to Release")
 endif()
 
-if(WASIENV)
+if(WASI_SDK)
   set(BUILD_WASI "metawasi" CACHE STRING "WASI implementation")
 elseif(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(BUILD_WASI "none" CACHE STRING "WASI implementation")
@@ -31,6 +35,12 @@ option(BUILD_NATIVE "Build with machine-specific optimisations" ON)
 # .wasm module cannot get at from the outside, so they are not part of a normal
 # build. The CI linux job turns them on.
 option(BUILD_TESTS  "Build the internal API tests" OFF)
+
+# Wasm3 is meant to build clean, so CI asks for this and a new warning fails the
+# job rather than scrolling past in a log nobody reads. It applies to Wasm3's own
+# targets only - libuv and uvwasi are fetched and built here too, and their
+# warnings are not ours to fix.
+option(BUILD_WERROR "Treat compiler warnings as errors" OFF)
 
 set(OUT_FILE "wasm3")
 
@@ -54,7 +64,7 @@ if(CLANG OR CLANG_SUFFIX)
   endif()
 endif()
 
-if(WASIENV)
+if(WASI_SDK)
   set(OUT_FILE           "wasm3.wasm")
 endif()
 
@@ -120,7 +130,7 @@ if(EMSCRIPTEN OR EMSCRIPTEN_LIB)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
 
-elseif(WASIENV)
+elseif(WASI_SDK)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wfatal-errors -fomit-frame-pointer -fno-stack-check -fno-stack-protector -fno-asynchronous-unwind-tables")
@@ -135,7 +145,7 @@ elseif(WASIENV)
   # The interpreter dispatches, calls and returns through tail calls, so the Wasm build
   # needs the tail-call feature: without it Clang rejects every M3_MUSTTAIL, and
   # return_call would consume a stack frame per call instead of reusing one.
-  # Requires a tail-call capable host (Wasm3 >= 0.6.0, Wasmtime >= 14, Node >= 22).
+  # Requires a tail-call capable host (Wasm3 >= 0.9.0, Wasmtime >= 14, Node >= 22).
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -mnontrapping-fptoint -msign-ext -mtail-call -mmultivalue -mmutable-globals")
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=8388608 -flto -Wl,--lto-O3")
@@ -186,6 +196,12 @@ else()
       set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native")
     elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
       set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
+      # Asking for the host's own feature set means inheriting whatever the compiler
+      # makes of it. I.e. avx10.1-256 is compiled for avx10.1-512.
+      # Thus -Werror fails on some CI runners and not others.
+      if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 18)
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-invalid-feature-combination")
+      endif()
     endif()
   endif()
 
@@ -198,6 +214,16 @@ else()
 endif()
 
 target_link_libraries(${OUT_FILE} m3)
+
+if(BUILD_WERROR)
+  if(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
+    # note that the warning level is squashed to /W0 above, so this only catches
+    # what is explicitly enabled - raising the level is its own cleanup
+    set(M3_WERROR /WX)
+  else()
+    set(M3_WERROR -Werror)
+  endif()
+endif()
 
 if(BUILD_WASI MATCHES "simple")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasWASI")
@@ -239,6 +265,10 @@ endif()
 
 add_subdirectory(source)
 
+if(M3_WERROR)
+  target_compile_options(${OUT_FILE} PRIVATE ${M3_WERROR})
+endif()
+
 # Each of these is a standalone program that exercises the embedding API and
 # reports failures through its exit code. They link the same way the app does -
 # m3 carries source/ as a public include directory, so only the extension
@@ -255,6 +285,9 @@ if(BUILD_TESTS)
     target_link_libraries(${m3_test_name} m3 ${M3_WASI_LIBS})
     if(M3_LINK_LIBM)
       target_link_libraries(${m3_test_name} m)
+    endif()
+    if(M3_WERROR)
+      target_compile_options(${m3_test_name} PRIVATE ${M3_WERROR})
     endif()
   endforeach()
 

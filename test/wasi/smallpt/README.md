@@ -12,8 +12,18 @@ TODO
 
 ### Building
 
+With [WASI SDK](https://github.com/WebAssembly/wasi-sdk) 34:
+
 ```sh
-wasic++ -g0 -Oz -Wl,--stack-first -Wl,-z,stack-size=$[1024*1024] smallpt-ex.cpp -o smallpt-ex.wasm
+FLAGS="-mcpu=lime1 -g0 -Oz -Wl,--strip-all -Wl,--stack-first -Wl,-z,stack-size=$((1024 * 1024))"
+
+$WASI_SDK_PATH/bin/clang++ $FLAGS smallpt.cpp    -o smallpt.wasm
+$WASI_SDK_PATH/bin/clang++ $FLAGS smallpt-ex.cpp -o smallpt-ex.wasm
+
+# ... and again with the experimental multi-value ABI, so that functions
+# return their three doubles directly instead of through memory
+$WASI_SDK_PATH/bin/clang++ $FLAGS -Xclang -target-abi -Xclang experimental-mv \
+    smallpt-ex.cpp -o smallpt-ex-mv.wasm
 ```
 
 ### Running

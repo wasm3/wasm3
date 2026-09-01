@@ -21,6 +21,12 @@ add_library(m3 STATIC ${sources})
 
 target_include_directories(m3 PUBLIC .)
 
+# set by the top-level CMakeLists for BUILD_WERROR, and applied per target so
+# that a fetched dependency does not have to build clean under our flags
+if(M3_WERROR)
+    target_compile_options(m3 PRIVATE ${M3_WERROR})
+endif()
+
 # Compilers CMake has no feature table for (TinyCC, for one) can't be asked for
 # c_std_99; the C_STANDARD set at the top level covers them
 if(CMAKE_C_COMPILE_FEATURES)
@@ -36,7 +42,7 @@ else()
     # FIXME: comparison of integers of different signs: 'u32' and 'i32'
     set_source_files_properties(m3_env.c PROPERTIES COMPILE_FLAGS -Wno-sign-compare)
 
-    if (WASIENV)
+    if (WASI_SDK)
         # FIXME: declaration of 'struct sigaction' will not be visible outside of this function
         target_compile_options(m3 PUBLIC -Wno-visibility)
         # FIXME incompatible pointer types passing 'u32 *' to parameter of type 'char **'

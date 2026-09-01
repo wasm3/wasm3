@@ -107,13 +107,6 @@ commands_fast = [
     "args":           ["cat", "./wasi/simple/0.txt"],
     "expect_pattern": "Hello world*Constructor OK*Args: *; cat; ./wasi/simple/0.txt;*fib(20) = 6765* ms*48 65 6c 6c 6f 20 77 6f 72 6c 64*=== done ===*"
   }, {
-    "skip":           True,  # Backtraces not enabled by default
-    "name":           "Simple WASI test",
-    "wasm":           "./wasi/test.wasm",
-    "args":           ["trap"],
-    "can_crash":      True,
-    "expect_pattern": "Hello world*Constructor OK*Args: *; trap;* wasm backtrace:* 6: 0x*Error:* unreachable*"
-  }, {
     "name":           "mandelbrot",
     "wasm":           "./wasi/mandelbrot/mandel.wasm",
     "args":           ["32", "4e5"],
@@ -158,7 +151,7 @@ def fail(msg):
 commands = commands_fast if args.fast else commands_full
 
 for cmd in commands:
-    if "skip" in cmd:
+    if cmd.get("skip"):
         continue
 
     command = args.exec.split(" ")

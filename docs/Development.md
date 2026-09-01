@@ -125,41 +125,36 @@ x86_64-w64-mingw32-gcc -O3 -g0 -s -Isource -Dd_m3HasWASI source/*.c platforms/ap
 
 In `./platforms/` folder you can find projects for different targets. Some of them are using Platformio, so you can follow the regular pio build process. Others have custom instructions in respective `README.md` files.
 
-## Build with WasiEnv
+## Build for WebAssembly
+
+Wasm3 runs on Wasm too. Build it with the [WASI SDK](https://github.com/WebAssembly/wasi-sdk):
 
 ```sh
-wasimake cmake -GNinja ..
-ninja
+export WASI_SDK_PATH=/opt/wasi-sdk
+
+mkdir build-wasi
+cd build-wasi
+cmake -DCMAKE_TOOLCHAIN_FILE="$WASI_SDK_PATH/share/cmake/wasi-sdk-p1.cmake" \
+      -DWASI_SDK_PREFIX="$WASI_SDK_PATH" ..
+cmake --build .
 ```
 
-If you want to enable experimental WASM features during the build:
+`WASI_SDK_PREFIX` is what the build keys off to produce `wasm3.wasm` against the
+`metawasi` implementation, which passes the guest's WASI calls out to the host's. The
+toolchain file alone is not enough: CMake only reads it at `project()`, by which point
+those choices have been made.
+
+The result needs a host with the tail-call proposal - Wasmtime 14+, Node 22+, or
+Wasm3 0.9.0+ - because the interpreter dispatches through `return_call`:
 
 ```sh
-export CFLAGS="-Xclang -target-feature -Xclang +tail-call"
-wasimake cmake -GNinja ..
-ninja
+wasmtime run --dir ./::./ wasm3.wasm hello.wasm
 ```
 
-Here's how some options can be used with different tools:
-
-```log
-Clang target-feature option          WABT option                        Chromium --js-flags option
-----------------------------------------------------------------------------------------------------------------
-+multivalue                          --enable-multi-value               --experimental-wasm-mv
-+tail-call                           --enable-tail-call                 --experimental-wasm-return-call
-+bulk-memory                         --enable-bulk-memory               --experimental-wasm-bulk-memory
-+nontrapping-fptoint                 --enable-saturating-float-to-int   --experimental-wasm-sat-f2i-conversions
-+sign-ext                            --enable-sign-extension            --experimental-wasm-se
-+simd128, +unimplemented-simd128     --enable-simd                      --experimental-wasm-simd
-```
-
-```sh
-# List clang options:
-llc -march=wasm32 -mattr=help
-
-# List Chromium options:
-chromium-browser --single-process --js-flags="--help" 2>&1 | grep wasm
-```
+The feature set is fixed in `CMakeLists.txt` rather than left to the caller. To try
+another one, add it to `CFLAGS` at configure time; `llc -march=wasm32 -mattr=help` lists
+what the toolchain understands, and the modules under `test/wasi` show how to pick a
+whole set at once with `-mcpu`.
 
 ## Build with Zig
 

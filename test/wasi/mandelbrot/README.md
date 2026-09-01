@@ -12,9 +12,11 @@ TODO
 
 ### Building
 
+With [WASI SDK](https://github.com/WebAssembly/wasi-sdk) 34:
+
 ```sh
-wasicc -g0 -O3 mandel_dd.c -o mandel_dd.wasm
-wasicc -g0 -O3 mandel.c -o mandel.wasm
+$WASI_SDK_PATH/bin/clang -mcpu=lime1 -g0 -O3 -Wl,--strip-all mandel_dd.c -o mandel_dd.wasm
+$WASI_SDK_PATH/bin/clang -mcpu=lime1 -g0 -O3 -Wl,--strip-all mandel.c    -o mandel.wasm
 ```
 
 ### Running

@@ -1,0 +1,5 @@
+main () {
+  $func0 (i32: 0, i32: 0, i32: 0, i32: 0) {
+  }
+}
+Result: <Empty Stack>

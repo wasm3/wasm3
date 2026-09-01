@@ -22,22 +22,25 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {target: clang,             cc: clang,      }
+        - {target: clang,             cc: clang,  specflags: --no-relax-nan   }
         - {target: clang-x86,         cc: clang,      cflags: -m32,   install: "gcc-multilib"   }
-        - {target: gcc,               cc: gcc,        }
+        - {target: gcc,               cc: gcc,    skipfeat: tail-call   }
         #- {target: gcc-x86,          cc: gcc,        cflags: -m32,   install: "gcc-multilib"   }
+        # The default configuration (typed function references are opt-in)
+        - {target: clang-no-typed-refs, cc: clang,  typedrefs: "0",  skipfeat: typed-refs   }
         # Builds without uvwasi
-        - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple   }
+        - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple,  skipfeat: tail-call   }
         - {target: clang-no-uvwasi,   cc: clang,  flags: -DBUILD_WASI=simple   }
-        - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64 }
+        # TinyCC has no musttail, and no bswap builtins, which turns into an error under -Werror
+        - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64, werror: OFF, skipfeat: tail-call }
         # Debug builds under ASan + UBSan
         - {target: clang-sanitize,    cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
-        - {target: gcc-sanitize,      cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
+        - {target: gcc-sanitize,      cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined", skipfeat: tail-call }
         # GCC 16.2 build (static, linked against musl)
         - {target: gcc-musl,          install: gcc-musl,   ldflags: "-static -s", artifact: dev-wasm3-gcc-linux-x64 }
         # Clang builds (static, linked against musl)
         - {target: clang-musl,        install: clang-musl, ldflags: "-static -s", artifact: wasm3-linux-x64 }
-        - {target: clang-musl-strace, install: clang-musl, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
+        - {target: clang-musl-strace, install: clang-musl, ldflags: "-static -s", artifact: wasm3-strace-linux-x64, notest: true, strace: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     steps:
     - uses: actions/checkout@v7
@@ -64,12 +67,12 @@ jobs:
     - name: Configure
       env:
         CC: ${{ matrix.config.cc }}
-        CFLAGS: -Dd_m3HasTypedRefs=1 ${{ matrix.config.cflags }}
+        CFLAGS: -Dd_m3HasTypedRefs=${{ matrix.config.typedrefs || '1' }} ${{ matrix.config.cflags }}
         LDFLAGS: ${{ matrix.config.ldflags }}
       run: |
         mkdir build
         cd build
-        cmake ${TOOLCHAIN_ARGS} -DBUILD_TESTS=ON ${{ matrix.config.flags }} ..
+        cmake ${TOOLCHAIN_ARGS} -DBUILD_TESTS=ON -DBUILD_WERROR=${{ matrix.config.werror || 'ON' }} ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build
@@ -94,20 +97,25 @@ jobs:
       run: cd test && python3 run-regression-test.py
     - name: Test WebAssembly spec
       if: ${{ !matrix.config.notest }}
-      run: cd test && python3 run-spec-test.py
+      run: |
+        cd test
+        python3 run-spec-test.py --skip-features=${{ matrix.config.skipfeat || 'none' }} ${{ matrix.config.specflags }}
     - name: Test previous WebAssembly spec versions
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
-        python3 run-spec-test.py --spec=wg-2.0
+        python3 run-spec-test.py --spec=wg-2.0 --skip-features=${{ matrix.config.skipfeat || 'none' }} ${{ matrix.config.specflags }}
     - name: Test WASI apps
       if: ${{ !matrix.config.notest }}
       run: cd test && python3 run-wasi-test.py
+    - name: Test strace output
+      if: ${{ matrix.config.strace }}
+      run: cd test && python3 run-strace-test.py
 
   alpine-multiarch:
     runs-on: ubuntu-latest
     name: alpine-${{ matrix.arch }}
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     strategy:
       fail-fast: false
@@ -127,15 +135,20 @@ jobs:
         set -e
         apk add --no-cache build-base cmake python3 git linux-headers
         echo "------------ Build Wasm3 ------------"
-        mkdir build && cd build && cmake .. && cd ..
+        mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_WERROR=ON .. && cd ..
         cmake --build build
         echo "------------ Test i32 const ------------"
         echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm
         echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
         echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
         echo "------------ Run tests ------------"
+        ./build/m3_test
+        ./build/m3_test_reftypes
+        # this is the default configuration - no typed refs, and whichever tail
+        # call support the distro's GCC has - so the features are detected here
         cd test && python3 run-regression-test.py && cd ..
         cd test && python3 run-spec-test.py && cd ..
+        cd test && python3 run-spec-test.py --spec=wg-2.0 && cd ..
         cd test && python3 run-wasi-test.py --fast && cd ..
         echo "-------- All tests finished -------"
         EOF
@@ -149,6 +162,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
+        # Clang has musttail and the CFLAGS below turn typed refs on, so every
+        # configuration here is expected to report every build feature
         - {target: uvwasi,      }
         - {target: no-uvwasi,   flags: -DBUILD_WASI=simple   }
         # Debug build under ASan + UBSan
@@ -163,18 +178,24 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.config.flags }} ..
+        cmake -DBUILD_TESTS=ON -DBUILD_WERROR=ON ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build
+    - name: Test embedding API
+      run: |
+        ./build/m3_test
+        ./build/m3_test_reftypes
     - name: Test regression cases
       run: cd test && python3 run-regression-test.py
     - name: Test WebAssembly spec
-      run: cd test && python3 run-spec-test.py
+      run: |
+        cd test
+        python3 run-spec-test.py --skip-features=none
     - name: Test previous WebAssembly spec versions
       run: |
         cd test
-        python3 run-spec-test.py --spec=wg-2.0
+        python3 run-spec-test.py --spec=wg-2.0 --skip-features=none
     - name: Test WASI apps
       run: cd test && python3 run-wasi-test.py
 
@@ -188,18 +209,18 @@ jobs:
       matrix:
         config:
         - {target: clang-x64,   platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x64   }
-        - {target: msvc-x64,    platform: "-A x64",     toolset: ""             }
+        - {target: msvc-x64,    platform: "-A x64",     toolset: "",            skipfeat: tail-call   }
         - {target: clang-x86,   platform: "-A Win32",   toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-win-x86   }
-        - {target: msvc-x86,    platform: "-A Win32",   toolset: ""             }
+        - {target: msvc-x86,    platform: "-A Win32",   toolset: "",            skipfeat: tail-call   }
         # Builds without uvwasi
         - {target: clang-x64-no-uvwasi,   platform: "-A x64",     toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
-        - {target: msvc-x64-no-uvwasi,    platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple"   }
+        - {target: msvc-x64-no-uvwasi,    platform: "-A x64",     toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
         - {target: clang-x86-no-uvwasi,   platform: "-A Win32",   toolset: "-T ClangCL",  flags: "-DBUILD_WASI=simple"   }
-        - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple"   }
-        # Debug build under ASan. Windows ships no UBSan. CMake puts /RTC1 in the default Debug flags and ASan refuses to run with it
-        - {target: clang-x64-sanitize,    platform: "-A x64",     toolset: "-T ClangCL",  buildtype: Debug, timeout: 15, flags: '-DBUILD_WASI=simple -DCMAKE_C_FLAGS_DEBUG="/Zi /Ob0 /Od"', cflags: "-fsanitize=address" }
+        - {target: msvc-x86-no-uvwasi,    platform: "-A Win32",   toolset: "",            flags: "-DBUILD_WASI=simple",  skipfeat: tail-call   }
+        # Debug build under ASan. Windows ships no UBSan. Default Debug flags carry /RTC1 and /INCREMENTAL, and ASan runs with neither
+        - {target: msvc-x64-sanitize,     platform: "-A x64",     toolset: "",            buildtype: Debug, timeout: 15, sanitize: true, skipfeat: tail-call, flags: '-DBUILD_WASI=simple -DCMAKE_C_FLAGS_DEBUG="/Zi /Ob0 /Od" -DCMAKE_EXE_LINKER_FLAGS_DEBUG="/debug /INCREMENTAL:NO"', cflags: "/fsanitize=address" }
         # Release build with strace
-        - {target: clang-x64-strace,      platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-strace-win-x64, notest: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
+        - {target: clang-x64-strace,      platform: "-A x64",     toolset: "-T ClangCL",  ldflags: -s,  artifact: wasm3-strace-win-x64, notest: true, strace: true, cflags: "-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1" }
 
     defaults:
       run:
@@ -214,11 +235,27 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} ${{ matrix.config.flags }} ..
+        cmake ${{ matrix.config.platform }} ${{ matrix.config.toolset }} -DBUILD_TESTS=ON -DBUILD_WERROR=ON ${{ matrix.config.flags }} ..
     - name: Build
       run: |
         cmake --build build --config ${{ matrix.config.buildtype || 'Release' }}
         cp ./build/${{ matrix.config.buildtype || 'Release' }}/wasm3.exe ./build/
+    - name: Provide the ASan runtime
+      if: ${{ matrix.config.sanitize }}
+      shell: pwsh
+      # MSVC links ASan dynamically in every configuration, and the runtime DLLs sit
+      # in the toolchain directory, which is not on PATH outside a developer prompt.
+      # Which one a binary needs depends on the CRT it was built against, so take
+      # them all rather than guess, newest toolchain last so it wins.
+      run: |
+        $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+        $dlls = Get-ChildItem "$vs\VC\Tools\MSVC" -Recurse -Filter "clang_rt.asan*.dll" | Sort-Object FullName
+        if (-not $dlls) { throw "No ASan runtime under $vs" }
+        foreach ($dll in $dlls) {
+          Write-Host $dll.FullName
+          Copy-Item $dll.FullName build\
+          Copy-Item $dll.FullName build\${{ matrix.config.buildtype }}\
+        }
     - name: Prepare artifact
       if: ${{ matrix.config.artifact }}
       run: cp ./build/${{ matrix.config.buildtype || 'Release' }}/wasm3.exe ./${{ matrix.config.artifact }}.exe
@@ -229,6 +266,12 @@ jobs:
         name: ${{ matrix.config.artifact }}
         path: ./${{ matrix.config.artifact }}.exe
         if-no-files-found: error
+    - name: Test embedding API
+      if: ${{ !matrix.config.notest }}
+      run: build\${{ matrix.config.buildtype || 'Release' }}\m3_test.exe
+    - name: Test embedding API (reference types)
+      if: ${{ !matrix.config.notest }}
+      run: build\${{ matrix.config.buildtype || 'Release' }}\m3_test_reftypes.exe
     - name: Test regression cases
       if: ${{ !matrix.config.notest }}
       run: |
@@ -238,17 +281,22 @@ jobs:
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
-        python run-spec-test.py
+        python run-spec-test.py --skip-features=${{ matrix.config.skipfeat || 'none' }}
     - name: Test previous WebAssembly spec versions
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
-        python run-spec-test.py --spec=wg-2.0
+        python run-spec-test.py --spec=wg-2.0 --skip-features=${{ matrix.config.skipfeat || 'none' }}
     - name: Test WASI apps
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
         python run-wasi-test.py
+    - name: Test strace output
+      if: ${{ matrix.config.strace }}
+      run: |
+        cd test
+        python run-strace-test.py
 
   cygwin-build:
     runs-on: windows-latest
@@ -371,7 +419,7 @@ jobs:
       run: |
         export PATH="$HOME/.wasmtime/bin:$PATH"
         cd test
-        python3 run-spec-test.py --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm --spec-repl"
+        python3 run-spec-test.py --skip-features=none --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasmtime)
       run: |
         export PATH="$HOME/.wasmtime/bin:$PATH"
@@ -384,14 +432,14 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_C_COMPILER=clang ..
+        cmake -DCMAKE_C_COMPILER=clang -DBUILD_WERROR=ON ..
     - name: Build (native)
       run: |
         cmake --build build
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-spec-test.py --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
+        python3 run-spec-test.py --skip-features=none --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test
@@ -406,6 +454,12 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE="${WASI_SDK_PATH}/share/cmake/wasi-sdk-p1.cmake" -DWASI_SDK_PREFIX="${WASI_SDK_PATH}" ..
         cmake --build .
         cp ./wasm3.wasm ../wasm3-strace.wasm
+        cp ./wasm3.wasm ../test/wasm3-strace.wasm
+    - name: Test strace output (in Wasmtime)
+      run: |
+        export PATH="$HOME/.wasmtime/bin:$PATH"
+        cd test
+        python3 run-strace-test.py --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3-strace.wasm"
     - name: Upload artifact (strace)
       uses: actions/upload-artifact@v7
       with:
@@ -549,6 +603,10 @@ jobs:
         mv ./wasm3-cosmopolitan.com ./wasm3.com
         chmod +x ./wasm3.com    # the artifact archive doesn't keep the executable bit
         ${{ matrix.config.exec }} --version
+    - name: Test regression cases
+      run: |
+        cd test
+        ${{ matrix.config.python }} run-regression-test.py --exec "${{ matrix.config.exec }}"
     - name: Test WebAssembly spec
       run: |
         cd test
@@ -844,6 +902,7 @@ jobs:
 
     needs:
     - linux
+    - alpine-multiarch
     - macos
     - windows
     - wasi
@@ -851,6 +910,9 @@ jobs:
     - cosmopolitan-test
     - android
     - cross
+    - cpp
+    - python
+    - check-format
 
     permissions:
       contents: write
