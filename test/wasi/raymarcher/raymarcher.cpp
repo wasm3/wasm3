@@ -1,6 +1,6 @@
-/* 
- * Build:
- *   wasicc -g0 -O3 raymarcher.cpp -o raymarcher.wasm
+/*
+ * Build (WASI SDK 34):
+ *   $WASI_SDK_PATH/bin/clang++ -mcpu=lime1 -g0 -O3 -Wl,--strip-all raymarcher.cpp -o raymarcher.wasm
  */
 #include <math.h>
 #include <unistd.h>

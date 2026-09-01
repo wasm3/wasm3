@@ -43,49 +43,45 @@ Preopen preopen[PREOPEN_CNT] = {
     { 2, "<stderr>" },
 };
 
-#  define APE_SWITCH_BEG          switch (errnum) {
-#  define APE_SWITCH_END          }
-#  define APE_CASE_RET(e1,e2)     case e1:   return e2;   break;
-
 static
 __wasi_errno_t errno_to_wasi (int errnum)
 {
     // clang-format off
-    APE_SWITCH_BEG
-    APE_CASE_RET( EPERM   , __WASI_ERRNO_PERM   )
-    APE_CASE_RET( ENOENT  , __WASI_ERRNO_NOENT  )
-    APE_CASE_RET( ESRCH   , __WASI_ERRNO_SRCH   )
-    APE_CASE_RET( EINTR   , __WASI_ERRNO_INTR   )
-    APE_CASE_RET( EIO     , __WASI_ERRNO_IO     )
-    APE_CASE_RET( ENXIO   , __WASI_ERRNO_NXIO   )
-    APE_CASE_RET( E2BIG   , __WASI_ERRNO_2BIG   )
-    APE_CASE_RET( ENOEXEC , __WASI_ERRNO_NOEXEC )
-    APE_CASE_RET( EBADF   , __WASI_ERRNO_BADF   )
-    APE_CASE_RET( ECHILD  , __WASI_ERRNO_CHILD  )
-    APE_CASE_RET( EAGAIN  , __WASI_ERRNO_AGAIN  )
-    APE_CASE_RET( ENOMEM  , __WASI_ERRNO_NOMEM  )
-    APE_CASE_RET( EACCES  , __WASI_ERRNO_ACCES  )
-    APE_CASE_RET( EFAULT  , __WASI_ERRNO_FAULT  )
-    APE_CASE_RET( EBUSY   , __WASI_ERRNO_BUSY   )
-    APE_CASE_RET( EEXIST  , __WASI_ERRNO_EXIST  )
-    APE_CASE_RET( EXDEV   , __WASI_ERRNO_XDEV   )
-    APE_CASE_RET( ENODEV  , __WASI_ERRNO_NODEV  )
-    APE_CASE_RET( ENOTDIR , __WASI_ERRNO_NOTDIR )
-    APE_CASE_RET( EISDIR  , __WASI_ERRNO_ISDIR  )
-    APE_CASE_RET( EINVAL  , __WASI_ERRNO_INVAL  )
-    APE_CASE_RET( ENFILE  , __WASI_ERRNO_NFILE  )
-    APE_CASE_RET( EMFILE  , __WASI_ERRNO_MFILE  )
-    APE_CASE_RET( ENOTTY  , __WASI_ERRNO_NOTTY  )
-    APE_CASE_RET( ETXTBSY , __WASI_ERRNO_TXTBSY )
-    APE_CASE_RET( EFBIG   , __WASI_ERRNO_FBIG   )
-    APE_CASE_RET( ENOSPC  , __WASI_ERRNO_NOSPC  )
-    APE_CASE_RET( ESPIPE  , __WASI_ERRNO_SPIPE  )
-    APE_CASE_RET( EROFS   , __WASI_ERRNO_ROFS   )
-    APE_CASE_RET( EMLINK  , __WASI_ERRNO_MLINK  )
-    APE_CASE_RET( EPIPE   , __WASI_ERRNO_PIPE   )
-    APE_CASE_RET( EDOM    , __WASI_ERRNO_DOM    )
-    APE_CASE_RET( ERANGE  , __WASI_ERRNO_RANGE  )
-    APE_SWITCH_END
+    switch (errnum) {
+    case EPERM:    return __WASI_ERRNO_PERM;
+    case ENOENT:   return __WASI_ERRNO_NOENT;
+    case ESRCH:    return __WASI_ERRNO_SRCH;
+    case EINTR:    return __WASI_ERRNO_INTR;
+    case EIO:      return __WASI_ERRNO_IO;
+    case ENXIO:    return __WASI_ERRNO_NXIO;
+    case E2BIG:    return __WASI_ERRNO_2BIG;
+    case ENOEXEC:  return __WASI_ERRNO_NOEXEC;
+    case EBADF:    return __WASI_ERRNO_BADF;
+    case ECHILD:   return __WASI_ERRNO_CHILD;
+    case EAGAIN:   return __WASI_ERRNO_AGAIN;
+    case ENOMEM:   return __WASI_ERRNO_NOMEM;
+    case EACCES:   return __WASI_ERRNO_ACCES;
+    case EFAULT:   return __WASI_ERRNO_FAULT;
+    case EBUSY:    return __WASI_ERRNO_BUSY;
+    case EEXIST:   return __WASI_ERRNO_EXIST;
+    case EXDEV:    return __WASI_ERRNO_XDEV;
+    case ENODEV:   return __WASI_ERRNO_NODEV;
+    case ENOTDIR:  return __WASI_ERRNO_NOTDIR;
+    case EISDIR:   return __WASI_ERRNO_ISDIR;
+    case EINVAL:   return __WASI_ERRNO_INVAL;
+    case ENFILE:   return __WASI_ERRNO_NFILE;
+    case EMFILE:   return __WASI_ERRNO_MFILE;
+    case ENOTTY:   return __WASI_ERRNO_NOTTY;
+    case ETXTBSY:  return __WASI_ERRNO_TXTBSY;
+    case EFBIG:    return __WASI_ERRNO_FBIG;
+    case ENOSPC:   return __WASI_ERRNO_NOSPC;
+    case ESPIPE:   return __WASI_ERRNO_SPIPE;
+    case EROFS:    return __WASI_ERRNO_ROFS;
+    case EMLINK:   return __WASI_ERRNO_MLINK;
+    case EPIPE:    return __WASI_ERRNO_PIPE;
+    case EDOM:     return __WASI_ERRNO_DOM;
+    case ERANGE:   return __WASI_ERRNO_RANGE;
+    }
     // clang-format on
     return __WASI_ERRNO_INVAL;
 }

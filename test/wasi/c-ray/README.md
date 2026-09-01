@@ -21,8 +21,10 @@ Native (GCC 7.4.0, 32-bit)      249
 
 ### Building
 
+With [WASI SDK](https://github.com/WebAssembly/wasi-sdk) 34:
+
 ```sh
-wasicc -g0 -O3 c-ray-f.c -Dunix -o c-ray.wasm
+$WASI_SDK_PATH/bin/clang -mcpu=lime1 -g0 -O3 -Wl,--strip-all c-ray-f.c -Dunix -o c-ray.wasm
 ```
 
 ### Running

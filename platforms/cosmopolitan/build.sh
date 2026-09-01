@@ -8,6 +8,10 @@ SOURCE_DIR=../../source
 
 EXTRA_FLAGS="-Dd_m3PreferStaticAlloc -Dd_m3HasTypedRefs=1 -Dd_m3HasWASI"
 
+# On Windows the main thread gets exactly ape_stack_memsz, which this
+# toolchain's ape.lds fixes at 4 MB. Let's use a 3.5 MB guard.
+EXTRA_FLAGS="$EXTRA_FLAGS -Dd_m3MaxNativeStack=$((4096 * 1024 - 512 * 1024))"
+
 if [ ! -d "./cosmocc" ]; then
     echo "Downloading Cosmopolitan toolchain..."
     curl -L -o cosmocc.zip $COSMOCC_URL

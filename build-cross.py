@@ -227,7 +227,11 @@ def run_tests(wasm3_binary, target, wasm3_cmd):
         print(f"Testing {name} target: {wasm3_binary} is missing - build it first")
         return ["build"]
 
+    # the regression cases run first: they are the quickest of the three, and they
+    # hold the memory64/table64 address-wrap tests, which is what the 32-bit
+    # targets here are most likely to get wrong
     for stage, cmd in (
+        ("regression", f'python3 run-regression-test.py --exec "{wasm3_cmd}"'),
         ("spec", f'python3 run-spec-test.py --exec "{wasm3_cmd} --spec-repl"'),
         ("wasi", f'python3 run-wasi-test.py --fast --exec "{wasm3_cmd}"'),
     ):

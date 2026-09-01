@@ -140,7 +140,12 @@ Result: 3
 
 ### C/C++ WASI app
 
-The easiest way to start is to use [Wasienv](https://github.com/wasienv/wasienv).
+The easiest way to start is to use the [WASI SDK](https://github.com/WebAssembly/wasi-sdk),
+which is a Clang that already knows where the sysroot is:
+
+```sh
+export WASI_SDK_PATH=/opt/wasi-sdk
+```
 
 Create `hello.cpp`:
 ```cpp
@@ -164,12 +169,23 @@ int main() {
 
 Build and run:
 ```sh
-$ wasic++ -O3 hello.cpp -o hello.wasm
-$ wasicc -O3 hello.c -o hello.wasm
+$ $WASI_SDK_PATH/bin/clang++ -mcpu=lime1 -O3 hello.cpp -o hello.wasm
+$ $WASI_SDK_PATH/bin/clang   -mcpu=lime1 -O3 hello.c   -o hello.wasm
 
 $ wasm3 hello.wasm
 Hello World!
 ```
+
+`-mcpu=lime1` selects the [Lime1](https://github.com/WebAssembly/tool-conventions/blob/main/Lime.md#lime1)
+feature set - bulk-memory-opt, call-indirect-overlong, extended-const, multivalue,
+mutable-globals, nontrapping-fptoint and sign-ext. It is what the modules under
+`test/wasi` are built with: everything in it is cheap for an interpreter to support, and
+Wasm3 implements all of it. Without `-mcpu`, Clang targets the 2017 MVP and gives up
+those instructions; with a richer `-mcpu`, it will emit SIMD, which Wasm3 does not have.
+
+Clang runs `wasm-opt` on the result whenever it can find one on `PATH`, so a Binaryen
+older than the features being compiled will fail the link with validation errors. Either
+install a current one or pass `--no-wasm-opt`.
 
 Useful `clang` options:
 

@@ -988,8 +988,13 @@ d_m3Op(CallRawFunction)
         case c_m3Type_f64: outp += snprintf(outp, oute - outp, "%" PRIf64, *(f64*)(args + i)); break;
         default: outp += snprintf(outp, oute - outp, "<type %d>", type); break;
         }
-        outp += snprintf(outp, oute - outp, (i < nArgs - 1) ? ", " : ")");
+        if (i < nArgs - 1) {
+            outp += snprintf(outp, oute - outp, ", ");
+        }
     }
+    // closed here rather than after the last argument: an import taking none has
+    // no last argument to close it
+    outp += snprintf(outp, oute - outp, ")");
 #  if d_m3EnableStrace >= 2
     outp += snprintf(outp, oute - outp, " { <native> }");
 #  endif

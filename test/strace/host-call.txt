@@ -1,0 +1,3 @@
+_start () {
+  wasi_snapshot_preview1!fd_write(1, 0, 1, 8) { <native> } = 0
+}
