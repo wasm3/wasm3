@@ -4,12 +4,6 @@ Based on https://github.com/josch/mandelbrot
 
 <p align="center"><img width="50%" src="image.png"></p>
 
-### Results
-
-```log
-TODO
-```
-
 ### Building
 
 With [WASI SDK](https://github.com/WebAssembly/wasi-sdk) 34:

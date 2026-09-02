@@ -83,7 +83,6 @@ commands_full = [
     "wasm":           "./wasi/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
   }, {
-    # TODO "if":             { "file_exists": "./self-hosting/wasm3-fib.wasm" },
     "name":           "Self-hosting",
     "wasm":           "./self-hosting/wasm3-fib.wasm",
     "expect_pattern": "wasm3 on WASM*Result: 832040*Elapsed: * ms*"

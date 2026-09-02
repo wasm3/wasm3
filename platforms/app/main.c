@@ -23,9 +23,6 @@
 #  include "m3_api_tracer.h"
 #endif
 
-// TODO: remove
-#include "m3_env.h"
-
 #include "spectest.wasm.h"
 
 /*
@@ -731,7 +728,7 @@ M3Result repl_register (const char* name, const char* id)
 
 M3Result repl_global_get (const char* i_module, const char* name)
 {
-    IM3Module mod = i_module ? repl_find_module(i_module) : runtime->modules;
+    IM3Module mod = i_module ? repl_find_module(i_module) : lastLoadedModule;
     if (!mod) {
         return "module not found";
     }
@@ -765,7 +762,7 @@ M3Result repl_global_get (const char* i_module, const char* name)
 
 M3Result repl_global_set (const char* name, const char* value)
 {
-    IM3Global g = m3_FindGlobal(runtime->modules, name);
+    IM3Global g = m3_FindGlobal(lastLoadedModule, name);
 
     M3TaggedValue tagged = {
         .type = m3_GetGlobalType(g)
@@ -784,7 +781,7 @@ M3Result repl_global_set (const char* name, const char* value)
 
 M3Result repl_compile ()
 {
-    return m3_CompileModule(runtime->modules);
+    return m3_CompileModule(lastLoadedModule);
 }
 
 M3Result repl_dump ()
@@ -912,8 +909,7 @@ int split_argv (char* str, char** argv)
     for (int i = 0; str[i] != '\0'; i++) {
         if (strchr(" \n\r\t", str[i])) {
             if (len) {  // Found space after non-space
-                str[i] = '\0';
-                //unescape(curr); // TODO: breaks windows build?
+                str[i]         = '\0';
                 argv[result++] = curr;
                 len            = 0;
             }

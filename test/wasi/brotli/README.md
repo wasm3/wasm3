@@ -2,12 +2,6 @@
 
 https://github.com/google/brotli
 
-### Results
-
-```log
-TODO
-```
-
 ### Building
 
 With [WASI SDK](https://github.com/WebAssembly/wasi-sdk) 34, from a checkout of the tag

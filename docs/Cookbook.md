@@ -6,14 +6,14 @@ Create a new project:
 ```sh
 $ cargo new --bin hello
 $ cd hello
-$ rustup target add wasm32-wasi
+$ rustup target add wasm32-wasip1
 ```
 
 Build and run:
 ```sh
-$ cargo build --release --target wasm32-wasi
+$ cargo build --release --target wasm32-wasip1
 
-$ wasm3 ./target/wasm32-wasi/release/hello.wasm
+$ wasm3 ./target/wasm32-wasip1/release/hello.wasm
 Hello, world!
 ```
 
@@ -475,4 +475,4 @@ Error: [trap] Out of gas
 # Other resources
 
 - [WebAssembly by examples](https://wasmbyexample.dev/home.en-us.html) by Aaron Turner
-- [Writing WebAssembly](https://docs.wasmtime.dev/wasm.html) in Wasmtime docs
+- [Understanding the text format](https://developer.mozilla.org/en-US/docs/WebAssembly/Guides/Understanding_the_text_format) on MDN

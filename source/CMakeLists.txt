@@ -38,17 +38,6 @@ if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
 else()
     # Flags common for GCC and Clang
 
-
-    # FIXME: comparison of integers of different signs: 'u32' and 'i32'
-    set_source_files_properties(m3_env.c PROPERTIES COMPILE_FLAGS -Wno-sign-compare)
-
-    if (WASI_SDK)
-        # FIXME: declaration of 'struct sigaction' will not be visible outside of this function
-        target_compile_options(m3 PUBLIC -Wno-visibility)
-        # FIXME incompatible pointer types passing 'u32 *' to parameter of type 'char **'
-        set_source_files_properties(m3_api_meta_wasi.c PROPERTIES COMPILE_FLAGS -Wno-incompatible-pointer-types)
-    endif()
-
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         # Clang specific flags here
     else()

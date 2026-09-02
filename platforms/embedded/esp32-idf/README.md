@@ -1,6 +1,6 @@
 ## Build for ESP-IDF
 
-Download and install ESP-IDF v4.3-beta1
+Download and install ESP-IDF v5.4
 
 ```sh
 export IDF_PATH=/opt/esp32/esp-idf

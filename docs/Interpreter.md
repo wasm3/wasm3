@@ -71,8 +71,14 @@ This rough information might not be immediately intelligible without referencing
 * M3 operations are C functions with a single, fixed function signature.
 
    ```C
-   void * Operation_Whatever (pc_t pc, u64 * sp, u8 * mem, reg_t r0, f64 fp0);
+   m3ret_t Operation_Whatever (pc_t _pc, m3stack_t _sp, M3MemoryHeader * _mem, m3reg_t _r0, f64 _fp0);
    ```
+
+   The exact list is spelled `d_m3OpSig` in `m3_exec_defs.h`; `_fp0` is only
+   there in a build with floats. `_mem` points at the header the current linear
+   memory is allocated behind, rather than at the memory itself, so an operation
+   can reach the runtime and the memory's own bounds through it - that indirection
+   is what lets a module hold several memories and swap between them.
 
 * The arguments of the operation are the M3's virtual machine registers
     * program counter, stack pointer, etc.
@@ -93,6 +99,9 @@ Since operations all have a standardized signature and arguments are tail-call p
 |integer register (r0)        |rcx         |
 |floating-point register (fp0)|xmm0        |
 
+That mapping is the System V convention's, which is what a build gets when no
+attribute is applied. A `preserve_none` build - see below - assigns different
+registers, but the shape is the same: every M3 register lives in a real one.
 
 For example, here's a bitwise-or operation in the M3 compiled on x86.  
 
@@ -108,7 +117,7 @@ m3`op_u64_Or_sr:
 
 #### Registers and Operational Complexity
 
-* The conventional Windows calling convention isn't compatible with M3, as-is, since it only passes 4 arguments through registers.  Applying the vectorcall calling convention (https://docs.microsoft.com/en-us/cpp/cpp/vectorcall) resolves this problem.
+* How many machine registers an operation actually gets is a calling-convention question, and the answer is per target. `m3_config_platforms.h` decides it behind one name, `vectorcall`, applied to every operation.
 
 * It's possible to use more CPU registers. For example, adding an additional floating-point register to the meta-machine did marginally increase performance in prior tests.  However, the operation space increases exponentially.  With one register, there are up to 3 operations per opcode (e.g. a non-commutative math operation). Adding another register increases the operation count to 10.  However, as you can see above, operations tend to be tiny.
 

@@ -22,8 +22,6 @@ fi
 
 echo "Building Wasm3..."
 
-# TODO: remove -fno-strict-aliasing
-
-./cosmocc/bin/cosmocc -g -Os -Wfatal-errors -fno-strict-aliasing $EXTRA_FLAGS      \
+./cosmocc/bin/cosmocc -g -Os -Wfatal-errors $EXTRA_FLAGS      \
   -fomit-frame-pointer -fno-stack-check -fno-stack-protector                       \
   -o wasm3.com -I$SOURCE_DIR $SOURCE_DIR/*.c ../app/main.c

@@ -2,7 +2,7 @@
 
 **Note:** Currently, to run this example you need a PSRAM-enabled ESP32 module (this might be improved in future).
 
-Download and install ESP-IDF v4.0
+Download and install ESP-IDF v5.4
 
 ```sh
 export IDF_PATH=/opt/esp32/esp-idf

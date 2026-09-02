@@ -1,5 +1,10 @@
 # Performance
 
+> [!NOTE]
+> Measured in 2019-2020 with the compilers named below. Kept as a record of the
+> TCO differences between toolchains, not as current numbers - see
+> [docs/Performance.md](../../docs/Performance.md).
+
 ```log
 Function:                       fib(40)
 -----------------------------------------------------

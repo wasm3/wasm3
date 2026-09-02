@@ -8,12 +8,12 @@
 - nRF52840-based
   - **Adafruit CLUE** │ [Adafruit](https://www.adafruit.com/clue)
   - **Arduino Nano 33 BLE (or BLE Sense)** │ [Arduino](https://store.arduino.cc/arduino-nano-33-ble)
-  - **Particle Argon** │ [Particle](https://store.particle.io/collections/bluetooth/products/argon)
+  - **Particle Argon** │ [Particle](https://store.particle.io/collections/wifi)
   - **Adafruit Feather nRF52840** | [Adafruit](https://www.adafruit.com/product/4062)
 - Other
   - **Raspberry Pi Pico** | [Raspberry Pi](https://www.raspberrypi.org/products/raspberry-pi-pico)
   - **Adafruit PyGamer/PyBadge/PyBadge LC** │ [Adafruit](https://www.adafruit.com/product/4242)
-  - **SparkFun Artemis** | [SparkFun](https://www.sparkfun.com/search/results?term=Artemis)
+  - **SparkFun Artemis** | [SparkFun](https://www.sparkfun.com/artemis)
   - **Teensy 4.0** │ [PJRC](https://www.pjrc.com/store/teensy40.html)
   - **Wemos W600 PICO** │ [AliExpress](https://www.aliexpress.com/item/4000314757449.html)
 

@@ -42,12 +42,12 @@ appendix over its own state, sharing nothing with the compiler:
 
 ```
 ValCtx
-  u8           opd  [d_m3ValStack]       operand type stack
+  m3type_t     opd  [d_m3ValStack]       operand type stack
   ValCtrlFrame ctrl [d_m3ValCtrlDepth]   control frames (block/loop/if)
-  u8           localTypes [d_m3ValStack] params followed by declared locals
+  m3type_t     localTypes [d_m3ValStack] params followed by declared locals
 ```
 
-`c_valUnknown` (`0xFF`) is the spec's `Unknown` type, used after `unreachable`
+`c_valBottom` (`0xFF`) is the spec's bottom type, used after `unreachable`
 and other stack-polymorphic points. `ValCtrlFrame.is_unreachable` marks a frame
 polymorphic; `height` records the operand stack depth at block entry so the
 stack can be truncated back to it.
@@ -171,7 +171,8 @@ operation tables and the public API all want.
 The index has to fit alongside the flags, which is why `d_m3MaxSaneTypesCount`
 is 8190 rather than something rounder, and why exceeding it is an error rather
 than a silent truncation. With `d_m3HasTypedRefs` off there is nothing to spell
-out, so `m3type_t` narrows back to a byte, the limit returns to a million, and
+out, so `m3type_t` narrows back to a byte, the limit rises to 65500 - all that
+is left to bound it is the `u16` handing out `M3FuncType.canonicalIndex` - and
 `IsSubTypeOf()` collapses to equality - the compiler's type stack, and with it
 `M3Compilation`, are exactly the size they were before the proposal.
 

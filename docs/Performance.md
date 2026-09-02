@@ -1,5 +1,15 @@
 # Performance
 
+> [!NOTE]
+> These numbers were measured in 2019-2020, against Wasm3 and the competing
+> runtimes as they were then. They are kept as a record of where the interpreter stood at
+> the time, not as a current comparison - every engine listed has moved on, several by
+> whole major versions.
+
+To measure the tree in front of you: `test/run-bench.py` compares Wasm3 builds against
+each other over the WASI workloads, and `test/run-wasi-test.py --exec <engine>` runs the
+same workloads under another runtime. See [Testing](./Testing.md#benchmarking).
+
 ## CoreMark 1.0 results
 
 ```log
@@ -61,7 +71,6 @@ ESP8266                LX106 @ 160MHz         308ms       TCO failed,   stack us
 ESP32                    LX6 @ 240MHz         297ms       TCO failed,   stack used: 10600
 ESP32-s2 (beta)          LX6 @ 240MHz         297ms       TCO failed
 Particle Photon       Arm M3 @ 120MHz         536ms
-MXChip AZ3166         Arm M4 @ 100MHz            ms
 WM W600               Arm M3 @ 80MHz          698ms       TCO enabled,  stack used: 1325
 WM W600               Arm M3 @ 80MHz          826ms       TCO disabled, stack used: 8109
 Arduino DUE (SAM3X8E) Arm M3 @ 84MHz          754ms

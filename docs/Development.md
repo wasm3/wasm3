@@ -12,6 +12,18 @@ make -j8
 Wasm3 is continuously tested with Clang, GCC, TinyCC, MSVC compilers, and on multiple platforms.
 It can be easily integrated into any build system, as shown in `platforms`.
 
+## Prerequisites
+
+- [`CMake`](https://cmake.org/download/) v3.11 or newer. [Ninja](https://github.com/ninja-build/ninja/releases) is what CI and the examples below use, but any generator works.
+- `A C99 compiler`. Clang, GCC, MSVC, MinGW-w64, TinyCC, Zig, Cosmocc are all supported.
+- [`Python 3`](https://www.python.org/downloads/) to run tests and extra tools.
+
+To run `extra/check.py` you'll need:
+
+```sh
+pip install codespell pyyaml clang-format==23.1.0 black==26.1.0
+```
+
 ## Build on Linux, OS X
 
 ### Clang
@@ -19,9 +31,12 @@ It can be easily integrated into any build system, as shown in `platforms`.
 ```sh
 mkdir build
 cd build
-cmake -GNinja -DCLANG_SUFFIX="-12" ..
+cmake -GNinja -DCLANG=1 ..
 ninja
 ```
+
+`CLANG_SUFFIX` picks one of several versions installed side by side - it is appended to
+`clang` and `clang++`, so `-DCLANG_SUFFIX="-18"` builds with `clang-18`.
 
 ### GCC
 
@@ -46,46 +61,48 @@ ninja
 
 ## Build on Windows
 
-Prerequisites:
-- [Build Tools for Visual Studio 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019)
-- [CMake](https://cmake.org/download/)
-- [Ninja](https://github.com/ninja-build/ninja/releases)
-- [Clang 9](https://releases.llvm.org/download.html#9.0.0)
+Prerequisites, on top of the ones above:
+- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), with the *Desktop development with C++* workload. Its optional *C++ Clang tools for Windows* component is what the `-T ClangCL` toolset below selects; a [standalone LLVM](https://github.com/llvm/llvm-project/releases) works too (using `-DCLANG_CL=1`).
+- Both `CMake` and `Ninja` also ship with the Build Tools.
 
-Recommended tools:
-- [Cmder](https://cmder.net/)
-- [Python3](https://www.python.org/downloads/)
-- [ptime](http://www.pc-tools.net/win32/ptime/)
+MSBuild finds the toolchain by itself. A developer environment is only needed to call
+the compiler directly, as in [Build using compiler directly](#build-using-compiler-directly):
 
-```sh
-# Prepare environment (if needed):
-"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-set PATH=C:\Python36-32\;C:\Python36-32\Scripts\;%PATH%
+```bat
+"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 ```
 
 ### Build with MSBuild
 
-```sh
-# Create a build directory as usual, then build a specific configuration
+The Visual Studio generator is multi-config: the configuration is chosen at build time,
+not at configure time, and the binary lands in a subdirectory named after it.
+
+```bat
 mkdir build
 cd build
 
-# Configure Clang, x64
-cmake -G"Visual Studio 16 2019" -A x64 -T ClangCL ..
+:: Configure Clang, x64
+cmake -G"Visual Studio 17 2022" -A x64 -T ClangCL ..
 
-# Configure Clang, x86
-cmake -G"Visual Studio 16 2019" -A Win32 -T ClangCL ..
+:: Configure Clang, x86
+cmake -G"Visual Studio 17 2022" -A Win32 -T ClangCL ..
 
-# Configure MSVC, x64
-cmake -G"Visual Studio 16 2019" -A x64 ..
+:: Configure MSVC, x64
+cmake -G"Visual Studio 17 2022" -A x64 ..
 
-# Configure MSVC, x86
-cmake -G"Visual Studio 16 2019" -A Win32 ..
+:: Configure MSVC, x86
+cmake -G"Visual Studio 17 2022" -A Win32 ..
 
-# Build
+:: Configure MSVC, ARM64
+cmake -G"Visual Studio 17 2022" -A ARM64 ..
+
+:: Build
 cmake --build . --config Release
-cp ./Release/wasm3.exe ./
+copy .\Release\wasm3.exe .\
 ```
+
+The copy is what makes the test runners' default `--exec ../build/wasm3` find the
+binary; CI does the same.
 
 ### Build with Ninja
 
@@ -101,6 +118,36 @@ ninja
 cmake -GNinja ..
 ninja
 ```
+
+## Build in WSL
+
+WSL gives a Windows host the Linux toolchain, after which the
+[Linux instructions](#build-on-linux-os-x) apply unchanged.
+Prefer using the WSL filesystem, not `/mnt/c`.
+
+### Driving build from a Windows shell
+
+`wsl -e bash -lc '<command>'` runs one command; put
+anything multi-line in a script file rather than fighting two layers of quoting. Git Bash
+also rewrites arguments that look like Unix paths before WSL ever sees them, so
+`MSYS_NO_PATHCONV=1` is what makes a `/mnt/...` argument arrive intact:
+
+```console
+$ wsl -e bash -lc 'echo $1' _ /mnt/c/Users
+C:/Program Files/Git/mnt/c/Users
+
+$ MSYS_NO_PATHCONV=1 wsl -e bash -lc 'echo $1' _ /mnt/c/Users
+/mnt/c/Users
+```
+
+### Cosmopolitan binaries do not run under WSL
+
+WSL registers a binfmt handler on the `MZ`
+magic - `/proc/sys/fs/binfmt_misc/WSLInterop`, `WSLInterop-late` on newer builds - so
+that Windows executables launch from the Linux shell. An APE file starts with `MZ` too,
+so `wasm3-cosmopolitan.com` is handed to the Windows loader and answers `APE is running
+on WIN32 inside WSL`. Run it from Windows, or convert it in place first with the
+Cosmopolitan toolchain's own `assimilate`.
 
 ## Build using compiler directly
 
@@ -158,9 +205,7 @@ whole set at once with `-mcpu`.
 
 ## Build with Zig
 
-Grab the latest nightly Zig toolchain from [ziglang.org/download], and then simply run:
-
-[ziglang.org/download]: https://ziglang.org/download/
+Grab the latest [Zig toolchain](https://ziglang.org/download), and then simply run:
 
 ```sh
 zig build
@@ -168,11 +213,16 @@ zig build
 
 This will install `wasm3` compiled for your target architecture in `zig-out/bin/wasm3`.
 
-In order to build `wasm3` in a mode different than Debug, e.g., in ReleaseFast, pass in
-an appropriate flag like so:
+The build mode comes from Zig's standard option, so anything but the default Debug is requested as:
 
 ```sh
-zig build -Drelease-fast
+zig build -Doptimize=ReleaseFast
+```
+
+To build only the static library and skip the CLI:
+
+```sh
+zig build -Dlibm3
 ```
 
 If you want to cross-compile to some specific target, pass in the target with a flag like so:

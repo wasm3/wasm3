@@ -34,6 +34,7 @@ musl_targets = [
     { "name": "linux-mips64"    , "arch": "mips64-unknown-linux-musl"         , "runner": "qemu-mips64-static"    , "gcc": True },
     { "name": "linux-ppc"       , "arch": "powerpc-unknown-linux-musl"        , "runner": "qemu-ppc-static"       },
     { "name": "linux-ppc64"     , "arch": "powerpc64-unknown-linux-musl"      , "runner": "qemu-ppc64-static"     },
+    { "name": "linux-ppc64le"   , "arch": "powerpc64le-unknown-linux-musl"    , "runner": "qemu-ppc64le-static"   },
 
     { "name": "linux-aarch64"   , "arch": "aarch64-unknown-linux-musl"        , "runner": "qemu-aarch64-static"   },
     { "name": "linux-rv32"      , "arch": "riscv32-unknown-linux-musl"        , "runner": "qemu-riscv32-static"   },

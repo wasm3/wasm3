@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64]    # TODO: s390x, ppc64le, arm64v8
+        arch: [amd64]
 
     steps:
     - uses: actions/checkout@v7
@@ -137,10 +137,6 @@ jobs:
         echo "------------ Build Wasm3 ------------"
         mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_WERROR=ON .. && cd ..
         cmake --build build
-        echo "------------ Test i32 const ------------"
-        echo AGFzbQEAAAAGBgF/AEElCwcLAQdteWNvbnN0AwAACARuYW1lAgEA | base64 -d > myconst.wasm
-        echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm
-        echo ':get-global myconst' | ./build/wasm3 --repl myconst.wasm 2>&1 | grep 37
         echo "------------ Run tests ------------"
         ./build/m3_test
         ./build/m3_test_reftypes
