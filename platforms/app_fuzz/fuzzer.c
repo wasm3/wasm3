@@ -42,10 +42,9 @@ int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
                     IM3Function f = NULL;
 
                     result = m3_FindFunction(&f, runtime, "fib");
-                    /* TODO:
                     if (f) {
-                        m3_CallV (f, 10);
-                    }*/
+                        m3_CallV(f, 10);
+                    }
                 }
                 // on failure too, the runtime owns the module now
             }

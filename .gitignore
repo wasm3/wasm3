@@ -1,5 +1,5 @@
-/build*
-/source-*
+/build*/
+/source-*/
 /.toolchains
 test/.spec-*
 test/*.log

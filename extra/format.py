@@ -68,36 +68,83 @@ sys.path.insert(0, os.path.join(ROOT, "extra"))
 from testutils import Blacklist
 
 
-def gitignore():
-    """The repo's .gitignore, as fnmatch patterns.
+class GitIgnore:
+    """Every .gitignore in the tree, as fnmatch patterns, read as the walk reaches it.
+
+    What the walk leaves alone: git's own directory, and whatever git is told to ignore.
+    The walk starts at the root, so without these it would wander into build trees and
+    downloaded toolchains, which dwarf the tree being formatted.
+
+    A .gitignore governs the directory it sits in and everything below, so each one is
+    read when the walk enters that directory and matched against paths relative to it.
+    Reading them on the way down, rather than gathering them all up front, is also what
+    keeps the search for them out of the very trees the outer ones exist to name.
+
+    A trailing `/` is kept and means what git means by it -- the rule matches a
+    directory and never a file -- so a rule that names a build tree can be told apart
+    from one that would also take a tracked script of the same name.
 
     Comments, blank lines and `!` negations are skipped: nothing in this tree relies on
     a negation, and a blacklist has no way to express one.
     """
 
-    def pattern(line):
+    # Ignored wherever it turns up, with no .gitignore having to say so.
+    ALWAYS = [".git"]
+
+    def __init__(self):
+        self._at = {}
+
+    def patterns(self, line):
+        """One .gitignore line as (fnmatch patterns, whether it names directories only).
+
+        An anchored line matches at its own level only; an unanchored one matches at any
+        depth below the .gitignore holding it, which takes a second pattern to say.
+        """
+        directory = line.endswith("/")
         anchored = "/" in line.rstrip("/")
         line = line.strip("/")
-        return [line] if anchored else [line, "*/" + line]
+        return ([line] if anchored else [line, "*/" + line]), directory
 
-    patterns = []
-    with open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith(("#", "!")):
-                patterns += pattern(line)
-    return patterns
+    def at(self, dirpath):
+        """What the .gitignore in `dirpath` names, as a (whatever it is, directories
+        only) pair of blacklists over paths relative to `dirpath`. Read once per
+        directory, and empty where there is no .gitignore."""
+        if dirpath not in self._at:
+            anything, dirs_only = list(self.ALWAYS), []
+            try:
+                with open(os.path.join(dirpath, ".gitignore"), encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith(("#", "!")):
+                            pats, directory = self.patterns(line)
+                            (dirs_only if directory else anything).extend(pats)
+            except OSError:
+                pass
+            self._at[dirpath] = Blacklist(anything), Blacklist(dirs_only)
+        return self._at[dirpath]
+
+    def ignores(self, dirpath, name, isdir):
+        """True if the .gitignore in `dirpath`, or any of the ones above it up to the
+        repo root, names `dirpath/name`."""
+        path = os.path.join(dirpath, name)
+        d = os.path.normpath(dirpath)
+        while True:
+            anything, dirs_only = self.at(d)
+            rel = relative(path, d)
+            if rel in anything or (isdir and rel in dirs_only):
+                return True
+            parent = os.path.dirname(d)
+            if d == ROOT or parent == d:
+                return False
+            d = parent
+
+    def prune(self, dirpath, names, isdir):
+        """Drop the ignored entries from `names`, in place. Handed the directories
+        os.walk offers, that is also how it is told not to descend into them."""
+        names[:] = [n for n in names if not self.ignores(dirpath, n, isdir)]
 
 
-# Directories the walk does not go into: git's own, and whatever git is told to ignore.
-# The walk starts at the root, so without these it would wander into build trees and
-# downloaded toolchains, which dwarf the tree being formatted.
-#
-# These prune by directory only. Applied to files, .gitignore would take tracked code
-# with it -- `/build*` matches build-cross.py, which git keeps only because it is
-# already tracked -- and every entry in this one names either a directory or a
-# generated file that no formatter here would touch anyway.
-IGNORED = Blacklist([".git"] + gitignore())
+IGNORED = GitIgnore()
 
 # Code that lives here but is not ours to style. Patterns are fnmatch against the
 # repo-relative path, and `*` spans directory separators. Naming a blacklisted file on
@@ -569,9 +616,10 @@ def formatter_for(path):
     return PY_FORMATTER if path.endswith(PY_FORMATTER.SUFFIXES) else C_FORMATTER
 
 
-def relative(path):
-    """Repo-relative, forward-slash path -- what EXCLUDE's patterns are written against."""
-    return os.path.relpath(path, ROOT).replace(os.sep, "/")
+def relative(path, base=ROOT):
+    """Forward-slash path relative to `base`, the repo root by default -- what EXCLUDE's
+    patterns, and a .gitignore's, are written against."""
+    return os.path.relpath(path, base).replace(os.sep, "/")
 
 
 def collect(paths):
@@ -582,9 +630,8 @@ def collect(paths):
             files.append(full)  # named outright, so format it, blacklist or not
             continue
         for dirpath, dirnames, filenames in os.walk(full):
-            dirnames[:] = [
-                d for d in dirnames if relative(os.path.join(dirpath, d)) not in IGNORED
-            ]
+            IGNORED.prune(dirpath, dirnames, isdir=True)
+            IGNORED.prune(dirpath, filenames, isdir=False)
             for name in filenames:
                 path = os.path.join(dirpath, name)
                 if is_ours(path) and relative(path) not in EXCLUDE:

@@ -427,9 +427,10 @@ M3Result repl_call (const char* name, int argc, const char* argv[])
 
         print_gas_used();
 
-        if (result == m3Err_trapExit) {
+        if (result == m3Err_trapWasiExit) {
             exit(wasi_ctx->exit_code);
         }
+        // m3Err_trapExit (libc exit) is returned below and reported as an error
         if (result) {
             return result;
         }
@@ -1205,8 +1206,12 @@ int main (int i_argc, const char* i_argv[])
             }
         }
 
-        if (result == m3Err_trapExit) {
-            //TODO: fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", runtime->exit_code);
+        if (result == m3Err_trapWasiExit) {
+#if defined(LINK_WASI)
+            // the exit code lives on the WASI context, the same one the non-repl
+            // path exits with; in the repl the session continues, so report it
+            fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", m3_GetWasiContext()->exit_code);
+#endif
         } else if (result) {
             fprintf(stderr, "Error: %s", result);
             M3ErrorInfo info;

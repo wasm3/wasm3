@@ -173,8 +173,6 @@ d_m3RetSig Call (d_m3OpSig)
     nextOpDirect();
 }
 
-// TODO: OK, this needs some explanation here ;0
-
 #define d_m3CommutativeOpMacro(RES, REG, TYPE, NAME, OP, ...) \
 d_m3Op(TYPE##_##NAME##_rs)                              \
 {                                                       \

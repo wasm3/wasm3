@@ -232,6 +232,7 @@ d_m3ErrorConst(trapNullFunctionRef,            "[trap] null function reference")
 // call_indirect past the end of the table is "undefined element"; the table
 // access instructions report an out of bounds access instead
 d_m3ErrorConst(trapTableOutOfBounds,           "[trap] out of bounds table access")
+d_m3ErrorConst(trapWasiExit,                   "[trap] wasi program called exit")
 d_m3ErrorConst(trapExit,                       "[trap] program called exit")
 d_m3ErrorConst(trapAbort,                      "[trap] program called abort")
 d_m3ErrorConst(trapUnreachable,                "[trap] unreachable")

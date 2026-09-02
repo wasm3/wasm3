@@ -1,5 +1,0 @@
-{
-    "build" : {
-        "flags": "-DESP32 -O3 -Wfatal-errors -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers"
-    }
-}

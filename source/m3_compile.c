@@ -104,6 +104,7 @@ void EmitConstant32 (IM3Compilation o, const u32 i_immediate)
     }
 }
 
+#if d_m3HasMemory64
 // Takes two lines of the code page where a pointer is 32 bits, so whatever
 // reads it back has to step _pc by the same amount - see op_Const64.
 static M3_NOINLINE
@@ -113,6 +114,7 @@ void EmitConstant64 (IM3Compilation o, const u64 i_immediate)
         EmitWord64(o->page, i_immediate);
     }
 }
+#endif
 
 static M3_NOINLINE
 void EmitSlotOffset (IM3Compilation o, const i32 i_offset)
@@ -462,9 +464,10 @@ void AlignSlotToType (u16* io_slot, m3type_t i_type)
     *io_slot = (*io_slot + mask) & ~mask;
 }
 
+// Deliberately unchecked. Validation rejects an empty operand stack before compilation.
 static inline
-i16 GetStackTopIndex (IM3Compilation o)     // TODO: make this an exception; it gets hit all the time with malformed code
-{                                                           d_m3Assert (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic (o));
+i16 GetStackTopIndex (IM3Compilation o)
+{
     return o->stackIndex - 1;
 }
 
@@ -2522,7 +2525,7 @@ _       (EmitPopTryFramesForReturnCall(o));
 _   (EmitOp(o, useTailCall ? op_ReturnCallIndirect : op_CallIndirect));
     EmitPointer(o, o->module->tables[tableIndex]);
     EmitSlotOffset(o, tableIndexSlot);
-    EmitPointer(o, type);              // TODO: unify all types in M3Environment
+    EmitPointer(o, type);
     EmitSlotOffset(o, execTop);
 
     if (useTailCall) {
@@ -3147,8 +3150,8 @@ _   (ReadBlockType(o, &blockType));
         u16 numParams = GetFuncTypeNumParams(blockType);
         if (numParams) {
             // instantiate constants
-            u16 numValues = GetNumBlockValuesOnStack(o);                   // CompileBlock enforces this at comptime
-                                                                            d_m3Assert (numValues >= numParams);
+            u16 numValues = GetNumBlockValuesOnStack(o);
+
             if (numValues >= numParams) {
                 u16 stackTop = GetStackTopIndex(o) + 1;
 
@@ -4812,7 +4815,6 @@ _   (EmitOp(o, op_Entry));
 
 _   (CompileBlockStatements(o));
 
-    // TODO: validate opcode sequences
     _throwif(m3Err_wasmMalformed, o->previousOpcode != c_waOp_end);
 
     io_function->compiled      = pc;

@@ -1079,9 +1079,7 @@ m3ApiRawFunction(m3_wasi_generic_proc_exit)
         context->exit_code = code;
     }
 
-    //TODO: fprintf(stderr, "proc_exit code:%d\n", code);
-
-    m3ApiTrap(m3Err_trapExit);
+    m3ApiTrap(m3Err_trapWasiExit);
 }
 
 m3ApiRawFunction(m3_wasi_generic_proc_raise)

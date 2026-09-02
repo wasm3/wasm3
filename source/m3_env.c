@@ -332,8 +332,10 @@ M3Result EvaluateExpression (IM3Module i_module, void* o_expressed, m3type_t i_t
     o->wasmEnd         = i_end;
     o->lastOpcodeStart = o->wasm;
 
-    //  OPTZ: this code page could be erased after use.  maybe have 'empty' list in addition to full and open?
-    o->page = AcquireCodePage(&runtime);  // AcquireUnusedCodePage (...)
+    // Borrowed for the length of this expression only. Runtime_Release below hands it
+    // to Environment_ReleaseCodePages, which resets lineIndex, so the page comes back
+    // empty and the next expression reuses it rather than burning fresh lines.
+    o->page = AcquireCodePage(&runtime);
 
     if (o->page) {
         IM3FuncType ftype = runtime.environment->retFuncTypes[BaseTypeOf(i_type)];
@@ -361,7 +363,6 @@ M3Result EvaluateExpression (IM3Module i_module, void* o_expressed, m3type_t i_t
             }
         }
 
-        // TODO: EraseCodePage (...) see OPTZ above
         ReleaseCodePage(&runtime, o->page);
     } else {
         result = m3Err_mallocFailedCodePage;

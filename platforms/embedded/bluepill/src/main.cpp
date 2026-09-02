@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <jee.h>
 
+using namespace jeeh;
+
 #define FATAL(func, msg) {           \
   puts("Fatal: " func ": ");         \
   puts(msg); return; }
@@ -59,13 +61,10 @@ void run_wasm()
     puts("\n");
 }
 
-PinC<13> led;
+Pin led ("C13", "P");
 
 int main()
 {
-  enableSysTick();
-  led.mode(Pinmode::out);
-
   puts("Wasm3 v" M3_VERSION " on BluePill, build " __DATE__ " " __TIME__ "\n");
 
   led = 0;

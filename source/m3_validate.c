@@ -758,7 +758,7 @@ static M3Result v_validate_body (ValCtx * v)
         {
             r = v_pop_expect(v, c_m3Type_i32, &a);
             if (r) return r;
-            m3type_t t2;
+            m3type_t t2 = c_valBottom;
             r = v_pop(v, &t2);
             if (r) return r;
             m3type_t t1;

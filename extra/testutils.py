@@ -29,7 +29,9 @@ class Blacklist:
         self.update()
 
     def update(self):
-        self._regex = re.compile("|".join(self._patterns))
+        # `(?!)` for the empty list: an alternation of nothing is the empty pattern,
+        # which matches every string rather than none of them.
+        self._regex = re.compile("|".join(self._patterns) or "(?!)")
 
     def __contains__(self, item):
         return self._regex.match(item) is not None

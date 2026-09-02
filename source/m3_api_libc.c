@@ -190,11 +190,10 @@ uint64_t clock_ms ()
 {
 #ifdef CLOCKS_PER_SEC
     const clock_t clock_divider = CLOCKS_PER_SEC / 1000;
-    if (clock_divider != 0) {
-        return (uint64_t)(clock() / clock_divider);
-    }
-#endif
+    return (uint64_t)(clock() / (clock_divider > 0 ? clock_divider : 1));
+#else
     return (uint64_t)clock();
+#endif
 }
 
 m3ApiRawFunction(m3_libc_clock_ms)
