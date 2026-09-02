@@ -9,7 +9,7 @@
 #include "m3_info.h"
 #include "m3_compile.h"
 
-#if defined(DEBUG) || (d_m3EnableStrace >= 2)
+#if defined(DEBUG) || (d_m3EnableStrace >= 1)
 
 size_t SPrintArg (char* o_string, size_t i_stringBufferSize, voidptr_t i_sp, m3type_t i_type)
 {
@@ -73,6 +73,37 @@ cstr_t SPrintFunctionArgList (IM3Function i_function, m3stack_t i_sp)
 
     ret = snprintf(s, e - s, ")");
     s += M3_MAX(0, ret);
+
+    return string;
+}
+
+// The results of a call, comma separated, for the strace return line. Empty when
+// the function returns nothing, so the caller can leave the " = " off entirely.
+// Every result occupies a full u64 in the I/O area, whatever its type - the same
+// layout m3_GetResults reads.
+cstr_t SPrintFunctionRetList (IM3FuncType i_funcType, m3stack_t i_sp)
+{
+    int ret;
+
+    static char string[256];
+
+    char*   s = string;
+    ccstr_t e = string + sizeof(string) - 1;
+
+    *s = 0;
+
+    u64* retSp = (u64*)i_sp;
+
+    u32 numRets = i_funcType ? i_funcType->numRets : 0;
+
+    for (u32 i = 0; i < numRets; ++i) {
+        s += SPrintArg(s, e - s, retSp + i, d_FuncRetType(i_funcType, i));
+
+        if (i != numRets - 1) {
+            ret = snprintf(s, e - s, ", ");
+            s += M3_MAX(0, ret);
+        }
+    }
 
     return string;
 }
@@ -190,6 +221,26 @@ cstr_t SPrintValue (void* i_value, m3type_t i_type)
     return string;
 }
 
+// Finds i_operation in one operation table. i_opcodeBase tags the result, so an
+// extended entry comes back as the 0xFCxx opcode the rest of the code speaks.
+static
+bool ScanOperationTable (OpInfo* io_info, IM3OpInfo i_table, u32 i_numOps, m3opcode_t i_opcodeBase, IM3Operation i_operation)
+{
+    for (u32 i = 0; i < i_numOps; ++i) {
+        IM3OpInfo oi = &i_table[i];
+
+        for (u32 o = 0; o < 4; ++o) {
+            if (oi->operations[o] == i_operation) {
+                io_info->info   = oi;
+                io_info->opcode = i_opcodeBase | i;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 static
 OpInfo find_operation_info (IM3Operation i_operation)
 {
@@ -199,19 +250,11 @@ OpInfo find_operation_info (IM3Operation i_operation)
         return opInfo;
     }
 
-    // Scans the table directly rather than through GetOpInfo (), which rejects
+    // Scans the tables directly rather than through GetOpInfo (), which rejects
     // the reserved slots and the internal operations kept past the last opcode.
-    // TODO: find also extended opcodes
-    for (u32 i = 0; i < c_numOperations; ++i) {
-        IM3OpInfo oi = &c_operations[i];
-
-        for (u32 o = 0; o < 4; ++o) {
-            if (oi->operations[o] == i_operation) {
-                opInfo.info   = oi;
-                opInfo.opcode = i;
-                return opInfo;
-            }
-        }
+    // Reserved slots are zeroed, so they never match a real operation here.
+    if (not ScanOperationTable(&opInfo, c_operations, c_numOperations, 0, i_operation)) {
+        ScanOperationTable(&opInfo, c_operationsFC, c_numOperationsFC, c_waOp_extended << 8, i_operation);
     }
 
     return opInfo;

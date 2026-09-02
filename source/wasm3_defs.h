@@ -55,21 +55,21 @@
 #endif
 
 #ifdef __has_feature
-#  define M3_COMPILER_HAS_FEATURE(x) __has_feature(x)
+#  define M3_COMPILER_HAS_FEATURE(x)    __has_feature(x)
 #else
-#  define M3_COMPILER_HAS_FEATURE(x) 0
+#  define M3_COMPILER_HAS_FEATURE(x)    0
 #endif
 
 #ifdef __has_builtin
-#  define M3_COMPILER_HAS_BUILTIN(x) __has_builtin(x)
+#  define M3_COMPILER_HAS_BUILTIN(x)    __has_builtin(x)
 #else
-#  define M3_COMPILER_HAS_BUILTIN(x) 0
+#  define M3_COMPILER_HAS_BUILTIN(x)    0
 #endif
 
 #ifdef __has_attribute
-#  define M3_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
+#  define M3_COMPILER_HAS_ATTRIBUTE(x)  __has_attribute(x)
 #else
-#  define M3_COMPILER_HAS_ATTRIBUTE(x) 0
+#  define M3_COMPILER_HAS_ATTRIBUTE(x)  0
 #endif
 
 /*

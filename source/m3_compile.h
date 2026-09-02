@@ -222,15 +222,8 @@ extern const M3OpInfo   c_operationsFC[];
 extern const u32        c_numOperations;
 extern const u32        c_numOperationsFC;
 
-// TODO: This helper should be removed, when MultiValue is implemented
-static inline
-m3type_t GetSingleRetType (IM3FuncType ftype)
-{
-    return (ftype && ftype->numRets) ? ftype->types[0] : (u8)c_m3Type_none;
-}
-
-static const u16 c_m3RegisterUnallocated = 0;
-static const u16 c_slotUnused = 0xffff;
+static const u16        c_m3RegisterUnallocated = 0;
+static const u16        c_slotUnused = 0xffff;
 
 static inline
 bool IsRegisterAllocated (IM3Compilation o, u32 i_register)

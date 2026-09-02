@@ -1068,8 +1068,6 @@ M3Result ParseSection_Memory (M3Module* io_module, bytes_t i_bytes, cbytes_t i_e
 {
     M3Result result = m3Err_none;
 
-    // TODO: MVP; assert no memory imported
-
     u32 numMemories;
 _   (ReadLEB_u32(&numMemories, &i_bytes, i_end));                                m3log (parse, "** Memory [%d]", numMemories);
 

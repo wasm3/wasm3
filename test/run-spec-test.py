@@ -819,6 +819,27 @@ elif wasm3_ver in Blacklist(["* on microblaze* GCC *"]):
             "int_exprs.wast:* i64.*rem_s*",
         ]
     )
+elif wasm3_ver in Blacklist(["* on ppc64le* Clang *"]):
+    # i64 -> f32 comes out a ULP off, and plain C does too with no wasm3 in the picture:
+    # a cross-built (float)9007199791611905 returned 0x5a000000 where every other target
+    # answers 0x5a000001. Clang lowers the conversion to POWER8's xscvsxdsp here, while
+    # big-endian ppc64 gets the round-to-odd software sequence and passes - so the single
+    # instruction, or QEMU's emulation of it, rounds twice. Worth retrying on real
+    # hardware. Only the 64-bit source is affected; every convert_i32 case passes.
+    warning(
+        "ppc64le: i64->f32 conversion rounds twice below wasm3, skipping those tests",
+        True,
+    )
+    blacklist.add(
+        [
+            "conversions.wast:* f32.convert_i64_s(9223372311732682753)",
+            "conversions.wast:* f32.convert_i64_s(9007199791611905)",
+            "conversions.wast:* f32.convert_i64_s(18437736873917939711)",
+            "conversions.wast:* f32.convert_i64_u(9007199791611905)",
+            "conversions.wast:* f32.convert_i64_u(9223371761976868863)",
+            "conversions.wast:* f32.convert_i64_u(9223372586610589697)",
+        ]
+    )
 
 # Wasm3 keeps f32 and f64 in one shared f64 register, so an f32 routed through it is
 # promoted and demoted, which quiets a signaling NaN (the same gap as the blacklisted

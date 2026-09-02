@@ -128,6 +128,7 @@ u8       GetFunctionReturnType (const IM3Function i_function, u16 i_index);
 u32      GetFunctionNumArgsAndLocals (IM3Function i_function);
 
 cstr_t   SPrintFunctionArgList (IM3Function i_function, m3stack_t i_sp);
+cstr_t   SPrintFunctionRetList (IM3FuncType i_funcType, m3stack_t i_sp);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 

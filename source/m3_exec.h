@@ -285,7 +285,7 @@ d_m3CommutativeOp_i(u64, Xor,              ^)
 #if d_m3FoldSetLocal
 
 // destination-folded ("_f") variants: same operand shapes as _rs/_sr/_ss, but the result is
-// written to a trailing destination slot instead of _r0 — a producer fused with its local.set.
+// written to a trailing destination slot instead of _r0 - a producer fused with its local.set.
 // operand immediates keep their normal order; the destination slot is the last immediate.
 // The destination immediate is taken as a pointer before the operation runs, rather
 // than written through at the end: that leaves _pc final early enough for the dispatch
@@ -1014,14 +1014,10 @@ d_m3Op(CallRawFunction)
 #if d_m3EnableStrace
     if (M3_UNLIKELY(possible_trap)) {
         d_m3TracePrint("%s -> %s", outbuff, (char*)possible_trap);
+    } else if (ftype and ftype->numRets) {
+        d_m3TracePrint("%s = %s", outbuff, SPrintFunctionRetList(ftype, (m3stack_t)sp));
     } else {
-        switch (GetSingleRetType(ftype)) {
-        case c_m3Type_none: d_m3TracePrint("%s", outbuff); break;
-        case c_m3Type_i32: d_m3TracePrint("%s = %" PRIi32, outbuff, *(i32*)sp); break;
-        case c_m3Type_i64: d_m3TracePrint("%s = %" PRIi64, outbuff, *(i64*)sp); break;
-        case c_m3Type_f32: d_m3TracePrint("%s = %" PRIf32, outbuff, *(f32*)sp); break;
-        case c_m3Type_f64: d_m3TracePrint("%s = %" PRIf64, outbuff, *(f64*)sp); break;
-        }
+        d_m3TracePrint("%s", outbuff);
     }
 #endif
 
@@ -1566,15 +1562,10 @@ d_m3Op(Entry)
 
         if (r) {
             d_m3TracePrint("} !trap = %s", (char*)r);
+        } else if (GetFunctionNumReturns(function)) {
+            d_m3TracePrint("} = %s", SPrintFunctionRetList(function->funcType, _sp));
         } else {
-            m3type_t rettype = GetSingleRetType(function->funcType);
-            if (rettype != c_m3Type_none) {
-                char str[128] = { 0 };
-                SPrintArg(str, 127, _sp, rettype);
-                d_m3TracePrint("} = %s", str);
-            } else {
-                d_m3TracePrint("}");
-            }
+            d_m3TracePrint("}");
         }
 #  endif
 
