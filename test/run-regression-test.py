@@ -123,6 +123,43 @@ tests = [
     "args":           ["--func", "main"],
     "expect_pattern": "*Result: *",
   }, {
+    # The branch operands have to land in the loop's parameter slots before
+    # control goes back around, or the next iteration re-reads whatever the
+    # loop was entered with - here, a counter that never leaves 0.
+    "name":           "br passes arguments to a loop",
+    "issue":          582,
+    "wasm":           "./regression/github-582.wasm",
+    "args":           ["--func", "run"],
+    "expect_pattern": "*Result: 5*",
+  }, {
+    # two parameters that trade places, so the copies collide and one of them
+    # has to be routed through a temp slot
+    "name":           "br passes colliding arguments to a loop",
+    "issue":          582,
+    "wasm":           "./regression/github-582.wasm",
+    "args":           ["--func", "swap"],
+    "expect_pattern": "*Result: 1*",
+  }, {
+    # unreachable code has no operands to hand over; the copy must be skipped
+    # rather than reported as a stack-count mismatch
+    "name":           "br to a loop from unreachable code",
+    "issue":          582,
+    "wasm":           "./regression/github-582.wasm",
+    "args":           ["--func", "poly-br"],
+    "expect_pattern": "*unreachable*",
+  }, {
+    "name":           "br_if to a loop from unreachable code",
+    "issue":          582,
+    "wasm":           "./regression/github-582.wasm",
+    "args":           ["--func", "poly-br-if"],
+    "expect_pattern": "*unreachable*",
+  }, {
+    "name":           "br_table to a loop from unreachable code",
+    "issue":          582,
+    "wasm":           "./regression/github-582.wasm",
+    "args":           ["--func", "poly-br-table"],
+    "expect_pattern": "*unreachable*",
+  }, {
     "name":           "Non-numeric function argument",
     "issue":          367,
     "wasm":           "./lang/fib32.wasm",

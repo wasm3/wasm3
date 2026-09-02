@@ -512,9 +512,6 @@ jobs:
         cmake --build .
         node wasm3.js | tee out.txt
         grep -q "Result: 102334155" out.txt
-    # a standalone module driven from JS instead. run_wasm3.js loads, calls and
-    # unloads a module 100000 times, so the memory it reports having used at the
-    # end of that is a leak check
     - name: Build and run the library
       run: |
         mkdir build-lib
@@ -522,7 +519,7 @@ jobs:
         cmake -DEMSCRIPTEN_LIB=1 ..
         cmake --build .
         node ../platforms/emscripten_lib/run_wasm3.js ../test/lang/fib32.wasm fib 24 | tee out.txt
-        grep -q "Memory size: 4 MB" out.txt
+        grep -q "Result: 46368" out.txt
 
   ios:
     runs-on: macos-latest

@@ -1948,7 +1948,9 @@ _               (EmitSlotNumOfStackTopAndPop(o));
 
 _               (EmitPopTryFrames(o, numTryFrames));
 
-_               (ResolveBlockResults(o, scope, /* isBranch: */ true));
+                if (not IsStackPolymorphic(o)) {
+_                   (ResolveBlockResults(o, scope, /* isBranch: */ true));
+                }
 
 _               (EmitOp(o, op_ContinueLoop));
                 EmitPointer(o, scope->pc);
@@ -1967,6 +1969,11 @@ _               (EmitOp(o, op_ContinueLoopIf));
         } else // is c_waOp_branch
         {
 _           (EmitPopTryFrames(o, numTryFrames));
+
+            // the branch operands become the loop's parameters on the next iteration
+            if (not IsStackPolymorphic(o)) {
+_               (ResolveBlockResults(o, scope, /* isBranch: */ true));
+            }
 
 _           (EmitOp(o, op_ContinueLoop));
             EmitPointer(o, scope->pc);
@@ -2101,7 +2108,9 @@ _       (AcquireCompilationCodePage(o, &continueOpPage));
         if (scope->opcode == c_waOp_loop) {
 _           (EmitPopTryFrames(o, numTryFrames));
 
-_           (ResolveBlockResults(o, scope, true));
+            if (not IsStackPolymorphic(o)) {
+_               (ResolveBlockResults(o, scope, true));
+            }
 
 _           (EmitOp(o, op_ContinueLoop));
             EmitPointer(o, scope->pc);

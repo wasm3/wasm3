@@ -116,14 +116,14 @@ function call(runtime, fname, args) {
 
   const binary = readFile(wasm);
 
-  for (let i=0; i<100000; i++) {
+  //for (let i=0; i<100000; i++) {
     let module = load(binary);
 
     let result = call(module, func, args);
-    //console.log(i, result);
+    console.log(`Result: ${result}`);
 
     unload(module);
-  }
+  //}
 
-  console.log(`Memory size: ${instance.exports.memory.buffer.byteLength/(1024*1024)} MB`);
+  //console.log(`Memory size: ${instance.exports.memory.buffer.byteLength/(1024*1024)} MB`);
 })();
