@@ -61,6 +61,22 @@ extern "C" {
                                                      bool                   i_doCompilation);
 
 
+    // A module may reserve import slots whose signature isn't known until runtime.  They are declared
+    // with a placeholder type and retyped here once the host knows what it is binding.  Nothing reads
+    // a function's type until something calls it, so this is safe after load -- but it must happen
+    // before any function that calls the slot is compiled, and before the slot is linked.
+    M3Result            w3x_RetypeImport            (IM3Module              i_module,
+                                                     const char * const     i_moduleName,
+                                                     const char * const     i_fieldName,
+                                                     const char * const     i_signature);
+
+    // An import is not an export, so m3_FindFunction cannot reach one.
+    M3Result            w3x_FindImportIndex         (IM3Module              i_module,
+                                                     const char * const     i_moduleName,
+                                                     const char * const     i_fieldName,
+                                                     uint32_t *             o_index);
+
+
     M3Result            w3x_AddFunctionToTable      (IM3Function            i_function,
                                                      uint32_t *             o_elementIndex,
                                                      uint32_t               i_tableIndex);          // i_tableIndex must be zero

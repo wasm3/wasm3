@@ -272,6 +272,101 @@ _   	(CompileFunction (function));
 }
 
 
+static
+IM3Function  Module_FindImport  (IM3Module i_module, ccstr_t i_moduleName, ccstr_t i_fieldName, u32 * o_index)
+{
+    for (u32 i = 0; i < i_module->numFunctions; ++i)
+    {
+        IM3Function f = & i_module->functions [i];
+
+        if (f->import.moduleUtf8 and f->import.fieldUtf8)
+        {
+            if (strcmp (f->import.fieldUtf8, i_fieldName) == 0 and
+                strcmp (f->import.moduleUtf8, i_moduleName) == 0)
+            {
+                if (o_index)
+                    * o_index = i;
+
+                return f;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+
+M3Result  w3x_RetypeImport  (IM3Module               i_module,
+                             const char * const      i_moduleName,
+                             const char * const      i_fieldName,
+                             const char * const      i_signature)
+{
+    IM3FuncType ftype = NULL;
+
+    _try {
+
+    if (not i_module or not i_moduleName or not i_fieldName)
+        _throw (m3Err_nullArgument);
+
+    IM3Function function = Module_FindImport (i_module, i_moduleName, i_fieldName, NULL);
+    _throwif (m3Err_functionLookupFailed, not function);
+
+    // the type is baked into every call site when the caller is compiled, and into the code page when
+    // the slot is linked; retyping after either would leave those disagreeing with the function
+    _throwif ("import is already linked or compiled", function->compiled != NULL);
+
+_   (SignatureToFuncType (& ftype, i_signature));
+
+    if (not AreFuncTypesEqual (ftype, function->funcType))
+    {
+        i32 funcTypeIndex = Module_HasFuncType (i_module, ftype);
+
+        if (funcTypeIndex < 0)
+        {
+            // add the new type to the module's table so a serialized module carries it too
+            funcTypeIndex = i_module->numFuncTypes++;
+            i_module->funcTypes = m3_ReallocArray (IM3FuncType, i_module->funcTypes, i_module->numFuncTypes, funcTypeIndex);
+            _throwifnull (i_module->funcTypes);
+
+            Environment_AddFuncType (i_module->environment, & ftype);   // may free ftype and return a duplicate
+            i_module->funcTypes [funcTypeIndex] = ftype;
+        }
+        else
+        {
+            m3_Free (ftype);                                            // the module already holds an equal type
+            ftype = i_module->funcTypes [funcTypeIndex];
+        }
+
+        function->funcType = ftype;
+        ftype = NULL;                                                   // owned by the environment now
+    }
+
+    } _catch:
+
+    if (ftype)
+        m3_Free (ftype);
+
+    return result;
+}
+
+
+M3Result  w3x_FindImportIndex  (IM3Module            i_module,
+                                const char * const   i_moduleName,
+                                const char * const   i_fieldName,
+                                uint32_t *           o_index)
+{
+    _try {
+
+    if (not i_module or not i_moduleName or not i_fieldName or not o_index)
+        _throw (m3Err_nullArgument);
+
+    IM3Function function = Module_FindImport (i_module, i_moduleName, i_fieldName, o_index);
+    _throwif (m3Err_functionLookupFailed, not function);
+
+    } _catch: return result;
+}
+
+
 M3Result  w3x_AddFunctionToTable  (IM3Function          i_function,
                                   uint32_t *            o_elementIndex,
                                   uint32_t              i_tableIndex)
