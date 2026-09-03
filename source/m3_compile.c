@@ -2053,6 +2053,9 @@ M3Result Compile_BranchTable (IM3Compilation o, m3opcode_t i_opcode)
     // the page a continue-op page is standing in for; non-NULL only while that
     // page is installed in o->page, so the catch below knows to put it back
     IM3CodePage displacedPage = NULL;
+    // indexed by label depth: the continuation stub already emitted for that target
+    // within this table, or NULL if this table has not reached it yet
+    pc_t* targetStubs = NULL;
 _try {
     u32 targetCount;
 _   (ReadLEB_u32(&targetCount, &o->wasm, o->wasmEnd));
@@ -2087,12 +2090,26 @@ _   (EmitOp(o, op_BranchTable));
     // bottom type and the targets may legitimately differ (unreached-valid.wast).
 
     ++targetCount; // include default
+
+    // Every entry of one br_table is resolved from the same compilation state - each
+    // stub restores whatever it touched - so two entries naming the same label emit
+    // byte-identical epilogues. Emit one and point both table entries at it. A label
+    // deeper than the current block is rejected by GetBlockScope below, which is what
+    // bounds this array.
+    targetStubs = m3_AllocArray(pc_t, (size_t)o->block.depth + 1);
+    _throwifnull(targetStubs);
+
     for (u32 i = 0; i < targetCount; ++i) {
         u32 target;
 _       (ReadLEB_u32(&target, &o->wasm, o->wasmEnd));
 
         IM3CompilationScope scope;
 _       (GetBlockScope(o, &scope, target));
+
+        if (targetStubs[target]) {
+            EmitPointer(o, targetStubs[target]);
+            continue;
+        }
 
         // TODO: don't need codepage rigmarole for
         // no-param forward-branch targets
@@ -2118,7 +2135,6 @@ _               (ResolveBlockResults(o, scope, true));
 _           (EmitOp(o, op_ContinueLoop));
             EmitPointer(o, scope->pc);
         } else {
-            // TODO: this could be fused with equivalent targets
             if (not IsStackPolymorphic(o)) {
                 if (scope->depth == 0) {
 _                   (ReturnValues(o, scope, true));
@@ -2138,22 +2154,23 @@ _                   (EmitPatchingBranch(o, scope));
         displacedPage = NULL;
 
         EmitPointer(o, startPC);
+        targetStubs[target] = startPC;
     }
 
 _   (SetStackPolymorphic(o));
-}
+} _catch:
 
-    _catch:
+    // thrown out of the loop above with a continue-op page installed: release it
+    // and restore the one it displaced, which the caller's catch then releases.
+    // Otherwise the displaced page is on no list and simply leaks.
+    if (displacedPage) {
+        ReleaseCompilationCodePage(o);
+        o->page = displacedPage;
+    }
 
-// thrown out of the loop above with a continue-op page installed: release it
-// and restore the one it displaced, which the caller's catch then releases.
-// Otherwise the displaced page is on no list and simply leaks.
-if (displacedPage) {
-    ReleaseCompilationCodePage(o);
-    o->page = displacedPage;
-}
+    m3_Free(targetStubs);
 
-return result;
+    return result;
 }
 
 static
@@ -3139,7 +3156,6 @@ M3Result Compile_LoopOrBlock (IM3Compilation o, m3opcode_t i_opcode)
 {
     M3Result result;
 
-    // TODO: these shouldn't be necessary for non-loop blocks?
 _   (PreserveRegisters(o));
 _   (PreserveArgsAndLocals(o));
 
@@ -3269,7 +3285,7 @@ _           (Pop(o));
         }
     }
 
-}   _catch:
+} _catch:
 
     // thrown with a stub page installed: release it and put back the one it
     // displaced, which the caller's catch then releases
@@ -3341,7 +3357,7 @@ _   (EmitOp(o, op_TryTable));
 
 _   (CompileBlock(o, blockType, c_waOp_tryTable));
 
-}   _catch:
+} _catch:
 
     o->tryClauses    = NULL;
     o->numTryClauses = 0;
@@ -3407,7 +3423,7 @@ _           (Pop(o));
 
 _   (SetStackPolymorphic(o));
 
-}   _catch: return result;
+} _catch: return result;
 }
 
 
@@ -3428,7 +3444,7 @@ _       (Pop(o));
 
 _   (SetStackPolymorphic(o));
 
-}   _catch: return result;
+} _catch: return result;
 }
 
 #endif // d_m3HasExceptionHandling
@@ -4840,7 +4856,7 @@ _           (PushBlockResults(o));
 
     o->block = outerScope;
 
-}   _catch: return result;
+} _catch: return result;
 }
 
 static

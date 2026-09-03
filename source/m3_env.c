@@ -1492,7 +1492,7 @@ _           (CompileFunction(function))
     }
 
     *o_function = function;
-}   _catch:
+} _catch:
     return result;
 }
 
