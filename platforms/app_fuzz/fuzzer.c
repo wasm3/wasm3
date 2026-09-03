@@ -20,6 +20,11 @@
 // loads are bounded by the allocated length, not the declared page count.
 #define d_m3FuzzMemoryLimit  (64*1024*1024)
 
+// Nothing stops a few fuzzed bytes from describing a loop that never ends.
+// Fuzzer timeout is an error => let's use gas metering to limit the number
+// of instructions that can run.
+#define d_m3FuzzGasLimit     100000.0
+
 int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
 {
     M3Result result = m3Err_none;
@@ -34,6 +39,8 @@ int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
         if (runtime) {
             runtime->memoryLimit = d_m3FuzzMemoryLimit;
             IM3Module module     = NULL;
+
+            m3_SetGasLimit(runtime, d_m3FuzzGasLimit);
 
             result = m3_ParseModule(env, &module, data, size);
             if (module) {

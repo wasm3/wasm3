@@ -371,6 +371,13 @@ M3Result ParseValueType (IM3Module i_module, m3type_t* o_type, bytes_t* io_bytes
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
+#if d_m3HasGasMetering
+// Gas is counted internally in the unit ewasm's cost table is written in, a
+// ten-thousandth of a gas, and only the public API divides it back out. Keeping
+// whole units inside is what lets a segment's cost be one u32 immediate.
+#  define d_m3GasUnitsPerGas   10000
+#endif
+
 typedef struct M3Runtime {
     M3Compilation  compilation;
 
@@ -402,6 +409,15 @@ typedef struct M3Runtime {
 
 #if d_m3EnableStrace >= 2
     u32 callDepth;
+#endif
+
+#if d_m3HasGasMetering
+    // Both counts are in gas units (see d_m3GasUnitsPerGas). gasRemaining goes
+    // negative by the cost of the segment that ran out, which is what makes the
+    // gas used come out slightly over the limit, and is deliberate: a segment
+    // is paid for in full before any of it runs.
+    i64 gasLimit;
+    i64 gasRemaining;
 #endif
 
 #if d_m3HasExceptionHandling

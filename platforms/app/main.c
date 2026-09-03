@@ -25,13 +25,8 @@
 
 #include "spectest.wasm.h"
 
-/*
- * NOTE: Gas metering/limit only applies to pre-instrumented modules.
- * You can generate a metered version from any wasm file automatically, using
- *   https://github.com/ewasm/wasm-metering
- */
-#define GAS_LIMIT       500000000
-#define GAS_FACTOR      10000LL
+// What --gas-meter budgets when --gas-limit doesn't say.
+#define GAS_LIMIT       1000000000000000.0
 
 #define MAX_MODULES     64
 
@@ -93,26 +88,8 @@ bool keep_wasm_bin (u8* i_wasm)
 // the module the most recent :load / :load-hex produced
 static IM3Module lastLoadedModule = NULL;
 
-#if defined(GAS_LIMIT)
-
-static int64_t initial_gas    = GAS_FACTOR * GAS_LIMIT;
-static int64_t current_gas    = GAS_FACTOR * GAS_LIMIT;
-static bool    is_gas_metered = false;
-
-m3ApiRawFunction(metering_usegas)
-{
-    m3ApiGetArg(int32_t, gas)
-
-    current_gas -= gas;
-
-    if (M3_UNLIKELY(current_gas < 0)) {
-        m3ApiTrap("[trap] Out of gas");
-    }
-    m3ApiSuccess();
-}
-
-#endif // GAS_LIMIT
-
+static bool   argGasMeter = false;
+static double argGasLimit = GAS_LIMIT;
 
 M3Result link_all (IM3Module module)
 {
@@ -133,17 +110,6 @@ M3Result link_all (IM3Module module)
     res = m3_LinkTracer(module);
     if (res) {
         return res;
-    }
-#endif
-
-#if defined(GAS_LIMIT)
-    res = m3_LinkRawFunction(module, "metering", "usegas", "v(i)", &metering_usegas);
-    if (!res) {
-        fprintf(stderr, "Warning: Gas is limited to %0.4f\n", (double)(current_gas) / GAS_FACTOR);
-        is_gas_metered = true;
-    }
-    if (res == m3Err_functionLookupFailed) {
-        res = NULL;
     }
 #endif
 
@@ -331,11 +297,11 @@ M3Result repl_load_hex (u32 fsize)
 
 void print_gas_used ()
 {
-#if defined(GAS_LIMIT)
-    if (is_gas_metered) {
-        fprintf(stderr, "Gas used: %0.4f\n", (double)(initial_gas - current_gas) / GAS_FACTOR);
+    if (argGasMeter) {
+        // the last segment is charged before it runs, so a module that ran out
+        // reports slightly more than the limit it was given
+        fprintf(stderr, "Gas used: %0.4f\n", m3_GetGasUsed(runtime));
     }
-#endif
 }
 
 void print_backtrace ()
@@ -859,6 +825,12 @@ M3Result repl_init (unsigned stack)
         return "m3_NewRuntime failed";
     }
 
+    // has to be armed before anything is compiled: only the function bodies
+    // compiled after this carry the metering instrumentation
+    if (argGasMeter) {
+        m3_SetGasLimit(runtime, argGasLimit);
+    }
+
     if (provideSpecTest) {
         M3Result result = load_spectest();
         if (result) {
@@ -959,7 +931,8 @@ void print_usage ()
     puts("  --no-validate         skip validation");
     puts("  --spec-repl           repl for the spec tests");
     puts("  --dump-on-trap        dump wasm memory");
-    puts("  --gas-limit           set gas limit");
+    puts("  --gas-meter           meter gas usage");
+    puts("  --gas-limit <gas>     apply gas limit");
 }
 
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
@@ -1020,10 +993,13 @@ int main (int i_argc, const char* i_argv[])
             const char* tmp = "65536";
             ARGV_SET(tmp);
             argStackSize = atol(tmp);
+        } else if (!strcmp("--gas-meter", arg)) {
+            argGasMeter = true;
         } else if (!strcmp("--gas-limit", arg)) {
             const char* tmp = "0";
             ARGV_SET(tmp);
-            initial_gas = current_gas = GAS_FACTOR * atol(tmp);
+            argGasLimit = atof(tmp);
+            argGasMeter = true;
         } else if (!strcmp("--dir", arg)) {
             const char* argDir;
             ARGV_SET(argDir);
@@ -1066,12 +1042,23 @@ int main (int i_argc, const char* i_argv[])
 #endif
     }
 
+#if !d_m3HasGasMetering
+    if (argGasMeter) {
+        fprintf(stderr, "Error: gas metering not available in this build of Wasm3\n");
+        return 1;
+    }
+#endif
+
     result = repl_init(argStackSize);
     if (result) {
         FATAL("repl_init: %s", result);
     }
 
     m3_SetValidation(runtime, not argNoValidate);
+
+    //if (argGasMeter) {
+    //    fprintf(stderr, "Warning: Gas is limited to %0.4f\n", m3_GetGasLimit(runtime));
+    //}
 
     if (argFile) {
         result = repl_load(argFile);

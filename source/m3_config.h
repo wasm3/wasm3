@@ -254,6 +254,15 @@
 #  define d_m3HasTypedRefs                     0
 #endif
 
+// Gas metering. Once m3_SetGasLimit has armed a runtime, the compiler
+// instruments the function bodies it compiles from then on: each straight-line
+// segment of a body is charged, before any of it runs, for the instructions it
+// is about to execute, and execution traps once the budget is gone. The
+// segmentation and the per-opcode costs follow ewasm's metering design.
+#ifndef d_m3HasGasMetering
+#  define d_m3HasGasMetering                   1
+#endif
+
 #ifndef d_m3EnableValidation
 #  define d_m3EnableValidation                 1       // pre-pass bytecode type validation
 #endif

@@ -25,7 +25,9 @@ enum {
     c_waOp_branch             = 0x0c,
     c_waOp_branchTable        = 0x0e,
     c_waOp_branchIf           = 0x0d,
+    c_waOp_return             = 0x0f,
     c_waOp_call               = 0x10,
+    c_waOp_callIndirect       = 0x11,
     c_waOp_returnCall         = 0x12,
     c_waOp_returnCallIndirect = 0x13,
     c_waOp_callRef            = 0x14,
@@ -67,8 +69,12 @@ enum {
     c_waOp_extended           = 0xfc,
 
     c_waOp_memoryInit         = 0xfc08,
+    c_waOp_dataDrop           = 0xfc09,
     c_waOp_memoryCopy         = 0xfc0a,
     c_waOp_memoryFill         = 0xfc0b,
+    c_waOp_tableInit          = 0xfc0c,
+    c_waOp_elemDrop           = 0xfc0d,
+    c_waOp_tableCopy          = 0xfc0e,
     c_waOp_tableGrow          = 0xfc0f,
     c_waOp_tableSize          = 0xfc10,
     c_waOp_tableFill          = 0xfc11,
@@ -177,6 +183,15 @@ typedef struct
 #endif
 
     bool isInitExpr;                 // walking a constant expression, not a function body
+
+#if d_m3HasGasMetering
+    // The metering segment being compiled: where its op_UseGas left an immediate
+    // for the cost to be written back into once the segment's extent is known,
+    // and the cost accumulated so far. NULL when no segment is open, which is
+    // also how a build that isn't metering this function says so.
+    void* gasPatch;
+    u32   gasCost;
+#endif
 
 #if d_m3FoldSetLocal
     // the last emitted op, when it is a candidate for local.set destination folding.

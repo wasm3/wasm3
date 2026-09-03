@@ -231,6 +231,9 @@ typedef int8_t         i8;
 #  ifndef d_m3CodePageAlignSize
 #    define d_m3CodePageAlignSize                1024
 #  endif
+#  ifndef d_m3HasGasMetering
+#    define d_m3HasGasMetering                   0
+#  endif
 #  ifndef d_m3HasMultiMemory
 #    define d_m3HasMultiMemory                   0
 #  endif

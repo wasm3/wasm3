@@ -214,6 +214,55 @@ void m3_SetValidation (IM3Runtime i_runtime, bool i_enable)
 #endif
 }
 
+void m3_SetGasLimit (IM3Runtime i_runtime, double i_gas)
+{
+#if d_m3HasGasMetering
+    if (i_runtime) {
+        // A budget bigger than the counter can hold is the same as no ceiling
+        // worth speaking of, so it saturates rather than wrapping
+        const double maxGas = (double)INT64_MAX / d_m3GasUnitsPerGas;
+
+        i64 units;
+        if (i_gas >= maxGas) {
+            units = INT64_MAX;
+        } else if (i_gas > 0) {
+            units = (i64)(i_gas * d_m3GasUnitsPerGas);
+        } else {
+            units = 0;
+        }
+
+        i_runtime->gasLimit = i_runtime->gasRemaining = units;
+    }
+#else
+    (void)i_runtime;
+    (void)i_gas;                 // nothing to meter: the instrumentation was compiled out
+#endif
+}
+
+double m3_GetGasLimit (IM3Runtime i_runtime)
+{
+#if d_m3HasGasMetering
+    if (i_runtime) {
+        return (double)i_runtime->gasLimit / d_m3GasUnitsPerGas;
+    }
+#else
+    (void)i_runtime;
+#endif
+    return 0;
+}
+
+double m3_GetGasUsed (IM3Runtime i_runtime)
+{
+#if d_m3HasGasMetering
+    if (i_runtime) {
+        return (double)(i_runtime->gasLimit - i_runtime->gasRemaining) / d_m3GasUnitsPerGas;
+    }
+#else
+    (void)i_runtime;
+#endif
+    return 0;
+}
+
 void* m3_GetUserData (IM3Runtime i_runtime)
 {
     return i_runtime ? i_runtime->userdata : NULL;

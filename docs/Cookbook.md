@@ -76,8 +76,30 @@ Hello, world!
 
 ### Go WASI app
 
-Go currently does not provide the WASI interface.  
-For reference see [this issue](https://github.com/golang/go/issues/31105).
+Create `hello.go`:
+```go
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Printf("Hello, %s!\n", "world")
+}
+```
+
+Build and run:
+```sh
+$ GOOS=wasip1 GOARCH=wasm go build -o hello.wasm hello.go
+
+$ wasm3 hello.wasm
+Hello, world!
+```
+
+The Go runtime is linked into every module, so even this one lands at about 2.5 MB.
+What that buys is the whole runtime: goroutines, the scheduler,
+the garbage collector, `time` and `os` all work under Wasm3.
+
+[TinyGo](#tinygo-wasi-app) targets the same interface at a fraction of the size.
 
 
 ### Zig WASI app
@@ -456,21 +478,24 @@ Hello, world!
 
 # Gas Metering
 
+Any `.wasm` module can be run under a fixed gas budget.
+`--gas-meter` reports what a run costs, and `--gas-limit` sets the budget
+it is allowed to spend:
+
 ```sh
-$ npm install -g wasm-metering
+$ wasm3 --gas-meter --func fib test/lang/fib32.wasm 24
+Gas used: 8935.3961
+Result: 46368
 
-$ wasm-meter hello.wasm hello-metered.wasm
-
-$ wasm3 hello-metered.wasm       
-Warning: Gas is limited to 500000000.0000
-Hello, world!
-Gas used: 20.8950
-
-$ wasm3 --gas-limit 10 hello-metered.wasm
-Warning: Gas is limited to 10.0000
-Gas used: 10.0309
-Error: [trap] Out of gas
+$ wasm3 --gas-limit 100 --func fib test/lang/fib32.wasm 24
+Gas used: 100.0183
+Error: [trap] out of gas
 ```
+
+Instruction costs come from the table
+[ewasm's metering design](https://github.com/ewasm/design/blob/master/metering.md)
+is written against, whose unit is a ten-thousandth of a gas - hence the four
+decimal places.
 
 # Other resources
 

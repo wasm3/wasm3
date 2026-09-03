@@ -1513,6 +1513,32 @@ d_m3Op(CompileReturnCall)
 }
 
 
+#if d_m3HasGasMetering
+
+// Pays for the straight-line segment of the function body that follows, before
+// any of it runs. The compiler adds up the segment's instruction costs while it
+// compiles them and leaves the total here as an immediate, so metering costs one
+// subtract and one branch however long the segment is.
+//
+// The counter is allowed to go negative - the segment was charged in full - and
+// nothing resets it, so the trap stands until the host arms the runtime again.
+d_m3Op(UseGas)
+{
+    IM3Runtime runtime = m3MemRuntime(_mem);
+    u32        cost = immediate(u32);
+
+    runtime->gasRemaining -= (i64)cost;
+
+    if (M3_UNLIKELY(runtime->gasRemaining < 0)) {
+        newTrap(m3Err_trapOutOfGas);
+    }
+
+    nextOp();
+}
+
+#endif // d_m3HasGasMetering
+
+
 d_m3Op(Entry)
 {
     d_m3ClearRegisters

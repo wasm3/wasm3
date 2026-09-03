@@ -4286,6 +4286,10 @@ const M3OpInfo c_operations[] =
 
     d_m3DebugOp (MemFill),          d_m3DebugOp (MemCopy),          d_m3DebugOp (MemInit),          d_m3DebugOp (DataDrop),
 
+# if d_m3HasGasMetering
+    d_m3DebugOp (UseGas),
+# endif
+
 # if d_m3HasRefTypes
     d_m3DebugOp (TableGet),         d_m3DebugOp (TableSet),         d_m3DebugOp (TableSize),
     d_m3DebugOp (TableGrow),        d_m3DebugOp (TableFill),        d_m3DebugOp (TableInit),
@@ -4391,6 +4395,225 @@ IM3OpInfo GetOpInfo (m3opcode_t opcode)
     return (info and IsImplementedOp(info)) ? info : NULL;
 }
 
+#if d_m3HasGasMetering
+
+//----- GAS METERING ------------------------------------------------------------------------------------------------------
+//
+// Instrumentation the engine applies to a function body as it compiles it,
+// following ewasm's metering design, which does the same thing to the Wasm ahead
+// of time: https://github.com/ewasm/design/blob/master/metering.md
+//
+// The body is cut into segments at the instructions that can transfer control,
+// and each segment is charged in full, before any of it runs, by an op_UseGas
+// carrying the total as an immediate. Prepaying is what makes the accounting
+// hold: a call, or a loop iteration that never comes back round, has already
+// been paid for by the time it leaves.
+
+// The cost table's unit is a ten-thousandth of a gas, which is why these numbers
+// are as large as they are. Two runs of instructions it does not price had to be
+// filled in. It has no floating point at all, ewasm having banned it, so float
+// instructions are priced as their integer counterparts - division and square
+// root as an integer divide, the rest as integer arithmetic. And it predates the
+// reference, bulk memory and exception instructions, which are priced as the
+// nearest thing it does list: a table access as a memory access, an operation
+// over a whole region as memory.grow, a throw as a branch.
+enum {
+    c_gasLocal   = 1,          // charged once per declared local, at function entry
+    c_gasNominal = 1,          // nop, block, loop, if, const
+    c_gasArith   = 45,
+    c_gasShift   = 67,
+    c_gasBranch  = 90,
+    c_gasMemSize = 100,
+    c_gasAccess  = 120,        // a local, global, table or memory access
+    c_gasHeavy   = 10000,      // an indirect call, or anything that works over a whole region
+    c_gasDivide  = 36000
+};
+
+// The most one op_UseGas can carry. A segment that reaches it is split into
+// consecutive charges, which prepays exactly the same amount.
+#  define d_m3MaxSegmentGas   0xFFFFFFFF
+
+static
+u32 GetGasCost (m3opcode_t i_opcode)
+{
+    switch (i_opcode) {
+    case 0x00:                        // unreachable
+    case 0x01:                        // nop
+    case c_waOp_block:
+    case c_waOp_loop:
+    case c_waOp_if:
+    case c_waOp_tryTable:             // a block that also installs handlers
+    case c_waOp_refNull:              // a constant, by another name
+    case c_waOp_refFunc:
+        return c_gasNominal;
+
+    case c_waOp_end:
+        return 0;                     // the one control instruction the table prices at nothing
+
+    case c_waOp_else:
+    case c_waOp_branch:
+    case c_waOp_branchIf:
+    case c_waOp_return:
+    case c_waOp_call:
+    case c_waOp_returnCall:
+    case c_waOp_throw:
+    case c_waOp_throwRef:
+        return c_gasBranch;
+
+    case c_waOp_branchTable:
+    case 0x1a:                        // drop
+    case 0x1b:                        // select
+    case c_waOp_selectTyped:
+        return c_gasAccess;
+
+    case c_waOp_callIndirect:
+    case c_waOp_returnCallIndirect:
+    case c_waOp_callRef:
+    case c_waOp_returnCallRef:
+    case c_waOp_memoryInit:
+    case c_waOp_memoryCopy:
+    case c_waOp_memoryFill:
+    case c_waOp_tableInit:
+    case c_waOp_tableCopy:
+    case c_waOp_tableGrow:
+    case c_waOp_tableFill:
+    case 0x40:                        // memory.grow
+        return c_gasHeavy;
+
+    case c_waOp_dataDrop:
+    case c_waOp_elemDrop:
+    case c_waOp_tableSize:
+    case 0x3f:                        // memory.size
+        return c_gasMemSize;
+
+    case c_waOp_refIsNull:
+    case c_waOp_refAsNonNull:
+        return c_gasArith;
+
+    default:
+        break;
+    }
+
+    // The two integer arithmetic runs are priced by position, i32 at 0x6a and
+    // i64 at 0x7c, the table giving both the same shape
+    if ((i_opcode >= 0x6a and i_opcode <= 0x78) or (i_opcode >= 0x7c and i_opcode <= 0x8a)) {
+        // clang-format off
+        static const u16 c_arithmeticCosts [] = {
+            c_gasArith,  c_gasArith,  c_gasArith,                   // add, sub, mul
+            c_gasDivide, c_gasDivide, c_gasDivide, c_gasDivide,     // div_s, div_u, rem_s, rem_u
+            c_gasArith,  c_gasArith,  c_gasArith,                   // and, or, xor
+            c_gasShift,  c_gasShift,  c_gasShift,                   // shl, shr_s, shr_u
+            c_gasBranch, c_gasBranch                                // rotl, rotr
+        };
+        // clang-format on
+
+        return c_arithmeticCosts[i_opcode - (i_opcode <= 0x78 ? 0x6a : 0x7c)];
+    }
+
+    if (i_opcode >= 0x20 and i_opcode <= 0x3e) {
+        return c_gasAccess;           // locals, globals, table accesses, loads and stores
+    }
+    if (i_opcode >= 0x41 and i_opcode <= 0x44) {
+        return c_gasNominal;          // i32/i64/f32/f64.const
+    }
+    if (i_opcode >= 0x8b and i_opcode <= 0xa6) {
+        // the float run, priced as integer arithmetic except where it divides
+        bool divides = (i_opcode == 0x91 or i_opcode == 0x95 or     // f32.sqrt, f32.div
+                        i_opcode == 0x9f or i_opcode == 0xa3);      // f64.sqrt, f64.div
+
+        return divides ? c_gasDivide : c_gasArith;
+    }
+
+    // comparisons and clz/ctz/popcnt (0x45..0x69, 0x79..0x7b), the conversions
+    // and sign extensions (0xa7..0xc4), the saturating truncations, and anything
+    // else that reaches here: plain arithmetic
+    return c_gasArith;
+}
+
+// The instructions ewasm's design segments a body at. A segment runs up to and
+// including the next one of these, so every cycle a body can execute - a loop's
+// back edge, a branch out of a block, falling off the end of a function - passes
+// through at least one, and no path can run unmetered however it is entered.
+static
+bool IsGasSegmentEnd (m3opcode_t i_opcode)
+{
+    switch (i_opcode) {
+    case c_waOp_loop:
+    case c_waOp_if:
+    case c_waOp_else:
+    case c_waOp_end:
+    case c_waOp_branch:
+    case c_waOp_branchIf:
+    case c_waOp_branchTable:
+    case c_waOp_return:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Ends the open segment by writing what it accumulated into the immediate its
+// op_UseGas is still waiting on. Emitting onto a later code page does not move
+// an earlier one, so the reservation is still where it was left.
+static
+void CloseGasSegment (IM3Compilation o)
+{
+    if (o->gasPatch) {
+        u32 cost = o->gasCost;
+        memcpy(o->gasPatch, &cost, sizeof(cost));
+
+        o->gasPatch = NULL;
+        o->gasCost  = 0;
+    }
+}
+
+// Charges one instruction to the segment being compiled, opening a segment at
+// this point in the code stream if none is open, and settling the segment when
+// the instruction is one that ends it. Called before the instruction is
+// compiled, which is what both halves need: the op_UseGas lands ahead of what it
+// pays for, and the cost is final before a block-structured instruction - loop,
+// if, else - compiles its body from inside its own compiler. The body then opens
+// a segment of its own, inside the loop or the arm, where it is charged on every
+// pass rather than once on the way in.
+static
+M3Result MeterOpcode (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result = m3Err_none;
+
+    // constant expressions are not metered: they run once at instantiation,
+    // before the module is anything a gas budget was handed out for
+    if (o->function and o->page and o->runtime->gasLimit) {
+        // with cascaded opcodes only the 0xFC prefix has been read so far; the
+        // instruction it names is the byte the compiler is about to take
+        if (i_opcode == c_waOp_extended and o->wasm < o->wasmEnd) {
+            i_opcode = (m3opcode_t)((i_opcode << 8) | *o->wasm);
+        }
+
+        u32 cost = GetGasCost(i_opcode);
+
+        if (o->gasPatch and o->gasCost > d_m3MaxSegmentGas - cost) {
+            CloseGasSegment(o);
+        }
+
+        if (not o->gasPatch) {
+_           (EmitOp(o, op_UseGas));
+            o->gasPatch = (void*)GetPagePC(o->page);
+            EmitConstant32(o, 0);
+        }
+
+        o->gasCost += cost;
+
+        if (IsGasSegmentEnd(i_opcode)) {
+            CloseGasSegment(o);
+        }
+    }
+
+    _catch: return result;
+}
+
+#endif // d_m3HasGasMetering
+
+
 M3Result CompileBlockStatements (IM3Compilation o)
 {
     M3Result result   = m3Err_none;
@@ -4439,6 +4662,10 @@ _       (Read_opcode(&opcode, &o->wasm, o->wasmEnd));
         if (opinfo == NULL) {
             _throw(ErrorCompile(m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
         }
+
+#if d_m3HasGasMetering
+_       (MeterOpcode(o, opcode));
+#endif
 
         if (opinfo->compiler) {
 _           ((*opinfo->compiler)(o, opcode))
@@ -4795,6 +5022,13 @@ _       (PushAllocatedSlot(o, type));
     o->slotMaxAllocatedIndexPlusOne = o->function->numRetAndArgSlots = o->slotFirstLocalIndex = o->slotFirstDynamicIndex;
 
 _   (CompileLocals(o));
+
+#if d_m3HasGasMetering
+    // the table charges for a function's locals as well as for its instructions.
+    // op_Entry is what sets them up, so the charge rides on the body's first
+    // segment, which is emitted right after it
+    o->gasCost = o->function->numLocals * c_gasLocal;
+#endif
 
     u16 maxSlot = GetMaxUsedSlotPlusOne(o);
 

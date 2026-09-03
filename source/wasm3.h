@@ -238,6 +238,7 @@ d_m3ErrorConst(trapAbort,                      "[trap] program called abort")
 d_m3ErrorConst(trapUnreachable,                "[trap] unreachable")
 d_m3ErrorConst(trapUnsupportedInstruction,     "[trap] unsupported instruction")
 d_m3ErrorConst(trapStackOverflow,              "[trap] stack overflow")
+d_m3ErrorConst(trapOutOfGas,                   "[trap] out of gas")
 d_m3ErrorConst(trapUncaughtException,          "[trap] uncaught exception")
 
 // Internal: the marker an in-flight exception rides back up the native stack
@@ -276,6 +277,28 @@ void             m3_FreeRuntime (IM3Runtime i_runtime);
 // Turning it off means trusting the module - nothing then checks a body's
 // types before it runs. On by default (a no-op in a build without validation).
 void             m3_SetValidation (IM3Runtime i_runtime, bool i_enable);
+
+// Gas metering. Arming a runtime with a gas budget makes the compiler
+// instrument the function bodies it compiles from then on: each straight-line
+// segment of a body is charged, before any of it runs, for the instructions it
+// is about to execute. Running the budget out traps with m3Err_trapOutOfGas,
+// which no amount of Wasm can catch, so this bounds how long a module can run
+// as well as how much it can do.
+//
+// Costs come from ewasm's metering design, whose unit is a ten-thousandth of a
+// gas - hence the fractional gas these speak in. Instrumentation follows lazy
+// compilation, so a body already compiled when the limit is set is not metered:
+// arm the runtime before running anything. Setting a new limit re-arms the
+// runtime with a full budget, and does not recompile what is already compiled.
+//
+// The gas used can exceed the limit by the cost of the segment that ran out -
+// it is charged in full before the trap. A build with d_m3HasGasMetering=0
+// compiles the instrumentation out: m3_SetGasLimit does nothing there, and the
+// two getters answer 0.
+void             m3_SetGasLimit (IM3Runtime i_runtime, double i_gas);
+
+double           m3_GetGasLimit (IM3Runtime i_runtime);
+double           m3_GetGasUsed (IM3Runtime i_runtime);
 
 // A memory belongs to the module that declares it, so these take the module
 // rather than the runtime - a runtime can hold several modules, each with
