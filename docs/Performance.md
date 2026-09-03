@@ -6,9 +6,10 @@
 > the time, not as a current comparison - every engine listed has moved on, several by
 > whole major versions.
 
-To measure the tree in front of you: `test/run-bench.py` compares Wasm3 builds against
-each other over the WASI workloads, and `test/run-wasi-test.py --exec <engine>` runs the
-same workloads under another runtime. See [Testing](./Testing.md#benchmarking).
+To measure the tree in front of you: `test/run-bench.py --exec <name>=<command> ...`
+compares any two ways of invoking an engine over the WASI workloads, and
+`test/run-wasi-test.py --exec <engine>` runs the same workloads under another runtime.
+See [Testing](./Testing.md#benchmarking).
 
 ## CoreMark 1.0 results
 

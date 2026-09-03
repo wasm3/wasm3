@@ -92,15 +92,29 @@ cmake --build build-strace
 
 ```sh
 # In test directory:
-./run-bench.py --variant main=main --variant optz=. --rounds 5
+./run-bench.py --exec "old=../build-old/wasm3" --exec "new=../build/wasm3" --rounds 5
 ```
 
-Builds several Wasm3 variants and compares them over the WASI workloads. A variant is
-`<name>=<source>[:<extra cmake args>]`, where the source is a git ref checked out into a
-throwaway worktree or `.` for the live tree - so a variant can differ from its source by
-configuration alone. Rounds run interleaved and rotated, so a machine that drifts during
-the session penalises every variant equally. `--list` prints the workloads and the
-metrics each one reports.
+Compares command lines over the WASI workloads. Each `--exec` is `<name>=<command>`,
+where the command is however the engine under test is invoked - a binary, that binary
+plus runtime flags, or another engine entirely - and the name is what labels the column.
+The harness builds nothing, so what it compares is exactly what it was handed:
+
+```sh
+# what a runtime flag costs, one binary
+./run-bench.py --exec "plain=../build/wasm3" \
+               --exec "metered=../build/wasm3 --gas-limit 1e12"
+
+# what a build option costs, two binaries
+cmake -S .. -B ../build-preload -DCMAKE_C_FLAGS=-Dd_m3PreloadNextOp=1
+cmake --build ../build-preload
+./run-bench.py --exec "base=../build/wasm3" --exec "preload=../build-preload/wasm3"
+```
+
+Rounds run interleaved and rotated, so a machine that drifts during the session
+penalises every command equally. `--filter` selects workloads by glob, `--cpu` pins runs
+with `taskset`, `--json` writes the raw per-round samples, and `--list` prints the
+workloads and the metrics each one reports.
 
 ## Running coverage-guided fuzz testing with libFuzzer
 

@@ -62,14 +62,22 @@ ninja
 ## Build on Windows
 
 Prerequisites, on top of the ones above:
-- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), with the *Desktop development with C++* workload. Its optional *C++ Clang tools for Windows* component is what the `-T ClangCL` toolset below selects; a [standalone LLVM](https://github.com/llvm/llvm-project/releases) works too (using `-DCLANG_CL=1`).
+- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026), with the *Desktop development with C++* workload.
 - Both `CMake` and `Ninja` also ship with the Build Tools.
+- Select optional *C++ Clang tools for Windows* component for `-T ClangCL` toolset below to work; a [standalone LLVM](https://github.com/llvm/llvm-project/releases) works too (using `-DCLANG_CL=1`).
 
-MSBuild finds the toolchain by itself. A developer environment is only needed to call
-the compiler directly, as in [Build using compiler directly](#build-using-compiler-directly):
+Use `vswhere` to find out there the latest Build Tools are located:
 
 ```bat
-"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+```
+
+MSBuild finds the toolchain by itself. A developer environment is only needed to call
+the compiler directly, as in [Build using compiler directly](#build-using-compiler-directly),
+or to drive Ninja:
+
+```bat
+"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 ```
 
 ### Build with MSBuild
@@ -82,19 +90,19 @@ mkdir build
 cd build
 
 :: Configure Clang, x64
-cmake -G"Visual Studio 17 2022" -A x64 -T ClangCL ..
+cmake -G"Visual Studio 18 2026" -A x64 -T ClangCL ..
 
 :: Configure Clang, x86
-cmake -G"Visual Studio 17 2022" -A Win32 -T ClangCL ..
+cmake -G"Visual Studio 18 2026" -A Win32 -T ClangCL ..
 
 :: Configure MSVC, x64
-cmake -G"Visual Studio 17 2022" -A x64 ..
+cmake -G"Visual Studio 18 2026" -A x64 ..
 
 :: Configure MSVC, x86
-cmake -G"Visual Studio 17 2022" -A Win32 ..
+cmake -G"Visual Studio 18 2026" -A Win32 ..
 
 :: Configure MSVC, ARM64
-cmake -G"Visual Studio 17 2022" -A ARM64 ..
+cmake -G"Visual Studio 18 2026" -A ARM64 ..
 
 :: Build
 cmake --build . --config Release
@@ -106,15 +114,21 @@ binary; CI does the same.
 
 ### Build with Ninja
 
-```sh
-set PATH=C:\Program Files\CMake\bin;%PATH%
-set PATH=C:\Program Files\LLVM\bin;%PATH%
+Ninja is single-config, and unlike MSBuild it does not set the toolchain up, so this one
+runs from a developer environment - `vcvars64.bat` above - with the Build Tools' own
+CMake, Ninja and LLVM on `PATH`:
 
-# Clang
+```bat
+set VS=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools
+set PATH=%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
+set PATH=%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
+set PATH=%VS%\VC\Tools\Llvm\x64\bin;%PATH%
+
+:: Clang
 cmake -GNinja -DCLANG_CL=1 ..
 ninja
 
-# MSVC
+:: MSVC
 cmake -GNinja ..
 ninja
 ```

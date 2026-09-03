@@ -492,6 +492,10 @@ Gas used: 100.0183
 Error: [trap] out of gas
 ```
 
+> [!NOTE]
+> Enabling `Gas Metering` costs about 10% of throughput.
+> Across the `test/wasi` benchmarks a metered run measures 0.91x an unmetered one.
+
 Instruction costs come from the table
 [ewasm's metering design](https://github.com/ewasm/design/blob/master/metering.md)
 is written against, whose unit is a ten-thousandth of a gas - hence the four
