@@ -253,6 +253,8 @@ OpInfo find_operation_info (IM3Operation i_operation)
     // Scans the tables directly rather than through GetOpInfo (), which rejects
     // the reserved slots and the internal operations kept past the last opcode.
     // Reserved slots are zeroed, so they never match a real operation here.
+    // c_operationsHigh is not scanned: every entry in it is compiler-driven with
+    // an empty operation list, so nothing there could match.
     if (not ScanOperationTable(&opInfo, c_operations, c_numOperations, 0, i_operation)) {
         ScanOperationTable(&opInfo, c_operationsFC, c_numOperationsFC, c_waOp_extended << 8, i_operation);
     }

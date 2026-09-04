@@ -219,11 +219,14 @@ typedef struct M3OpInfo {
     i8           stackOffset;
     u8           type;
 
+    // index into c_compilers [], 0 for an opcode with no compiler. An index
+    // rather than a pointer: it costs a byte instead of a word, and it keeps
+    // the whole table free of relocations.
+    u8           compiler;
+
     // for most operations:
     // [0]= top operand in register, [1]= top operand in stack, [2]= both operands in stack
     IM3Operation operations[4];
-
-    M3Compiler   compiler;
 } M3OpInfo;
 
 typedef const M3OpInfo* IM3OpInfo;
@@ -231,7 +234,7 @@ typedef const M3OpInfo* IM3OpInfo;
 IM3OpInfo               GetOpInfo (m3opcode_t opcode);
 
 // The raw tables, for the DEBUG-only reverse lookup in m3_info.c. Past the last
-// Wasm opcode they also hold internal operations, which GetOpInfo hides.
+// Wasm opcode c_operations also holds internal operations, which GetOpInfo hides.
 extern const M3OpInfo   c_operations[];
 extern const M3OpInfo   c_operationsFC[];
 extern const u32        c_numOperations;
@@ -281,7 +284,7 @@ bool IsIntRegisterSlotAlias (u16 i_slot)
 #if d_m3HasFloat
 #  define M3OP_F          M3OP
 #elif d_m3NoFloatDynamic
-#  define M3OP_F(n,o,t,op,...)        M3OP(n, o, t, { op_Unsupported, op_Unsupported, op_Unsupported, op_Unsupported }, __VA_ARGS__)
+#  define M3OP_F(n,o,t,op,...)        M3OP(n, o, t, .operations = { op_Unsupported, op_Unsupported, op_Unsupported, op_Unsupported }, __VA_ARGS__)
 #else
 #  define M3OP_F(...)     { 0 }
 #endif

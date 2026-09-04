@@ -160,6 +160,20 @@ tests = [
     "args":           ["--func", "poly-br-table"],
     "expect_pattern": "*unreachable*",
   }, {
+    # The 0xFC sub-opcode is a LEB128 u32, and the spec allows non-minimal
+    # encodings up to the five bytes a u32 takes. Reading it as a single byte
+    # rejected valid modules, and disagreed with the validator, which read a LEB.
+    # Both modules are hand-assembled; see the .wat files.
+    "name":           "0xFC sub-opcode in a non-minimal LEB",
+    "wasm":           "./regression/fc-subopcode-overlong.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*Result: 3*",
+  }, {
+    "name":           "0xFC sub-opcode past the LEB u32 limit",
+    "wasm":           "./regression/fc-subopcode-toolong.wasm",
+    "args":           ["--func", "to_test"],
+    "expect_pattern": "*LEB encoded value overflow*",
+  }, {
     "name":           "Non-numeric function argument",
     "issue":          367,
     "wasm":           "./lang/fib32.wasm",

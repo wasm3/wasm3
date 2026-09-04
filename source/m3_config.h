@@ -44,10 +44,6 @@
 #  define d_m3MaxDuplicateFunctionImpl         3
 #endif
 
-#ifndef d_m3CascadedOpcodes                            // Cascaded opcodes are slightly faster at the expense of some memory
-#  define d_m3CascadedOpcodes                  1       // Adds ~3Kb to operations table in m3_compile.c
-#endif
-
 #ifndef d_m3VerboseErrorMessages
 #  define d_m3VerboseErrorMessages             1
 #endif

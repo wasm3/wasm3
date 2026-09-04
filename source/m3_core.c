@@ -418,17 +418,10 @@ M3Result Read_opcode (m3opcode_t* o_value, bytes_t* io_bytes, cbytes_t i_end)
     const u8* ptr = *io_bytes;
 
     if (ptr < i_end) {
+        // 0xFC is returned as the bare prefix: its sub-opcode is a LEB128 u32, which
+        // only the callers - Compile_ExtendedOpcode and the validator - can read.
         m3opcode_t opcode = *ptr++;
 
-#if d_m3CascadedOpcodes == 0
-        if (M3_UNLIKELY(opcode == c_waOp_extended)) {
-            if (ptr < i_end) {
-                opcode = (opcode << 8) | (*ptr++);
-            } else {
-                return m3Err_wasmUnderrun;
-            }
-        }
-#endif
         *o_value  = opcode;
         *io_bytes = ptr;
 
