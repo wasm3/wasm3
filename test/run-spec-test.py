@@ -23,7 +23,7 @@
 #   ./run-spec-test.py --exec "iwasm --dir=. wasm3.wasm --spec-repl"
 #
 
-# TODO
+# TODO:
 # - Fix "Empty Stack" check
 # - Fix imports.wast
 

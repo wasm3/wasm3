@@ -1390,7 +1390,8 @@ _           (CopyStackTopToRegister(o, false));
             --numRemValues;
         }
 
-        // TODO: tempslot affects maxStackSlots, so can grow unnecess each time.
+        // tempslot affects maxStackSlots, so can grow unnecess each time.
+        // in practice, this is hardly ever hit.
         u16 tempSlot = o->maxStackSlots;// GetMaxUsedSlotPlusOne (o); doesn't work cause can collide with slotRecords
         AlignSlotToType(&tempSlot, c_m3Type_i64);
 
@@ -2117,19 +2118,31 @@ _       (GetBlockScope(o, &scope, target));
             continue;
         }
 
-        // TODO: don't need codepage rigmarole for
-        // no-param forward-branch targets
+        u32 numTryFrames = 0;
+#if d_m3HasExceptionHandling
+        numTryFrames = NumTryFramesToPop(&o->block, scope);
+#endif
+
+        // A forward branch to a block that carries no results and leaves no try
+        // frames behind has nothing to do on the way out but arrive. There is no
+        // epilogue to hold, so the table entry becomes the patch site itself and the
+        // block's address is written into it when the block ends - no stub, and no
+        // code page to put one on. In unreachable code the same is true whatever the
+        // block's type, since nothing is emitted for that case either way.
+        //
+        // Each such entry is patched on its own, so none is recorded in targetStubs:
+        // there is no shared stub for a later entry naming this label to point at.
+        if (scope->opcode != c_waOp_loop and scope->depth > 0 and numTryFrames == 0 and
+            (IsStackPolymorphic(o) or GetFuncTypeNumResults(scope->type) == 0)) {
+            EmitPatchingBranchPointer(o, scope);
+            continue;
+        }
 
 _       (AcquireCompilationCodePage(o, &continueOpPage));
 
         pc_t startPC  = GetPagePC(continueOpPage);
         displacedPage = o->page;
         o->page       = continueOpPage;
-
-        u32 numTryFrames = 0;
-#if d_m3HasExceptionHandling
-        numTryFrames = NumTryFramesToPop(&o->block, scope);
-#endif
 
         if (scope->opcode == c_waOp_loop) {
 _           (EmitPopTryFrames(o, numTryFrames));

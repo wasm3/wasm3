@@ -671,18 +671,21 @@ jobs:
         ${{ matrix.config.python }} run-wasi-test.py --fast --exec "${{ matrix.config.exec }}"
 
   zig-native:
-    name: zig-native-${{ matrix.os }}
+    name: zig-native-${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - name: linux
+            os: ubuntu-latest
             py: python3
-          - os: macos-latest
+          - name: macos
+            os: macos-latest
             py: python3
-          - os: windows-latest
+          - name: windows
+            os: windows-latest
             py: python
     steps:
       - uses: actions/checkout@v7
@@ -754,8 +757,12 @@ jobs:
         ! nm .pio/build/mega1284/firmware.elf | grep printf
     - name: Build ESP8266
       run: |
-        cd platforms/embedded/esp8266
-        pio run
+        cd platforms/embedded/arduino
+        pio run -e esp8266
+    - name: Build ESP32
+      run: |
+        cd platforms/embedded/arduino
+        pio run -e esp32
 
   platformio-arm:
     runs-on: ubuntu-latest
@@ -836,10 +843,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - name: Check that IDF and PIO examples are in sync
-      run: |
-        diff -q platforms/embedded/esp32-idf/main/main.cpp platforms/embedded/esp32-pio/src/main.cpp
-      # TODO: also check that the build flags are in sync
     - name: Build for ESP32
       run: |
         docker run --rm -i                                          \

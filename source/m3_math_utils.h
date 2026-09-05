@@ -174,12 +174,6 @@ f64 m3_neg (f64 x)
 
 #endif // defined(M3_COMPILER_TCC)
 
-// TODO: not sure why, signbit is actually defined in math.h
-#if (defined(ESP8266) || defined(ESP32)) && !defined(signbit)
-#  define signbit(__x) \
-          ((sizeof(__x) == sizeof(float))  ?  __signbitf(__x) : __signbitd(__x))
-#endif
-
 #if defined(__AVR__)
 
 static inline
@@ -302,27 +296,27 @@ u64 rotr64 (u64 n, u64 c)
  * Integer Div, Rem
  */
 
-#define OP_DIV_U(RES, A, B)                                      \
+#define OP_DIV_U(RES, A, B)                                         \
     if (M3_UNLIKELY(B == 0)) newTrap (m3Err_trapDivisionByZero);    \
     RES = A / B;
 
-#define OP_REM_U(RES, A, B)                                      \
+#define OP_REM_U(RES, A, B)                                         \
     if (M3_UNLIKELY(B == 0)) newTrap (m3Err_trapDivisionByZero);    \
     RES = A % B;
 
 // 2's complement detection
 #if (INT_MIN != -INT_MAX)
 
-#  define OP_DIV_S(RES, A, B, TYPE_MIN)                         \
-      if (M3_UNLIKELY(B == 0)) newTrap (m3Err_trapDivisionByZero); \
-      if (M3_UNLIKELY(B == -1 and A == TYPE_MIN)) {                \
-          newTrap (m3Err_trapIntegerOverflow);                  \
-      }                                                         \
+#  define OP_DIV_S(RES, A, B, TYPE_MIN)                             \
+      if (M3_UNLIKELY(B == 0)) newTrap (m3Err_trapDivisionByZero);  \
+      if (M3_UNLIKELY(B == -1 and A == TYPE_MIN)) {                 \
+          newTrap (m3Err_trapIntegerOverflow);                      \
+      }                                                             \
       RES = A / B;
 
-#  define OP_REM_S(RES, A, B, TYPE_MIN)                         \
-      if (M3_UNLIKELY(B == 0)) newTrap (m3Err_trapDivisionByZero); \
-      if (M3_UNLIKELY(B == -1 and A == TYPE_MIN)) RES = 0;         \
+#  define OP_REM_S(RES, A, B, TYPE_MIN)                             \
+      if (M3_UNLIKELY(B == 0)) newTrap (m3Err_trapDivisionByZero);  \
+      if (M3_UNLIKELY(B == -1 and A == TYPE_MIN)) RES = 0;          \
       else RES = A % B;
 
 #else
@@ -337,10 +331,10 @@ u64 rotr64 (u64 n, u64 c)
  */
 
 #define OP_TRUNC(RES, A, TYPE, RMIN, RMAX)                  \
-    if (M3_UNLIKELY(isnan(A))) {                               \
+    if (M3_UNLIKELY(isnan(A))) {                            \
         newTrap (m3Err_trapIntegerConversion);              \
     }                                                       \
-    if (M3_UNLIKELY(A <= RMIN or A >= RMAX)) {                 \
+    if (M3_UNLIKELY(A <= RMIN or A >= RMAX)) {              \
         newTrap (m3Err_trapIntegerOverflow);                \
     }                                                       \
     RES = (TYPE)A;
@@ -357,11 +351,11 @@ u64 rotr64 (u64 n, u64 c)
 #define OP_U64_TRUNC_F64(RES, A)    OP_TRUNC(RES, A, u64,                   -1.0 , 18446744073709551616.0 )
 
 #define OP_TRUNC_SAT(RES, A, TYPE, RMIN, RMAX, IMIN, IMAX)  \
-    if (M3_UNLIKELY(isnan(A))) {                               \
+    if (M3_UNLIKELY(isnan(A))) {                            \
         RES = 0;                                            \
-    } else if (M3_UNLIKELY(A <= RMIN)) {                       \
+    } else if (M3_UNLIKELY(A <= RMIN)) {                    \
         RES = IMIN;                                         \
-    } else if (M3_UNLIKELY(A >= RMAX)) {                       \
+    } else if (M3_UNLIKELY(A >= RMAX)) {                    \
         RES = IMAX;                                         \
     } else {                                                \
         RES = (TYPE)A;                                      \

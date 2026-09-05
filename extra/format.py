@@ -154,7 +154,6 @@ EXCLUDE = Blacklist(
         # generated: wasm modules dumped as C byte arrays
         "*.wasm.h",
         "source/extra/*",
-        "platforms/embedded/esp32-pio/src/sdkconfig.h",  # written by ESP-IDF menuconfig
         # vendored: the Fomu/LiteX SoC support code, tracked verbatim from upstream
         "platforms/embedded/fomu/src/*",
         "platforms/embedded/fomu/include/*",
