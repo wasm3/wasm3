@@ -68,9 +68,15 @@ It can be run against other engines as well:
 python3 run-regression-test.py
 ```
 
-The cases in `test/regression/` are modules that once broke Wasm3, each kept alongside
-the `.wat` it was assembled from so the diff stays readable. Add one whenever you fix a
-bug that a spec test would not have caught.
+The cases in `test/regression/` are modules that once broke Wasm3, kept as text so that a
+diff stays readable: `.wat` for a plain module, `.wast` where the case needs the script
+grammar to name its own bytes. Add one whenever you fix a bug that a spec test would not
+have caught.
+
+Nothing has to be assembled by hand: the runner does it before the run, with the
+`wast2json` in `test/wasi/wabt/`, which is itself a module and runs on the interpreter
+under test. Pass `--host ../build/wasm3` if the interpreter
+under test is not capable of running WABT.
 
 ## Running strace tests
 
@@ -80,8 +86,9 @@ python3 run-strace-test.py --exec ../build-strace/wasm3
 ```
 
 Each case runs a module and compares the trace Wasm3 writes to stderr against a recorded
-reference; `--update` re-records them. This needs its own build, because tracing changes
-how the engine runs:
+reference; `--update` re-records them. A reference carries code offsets, so re-record it
+after changing a case's source or the vendored `wast2json` that assembles it. This needs
+its own build, because tracing changes how the engine runs:
 
 ```sh
 cmake -S . -B build-strace -DCMAKE_C_FLAGS="-DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1"

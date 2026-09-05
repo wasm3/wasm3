@@ -6,6 +6,7 @@
 #   ./run-strace-test.py --exec ../build-strace/wasm3
 #   ./run-strace-test.py --exec "wasmtime run --dir ./::./ wasm3-strace.wasm"
 #   ./run-strace-test.py --update      # re-record the reference outputs
+#   ./run-strace-test.py --host ../build/wasm3   # assemble on a quiet build
 #
 # The strace build (-Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1) ships as its
 # own release binary and runs the engine differently: op_Entry has to stay live
@@ -16,6 +17,11 @@
 # against a recorded reference. The program's own stdout is not part of the
 # comparison: it interleaves with the trace differently depending on how the two
 # streams are buffered.
+#
+# The text cases are assembled before the run by the wast2json in ./wasi/wabt,
+# which is itself a module, run on the interpreter under test - tracing every call
+# it makes into a stderr that is thrown away. --host assembles on another build
+# instead, when that is too much to ask of the one being tested.
 
 import argparse
 import difflib
@@ -33,6 +39,11 @@ from testutils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--exec", metavar="<interpreter>", default="../build/wasm3")
+parser.add_argument(
+    "--host",
+    metavar="<interpreter>",
+    help="what to run wast2json on, if not the interpreter under test",
+)
 parser.add_argument("--timeout", type=int, default=120)
 parser.add_argument(
     "--update",
@@ -49,6 +60,8 @@ stats = SimpleNamespace(total_run=0, failed=0, updated=0)
 #
 # Test cases
 #
+# "module" is the source the case runs: a .wat or .wast is assembled first, a
+# .wasm is taken as it is.
 # "args" precede the module path, "func_args" follow it - that is where wasm3
 # expects the arguments of the function being called. "tail" compares only the
 # last N lines, for a program whose own start-up trace depends on the host.
@@ -58,21 +71,21 @@ stats = SimpleNamespace(total_run=0, failed=0, updated=0)
 tests = [
   {
     "name":     "nested calls, arguments and results",
-    "wasm":     "./lang/fib32.wasm",
+    "module":   "./lang/fib32.wasm",
     "args":     ["--func", "fib"],
     "func_args": ["6"],
     "expect":   "fib32.txt",
   }, {
     # four arguments, and a function the module does not name
     "name":     "call of an unnamed function",
-    "wasm":     "./regression/github-477.wasm",
+    "module":   "./regression/github-477.wat",
     "args":     ["--func", "main"],
     "expect":   "unnamed-func.txt",
   }, {
     # the only case that reaches the "<native>" branch: a host function has no
     # wasm body to trace, so op_CallRawFunction prints the call itself
     "name":     "call of an imported host function",
-    "wasm":     "./regression/wasi-memory-export-index0.wasm",
+    "module":   "./regression/wasi-memory-export-index0.wat",
     "args":     ["--func", "_start"],
     "expect":   "host-call.txt",
   }, {
@@ -80,7 +93,7 @@ tests = [
     # the memory size only in a DEBUG build, and the reference should not depend
     # on that
     "name":     "trap, and the frame it was raised in",
-    "wasm":     "./regression/table64-bounds.wasm",
+    "module":   "./regression/table64-bounds.wat",
     "args":     ["--func", "call_max"],
     "can_crash": True,
     "expect":   "trap.txt",
@@ -89,7 +102,7 @@ tests = [
     # time. Everything before the trap is this program starting up, which goes
     # through WASI and so depends on the host it runs on
     "name":     "trap, unwound through a call chain",
-    "wasm":     "./wasi/simple/test.wasm",
+    "module":   "./wasi/simple/test.wasm",
     "func_args": ["trap"],
     "can_crash": True,
     "tail":     20,
@@ -106,11 +119,19 @@ def fail(msg):
     stats.failed += 1
 
 
+#
+# Run
+#
+
+modules = assemble_modules(
+    (test["module"] for test in tests), args.host or args.exec, args.verbose
+)
+
 for test in tests:
     command = (
         args.exec.split(" ")
         + test.get("args", [])
-        + [test["wasm"]]
+        + [modules[test["module"]]]
         + test.get("func_args", [])
     )
     command = list(map(str, command))

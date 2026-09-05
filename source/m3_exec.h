@@ -106,11 +106,14 @@ d_m3RetSig profileJumpOp (d_m3OpSig, cstr_t i_operationName);
 #  define forwardTrap(err)                return err
 #endif
 
-// Trap before a non-tail Wasm call (op_Call/op_CallIndirect) would drive the
-// native C stack past runtime->stackLimit. Reads the current stack pointer via
-// a frame-address probe and compares against the low-water mark set by
-// d_m3StackLimitEnter. Only non-tail calls are guarded; op_ReturnCall runs in
-// constant native stack and is intentionally left unbounded.
+// Trap before an operation that claims a native frame of its own would drive
+// the native C stack past runtime->stackLimit. Reads the current stack pointer
+// via a frame-address probe and compares against the low-water mark set by
+// d_m3StackLimitEnter. Every op that keeps a frame across an inner dispatch
+// probes here first -- op_Call and op_CallIndirect, and also op_Loop and
+// op_TryTable, whose frames outlive the body they run. Guarding the frame
+// claim rather than the call is what keeps op_ReturnCall bounded: the tail
+// call itself adds nothing, but the frames it leaves standing behind it do.
 #if d_m3MaxNativeStack > 0
 #  define d_m3CheckNativeStack()                                               \
        do {                                                                    \
@@ -849,7 +852,9 @@ d_m3Op(CallIndirect)
 // arguments have to be relocated: the compiler stages them above the caller's stack (they
 // can still read the args/locals they're about to overwrite) and the op slides them down
 // onto the frame base.  The jump is a tail call, so neither the m3 stack nor the native
-// stack grows -- a tail-recursive loop runs in constant space.
+// stack grows.  Tail recursion therefore runs in constant space, unless the return_call
+// sits inside a loop or a try region: those hold a native frame that the tail call walks
+// away from instead of unwinding, and d_m3CheckNativeStack bounds the pile they make.
 #define d_m3TailCallArgs(RETURNSLOTS, STACKOFFSET, NUMARGSLOTS)                     \
    memmove ((void *) (_sp + (RETURNSLOTS)), (const void *) (_sp + (STACKOFFSET)),   \
             (size_t) (NUMARGSLOTS) * sizeof (m3slot_t))
@@ -1607,6 +1612,8 @@ d_m3Op(Entry)
 
 d_m3Op(Loop)
 {
+    d_m3CheckNativeStack();
+
     d_m3TracePrepare
 
       // regs are unused coming into a loop anyway

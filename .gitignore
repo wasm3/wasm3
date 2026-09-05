@@ -2,6 +2,7 @@
 /source-*/
 /.toolchains
 test/.spec-*
+test/.wast-*
 test/*.log
 test/tailcall/*.S
 node_modules/

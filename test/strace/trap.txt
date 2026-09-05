@@ -1,5 +1,5 @@
 call_max () {
 } !trap = [trap] undefined element
 ==== wasm backtrace:
-  0: 0x0000b3 - table64-bounds.wasm!call_max
+  0: 0x0000b1 - table64-bounds.wasm!call_max
 Error: [trap] undefined element

@@ -74,6 +74,10 @@ broken engine:
 
 `extra/check.py` gets both right on its own.
 
+A regression case is committed as text alone - `.wat`, or `.wast` where it has to name
+its own bytes - and `run-regression-test.py` assembles it into a temporary directory on
+every run. Nothing has to be assembled by hand, and no `.wasm` belongs in a commit.
+
 ## House rules
 
 **The build is warning-free.** Fix every warning it emits, including ones in code your
@@ -113,6 +117,44 @@ After changing `format.py` or `.clang-format`, judge the result by more than the
 size: idempotency (`format_text(format_text(x)) == format_text(x)` for every file),
 identical `gcc -E -P` output ignoring whitespace and `__FILE__`/`__LINE__`, and no new
 `-Wall -Wextra` diagnostic.
+
+**Reach for the WABT tools the tree ships, not a system `wabt` or a web assembler.**
+Whenever something has to be turned into a module, read back out of one, or expanded into
+a spec script - writing a test case, minimising a reported module, checking what an
+encoding actually says - use `test/wasi/wabt/`, run under Wasm3 itself:
+
+```sh
+build/wasm3 test/wasi/wabt/wat2wasm.wasm --enable-all in.wat -o out.wasm
+build/wasm3 test/wasi/wabt/wasm2wat.wasm --enable-all in.wasm
+build/wasm3 test/wasi/wabt/wast2json.wasm --enable-all in.wast -o out.json
+build/wasm3 test/wasi/wabt/wasm-objdump.wasm -d in.wasm   # takes no --enable-all
+```
+
+`wast2json` writes the modules beside its `.json`, and `wasm2wat` prints to stdout unless
+given `-o`. Pass `--enable-all` to the other three by default: without the flag for a
+feature they answer `error: opcode not allowed` on anything post-MVP. `wasm-objdump` has
+no feature flags at all and rejects the option.
+
+Going through the tree pins the toolchain to what it carries, so a module does not
+silently depend on whichever `wabt` a machine happens to have, and it exercises the
+engine on a real program every time. They are WASI programs, so a `-DBUILD_WASI=none`
+build cannot drive them - use one that can, and pass `run-regression-test.py --host` when
+the build under test is that one, or is slow.
+
+`wast2json` over `wat2wasm` when the bytes themselves matter: it writes `(module binary
+...)` out untouched, and wrapped in `assert_malformed` it will even write a module that
+does not decode, where `wat2wasm` re-encodes both into its own canonical form.
+
+`wasm2wat` is also the second opinion on whether a module is valid, so there is no
+separate validator here to reach for. It checks by default, and it decides the same
+question `wasm3 --validate-only` does while saying far more about the answer - `error:
+type mismatch in i32.add, expected [i32, i32] but got [f32]` where Wasm3 says `incorrect
+type on stack`. Then `--no-check` prints the module anyway, which is what you want next.
+
+`wasm-objdump -d` is the only thing here that puts a byte offset on each instruction, so
+it is what turns an offset back into code - a `test/strace/*.txt` backtrace, a Wasm3
+error, a fuzz corpus entry. `-x` shows the section details, `-s` the raw bytes. Reach for
+`wasm2wat -v` instead when the section walk is enough and the offsets are not.
 
 **A CLI flag is not a reason to grow the public API.** Wire new `wasm3` behaviour out of
 what `platforms/app/main.c` already has - `repl_init`, `repl_load`, `repl_compile`, the
