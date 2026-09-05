@@ -35,7 +35,7 @@ int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
 
     IM3Environment env = m3_NewEnvironment();
     if (env) {
-        IM3Runtime runtime = m3_NewRuntime(env, 128, NULL);
+        IM3Runtime runtime = m3_NewRuntime(env, 4096, NULL);
         if (runtime) {
             runtime->memoryLimit = d_m3FuzzMemoryLimit;
             IM3Module module     = NULL;
