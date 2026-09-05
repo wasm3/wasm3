@@ -141,6 +141,12 @@ engine on a real program every time. They are WASI programs, so a `-DBUILD_WASI=
 build cannot drive them - use one that can, and pass `run-regression-test.py --host` when
 the build under test is that one, or is slow.
 
+Add `--stack-size 1048576` when a `[trap] stack overflow` comes out of the tool rather
+than out of what it was given. WABT is a real program and the CLI's 64 KB default is
+sized for test modules: a deeply nested module needs most of it, and a build that spends
+slots faster - a 32-bit target with `-Dd_m3Use32BitSlots=0` - runs out. The runners
+already pass it.
+
 `wast2json` over `wat2wasm` when the bytes themselves matter: it writes `(module binary
 ...)` out untouched, and wrapped in `assert_malformed` it will even write a module that
 does not decode, where `wat2wasm` re-encodes both into its own canonical form.

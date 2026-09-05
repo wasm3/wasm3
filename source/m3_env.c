@@ -1556,14 +1556,33 @@ M3ValueType m3_GetRetType (IM3Function i_function, uint32_t index)
 }
 
 
-u8* GetStackPointerForArgs (IM3Function i_function)
+// The call APIs marshal their arguments into the runtime stack before any
+// compiled code runs, so op_Entry's overflow check comes too late to cover those
+// writes - and for a host function or an import linked to another module there
+// is no op_Entry of our own to reach at all. Bound the area about to be written
+// here instead: results and arguments each take a u64 at this boundary, however
+// wide the slot is inside. Every caller goes through this, so none of them can
+// be the one that forgets.
+static
+M3Result GetStackPointerForArgs (IM3Function i_function, u8** o_stack)
 {
-    u64*        stack = (u64*)i_function->module->runtime->stack;
-    IM3FuncType ftype = i_function->funcType;
+    IM3Runtime  runtime = i_function->module->runtime;
+    IM3FuncType ftype   = i_function->funcType;
+
+    size_t needed    = ((size_t)ftype->numRets + ftype->numArgs) * sizeof(u64);
+    size_t available = (size_t)runtime->numStackSlots * sizeof(m3slot_t);
+
+    if (needed > available) {
+        return m3Err_trapStackOverflow;
+    }
+
+    u64* stack = (u64*)runtime->stack;
 
     stack += ftype->numRets;
 
-    return (u8*)stack;
+    *o_stack = (u8*)stack;
+
+    return m3Err_none;
 }
 
 
@@ -1605,7 +1624,7 @@ M3Result m3_CallVL (IM3Function i_function, va_list i_args)
 
 _   (checkStartFunction(i_function->module))
 
-    s = GetStackPointerForArgs(i_function);
+_   (GetStackPointerForArgs(i_function, &s))
 
     for (u32 i = 0; i < ftype->numArgs; ++i) {
         switch (d_FuncArgType(ftype, i)) {
@@ -1667,7 +1686,7 @@ M3Result m3_Call (IM3Function i_function, uint32_t i_argc, const void* i_argptrs
 
 _   (checkStartFunction(i_function->module))
 
-    s = GetStackPointerForArgs(i_function);
+_   (GetStackPointerForArgs(i_function, &s))
 
     for (u32 i = 0; i < ftype->numArgs; ++i) {
         switch (d_FuncArgType(ftype, i)) {
@@ -1833,7 +1852,7 @@ M3Result m3_CallArgv (IM3Function i_function, uint32_t i_argc, const char* i_arg
 
 _   (checkStartFunction(i_function->module))
 
-    s = GetStackPointerForArgs(i_function);
+_   (GetStackPointerForArgs(i_function, &s))
 
     for (u32 i = 0; i < ftype->numArgs; ++i) {
         u64 value = 0;

@@ -1,6 +1,6 @@
 # WABT 1.0.41
 
-Part of the `WebAssembly Binary Toolkit`, built for `wasm32-wasi`.
+Part of the `WebAssembly Binary Toolkit`, built for `wasm32-wasip1`.
 
 Source: https://github.com/webassembly/wabt
 

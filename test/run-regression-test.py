@@ -62,6 +62,11 @@ stats = SimpleNamespace(total_run=0, failed=0, crashed=0, timeout=0, known_issue
 #   "expect_trap"     what followed "Error: [trap] "
 #   "expect_error"    what followed "Error: ", trap prefix and all
 #
+# The parenthesised detail wasm3 appends to an error is not part of any of the
+# three: a DEBUG build says "out of bounds memory access (memory size: 65536;
+# access offset: 1)" where a release build stops at the message, so pinning it
+# would pass only for the build it was written against.
+#
 # "expect_pattern" is the fallback for what cannot be pinned down: fnmatch
 # syntax over the whole of stdout+stderr, for output the host gets a say in and
 # for what a program prints itself. Keep '[' out of it: fnmatch reads it as a
@@ -260,6 +265,15 @@ tests = [
     "args":           ["--func", "to_test"],
     "expect_trap":    "stack overflow",
   }, {
+    # the arguments are marshalled into the runtime stack before any compiled
+    # code runs, so op_Entry's overflow check is too late to cover the writes:
+    # 28 i64 arguments are 224 bytes going into a 128-byte stack
+    "name":           "argument list larger than the runtime stack",
+    "module":         "./regression/call-args-overflow-stack.wat",
+    "args":           ["--stack-size", "128", "--func", "to_test"],
+    "func_args":      ["0"] * 28,
+    "expect_trap":    "stack overflow",
+  }, {
     # the memory is real, so the traps below are about the addresses and not
     # about the module failing to load
     "name":           "memory64 in-bounds access",
@@ -363,7 +377,15 @@ def check_expectations(test, output):
     problems = []
 
     result = last_line(output, "Result")
+
+    # wasm3 prints `Error: <result>`, and then ` (<detail>)` when the runtime
+    # recorded one. What goes in there is up to the build - a DEBUG build spells
+    # out the memory size and the address an access went to, a release build has
+    # nothing to add and prints no detail at all - so it is split off here and
+    # the case asserts on the result alone.
     error = last_line(output, "Error")
+    if error is not None:
+        error = error.split(" (", 1)[0]
     trap = error[len("[trap] ") :] if error and error.startswith("[trap] ") else None
 
     # An exact expectation that finds nothing at all reports what was missing

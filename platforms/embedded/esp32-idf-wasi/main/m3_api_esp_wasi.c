@@ -308,7 +308,7 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
     m3ApiReturn(__WASI_ERRNO_SUCCESS);
 }
 
-m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
+m3ApiRawFunction(m3_wasi_preview1_fd_seek)
 {
     m3ApiReturnType(uint32_t)
     m3ApiGetArg(__wasi_fd_t, fd)
@@ -590,7 +590,8 @@ M3Result _linkWASI (IM3Module module, wasi_context_t* wasi_context)
 
     // fd_seek is incompatible
 _   (SuppressLookupFailure(m3_LinkRawFunction(module, "wasi_unstable",          "fd_seek",     "i(iIi*)", &m3_wasi_unstable_fd_seek)));
-_   (SuppressLookupFailure(m3_LinkRawFunction(module, "wasi_snapshot_preview1", "fd_seek",     "i(iIi*)", &m3_wasi_snapshot_preview1_fd_seek)));
+_   (SuppressLookupFailure(m3_LinkRawFunction(module, "wasi_snapshot_preview1", "fd_seek",     "i(iIi*)", &m3_wasi_preview1_fd_seek)));
+//_ (SuppressLookupFailure(m3_LinkRawFunction(module, "wasi_unstable",          "poll_oneoff", "i(**i*)", &m3_wasi_unstable_poll_oneoff)));
 
     for (int i = 0; i < 2; i++)
     {
@@ -635,7 +636,6 @@ _       (SuppressLookupFailure(m3_LinkRawFunction(module, wasi, "path_open",    
 //_     (SuppressLookupFailure(m3_LinkRawFunction(module, wasi, "path_symlink",             "i(*ii*i)",     )));
 //_     (SuppressLookupFailure(m3_LinkRawFunction(module, wasi, "path_unlink_file",         "i(i*i)",       )));
 
-//_     (SuppressLookupFailure(m3_LinkRawFunction(module, wasi, "poll_oneoff",          "i(**i*)", &m3_wasi_generic_poll_oneoff)));
 _       (SuppressLookupFailure(m3_LinkRawFunctionEx(module, wasi, "proc_exit",          "v(i)",    &m3_wasi_generic_proc_exit, wasi_context)));
 //_     (SuppressLookupFailure(m3_LinkRawFunction(module, wasi, "proc_raise",           "i(i)",    )));
 _       (SuppressLookupFailure(m3_LinkRawFunction(module, wasi, "random_get",           "i(*i)",   &m3_wasi_generic_random_get)));

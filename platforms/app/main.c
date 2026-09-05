@@ -925,7 +925,7 @@ void print_usage ()
     puts("  wasm3 --repl [file]");
     puts("Options:");
     puts("  --func <function>     function to run       default: _start");
-    puts("  --stack-size <size>   stack size in bytes   default: 64KB");
+    puts("  --stack-size <size>   stack size in bytes   default: 512KB");
     puts("  --compile             disable lazy compilation");
     puts("  --validate-only       only validate <file>");
     puts("  --no-validate         skip validation");
@@ -952,7 +952,7 @@ int main (int i_argc, const char* i_argv[])
     bool        argNoValidate   = false;
     const char* argFile         = NULL;
     const char* argFunc         = "_start";
-    unsigned    argStackSize    = 64 * 1024;
+    unsigned    argStackSize    = 512 * 1024;
 
     // m3_PrintM3Info ();
 
@@ -975,6 +975,7 @@ int main (int i_argc, const char* i_argv[])
             argRepl = true;
         } else if (!strcmp("--spec-repl", arg)) {
             // repl for the spec tests
+            argStackSize    = 64 * 1024;
             argRepl         = true;
             argCompile      = true;
             provideSpecTest = true;
@@ -990,7 +991,7 @@ int main (int i_argc, const char* i_argv[])
         } else if (!strcmp("--no-validate", arg)) {
             argNoValidate = true;
         } else if (!strcmp("--stack-size", arg)) {
-            const char* tmp = "65536";
+            const char* tmp = "524288";
             ARGV_SET(tmp);
             argStackSize = atol(tmp);
         } else if (!strcmp("--gas-meter", arg)) {

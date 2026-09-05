@@ -24,9 +24,7 @@
 #
 
 # TODO
-# - Get more tests from: https://github.com/microsoft/ChakraCore/tree/master/test/WasmSpec
 # - Fix "Empty Stack" check
-# - Check Canonical NaN and Arithmetic NaN separately
 # - Fix imports.wast
 
 import argparse
