@@ -265,7 +265,7 @@ u32 rotl32 (u32 n, unsigned c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 31;
-    return (n << c) | (n >> ((0u - c) & mask));
+    return (n << c) | (n >> ((32 - c) & mask));
 }
 
 static inline
@@ -273,7 +273,7 @@ u32 rotr32 (u32 n, unsigned c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 31;
-    return (n >> c) | (n << ((0u - c) & mask));
+    return (n >> c) | (n << ((32 - c) & mask));
 }
 
 static inline
@@ -281,7 +281,7 @@ u64 rotl64 (u64 n, u64 c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 63;
-    return (n << c) | (n >> ((0u - c) & mask));
+    return (n << c) | (n >> ((64 - c) & mask));
 }
 
 static inline
@@ -289,7 +289,7 @@ u64 rotr64 (u64 n, u64 c)
 {
     const unsigned mask = CHAR_BIT * sizeof(n) - 1;
     c &= mask & 63;
-    return (n >> c) | (n << ((0u - c) & mask));
+    return (n >> c) | (n << ((64 - c) & mask));
 }
 
 /*
@@ -454,6 +454,54 @@ f64 max_f64 (f64 a, f64 b)
     }
     return a > b ? a : b;
 }
+
+// The NaN the spec calls canonical: quiet, positive, and with nothing in its
+// payload. Where an operation's result is a NaN, the spec allows any payload and any
+// sign, and the hardware picks - differently on different architectures. These pin
+// that down, so that a module's results are the same wherever it runs.
+//
+// Only operations the spec says produce an *arithmetic* NaN go through this. abs,
+// neg and copysign are defined bitwise and carry their operand's payload through by
+// design; canonicalizing them would be wrong, not merely stricter.
+#  if d_m3CanonicalNaN
+
+static inline
+f32 canon_nan_f32 (f32 arg)
+{
+    // arg != arg is the NaN test that does not need <math.h> to have been told to
+    // keep it, and it is the whole of the cost when the value is not a NaN
+    if (M3_UNLIKELY(arg != arg)) {
+        union {
+            f32 f;
+            u32 i;
+        } u;
+        u.i = 0x7FC00000u;
+        return u.f;
+    }
+    return arg;
+}
+
+static inline
+f64 canon_nan_f64 (f64 arg)
+{
+    if (M3_UNLIKELY(arg != arg)) {
+        union {
+            f64 f;
+            u64 i;
+        } u;
+        u.i = 0x7FF8000000000000ULL;
+        return u.f;
+    }
+    return arg;
+}
+
+#  else
+
+#    define canon_nan_f32(ARG)  (ARG)
+#    define canon_nan_f64(ARG)  (ARG)
+
+#  endif // d_m3CanonicalNaN
+
 #endif
 
 #endif // m3_math_utils_h

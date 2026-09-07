@@ -23,8 +23,18 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <poll.h>
 #include <string.h>
 #include <time.h>
+
+// FIONREAD, which poll_oneoff uses to tell the guest how much is waiting on a
+// descriptor. Nothing here needs it - a descriptor whose count cannot be taken is
+// reported as having something rather than nothing - so a system without the header
+// simply does without.
+#if !defined(__wasi__)
+#  include <sys/ioctl.h>
+#endif
 
 #if defined(__wasi__) || defined(__APPLE__) || defined(__ANDROID_API__) || defined(__OpenBSD__) || defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__CYGWIN__)
 #  include <unistd.h>
@@ -759,6 +769,210 @@ __wasi_errno_t m3_wasi_host_random_get (void* o_buf, __wasi_size_t i_len)
         i_len -= (__wasi_size_t)retlen;
     }
 
+    return __WASI_ERRNO_SUCCESS;
+}
+
+
+/*
+ * Waiting
+ */
+
+// How much longer a clock subscription has to wait, in nanoseconds, given that
+// i_elapsedNs of this call have already gone by - so 0 means it is ready. A relative
+// subscription counts down from the timeout it named; an absolute one is held
+// against the clock it names and ignores i_elapsedNs, that clock having moved on by
+// itself. A clock this system has not got answers UINT64_MAX so that it never
+// becomes the soonest deadline - the caller reports EINVAL for it separately.
+static
+uint64_t poll_remaining_ns (const m3_wasi_pollsub_t* i_sub, uint64_t i_elapsedNs)
+{
+    if (not i_sub->isAbsolute) {
+        return (i_sub->timeout > i_elapsedNs) ? i_sub->timeout - i_elapsedNs : 0;
+    }
+
+    clockid_t clk = convert_clockid(i_sub->clockId);
+    if (clk == d_m3ClockIdInvalid) {
+        return UINT64_MAX;
+    }
+
+    struct timespec tp;
+    if (clock_gettime(clk, &tp) != 0) {
+        return 0;
+    }
+
+    __wasi_timestamp_t now = convert_timespec(&tp);
+    return (i_sub->timeout > now) ? i_sub->timeout - now : 0;
+}
+
+// How much a descriptor ready for reading has waiting on it. The guest is told a
+// count so that it can size the read that follows, and a wrong one only costs it a
+// short read - so a descriptor that cannot answer says one byte rather than nothing,
+// which would read as end of file.
+static
+__wasi_filesize_t poll_readable_bytes (int i_fd)
+{
+#if defined(FIONREAD)
+    int available = 0;
+    if (ioctl(i_fd, FIONREAD, &available) == 0 and available > 0) {
+        return (__wasi_filesize_t)available;
+    }
+#endif
+    return 1;
+}
+
+static
+__wasi_errno_t m3_wasi_host_poll_oneoff (const m3_wasi_pollsub_t* i_subs, __wasi_size_t i_count,
+                                         m3_wasi_pollevent_t* o_events, __wasi_size_t* o_eventCount)
+{
+    *o_eventCount = 0;
+
+    // The soonest clock deadline is what bounds the wait; without one, poll() is
+    // told to wait forever, which is what a subscription list of descriptors alone
+    // asks for. A clock this system has not got sets no deadline but is still a
+    // subscription, and is reported below as one event carrying EINVAL.
+    uint64_t      soonest = UINT64_MAX;
+    bool          hasDeadline = false;
+    bool          hasClock = false;
+
+    __wasi_size_t numFds = 0;
+
+    for (__wasi_size_t i = 0; i < i_count; i++) {
+        if (i_subs[i].type == __WASI_EVENTTYPE_CLOCK) {
+            hasClock = true;
+
+            uint64_t delay = poll_remaining_ns(&i_subs[i], 0);
+            if (delay != UINT64_MAX) {
+                soonest = M3_MIN(soonest, delay);
+                hasDeadline = true;
+            }
+        } else {
+            numFds++;
+        }
+    }
+
+    struct pollfd* pollfds = NULL;
+
+    if (numFds) {
+        pollfds = (struct pollfd*)m3_Malloc("WASI poll_oneoff", numFds * sizeof(struct pollfd));
+        if (pollfds == NULL) {
+            return __WASI_ERRNO_NOMEM;
+        }
+
+        __wasi_size_t n = 0;
+        for (__wasi_size_t i = 0; i < i_count; i++) {
+            if (i_subs[i].type == __WASI_EVENTTYPE_CLOCK) {
+                continue;
+            }
+            pollfds[n].fd = (int)i_subs[i].fd;
+            pollfds[n].events = (i_subs[i].type == __WASI_EVENTTYPE_FD_READ) ? POLLIN : POLLOUT;
+            pollfds[n].revents = 0;
+            n++;
+        }
+    }
+
+    // poll() counts in milliseconds and cannot say "no wait at all" apart from a
+    // wait that rounds down to nothing, which is the same thing here. Rounding up
+    // is what keeps a sub-millisecond deadline from becoming a spin.
+    int timeoutMs = -1;
+    if (hasDeadline) {
+        uint64_t ms = (soonest + 999999) / 1000000;
+        timeoutMs = (ms > (uint64_t)INT_MAX) ? INT_MAX : (int)ms;
+    }
+
+    int ready;
+    if (numFds) {
+        do {
+            ready = poll(pollfds, (nfds_t)numFds, timeoutMs);
+        } while (ready < 0 and errno == EINTR);
+    } else if (hasDeadline) {
+        // nothing to watch, so the deadline is the whole of the wait
+        struct timespec req;
+        req.tv_sec = (time_t)(soonest / 1000000000);
+        req.tv_nsec = (long)(soonest % 1000000000);
+
+        while (nanosleep(&req, &req) != 0 and errno == EINTR) {
+            // interrupted: req holds what is left of it
+        }
+        ready = 0;
+    } else if (hasClock) {
+        // every clock named is one this system has not got, so there is nothing to
+        // wait for and every one of them is about to be reported as a bad argument
+        ready = 0;
+    } else {
+        // no clocks and no descriptors: nothing that could ever become ready
+        return __WASI_ERRNO_INVAL;
+    }
+
+    if (ready < 0) {
+        __wasi_errno_t err = errno_to_wasi(errno);
+        m3_Free(pollfds);
+        return err;
+    }
+
+    // How much of the wait actually happened. poll() answers 0 only when it waited
+    // the whole timeout out, and that timeout was the soonest deadline; anything
+    // else came back on a descriptor, which by definition beat every deadline. So
+    // the two cases are the full wait and none of it, and neither needs the clock
+    // read again - an absolute deadline is held against its own clock regardless.
+    uint64_t      elapsedNs = (ready == 0 and hasDeadline) ? soonest : 0;
+
+    __wasi_size_t out = 0;
+    __wasi_size_t n = 0;
+
+    for (__wasi_size_t i = 0; i < i_count; i++) {
+        const m3_wasi_pollsub_t* sub = &i_subs[i];
+
+        if (sub->type == __WASI_EVENTTYPE_CLOCK) {
+            // Every deadline is asked again rather than just the soonest: waiting
+            // that one out may have passed a later one too, and an absolute
+            // deadline already in the past fires without any wait at all.
+            if (convert_clockid(sub->clockId) == d_m3ClockIdInvalid) {
+                o_events[out].userdata = sub->userdata;
+                o_events[out].error = __WASI_ERRNO_INVAL;
+                o_events[out].type = __WASI_EVENTTYPE_CLOCK;
+                o_events[out].nbytes = 0;
+                o_events[out].flags = 0;
+                out++;
+            } else if (poll_remaining_ns(sub, elapsedNs) == 0) {
+                o_events[out].userdata = sub->userdata;
+                o_events[out].error = __WASI_ERRNO_SUCCESS;
+                o_events[out].type = __WASI_EVENTTYPE_CLOCK;
+                o_events[out].nbytes = 0;
+                o_events[out].flags = 0;
+                out++;
+            }
+            continue;
+        }
+
+        short revents = pollfds[n].revents;
+        n++;
+
+        if (revents == 0) {
+            continue;
+        }
+
+        o_events[out].userdata = sub->userdata;
+        o_events[out].type = sub->type;
+        o_events[out].nbytes = 0;
+        o_events[out].flags = (revents & POLLHUP) ? __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP : 0;
+
+        if (revents & POLLNVAL) {
+            o_events[out].error = __WASI_ERRNO_BADF;
+        } else if (revents & POLLERR) {
+            o_events[out].error = __WASI_ERRNO_IO;
+        } else {
+            o_events[out].error = __WASI_ERRNO_SUCCESS;
+            if (sub->type == __WASI_EVENTTYPE_FD_READ and (revents & POLLIN)) {
+                o_events[out].nbytes = poll_readable_bytes(pollfds[n - 1].fd);
+            }
+        }
+
+        out++;
+    }
+
+    m3_Free(pollfds);
+
+    *o_eventCount = out;
     return __WASI_ERRNO_SUCCESS;
 }
 

@@ -501,6 +501,57 @@ Instruction costs come from the table
 is written against, whose unit is a ten-thousandth of a gas - hence the four
 decimal places.
 
+# Deterministic execution
+
+`d_m3DeterministicProfile` builds an interpreter on which the same module, fed the
+same input, produces the same run wherever and whenever it is run.
+
+It is a build option rather than a runtime flag because that is what a profile is.
+The [profiles proposal](https://github.com/WebAssembly/profiles) defines one as a
+subset of the language that an ecosystem picks once, for all of its modules - not
+something a module or a call turns on - and names the deterministic profile as the
+marker set `{N,T}`: the constructs whose behaviour is nondeterministic, and threading.
+
+```sh
+cmake -DCMAKE_C_FLAGS=-Dd_m3DeterministicProfile=1 ..
+```
+
+A build that has it says so in its `--version` banner.
+
+## What the profile covers
+
+**N.** The one rule the proposal spells out is that a NaN result is normalized to the
+canonical NaN, which is `d_m3CanonicalNaN` and is turned on by this. Without it, the
+sign and payload of a NaN are the host's to choose and different architectures choose
+differently, so the same module produces different bits on x86, on ARM and on MIPS.
+`abs`, `neg` and `copysign` still carry their operand's payload through, as the spec
+defines them to. The other N-marked constructs are relaxed SIMD, which Wasm3 does not
+implement, so there is nothing to exclude.
+
+**T.** Threads and atomics, which Wasm3 does not implement either.
+
+## What Wasm3 adds
+
+The proposal is about the language and stops at the module's edge. What a module
+reads through its imports is nondeterministic in exactly the way that matters, so
+this option covers it too:
+
+- every WASI clock starts at a fixed instant and moves forward by a fixed tick on
+  each reading, and by exactly what a wait asked for;
+- `random_get` returns a stream from a fixed seed;
+- `poll_oneoff` stops waiting on anything real - a descriptor is ready at once, and a
+  sleep is the clock moving rather than time passing.
+
+Each runtime carries its own clock and its own entropy, both starting where the last
+one did, so a run is replayed by making a fresh runtime.
+
+Two limits belong alongside, and are separate because each is useful on its own:
+`--gas-limit`, so that a runaway module stops after the same amount of work
+everywhere, and a memory limit, so that `memory.grow` fails at the same point rather
+than wherever the host allocator gives out. What the guest reads through the rest of
+WASI - files, arguments, the environment - is input, and reproducing a run means
+supplying it again.
+
 # Other resources
 
 - [WebAssembly by examples](https://wasmbyexample.dev/home.en-us.html) by Aaron Turner

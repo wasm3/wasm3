@@ -38,7 +38,7 @@ Wasm3 can also be used as a library for:
 
 ## Status
 
-`wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/master/test/core) and is able to run many `WASI` apps.
+`wasm3` passes the [WebAssembly spec testsuite](https://github.com/WebAssembly/spec/tree/wg-3.0/test/core) and is able to run many `WASI` apps.
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
@@ -52,7 +52,7 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/wifi.svg" width="18" height="18" /> OpenWrt, Yocto, Buildroot (routers, modems, etc.)
 - <img src="https://cdn.simpleicons.org/raspberrypi/363636/d1d1d1" width="18" height="18" /> Raspberry Pi, Orange Pi and other SBCs
 - <img src="https://cdn.rawgit.com/feathericons/feather/master/icons/cpu.svg" width="18" height="18" /> MCUs: Arduino, ESP8266, ESP32, Particle, ... [see full list](./docs/Hardware.md)
-- <img src="https://cdn.simpleicons.org/firefoxbrowser/363636/d1d1d1" width="18" height="18" /> Browsers. Yes, using WebAssembly itself!
+- <img src="https://cdn.simpleicons.org/firefoxbrowser/363636/d1d1d1" width="18" height="18" /> Browsers. Wasm3 can be compiled to WebAssembly itself!
 - <img src="extra/wasm-symbol.svg" width="18" height="18" /> `wasm3` can execute `wasm3` (self-hosting)
 
 ## Features
@@ -61,8 +61,8 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Features |
 |:---    |:---      |
 | ⭐ Ready | **[Lime1][WasmLime1]:** `Import/Export of Mutable Globals`, `Non-trapping float-to-int conversions`, `Sign-extension operators`, `Multi-value`, `Extended constant expressions`, `bulk-memory-opt`, `call-indirect-overlong` |
-| ⭐ Ready | **[Proposals][WasmStatus]:** `Bulk memory operations`, `Exception handling`, `Multiple memories`, `Memory64+Table64`, `Reference types`, `Typed function references (partial)`, `Tail call optimization`, `Custom page size`, `Compact Import section` |
-| ✨ Ready | **Extra:** `Structured execution tracing`, `Big-Endian support`, `Wasm and WASI self-hosting`, `Gas metering`, `Linear memory limit (< 64KiB)` |
+| ⭐ Ready | **[Proposals][WasmStatus]:** `Bulk memory operations`, `Exception handling`, `Multiple memories`, `Memory64+Table64`, `Reference types`, `Typed function references (partial)`, `Tail call optimization`, `Custom page size`, `Compact Import section`, `Deterministic profile` |
+| ✨ Ready | **Extra:** `Structured execution tracing`, `Big-Endian support`, `Wasm and WASI self-hosting`, `Gas metering`, `Guard-page memories`, `Linear memory limit (< 64KiB)` |
 | ⛔ N/A | `Garbage collection`, `Stack switching`, `Fixed-width SIMD` |
 
 

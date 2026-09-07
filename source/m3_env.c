@@ -12,7 +12,9 @@
 #include <ctype.h>
 
 #include "m3_env.h"
+#include "m3_deterministic.h"
 #include "m3_compile.h"
+#include "m3_host.h"
 #include "m3_exception.h"
 #include "m3_info.h"
 
@@ -189,6 +191,8 @@ IM3Runtime m3_NewRuntime (IM3Environment i_environment, u32 i_stackSizeInBytes, 
         runtime->environment = i_environment;
         runtime->userdata    = i_userdata;
 
+        Deterministic_InitRuntime(runtime);
+
         runtime->originStack = m3_Malloc("Wasm Stack", i_stackSizeInBytes + 4 * sizeof(m3slot_t)); // TODO: more precise stack checks
 
         if (runtime->originStack) {
@@ -262,6 +266,7 @@ double m3_GetGasUsed (IM3Runtime i_runtime)
 #endif
     return 0;
 }
+
 
 void* m3_GetUserData (IM3Runtime i_runtime)
 {
@@ -639,7 +644,7 @@ M3Result LinkImports (IM3Runtime io_runtime, IM3Module io_module)
                                    memory->initPages, memory->hasMax, memory->maxPages));
 
         // hand the slot over to the exporter's memory, and drop the placeholder
-        m3_Free(memory->mallocated);
+        FreeMemoryBlock(memory);
         m3_Free(memory->exportName);
         FreeImportInfo(&memory->import);
         m3_Free(memory);
@@ -797,17 +802,53 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
 
         _throwif("linear memory limitation exceeded", numPageBytes > (u64)SIZE_MAX - sizeof(M3MemoryHeader));
 
+#if d_m3GuardedMemory
+
+        // A slot holds every address a Wasm access can name, and nothing beyond
+        // that: a memory larger than the data part of one would put addresses past
+        // the guard, where a fault is nobody's to recognize
+        _throwif("linear memory limitation exceeded", numPageBytes > d_m3GuardedDataBytes);
+
+        // What makes an access past the end fault is the page after the memory not
+        // being committed, so the end has to fall on one of the system's page
+        // boundaries. A Wasm page divides evenly into them and always will; a memory
+        // that declared a page size of its own may not, and then the bytes between
+        // the end of the memory and the end of its last system page would answer
+        // instead of trapping. Refusing to back such a memory is the honest way out:
+        // the custom page sizes proposal exists for targets far too small to reserve
+        // 8GiB per memory in the first place. See d_m3GuardedMemory.
+        _throwif("guarded memory needs a page size the system's divides into",
+                 (memory->pageSize % m3_HostPageSize()) != 0);
+
+        if (memory->guardSlot == NULL) {
+            memory->guardSlot = Guard_TakeSlot();
+            _throwifnull(memory->guardSlot);
+        }
+
+        // Growing only ever commits more of the same slot, so the memory never
+        // moves - which the interpreter does not rely on, but nothing minds
+        _throwif(m3Err_mallocFailed, not Guard_CommitSlot(memory->guardSlot, (size_t)numPageBytes));
+
+        memory->mallocated = Guard_SlotHeader(memory->guardSlot);
+
+#else
+
         size_t numBytes = (size_t)numPageBytes + sizeof(M3MemoryHeader);
 
-        size_t numPreviousBytes = (size_t)memory->numPages * memory->pageSize;
-        if (numPreviousBytes) {
-            numPreviousBytes += sizeof(M3MemoryHeader);
-        }
+        // What is really there, which is not numPages * pageSize: the limit above
+        // caps the bytes without capping the page count, so a memory can be short
+        // of a page - by design, since a whole 64 KiB page is often more than an
+        // MCU has. Measuring the old block by the page count would overstate it,
+        // and then realloc never sees the size it already has and copies the
+        // whole limit again on every grow past it.
+        size_t numPreviousBytes = memory->mallocated ? memory->mallocated->length + sizeof(M3MemoryHeader) : 0;
 
         void* newMem = m3_Realloc("Wasm Linear Memory", memory->mallocated, numBytes, numPreviousBytes);
         _throwifnull(newMem);
 
         memory->mallocated = (M3MemoryHeader*)newMem;
+
+#endif
 
 #if d_m3LogRuntime
         M3MemoryHeader* oldMallocated = memory->mallocated;
@@ -827,6 +868,19 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
     }
 
     _catch: return result;
+}
+
+
+void FreeMemoryBlock (IM3Memory io_memory)
+{
+#if d_m3GuardedMemory
+    Guard_GiveSlot(io_memory->guardSlot);
+    io_memory->guardSlot = NULL;
+
+    io_memory->mallocated = NULL;
+#else
+    m3_Free(io_memory->mallocated);
+#endif
 }
 
 
@@ -1143,6 +1197,58 @@ void FreeExceptions (IM3Runtime io_runtime)
 #endif // d_m3HasExceptionHandling
 
 
+#if d_m3GuardedMemory
+
+// What RunCodeProtected hands to the platform layer to run, and what comes back
+typedef struct M3ProtectedRun {
+    pc_t            pc;
+    IM3Runtime      runtime;
+    M3MemoryHeader* mem;
+    M3Result        result;
+} M3ProtectedRun;
+
+static
+void RunCodeBody (void* io_context)
+{
+    M3ProtectedRun* run = (M3ProtectedRun*)io_context;
+
+#  if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    run->result = (M3Result)RunCode(run->pc, (m3stack_t)run->runtime->stack, run->mem,
+                                    d_m3OpDefaultArgs, d_m3BaseCstr);
+#  else
+    run->result = (M3Result)RunCode(run->pc, (m3stack_t)run->runtime->stack, run->mem,
+                                    d_m3OpDefaultArgs);
+#  endif
+}
+
+// The bounds check the load and store operations no longer do, done once here by the
+// system instead: an address past the end of a memory reaches the uncommitted part
+// of that memory's reservation, and the fault comes back as the trap the spec asks
+// for. Nothing is left half-done by it - the Wasm stack and the memories are heap,
+// and the caller unwinds the rest.
+static
+M3Result RunCodeProtected (IM3Runtime i_runtime, pc_t i_pc, M3MemoryHeader* i_mem)
+{
+    M3ProtectedRun run;
+    run.pc      = i_pc;
+    run.runtime = i_runtime;
+    run.mem     = i_mem;
+    run.result  = m3Err_none;
+
+    void*  arena;
+    size_t arenaBytes;
+    Guard_ArenaRange(&arena, &arenaBytes);
+
+    if (not m3_HostProtectedCall(RunCodeBody, &run, arena, arenaBytes)) {
+        return m3Err_trapOutOfBoundsMemoryAccess;
+    }
+
+    return run.result;
+}
+
+#endif // d_m3GuardedMemory
+
+
 // Run compiled code on the runtime's stack, bounding native recursion for the
 // duration of the call. The outermost invocation establishes the stack limit;
 // nested ones (an imported function calling back into Wasm) inherit it.
@@ -1163,7 +1269,9 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
     i_runtime->tryDepth = 0;
     i_runtime->exceptionNesting++;
 #endif
-#if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+#if d_m3GuardedMemory
+    M3Result result = RunCodeProtected(i_runtime, i_pc, _mem);
+#elif (d_m3EnableOpProfiling || d_m3EnableOpTracing)
     M3Result result = (M3Result)RunCode(i_pc, (m3stack_t)i_runtime->stack, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
 #else
     M3Result result = (M3Result)RunCode(i_pc, (m3stack_t)i_runtime->stack, _mem, d_m3OpDefaultArgs);

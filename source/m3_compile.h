@@ -272,19 +272,22 @@ bool IsIntRegisterSlotAlias (u16 i_slot)
 }
 
 
+// Every field is named, and named in declaration order: a mixture of designated
+// and positional initializers is not valid C++, which the maintenance builds
+// compile this as.
 #ifdef DEBUG
-#  define M3OP(...)       { __VA_ARGS__ }
-#  define M3OP_RESERVED   { "reserved" }
+#  define M3OP(_name, _offset, _type, ...)  { .name = _name, .stackOffset = _offset, .type = _type, __VA_ARGS__ }
+#  define M3OP_RESERVED                     { .name = "reserved" }
 #else
 // Strip-off name
-#  define M3OP(name, ...) { __VA_ARGS__ }
-#  define M3OP_RESERVED   { 0 }
+#  define M3OP(_name, _offset, _type, ...)  { .stackOffset = _offset, .type = _type, __VA_ARGS__ }
+#  define M3OP_RESERVED                     { 0 }
 #endif
 
 #if d_m3HasFloat
 #  define M3OP_F          M3OP
 #elif d_m3NoFloatDynamic
-#  define M3OP_F(n,o,t,op,...)        M3OP(n, o, t, .operations = { op_Unsupported, op_Unsupported, op_Unsupported, op_Unsupported }, __VA_ARGS__)
+#  define M3OP_F(n,o,t,cc,...)        M3OP(n, o, t, cc, .operations = { op_Unsupported, op_Unsupported, op_Unsupported, op_Unsupported })
 #else
 #  define M3OP_F(...)     { 0 }
 #endif

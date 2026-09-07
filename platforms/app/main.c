@@ -12,6 +12,8 @@
 #include <errno.h>
 
 #include "wasm3.h"
+#include "m3_config.h"     // the build options the version banner reports
+#include "m3_host.h"       // mapping a module rather than reading it
 #include "m3_api_libc.h"
 
 #if defined(d_m3HasWASI) || defined(d_m3HasMetaWASI) || defined(d_m3HasUVWASI)
@@ -63,17 +65,17 @@ static IM3Runtime     runtime;
 // m3_LoadModule takes ownership of the module whether or not it succeeds, so
 // the bytes have to live until the runtime is freed. One spec-test file can
 // hand over hundreds, so this grows instead of being capped.
-static u8** wasm_bins     = NULL;
-static int  wasm_bins_qty = 0;
-static int  wasm_bins_cap = 0;
+static M3HostFile* wasm_bins     = NULL;
+static int         wasm_bins_qty = 0;
+static int         wasm_bins_cap = 0;
 
-// Takes ownership of i_wasm on success; the caller still owns it on failure.
+// Takes ownership of i_bin's bytes on success; the caller still owns them on failure.
 static
-bool keep_wasm_bin (u8* i_wasm)
+bool keep_wasm_bin (const M3HostFile* i_bin)
 {
     if (wasm_bins_qty == wasm_bins_cap) {
-        int  cap   = wasm_bins_cap ? wasm_bins_cap * 2 : 16;
-        u8** grown = (u8**)realloc(wasm_bins, (size_t)cap * sizeof(u8*));
+        int         cap   = wasm_bins_cap ? wasm_bins_cap * 2 : 16;
+        M3HostFile* grown = (M3HostFile*)realloc(wasm_bins, (size_t)cap * sizeof(M3HostFile));
         if (!grown) {
             return false;
         }
@@ -81,8 +83,29 @@ bool keep_wasm_bin (u8* i_wasm)
         wasm_bins_cap = cap;
     }
 
-    wasm_bins[wasm_bins_qty++] = i_wasm;
+    wasm_bins[wasm_bins_qty++] = *i_bin;
     return true;
+}
+
+// The largest module the app will take on
+#define MAX_WASM_SIZE   (256 * 1024 * 1024)
+
+// The module's bytes, mapped where the system will and read where it will not - see
+// m3_HostMapFile. On success the caller owns them and gives them back with
+// m3_HostUnmapFile, whichever way they arrived.
+static
+M3Result read_wasm_file (const char* i_path, M3HostFile* o_bin)
+{
+    if (not m3_HostMapFile(i_path, MAX_WASM_SIZE, o_bin)) {
+        return "cannot open file";
+    }
+
+    if (o_bin->size < 8) {
+        m3_HostUnmapFile(o_bin);
+        return "file is too small";
+    }
+
+    return m3Err_none;
 }
 
 // the module the most recent :load / :load-hex produced
@@ -131,42 +154,15 @@ const char* modname_from_fn (const char* fn)
 
 M3Result repl_load (const char* fn)
 {
-    M3Result  result = m3Err_none;
-    IM3Module module = NULL;
+    IM3Module  module = NULL;
+    M3HostFile bin;
 
-    u8* wasm  = NULL;
-    u32 fsize = 0;
-
-    FILE* f = fopen(fn, "rb");
-    if (!f) {
-        return "cannot open file";
-    }
-    fseek(f, 0, SEEK_END);
-    fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (fsize < 8) {
-        result = "file is too small";
-        goto on_error;
-    } else if (fsize > 256 * 1024 * 1024) {
-        result = "file is too big";
-        goto on_error;
+    M3Result result = read_wasm_file(fn, &bin);
+    if (result) {
+        return result;
     }
 
-    wasm = (u8*)malloc(fsize);
-    if (!wasm) {
-        result = "cannot allocate memory for wasm binary";
-        goto on_error;
-    }
-
-    if (fread(wasm, 1, fsize, f) != fsize) {
-        result = "cannot read file";
-        goto on_error;
-    }
-    fclose(f);
-    f = NULL;
-
-    result = m3_ParseModule(env, &module, wasm, fsize);
+    result = m3_ParseModule(env, &module, (const u8*)bin.data, (u32)bin.size);
     if (result) {
         goto on_error;
     }
@@ -174,11 +170,11 @@ M3Result repl_load (const char* fn)
     // The module points into the binary, and m3_LoadModule takes ownership of
     // the module whether or not it succeeds, so the bytes have to outlive this
     // call either way. Hand them over before loading rather than after.
-    if (not keep_wasm_bin(wasm)) {
+    if (not keep_wasm_bin(&bin)) {
         result = "cannot allocate memory for wasm binary";
         goto on_error;
     }
-    wasm = NULL;
+    memset(&bin, 0, sizeof(bin));       // the list owns them now
 
     result = m3_LoadModule(runtime, module);
     if (result) {
@@ -204,12 +200,7 @@ on_error:
     m3_FreeModule(module);          // never handed to the runtime
 
 on_error_after_load:
-    if (wasm) {
-        free(wasm);
-    }
-    if (f) {
-        fclose(f);
-    }
+    m3_HostUnmapFile(&bin);
 
     return result;
 }
@@ -226,7 +217,7 @@ M3Result repl_load_hex (u32 fsize)
     } else if (fsize > 10 * 1024 * 1024) {
         result = "file too big";
     } else {
-        wasm = (u8*)malloc(fsize);
+        wasm = (u8*)m3_Malloc("Wasm Binary", fsize);
         if (!wasm) {
             result = "cannot allocate memory for wasm binary";
         }
@@ -241,7 +232,7 @@ M3Result repl_load_hex (u32 fsize)
         while (wasm_idx < fsize) {
             int c = fgetc(stdin);
             if (c == EOF) {
-                free(wasm);
+                m3_Free(wasm);
                 return "unexpected end of input";
             }
             if (!isxdigit(c)) {
@@ -268,15 +259,22 @@ M3Result repl_load_hex (u32 fsize)
 
     result = m3_ParseModule(env, &module, wasm, fsize);
     if (result) {
-        free(wasm);
+        m3_Free(wasm);
         return result;
     }
 
-    // see the note in repl_load: the runtime owns the module from here on, so
-    // the binary it points into has to be handed over first
-    if (not keep_wasm_bin(wasm)) {
+    // see the note in repl_load: the runtime owns the module from here on, so the
+    // binary it points into has to be handed over first. Nothing was mapped here -
+    // these bytes arrived over stdin - so this is the shape m3_HostUnmapFile frees.
+    M3HostFile bin;
+    memset(&bin, 0, sizeof(bin));
+    bin.handle = d_m3HostNoHandle;
+    bin.data   = wasm;
+    bin.size   = fsize;
+
+    if (not keep_wasm_bin(&bin)) {
         m3_FreeModule(module);
-        free(wasm);
+        m3_Free(wasm);
         return "cannot allocate memory for wasm binary";
     }
 
@@ -779,7 +777,7 @@ void repl_free ()
     }
 
     for (int i = 0; i < wasm_bins_qty; i++) {
-        free(wasm_bins[i]);
+        m3_HostUnmapFile(&wasm_bins[i]);
     }
     free(wasm_bins);
     wasm_bins     = NULL;
@@ -901,20 +899,29 @@ void print_version ()
 {
     const char* wasm3_env  = getenv("WASM3");
     const char* wasm3_arch = getenv("WASM3_ARCH");
+    const char* wasi_impl  = NULL;
+#if defined(d_m3HasWASI)
+    wasi_impl = ", wasi";
+#elif defined(d_m3HasUVWASI)
+    wasi_impl = ", uvwasi";
+#elif defined(d_m3HasMetaWASI)
+    wasi_impl = ", metawasi";
+#endif
 
     printf("Wasm3 v" M3_VERSION "%s on %s\n",
            (wasm3_arch || wasm3_env) ? " self-hosting" : "",
            (wasm3_arch) ? wasm3_arch : M3_ARCH);
 
-    // Without "tail-call", return_call still works but doesn't reuse the caller's frame,
-    // so unbounded tail recursion traps instead of running forever. See d_m3CanTailCall.
-    // "typed-refs" reports the typed function references proposal, see d_m3HasTypedRefs.
-    // "multi-memory" reports the multiple memories proposal, see d_m3HasMultiMemory.
     // clang-format off
-    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s%s\n",
-            d_m3CanTailCall    ? ", tail-call"    : "",
-            d_m3HasTypedRefs   ? ", typed-refs"   : "",
-            d_m3HasMultiMemory ? ", multi-memory" : "");
+    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s%s%s%s%s%s\n",
+            d_m3CanTailCall    ? ", tail-call"     : "",
+            d_m3HasTypedRefs   ? ", typed-refs"    : "",
+            d_m3HasMultiMemory ? ", multi-memory"  : "",
+            d_m3DeterministicProfile ? ", deterministic" : "",
+            d_m3CanonicalNaN   ? ", canonical-nan" : "",
+            d_m3GuardedMemory  ? ", guarded-mem"   : "",
+            wasi_impl          ? wasi_impl     : ""
+    );
     // clang-format on
 }
 

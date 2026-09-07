@@ -62,6 +62,7 @@ pub fn build(b: *std.Build) !void {
             "source/m3_compile.c",
             "source/m3_validate.c",
             "source/m3_core.c",
+            "source/m3_deterministic.c",
             "source/m3_env.c",
             "source/m3_exec.c",
             "source/m3_function.c",

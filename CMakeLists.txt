@@ -313,6 +313,15 @@ if(BUILD_TESTS)
 
   add_executable(m3_test_reftypes "test/internal/m3_test_reftypes.c")
 
+  # m3_test runs one case on a thread of its own, to give it a stack that is not
+  # the process's. Win32 needs nothing for that; elsewhere it is pthreads, and a
+  # build without them just skips the case - libm3 itself never asks for threads.
+  find_package(Threads)
+  if(Threads_FOUND AND NOT WIN32)
+    target_link_libraries(m3_test Threads::Threads)
+    target_compile_definitions(m3_test PRIVATE d_m3TestHasPthreads)
+  endif()
+
   foreach(m3_test_name m3_test m3_test_reftypes)
     target_link_libraries(${m3_test_name} m3 ${M3_WASI_LIBS})
     if(M3_LINK_LIBM)

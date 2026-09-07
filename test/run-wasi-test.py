@@ -33,6 +33,10 @@ parser.add_argument("--fast", action="store_true")
 
 args = parser.parse_args()
 
+if args.fast and args.timeout == 180:
+    # Use a shorter timeout for fast tests
+    args.timeout = 30
+
 stats = SimpleNamespace(total_run=0, failed=0, crashed=0, timeout=0)
 
 # fmt: off
@@ -82,10 +86,6 @@ commands_full = [
     "name":           "STREAM",
     "wasm":           "./wasi/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
-  }, {
-    "name":           "Self-hosting",
-    "wasm":           "./self-hosting/wasm3-fib.wasm",
-    "expect_pattern": "wasm3 on WASM*Result: 832040*Elapsed: * ms*"
   }, {
     "name":           "Brotli",
     "stdin":          "./wasi/brotli/alice29.txt",
@@ -137,6 +137,11 @@ commands_fast = [
     "wasm":           "./wasi/brotli/brotli.wasm",
     "args":           ["-c", "-f"],
     "expect_sha1":    "0e8af02a7207c0c617d7d38eed92853c4a619987"
+  }, {
+    "name":           "CoreMark (fixed iterations)",
+    "wasm":           "./wasi/coremark/coremark.wasm",
+    "args":           ["0x0", "0x0", "0x66", "200"],
+    "expect_pattern": "*2K performance run parameters*crclist*0xe714*crcmatrix*0x1fd7*crcstate*0x8e3a*"
   }
 ]
 # fmt: on

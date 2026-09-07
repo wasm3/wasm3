@@ -232,9 +232,9 @@ def run_tests(wasm3_binary, target, wasm3_cmd):
     # hold the memory64/table64 address-wrap tests, which is what the 32-bit
     # targets here are most likely to get wrong
     for stage, cmd in (
-        ("regression", f'python3 run-regression-test.py --exec "{wasm3_cmd}"'),
         ("spec", f'python3 run-spec-test.py --exec "{wasm3_cmd} --spec-repl"'),
         ("wasi", f'python3 run-wasi-test.py --fast --exec "{wasm3_cmd}"'),
+        ("regression", f'python3 run-regression-test.py --exec "{wasm3_cmd}"'),
     ):
         ok_marker = Path(f"build-cross/{name}/.test-{stage}-ok")
         if not (RETEST or not ok_marker.exists()):
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         epilog="A single --target streams its output; several targets each get "
                "build-cross/logs/<target>.log instead. Exits non-zero if any target failed, "
-               "so CI can split the work into two steps: --build, then --test.")
+               "so the work can be split into two steps: --build, then --test.")
     parser.add_argument('-j','--jobs', type=int, metavar='N', default=multiprocessing.cpu_count(), help='parallel builds')
     parser.add_argument('-v','--verbose', action='store_true', help='stream output instead of writing per-target logs')
     parser.add_argument('-q','--quiet', action='store_true', help='write per-target logs even for a single target')
@@ -290,6 +290,7 @@ if __name__ == "__main__":
                         "name": t["name"],
                         "dist": not t.get("nodist"),
                         "apt": t.get("apt", ""),
+                        "runner": t.get("runner", ""),
                     }
                     for t in musl_targets
                 ]

@@ -250,6 +250,7 @@ static M3Result v_read_blocktype (ValCtx * v, IM3FuncType * o_type)
     if (r) return r;
 
     if (type < 0) {
+        if (type < -64) return m3Err_invalidTypeId;
         u8 valtype;
         r = NormalizeType(&valtype, (i8)type);
         if (r) return r;
@@ -1335,9 +1336,12 @@ M3Result  ValidateFunction  (IM3Function i_function)
     r = v_validate_body(v);
     if (r) return r;
 
-    // After validation, control stack should be empty
+    // After validation, control stack should be empty and all declared bytes consumed
     if (v->ctrlTop != 0)
         return m3Err_wasmMalformed;
+
+    if (v->wasm != v->wasmEnd)
+        return m3Err_wasmSectionUnderrun;
 
     return m3Err_none;
 }

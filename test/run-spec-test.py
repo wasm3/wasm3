@@ -1109,6 +1109,20 @@ if not hasMultiMemory:
         ]
     )
 
+# A build with guarded memories backs each one with reserved address space and lets
+# the system catch what runs off the end, which it can only do a system page at a
+# time. That is exact for a Wasm page and not for the byte-sized ones the custom page
+# sizes proposal allows, so such a build refuses those memories outright rather than
+# answering where it should trap - see d_m3GuardedMemory. Read off the banner rather
+# than named in --skip-features: this is a feature whose presence removes tests, which
+# is the opposite of what that option is for.
+hasGuardedMemory = "guarded-mem" in wasm3_ver
+if hasGuardedMemory:
+    warning(
+        "build guards memories with address space, skipping the custom page sizes suite",
+        True,
+    )
+
 if args.file:
     jsonFiles = args.file
 else:
@@ -1123,12 +1137,15 @@ else:
     #        core/exceptions; custom page sizes is still a proposal
     for stage in ("proposals", "core"):
         for subdir in (
-            "tail-call",
-            "extended-const",
-            "custom-page-sizes",
-            "bulk-memory",
-            "compact-import-section",
-        ) + (("multi-memory",) if hasMultiMemory else ()):
+            (
+                "tail-call",
+                "extended-const",
+                "bulk-memory",
+                "compact-import-section",
+            )
+            + (("multi-memory",) if hasMultiMemory else ())
+            + (() if hasGuardedMemory else ("custom-page-sizes",))
+        ):
             jsonFiles += glob.glob(os.path.join(spec_dir, stage, subdir, "*.json"))
 
     # Exception handling. 3.0 keeps it in core/exceptions; the earlier suites are irrelevant/outdated

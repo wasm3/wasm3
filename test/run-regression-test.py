@@ -42,12 +42,23 @@ parser.add_argument(
     metavar="<interpreter>",
     help="what to run wast2json on, if not the interpreter under test",
 )
-parser.add_argument("--timeout", type=int, default=120)
+parser.add_argument("--timeout", type=int, default=5)
 parser.add_argument("-v", "--verbose", action="store_true")
 
 args = parser.parse_args()
 
-stats = SimpleNamespace(total_run=0, failed=0, crashed=0, timeout=0, known_issues=0)
+stats = SimpleNamespace(
+    total_run=0, failed=0, crashed=0, timeout=0, known_issues=0, skipped=0
+)
+
+# What the build under test says about itself. Cases that only apply to some builds
+# name a word out of this - see "requires" below.
+version_banner = subprocess.run(
+    args.exec.split(" ") + ["--version"],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    check=False,
+).stdout.decode("utf-8", errors="replace")
 
 #
 # Test cases
@@ -73,6 +84,11 @@ stats = SimpleNamespace(total_run=0, failed=0, crashed=0, timeout=0, known_issue
 # character class. A case may carry more than one of the four.
 #
 # "args" precede the module path; "func_args" follow it.
+#
+# "requires" names something the build has to report in its --version banner for the
+# case to apply at all - "wasi", say, for a case that needs a WASI implementation of
+# any kind, which "uvwasi" and "metawasi" answer to as well. A build without it skips
+# the case rather than failing it.
 #
 
 # fmt: off
@@ -136,6 +152,31 @@ tests = [
     "module":         "./regression/clock-ms-i32.wat",
     "args":           ["--func", "to_test"],
     "expect_result":  "1",
+  }, {
+    # 0 says every part of it held; the module returns a different number for each
+    "name":           "poll_oneoff waits out a clock subscription",
+    "module":         "./regression/wasi-poll-oneoff-clock.wat",
+    "args":           ["--func", "to_test"],
+    "expect_result":  "0",
+  }, {
+    # uvwasi polls sockets and nothing else on Windows - libuv has no way to wait on
+    # a pipe or a console there - so it answers ENOTSOCK for stdout. That is its
+    # limitation and not something this case is about.
+    "name":           "poll_oneoff returns on a ready descriptor",
+    "module":         "./regression/wasi-poll-oneoff-fd.wat",
+    "args":           ["--func", "to_test"],
+    "expect_result":  "0",
+    "requires":       "wasi",
+  }, {
+    # Only a build with d_m3DeterministicProfile has any of this, and only the simple
+    # WASI implementation is behind it - uvwasi and metawasi answer the guest
+    # themselves. "deterministic" in the banner implies the former; the module's own
+    # imports would fail to link without the latter.
+    "name":           "the deterministic profile pins the clock and the entropy",
+    "module":         "./regression/wasi-deterministic.wat",
+    "args":           ["--func", "to_test"],
+    "expect_result":  "0",
+    "requires":       "deterministic",
   }, {
     "name":           "local.tee over two live copies of an i64 local",
     "module":         "./regression/preserve-two-refs.wat",
@@ -204,6 +245,21 @@ tests = [
     "args":           ["--func", "to_test"],
     "expect_error":   "LEB encoded value overflow",
   }, {
+    "name":           "block type s33 negative overflow",
+    "module":         "./regression/block-type-overflow.wast",
+    "args":           ["--func", "to_test"],
+    "expect_error":   "unknown value_type",
+  }, {
+    "name":           "function body size underrun",
+    "module":         "./regression/function-body-underrun.wast",
+    "args":           ["--func", "to_test"],
+    "expect_error":   "section underrun while parsing Wasm binary",
+  }, {
+    "name":           "name subsection size overrun",
+    "module":         "./regression/name-subsection-overrun.wast",
+    "args":           ["--func", "to_test"],
+    "expect_error":   "section overrun while parsing Wasm binary",
+  }, {
     "name":           "Non-numeric function argument",
     "issue":          367,
     "module":         "./lang/fib32.wasm",
@@ -264,6 +320,11 @@ tests = [
     "module":         "./regression/return-call-in-loop.wat",
     "args":           ["--func", "to_test"],
     "expect_trap":    "stack overflow",
+  }, {
+    "name":           "return_call bounded by gas metering",
+    "module":         "./regression/return-call-gas.wat",
+    "args":           ["--gas-limit", "10", "--func", "to_test"],
+    "expect_trap":    "out of gas",
   }, {
     # the arguments are marshalled into the runtime stack before any compiled
     # code runs, so op_Entry's overflow check is too late to cover the writes:
@@ -444,6 +505,13 @@ for test in tests:
     print(f"=== {title} ===")
     if args.verbose:
         print(" ".join(command))
+
+    required = test.get("requires")
+    if required and f", {required}" not in version_banner:
+        stats.skipped += 1
+        print(f"{ansi.WARNING}SKIPPED:{ansi.ENDC} this build is not {required}")
+        print()
+        continue
 
     stats.total_run += 1
     problems = []

@@ -8,6 +8,7 @@
 #include "m3_api_libc.h"
 
 #include "m3_env.h"
+#include "m3_deterministic.h"
 #include "m3_exception.h"
 
 #include <time.h>
@@ -186,13 +187,19 @@ m3ApiRawFunction(m3_libc_printf)
 }
 
 static
-uint64_t clock_ms ()
+uint64_t clock_ms (IM3Runtime i_runtime)
 {
-#ifdef CLOCKS_PER_SEC
+#if d_m3DeterministicProfile
+    return i_runtime ? Deterministic_Time(i_runtime) / 1000000 : 0;
+#else
+    (void)i_runtime;
+
+#  ifdef CLOCKS_PER_SEC
     const clock_t clock_divider = CLOCKS_PER_SEC / 1000;
     return (uint64_t)(clock() / (clock_divider > 0 ? clock_divider : 1));
-#else
+#  else
     return (uint64_t)clock();
+#  endif
 #endif
 }
 
@@ -200,14 +207,14 @@ m3ApiRawFunction(m3_libc_clock_ms)
 {
     m3ApiReturnType(uint32_t)
 
-    m3ApiReturn((uint32_t)clock_ms());
+    m3ApiReturn((uint32_t)clock_ms(runtime));
 }
 
 m3ApiRawFunction(m3_libc_clock_ms_i64)
 {
     m3ApiReturnType(uint64_t)
 
-    m3ApiReturn(clock_ms());
+    m3ApiReturn(clock_ms(runtime));
 }
 
 static
