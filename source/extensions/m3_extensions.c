@@ -397,6 +397,40 @@ M3Result  w3x_AddFunctionToTable  (IM3Function          i_function,
 }
 
 
+M3Result  w3x_FindFuncTypeIndex  (IM3Module             i_module,
+                                  const char * const    i_signature,
+                                  uint32_t *            o_typeIndex)
+{
+    IM3FuncType ftype = NULL;
+
+    _try {
+        _throwif (m3Err_nullArgument, not i_module or not o_typeIndex);
+
+_       (SignatureToFuncType (& ftype, i_signature));
+
+        i32 funcTypeIndex = Module_HasFuncType (i_module, ftype);
+
+        if (funcTypeIndex < 0)
+        {
+            funcTypeIndex = i_module->numFuncTypes++;
+            i_module->funcTypes = m3_ReallocArray (IM3FuncType, i_module->funcTypes, i_module->numFuncTypes, funcTypeIndex);
+            _throwifnull (i_module->funcTypes);
+
+            Environment_AddFuncType (i_module->environment, & ftype);   // may free ftype and return a duplicate
+            i_module->funcTypes [funcTypeIndex] = ftype;
+            ftype = NULL;                                               // owned by the environment now
+        }
+
+        * o_typeIndex = (u32) funcTypeIndex;
+
+    } _catch:
+
+    m3_Free (ftype);
+
+    return result;
+}
+
+
 IM3Function  m3_GetFunctionByIndex  (IM3Module i_module, uint32_t i_index)
 {
     return Module_GetFunction (i_module, i_index);

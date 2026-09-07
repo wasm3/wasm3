@@ -81,6 +81,12 @@ extern "C" {
                                                      uint32_t *             o_elementIndex,
                                                      uint32_t               i_tableIndex);          // i_tableIndex must be zero
 
+    // The module's type index for a signature, as call_indirect wants it.  Added to the module's
+    // type table if it isn't there yet.
+    M3Result            w3x_FindFuncTypeIndex       (IM3Module              i_module,
+                                                     const char * const     i_signature,
+                                                     uint32_t *             o_typeIndex);
+
 
     IM3Function         m3_GetFunctionByIndex       (IM3Module              i_module,
                                                      uint32_t               i_index);
