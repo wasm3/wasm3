@@ -42,7 +42,7 @@ Wasm3 can also be used as a library for:
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
-`wasm3` runs on a wide range of architectures (`x86`, `x86_64`, `ARM`, `RISC-V`, `PowerPC`, `MIPS`, `Xtensa`, `ARC32`, ...) and [platforms](/platforms):
+`wasm3` runs on a wide range of architectures (`x86` `x86_64` `ARM` `RISC-V` `PowerPC` `MIPS` `Xtensa` `ARC32` ...) and [platforms](/platforms):
 - <img src="https://cdn.simpleicons.org/linux/363636/d1d1d1" width="18" height="18" /> Linux,
 <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/Windows_logo_-_2021_%28Black%29.svg" width="18" height="18" /> Windows,
 <img src="https://cdn.simpleicons.org/apple/363636/d1d1d1" width="18" height="18" /> OS X,
@@ -74,7 +74,7 @@ In many situations, speed is not the main concern. Runtime executable size, memo
 
 **Why would you want to run WASM on embedded devices?**
 
-Wasm3 started as a research project and remains so by any means. Evaluating the engine in different environments is part of the research. Given that we have `Lua`, `JS`, `Python`, `Lisp`, `...` running on MCUs, `WebAssembly` is a promising alternative. It provides toolchain decoupling as well as a completely sandboxed, well-defined, predictable environment. Among practical use cases we can list `edge computing`, `scripting`, `plugin systems`, running `IoT rules`, `smart contracts`, etc.
+Wasm3 started as a research project and remains so by any means. Evaluating the engine in different environments is part of the research. Given that we have `Lua` `JS` `Python` `Lisp` ... running on MCUs, `WebAssembly` is a promising alternative. It provides toolchain decoupling as well as a completely sandboxed, well-defined, predictable environment. Among practical use cases we can list `edge computing`, `scripting`, `plugin systems`, running `IoT rules`, `smart contracts`, etc.
 
 ## Used by
 
