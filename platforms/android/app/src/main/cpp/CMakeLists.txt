@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.10)
+
+project(wasm3-jni C)
 
 add_definitions(-DANDROID -Wno-format-security -O3
                 #-fno-optimize-sibling-calls

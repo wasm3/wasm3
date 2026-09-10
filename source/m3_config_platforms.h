@@ -105,6 +105,19 @@
 #  define M3_GUARANTEED_TAIL_CALL 0
 #endif
 
+#ifndef M3_THREAD_LOCAL
+#  if defined(M3_COMPILER_MSVC)
+#    define M3_THREAD_LOCAL __declspec(thread)
+#    define M3_HAS_THREAD_LOCAL 1
+#  elif defined(__GNUC__) || defined(__clang__)
+#    define M3_THREAD_LOCAL __thread
+#    define M3_HAS_THREAD_LOCAL 1
+#  else
+#    define M3_THREAD_LOCAL
+#    define M3_HAS_THREAD_LOCAL 0
+#  endif
+#endif
+
 // A cheap read of the current native stack pointer, used to bound recursion
 // depth (see d_m3MaxNativeStack). Both the low-water mark and the per-call
 // probe must use this same primitive so they measure the same stack -- notably
@@ -211,6 +224,48 @@ typedef int8_t         i8;
  * Platform-specific defaults
  */
 
+// Which implementation of m3_host.h this build gets - see that header. A target
+// counts as POSIX here only if it has the calls m3_host_posix.h makes, so the list
+// is of operating systems rather than of "not Windows": a bare-metal or RTOS build,
+// Emscripten and a Wasm self-hosting build all fall through to m3_host_none.h, which
+// answers "cannot say" to everything and costs them nothing. Cosmopolitan is left
+// out on purpose - one binary that starts on seven systems cannot pick one of these
+// at compile time.
+#if defined(__COSMOPOLITAN__) || defined(__wasi__)
+// Use m3_host_none
+#elif (defined(__linux__) || defined(__APPLE__) || defined(__ANDROID__) ||    \
+       defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
+       defined(__DragonFly__) || defined(__sun) || defined(_AIX) ||           \
+       defined(__QNX__) || defined(__HAIKU__) || defined(__CYGWIN__))
+#  ifndef d_m3HasPosixHost
+#    define d_m3HasPosixHost 1
+#  endif
+#elif defined(_WIN32)
+#  ifndef d_m3HasWin32Host
+#    define d_m3HasWin32Host 1
+#  endif
+#endif
+
+#ifndef d_m3HasWin32Host
+#  define d_m3HasWin32Host 0
+#endif
+#ifndef d_m3HasPosixHost
+#  define d_m3HasPosixHost 0
+#endif
+
+// Guarded memories ask the system to catch an access past the end of a linear memory,
+// which takes address space to reserve and a way to catch the fault.
+#if (d_m3HasPosixHost) || (d_m3HasWin32Host && defined(_MSC_VER))
+#  if !(defined(d_m3FixedHeap) && d_m3FixedHeap) && !defined(__CYGWIN__)
+#    if defined(__x86_64__) || defined(__aarch64__) || defined(_M_X64) || defined(_M_ARM64)
+#      ifndef d_m3GuardedMemory
+#        define d_m3GuardedMemory                1
+#      endif
+#    endif
+#  endif
+#endif
+
+// Microcontrollers and other bare-metal targets, and any RTOS
 #if defined(ARDUINO) || defined(PARTICLE) || defined(PLATFORMIO) || defined(__MBED__) || \
   defined(ESP8266) || defined(ESP32) || defined(BLUE_PILL) || defined(WM_W600) || defined(FOMU)
 #  ifndef d_m3VerboseErrorMessages

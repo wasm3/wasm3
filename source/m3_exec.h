@@ -8,7 +8,7 @@
 #ifndef m3_exec_h
 #define m3_exec_h
 
-// TODO: all these functions could move over to the .c at some point. normally, I'd say screw it,
+// All these functions could move over to the .c at some point. normally, I'd say screw it,
 // but it might prove useful to be able to compile m3_exec alone w/ optimizations while the remaining
 // code is at debug O0
 
@@ -212,6 +212,11 @@ d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 #define M3_FUNC(RES, A, B, OP)  (RES) = OP((A), (B))        // Accept functions: res = OP(a,b)
 #define M3_OPER(RES, A, B, OP)  (RES) = ((A) OP (B))        // Accept operators: res = a OP b
 
+// The same two, for a float operation whose NaN result the spec leaves to the host:
+// CANON is the canonicalizer for the operation's width (only in effect when d_m3CanonicalNaN is set).
+#define M3_FUNC_A(RES, A, B, OP, CANON)  (RES) = CANON(OP((A), (B)))
+#define M3_OPER_A(RES, A, B, OP, CANON)  (RES) = CANON((A) OP (B))
+
 #define d_m3CommutativeOpFunc_i(TYPE, NAME, OP)     d_m3CommutativeOpMacro_i    (TYPE, NAME, M3_FUNC, OP)
 #define d_m3OpFunc_i(TYPE, NAME, OP)                d_m3OpMacro_i               (TYPE, NAME, M3_FUNC, OP)
 #define d_m3CommutativeOpFunc_f(TYPE, NAME, OP)     d_m3CommutativeOpMacro_f    (TYPE, NAME, M3_FUNC, OP)
@@ -221,6 +226,11 @@ d_m3CommutativeOpMacro(RES, REG, TYPE,NAME, OP, ##__VA_ARGS__)
 #define d_m3Op_i(TYPE, NAME, OP)                    d_m3OpMacro_i               (TYPE, NAME, M3_OPER, OP)
 #define d_m3CommutativeOp_f(TYPE, NAME, OP)         d_m3CommutativeOpMacro_f    (TYPE, NAME, M3_OPER, OP)
 #define d_m3Op_f(TYPE, NAME, OP)                    d_m3OpMacro_f               (TYPE, NAME, M3_OPER, OP)
+
+// ...and the arithmetic ones, which name the canonicalizer for their own width
+#define d_m3CommutativeArithOp_f(TYPE, NAME, OP)    d_m3CommutativeOpMacro_f    (TYPE, NAME, M3_OPER_A, OP, canon_nan_##TYPE)
+#define d_m3ArithOp_f(TYPE, NAME, OP)               d_m3OpMacro_f               (TYPE, NAME, M3_OPER_A, OP, canon_nan_##TYPE)
+#define d_m3ArithOpFunc_f(TYPE, NAME, OP)           d_m3OpMacro_f               (TYPE, NAME, M3_FUNC_A, OP, canon_nan_##TYPE)
 
 // compare needs to be distinct for fp 'cause the result must be _r0
 #define d_m3CompareOp_f(TYPE, NAME, OP)             d_m3OpMacro                 (_r0, _fp0, TYPE, NAME, M3_OPER, OP)
@@ -361,23 +371,23 @@ d_m3FoldOp_i           (u64, ShiftRight,   M3_FUNC, OP_SHR_64)
 #  if d_m3HasFloat
 // Without these a float result round-trips through _fp0 and a separate SetSlot, which
 // on float-heavy code is about one dispatch in five.
-d_m3FoldCommutativeOp_f(f32, Add,          M3_OPER, +)
-d_m3FoldOp_f           (f32, Subtract,     M3_OPER, -)
-d_m3FoldCommutativeOp_f(f32, Multiply,     M3_OPER, *)
-d_m3FoldOp_f           (f32, Divide,       M3_OPER, /)
-d_m3FoldCommutativeOp_f(f64, Add,          M3_OPER, +)
-d_m3FoldOp_f           (f64, Subtract,     M3_OPER, -)
-d_m3FoldCommutativeOp_f(f64, Multiply,     M3_OPER, *)
-d_m3FoldOp_f           (f64, Divide,       M3_OPER, /)
+d_m3FoldCommutativeOp_f(f32, Add,          M3_OPER_A, +, canon_nan_f32)
+d_m3FoldOp_f           (f32, Subtract,     M3_OPER_A, -, canon_nan_f32)
+d_m3FoldCommutativeOp_f(f32, Multiply,     M3_OPER_A, *, canon_nan_f32)
+d_m3FoldOp_f           (f32, Divide,       M3_OPER_A, /, canon_nan_f32)
+d_m3FoldCommutativeOp_f(f64, Add,          M3_OPER_A, +, canon_nan_f64)
+d_m3FoldOp_f           (f64, Subtract,     M3_OPER_A, -, canon_nan_f64)
+d_m3FoldCommutativeOp_f(f64, Multiply,     M3_OPER_A, *, canon_nan_f64)
+d_m3FoldOp_f           (f64, Divide,       M3_OPER_A, /, canon_nan_f64)
 #endif
 
 #endif // d_m3FoldSetLocal
 
 #if d_m3HasFloat
-d_m3CommutativeOp_f(f32, Add,              +)      d_m3CommutativeOp_f(f64, Add,              +)
-d_m3CommutativeOp_f(f32, Multiply,         *)      d_m3CommutativeOp_f(f64, Multiply,         *)
-d_m3Op_f(f32, Subtract,                    -)      d_m3Op_f(f64, Subtract,                    -)
-d_m3Op_f(f32, Divide,                      /)      d_m3Op_f(f64, Divide,                      /)
+d_m3CommutativeArithOp_f(f32, Add,         +)      d_m3CommutativeArithOp_f(f64, Add,         +)
+d_m3CommutativeArithOp_f(f32, Multiply,    *)      d_m3CommutativeArithOp_f(f64, Multiply,    *)
+d_m3ArithOp_f(f32, Subtract,               -)      d_m3ArithOp_f(f64, Subtract,               -)
+d_m3ArithOp_f(f32, Divide,                 /)      d_m3ArithOp_f(f64, Divide,                 /)
 #endif
 
 d_m3OpFunc_i(u32, Rotl, rotl32)
@@ -396,11 +406,12 @@ d_m3OpMacro_i(u64, Remainder, OP_REM_U);
 d_m3OpMacro_i(i64, Remainder, OP_REM_S, INT64_MIN);
 
 #if d_m3HasFloat
-d_m3OpFunc_f(f32, Min, min_f32);
-d_m3OpFunc_f(f32, Max, max_f32);
-d_m3OpFunc_f(f64, Min, min_f64);
-d_m3OpFunc_f(f64, Max, max_f64);
+d_m3ArithOpFunc_f(f32, Min, min_f32);
+d_m3ArithOpFunc_f(f32, Max, max_f32);
+d_m3ArithOpFunc_f(f64, Min, min_f64);
+d_m3ArithOpFunc_f(f64, Max, max_f64);
 
+// copysign is defined bitwise and keeps its operand's payload - see canon_nan_f32
 d_m3OpFunc_f(f32, CopySign, copysignf);
 d_m3OpFunc_f(f64, CopySign, copysign);
 #endif
@@ -422,16 +433,20 @@ d_m3Op(TYPE##_##NAME##_s)                           \
 }
 
 #define M3_UNARY(RES, X, OP) (RES) = OP(X)
+#define M3_UNARY_A(RES, X, OP, CANON) (RES) = CANON(OP(X))
+
 #define d_m3UnaryOp_i(TYPE, NAME, OPERATION)        d_m3UnaryMacro( _r0,  _r0, TYPE, NAME, M3_UNARY, OPERATION)
 #define d_m3UnaryOp_f(TYPE, NAME, OPERATION)        d_m3UnaryMacro(_fp0, _fp0, TYPE, NAME, M3_UNARY, OPERATION)
+#define d_m3UnaryArithOp_f(TYPE, NAME, OPERATION)   d_m3UnaryMacro(_fp0, _fp0, TYPE, NAME, M3_UNARY_A, OPERATION, canon_nan_##TYPE)
 
 #if d_m3HasFloat
-d_m3UnaryOp_f(f32, Abs,        fabsf);         d_m3UnaryOp_f(f64, Abs,        fabs);
-d_m3UnaryOp_f(f32, Ceil,       ceilf);         d_m3UnaryOp_f(f64, Ceil,       ceil);
-d_m3UnaryOp_f(f32, Floor,      floorf);        d_m3UnaryOp_f(f64, Floor,      floor);
-d_m3UnaryOp_f(f32, Trunc,      truncf);        d_m3UnaryOp_f(f64, Trunc,      trunc);
-d_m3UnaryOp_f(f32, Sqrt,       sqrtf);         d_m3UnaryOp_f(f64, Sqrt,       sqrt);
-d_m3UnaryOp_f(f32, Nearest,    rintf);         d_m3UnaryOp_f(f64, Nearest,    rint);
+// abs and neg are defined bitwise and keep their operand's payload - see canon_nan_f32
+d_m3UnaryOp_f(f32, Abs,             fabsf);    d_m3UnaryOp_f(f64, Abs,             fabs);
+d_m3UnaryArithOp_f(f32, Ceil,       ceilf);    d_m3UnaryArithOp_f(f64, Ceil,       ceil);
+d_m3UnaryArithOp_f(f32, Floor,      floorf);   d_m3UnaryArithOp_f(f64, Floor,      floor);
+d_m3UnaryArithOp_f(f32, Trunc,      truncf);   d_m3UnaryArithOp_f(f64, Trunc,      trunc);
+d_m3UnaryArithOp_f(f32, Sqrt,       sqrtf);    d_m3UnaryArithOp_f(f64, Sqrt,       sqrt);
+d_m3UnaryArithOp_f(f32, Nearest,    rintf);    d_m3UnaryArithOp_f(f64, Nearest,    rint);
 #  if defined(M3_COMPILER_TCC)
 d_m3UnaryOp_f(f32, Negate,     m3_negf);       d_m3UnaryOp_f(f64, Negate,     m3_neg);
 #  else
@@ -568,10 +583,25 @@ d_m3Op(TO##_##NAME##_##FROM##_s)                            \
 d_m3TypeModifyOp(_r0, _r0, i64, Extend, i32);
 d_m3TypeModifyOp(_r0, _r0, i64, Extend, u32);
 
-// Float to float
+// Float to float. Narrowing or widening a NaN produces an arithmetic one, so these
+// two go through the canonicalizer where the int conversions have nothing to do.
+#define d_m3FloatModifyOp(TO, NAME, FROM)                   \
+d_m3Op(TO##_##NAME##_##FROM##_r)                            \
+{                                                           \
+    _fp0 = canon_nan_##TO ((TO) ((FROM) _fp0));             \
+    nextOp ();                                              \
+}                                                           \
+                                                            \
+d_m3Op(TO##_##NAME##_##FROM##_s)                            \
+{                                                           \
+    FROM from = slot (FROM);                                \
+    _fp0 = canon_nan_##TO ((TO) (from));                    \
+    nextOp ();                                              \
+}
+
 #if d_m3HasFloat
-d_m3TypeModifyOp(_fp0, _fp0, f32, Demote, f64);
-d_m3TypeModifyOp(_fp0, _fp0, f64, Promote, f32);
+d_m3FloatModifyOp(f32, Demote, f64);
+d_m3FloatModifyOp(f64, Promote, f32);
 #endif
 
 #define d_m3TypeConvertOp(REG_TO, REG_FROM, TO, NAME, FROM) \
@@ -2380,7 +2410,11 @@ d_m3Op(CheckAddr64)
 #endif // d_m3HasMemory64
 
 
-#if d_m3SkipMemoryBoundsCheck
+// Under d_m3GuardedMemory there is nothing to check: every address one of these
+// operations can name lands inside the memory's reservation, and the part of it the
+// memory does not have is not committed, so the access faults and RunCodeChecked
+// turns that into the trap the spec asks for.
+#if d_m3SkipMemoryBoundsCheck || d_m3GuardedMemory
 #  define m3MemCheck(x) true
 #else
 #  define m3MemCheck(x) M3_LIKELY(x)

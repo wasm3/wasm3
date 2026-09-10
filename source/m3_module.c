@@ -76,13 +76,13 @@ void m3_FreeModule (IM3Module i_module)
                 continue;
             }
 
-            m3_Free(memory->mallocated);
+            FreeMemoryBlock(memory);
             m3_Free(memory->exportName);
             FreeImportInfo(&memory->import);
             m3_Free(memory);
         }
         m3_Free(i_module->memories);
-        m3_Free(i_module->emptyMemory.mallocated);
+        FreeMemoryBlock(&i_module->emptyMemory);
 
 
         m3_Free(i_module);

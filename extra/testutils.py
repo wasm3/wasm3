@@ -132,7 +132,16 @@ class WastCompiler:
 
         command = self._host + [
             self._wast2json,
-            "--enable-all",
+            "--enable-exceptions",
+            "--enable-threads",
+            "--enable-function-references",
+            "--enable-tail-call",
+            "--enable-memory64",
+            "--enable-multi-memory",
+            "--enable-extended-const",
+            "--enable-custom-page-sizes",
+            # "--enable-compact-imports",  # broken in wabt 1.0.41
+            "--no-check",
             source,
             "-o",
             f"{stem}.json",

@@ -250,3 +250,26 @@ Or if targeting Apple Silicon (this works from *any* host with Zig):
 ```sh
 zig build -Dtarget=aarch64-macos
 ```
+
+## Build options worth knowing
+
+Every option lives in [`source/m3_config.h`](../source/m3_config.h) with a comment
+saying what it costs, and is set the usual way:
+
+```sh
+cmake -DCMAKE_C_FLAGS="-Dd_m3DeterministicProfile=1" ..
+```
+
+`d_m3GuardedMemory` backs each linear memory with 8GiB of reserved address space and
+commits only the part the memory has, so that an access past the end faults and the
+fault becomes the trap - which takes the bounds check off every load and store. It
+needs a 64-bit host with a MMU.
+
+`d_m3DeterministicProfile` builds the WebAssembly deterministic profile, so that the
+same module fed the same input produces the same run anywhere: NaN results are
+normalized, and the WASI clock, entropy and waiting come from the runtime rather than
+the machine. See [Deterministic execution](./Cookbook.md#deterministic-execution).
+
+`d_m3HasThreadStackProbe` asks the OS how much stack the calling thread has, so
+that `d_m3MaxNativeStack` can be cut down to what is really there instead of trusting
+a compile-time guess.

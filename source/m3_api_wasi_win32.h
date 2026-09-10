@@ -856,13 +856,21 @@ __wasi_errno_t m3_wasi_host_clock_res_get (__wasi_clockid_t i_clockId, __wasi_ti
     return __WASI_ERRNO_SUCCESS;
 }
 
+// The one reading of the clock. Every WASI clock is this one here - Windows offers
+// no other - and poll_oneoff waits on it too, so that the time a guest is made to
+// wait and the time it can then measure are the same time.
 static
-__wasi_errno_t m3_wasi_host_clock_time_get (__wasi_clockid_t i_clockId, __wasi_timestamp_t* o_time)
+__wasi_timestamp_t now_ns (void)
 {
     FILETIME now;
     GetSystemTimeAsFileTime(&now);
 
-    *o_time = convert_filetime(now);
+    return convert_filetime(now);
+}
+
+__wasi_errno_t m3_wasi_host_clock_time_get (__wasi_clockid_t i_clockId, __wasi_timestamp_t* o_time)
+{
+    *o_time = now_ns();
     return __WASI_ERRNO_SUCCESS;
 }
 
@@ -873,6 +881,213 @@ __wasi_errno_t m3_wasi_host_random_get (void* o_buf, __wasi_size_t i_len)
         return __WASI_ERRNO_IO;
     }
     return __WASI_ERRNO_SUCCESS;
+}
+
+
+/*
+ * Waiting
+ */
+
+// Windows has no one call that waits on a file, a pipe and a console together the
+// way poll() does - the objects are of different kinds and only some of them are
+// waitable at all - so this asks each of them in turn and sleeps between rounds.
+// That costs a wakeup every d_m3WasiPollIntervalMs while a wait is outstanding, and
+// nothing at all once something is ready. Rebuilding it around overlapped I/O and a
+// completion port would take the whole descriptor layer with it, which is more than
+// the simple WASI implementation is for - a build that needs to wait on many
+// descriptors at once wants BUILD_WASI=uvwasi.
+#define d_m3WasiPollIntervalMs  5
+
+// Whether a descriptor has what its subscription is waiting for. Everything that is
+// not a stream is ready by definition: the spec says a regular file always triggers
+// both read and write, and so does anything whose kind Windows will not describe.
+static
+__wasi_errno_t poll_fd_ready (const m3_wasi_pollsub_t* i_sub, bool* o_ready,
+                              __wasi_filesize_t* o_nbytes, __wasi_eventrwflags_t* o_flags)
+{
+    *o_ready = false;
+    *o_nbytes = 0;
+    *o_flags = 0;
+
+    HANDLE         handle;
+
+    __wasi_errno_t err = handle_for_fd(i_sub->fd, &handle);
+    if (err != __WASI_ERRNO_SUCCESS) {
+        return err;
+    }
+
+    DWORD type = GetFileType(handle);
+
+    // A write is only ever waiting on the other end of a pipe, and Windows will not
+    // say whether that has room, so writing is always reported as ready
+    if (i_sub->type != __WASI_EVENTTYPE_FD_READ or type == FILE_TYPE_DISK) {
+        *o_ready = true;
+        *o_nbytes = 1;
+        return __WASI_ERRNO_SUCCESS;
+    }
+
+    if (type == FILE_TYPE_PIPE) {
+        DWORD waiting = 0;
+
+        if (!PeekNamedPipe(handle, NULL, 0, NULL, &waiting, NULL)) {
+            DWORD last = GetLastError();
+
+            // the writer is gone: a read would return end of file, which counts as
+            // ready and is what the hangup flag is for
+            if (last == ERROR_BROKEN_PIPE or last == ERROR_PIPE_NOT_CONNECTED) {
+                *o_ready = true;
+                *o_flags = __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
+                return __WASI_ERRNO_SUCCESS;
+            }
+            return errno_from_win32(last);
+        }
+
+        *o_ready = (waiting != 0);
+        *o_nbytes = waiting;
+        return __WASI_ERRNO_SUCCESS;
+    }
+
+    if (type == FILE_TYPE_CHAR) {
+        // a console has input pending when waiting on it succeeds without a wait
+        *o_ready = (WaitForSingleObject(handle, 0) == WAIT_OBJECT_0);
+        *o_nbytes = *o_ready ? 1 : 0;
+        return __WASI_ERRNO_SUCCESS;
+    }
+
+    *o_ready = true;
+    *o_nbytes = 1;
+    return __WASI_ERRNO_SUCCESS;
+}
+
+// How much longer a clock subscription has to wait, in nanoseconds, given that
+// i_elapsedNs of this call have already gone by - so 0 means it is ready. A relative
+// subscription counts down from the timeout it named; an absolute one is held
+// against the clock and ignores i_elapsedNs, the clock having moved on by itself.
+// Every WASI clock is the system clock here - see clock_time_get - so an absolute
+// deadline is held against that one whichever clock it names.
+static
+uint64_t poll_remaining_ns (const m3_wasi_pollsub_t* i_sub, uint64_t i_elapsedNs)
+{
+    if (!i_sub->isAbsolute) {
+        return (i_sub->timeout > i_elapsedNs) ? i_sub->timeout - i_elapsedNs : 0;
+    }
+
+    __wasi_timestamp_t now = now_ns();
+    return (i_sub->timeout > now) ? i_sub->timeout - now : 0;
+}
+
+static
+__wasi_errno_t m3_wasi_host_poll_oneoff (const m3_wasi_pollsub_t* i_subs, __wasi_size_t i_count,
+                                         m3_wasi_pollevent_t* o_events, __wasi_size_t* o_eventCount)
+{
+    *o_eventCount = 0;
+
+    uint64_t soonestNs = UINT64_MAX;
+    bool     hasClock = false;
+    bool     hasFd = false;
+
+    for (__wasi_size_t i = 0; i < i_count; i++) {
+        if (i_subs[i].type == __WASI_EVENTTYPE_CLOCK) {
+            soonestNs = M3_MIN(soonestNs, poll_remaining_ns(&i_subs[i], 0));
+            hasClock = true;
+        } else {
+            hasFd = true;
+        }
+    }
+
+    if (!hasClock and !hasFd) {
+        return __WASI_ERRNO_INVAL;
+    }
+
+    // The wait is measured on the very clock clock_time_get reports, so that a guest
+    // which sleeps and then reads the clock cannot see less time than it asked for.
+    // GetTickCount64 is the obvious alternative and is wrong for exactly that
+    // reason: it is a different clock quantized to the same coarse tick, so the two
+    // can disagree by a whole one, and a 20ms sleep reads back as 15.
+    uint64_t startNs = now_ns();
+
+    for (;;) {
+        __wasi_size_t out = 0;
+
+        for (__wasi_size_t i = 0; i < i_count; i++) {
+            const m3_wasi_pollsub_t* sub = &i_subs[i];
+
+            if (sub->type == __WASI_EVENTTYPE_CLOCK) {
+                continue;
+            }
+
+            bool                  ready;
+            __wasi_filesize_t     nbytes;
+            __wasi_eventrwflags_t flags;
+
+            __wasi_errno_t        err = poll_fd_ready(sub, &ready, &nbytes, &flags);
+
+            // a descriptor that cannot be asked is ready with an error on it, which
+            // is what tells the guest to stop waiting for it
+            if (err == __WASI_ERRNO_SUCCESS and !ready) {
+                continue;
+            }
+
+            o_events[out].userdata = sub->userdata;
+            o_events[out].error = err;
+            o_events[out].type = sub->type;
+            o_events[out].nbytes = nbytes;
+            o_events[out].flags = flags;
+            out++;
+        }
+
+        // This is a wall clock and can be set backwards under us, which is not
+        // elapsed time going negative but the measurement being no longer usable;
+        // starting the count again from here is the honest reading of it.
+        const uint64_t t = now_ns();
+        const uint64_t elapsedNs = (t > startNs) ? t - startNs : 0;
+
+        if (t < startNs) {
+            startNs = t;
+        }
+
+        bool expired = hasClock and (elapsedNs >= soonestNs);
+
+        if (expired) {
+            // Every deadline is asked again rather than just the soonest: waiting
+            // that one out may have passed a later one too
+            for (__wasi_size_t i = 0; i < i_count; i++) {
+                const m3_wasi_pollsub_t* sub = &i_subs[i];
+
+                if (sub->type == __WASI_EVENTTYPE_CLOCK and
+                    poll_remaining_ns(sub, elapsedNs) == 0) {
+                    o_events[out].userdata = sub->userdata;
+                    o_events[out].error = __WASI_ERRNO_SUCCESS;
+                    o_events[out].type = __WASI_EVENTTYPE_CLOCK;
+                    o_events[out].nbytes = 0;
+                    o_events[out].flags = 0;
+                    out++;
+                }
+            }
+        }
+
+        if (out) {
+            *o_eventCount = out;
+            return __WASI_ERRNO_SUCCESS;
+        }
+
+        // Nothing yet. With no descriptor to watch there is nothing to come back
+        // for, so sleep out the whole remainder; with one, sleep to the next round
+        // or to the deadline, whichever comes first. Rounding up is what keeps a
+        // sub-millisecond remainder from becoming a spin.
+        DWORD sleepMs = d_m3WasiPollIntervalMs;
+
+        if (hasClock) {
+            uint64_t remainingNs = soonestNs - elapsedNs;
+            uint64_t remainingMs = (remainingNs + 999999) / 1000000;
+
+            if (not hasFd or remainingMs < sleepMs) {
+                sleepMs = (remainingMs > MAXDWORD) ? MAXDWORD : (DWORD)remainingMs;
+            }
+        }
+
+        Sleep(sleepMs);
+    }
 }
 
 #endif // m3_api_wasi_win32_h

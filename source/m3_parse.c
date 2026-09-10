@@ -1129,7 +1129,7 @@ M3Result ParseSection_Name (M3Module* io_module, bytes_t i_bytes, cbytes_t i_end
 {
     M3Result result = m3Err_none;
 
-    cstr_t name;
+    cstr_t name = NULL;
 
     while (i_bytes < i_end) {
         u8  nameType;
@@ -1139,6 +1139,8 @@ _       (ReadLEB_u7(&nameType, &i_bytes, i_end));
 _       (ReadLEB_u32(&payloadLength, &i_bytes, i_end));
 
         bytes_t start = i_bytes;
+        _throwif(m3Err_wasmSectionOverrun, payloadLength > (size_t)(i_end - start));
+
         if (nameType == 1) {
             u32 numNames;
 _           (ReadLEB_u32(&numNames, &i_bytes, i_end));

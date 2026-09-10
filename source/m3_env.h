@@ -54,6 +54,12 @@ typedef struct M3Memory {
     M3ImportInfo     import;         // when declared as an import
     cstr_t           exportName;     // when exported
     bool             imported;
+
+#if d_m3GuardedMemory
+    // The slot of the guarded arena this memory's bytes live in, and so what
+    // 'mallocated' points into rather than the heap - see Guard_TakeSlot
+    void* guardSlot;
+#endif
 } M3Memory;
 
 typedef M3Memory* IM3Memory;
@@ -402,6 +408,15 @@ typedef struct M3Runtime {
 
     u32            memoryLimit;
 
+#if d_m3DeterministicProfile
+    // What the host answers about time and entropy out of, rather than out of the
+    // machine it happens to be running on - see m3_deterministic.h, which is what
+    // reads and moves them. Both are per-runtime, so two runtimes replay
+    // independently and a fresh runtime replays the same way as the last one.
+    u64 virtualTimeNs;
+    u64 randomState;
+#endif
+
 #if d_m3EnableValidation
     bool    skipValidation; // m3_SetValidation: compile function bodies without type checking them first
     ValCtx* validator;      // created on first use
@@ -440,14 +455,19 @@ typedef struct M3Runtime {
 } M3Runtime;
 
 // Establish the native C-stack limit for a top-level invocation. The outermost
-// call records a low-water mark d_m3MaxNativeStack bytes into the stack; nested
+// call records a low-water mark at most d_m3MaxNativeStack bytes into the stack -
+// less, where the thread's stack was measured and is smaller than that. Nested
 // re-entrant calls (e.g. an imported function calling back into Wasm) keep the
 // original mark. op_Call/op_CallIndirect trap once execution crosses it.
+//
+// The stack pointer is read here rather than inside m3_NativeStackLimit so that
+// the mark measures the caller's frame, the same one d_m3CheckNativeStack tests
+// against later.
 #if d_m3MaxNativeStack > 0
 #  define d_m3StackLimitEnter(RT)                                               \
-       void * _m3SavedStackLimit = (RT)->stackLimit;                           \
-       if (not (RT)->stackLimit)                                               \
-           (RT)->stackLimit = (u8 *) m3_NativeStackPtr () - (d_m3MaxNativeStack);
+        void * _m3SavedStackLimit = (RT)->stackLimit;                           \
+        if (not (RT)->stackLimit)                                               \
+            (RT)->stackLimit = m3_NativeStackLimit(m3_NativeStackPtr(), (d_m3MaxNativeStack));
 #  define d_m3StackLimitLeave(RT)  (RT)->stackLimit = _m3SavedStackLimit;
 #else
 #  define d_m3StackLimitEnter(RT)
@@ -458,6 +478,10 @@ void     InitRuntime (IM3Runtime io_runtime, u32 i_stackSizeInBytes);
 void     Runtime_Release (IM3Runtime io_runtime);
 
 M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPages);
+
+// Give back whatever is behind io_memory->mallocated, which is the heap or a slot of
+// the guarded arena depending on the build. Leaves the M3Memory itself alone.
+void     FreeMemoryBlock (IM3Memory io_memory);
 
 typedef void* (*ModuleVisitor)(IM3Module i_module, void* i_info);
 void*       ForEachModule (IM3Runtime i_runtime, ModuleVisitor i_visitor, void* i_info);

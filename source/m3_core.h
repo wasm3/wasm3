@@ -255,6 +255,43 @@ M3Result m3Error (M3Result i_result, IM3Runtime i_runtime, IM3Module i_module, I
 #define ErrorModule(RESULT, MOD, FORMAT, ...)           _m3Error (RESULT, MOD->runtime, MOD, NULL,  __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 #define ErrorCompile(RESULT, COMP, FORMAT, ...)         _m3Error (RESULT, COMP->runtime, COMP->module, NULL, __FILE__, __LINE__, FORMAT, ##__VA_ARGS__)
 
+#if d_m3GuardedMemory
+
+// How much address space a linear memory's bytes are given: everything a Wasm access
+// can name. A 32-bit address plus a 32-bit memarg offset reaches just under 2^33, and
+// the access itself a few bytes further, which the page of slack in a slot covers.
+#  define d_m3GuardedDataBytes  (UINT64_C(1) << 33)
+
+// Take one slot of the guarded arena, or NULL when the arena has none left or could
+// not be reserved at all. What comes back is the base of the slot: the memory's
+// M3MemoryHeader sits at the end of its first page, and the bytes the guest addresses
+// begin on the page after that.
+void*           Guard_TakeSlot (void);
+
+// The header of a slot, which is also what the guest's memory starts right after
+M3MemoryHeader* Guard_SlotHeader (void* i_slot);
+
+// Make the first i_dataBytes of the slot's data reachable. Only ever asked to grow,
+// and asking for what is already there costs nothing.
+bool            Guard_CommitSlot (void* i_slot, size_t i_dataBytes);
+
+// Give a slot back, dropping everything committed in it. The next taker gets it
+// zeroed, as a fresh linear memory has to be.
+void            Guard_GiveSlot (void* i_slot);
+
+// The whole arena, for a fault to be held against - see m3_HostProtectedCall. Answers
+// (NULL, 0) before anything has asked for a slot.
+void            Guard_ArenaRange (void** o_low, size_t* o_bytes);
+
+#endif // d_m3GuardedMemory
+
+#if d_m3MaxNativeStack > 0
+// The native-stack low-water mark for a top-level call that came in at i_stackPtr,
+// clamped to what the calling thread's stack really is where that can be measured.
+// See d_m3MaxNativeStack and d_m3StackLimitEnter.
+void* m3_NativeStackLimit (void* i_stackPtr, size_t i_budget);
+#endif
+
 #if d_m3LogNativeStack
 void m3StackCheckInit ();
 void m3StackCheck ();

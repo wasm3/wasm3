@@ -31,6 +31,8 @@ jobs:
         # Builds without uvwasi
         - {target: gcc-no-uvwasi,     cc: gcc,    flags: -DBUILD_WASI=simple,  skipfeat: tail-call   }
         - {target: clang-no-uvwasi,   cc: clang,  flags: -DBUILD_WASI=simple   }
+        # The deterministic profile, which also turns on canonical NaNs + simple WASI implementation
+        - {target: clang-determ,      cc: clang,  flags: -DBUILD_WASI=simple,  cflags: -Dd_m3DeterministicProfile=1 }
         # TinyCC has no musttail, and no bswap builtins, which turns into an error under -Werror
         - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64, werror: OFF, skipfeat: tail-call }
         # Debug builds under ASan + UBSan
@@ -107,7 +109,7 @@ jobs:
         python3 run-spec-test.py --spec=wg-2.0 --skip-features=${{ matrix.config.skipfeat || 'none' }} ${{ matrix.config.specflags }}
     - name: Test WASI apps
       if: ${{ !matrix.config.notest }}
-      run: cd test && python3 run-wasi-test.py
+      run: cd test && python3 run-wasi-test.py --fast
     - name: Test strace output
       if: ${{ matrix.config.strace }}
       run: cd test && python3 run-strace-test.py
@@ -164,8 +166,8 @@ jobs:
         - {target: arm64-no-uvwasi,   os: macos-latest,   flags: -DBUILD_WASI=simple   }
         - {target: intel-uvwasi,      os: macos-15-intel, }
         - {target: intel-no-uvwasi,   os: macos-15-intel, flags: -DBUILD_WASI=simple   }
-        # Debug build under ASan + UBSan
-        - {target: arm64-sanitize,    os: macos-latest,   flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
+        # Debug build under ASan + UBSan (memory guard is off as it interferes with sanitizer on macOS)
+        - {target: arm64-sanitize,    os: macos-latest,   flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Dd_m3GuardedMemory=0", ldflags: "-fsanitize=address,undefined" }
 
     steps:
     - uses: actions/checkout@v7
@@ -195,7 +197,7 @@ jobs:
         cd test
         python3 run-spec-test.py --spec=wg-2.0 --skip-features=none
     - name: Test WASI apps
-      run: cd test && python3 run-wasi-test.py
+      run: cd test && python3 run-wasi-test.py --fast
 
   windows:
     runs-on: ${{ matrix.config.os }}
@@ -291,7 +293,7 @@ jobs:
       if: ${{ !matrix.config.notest }}
       run: |
         cd test
-        python run-wasi-test.py
+        python run-wasi-test.py --fast
     - name: Test strace output
       if: ${{ matrix.config.strace }}
       run: |
@@ -363,6 +365,11 @@ jobs:
       matrix:
         target: ${{ fromJSON(needs.cross-targets.outputs.targets) }}
 
+    env:
+      # the built binary under the emulator its architecture needs, as the harnesses
+      # take it: one string, named from the directory they run in
+      WASM3: ${{ matrix.target.runner }} ../build-cross/wasm3-${{ matrix.target.name }}
+
     steps:
     - uses: actions/checkout@v7
     - name: Install QEMU
@@ -373,12 +380,24 @@ jobs:
     - name: Install ${{ matrix.target.apt }}
       if: ${{ matrix.target.apt }}
       run: sudo apt install -y ${{ matrix.target.apt }}
-    # Split so a compile error and a failing test are distinguishable at a glance.
-    # A single --target streams its output, so a failure is readable in the log.
+    # build-cross.py owns the toolchains, so the build goes through it. The suites
+    # are run here rather than through its --test, so that which of them failed - and
+    # how far it got before it did - is on the job page rather than in a log the
+    # script wrote and nothing kept.
     - name: Build
       run: python3 build-cross.py --target ${{ matrix.target.name }} --build
-    - name: Test
-      run: python3 build-cross.py --target ${{ matrix.target.name }} --test
+    # the regression cases run first: they are the quickest of the three, and they
+    # hold the memory64/table64 address-wrap tests, which is what the 32-bit targets
+    # here are most likely to get wrong
+    - name: Test regression cases
+      working-directory: test
+      run: python3 run-regression-test.py --exec "$WASM3"
+    - name: Test WebAssembly spec
+      working-directory: test
+      run: python3 run-spec-test.py --exec "$WASM3 --spec-repl"
+    - name: Test WASI apps
+      working-directory: test
+      run: python3 run-wasi-test.py --fast --exec "$WASM3"
     # The variants that only exist to exercise a build option or an ABI are tested
     # like the rest, but nothing collects them for the release
     - name: Upload artifact
@@ -535,15 +554,15 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
     - uses: actions/checkout@v7
-    - name: Set up JDK 11
+    - name: Set up JDK 17
       uses: actions/setup-java@v5
       with:
         distribution: zulu
-        java-version: 11
+        java-version: 17
     - name: Build
       run: |
         cd platforms/android
@@ -914,7 +933,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        clang -xc++ -Dd_m3HasWASI \
+        clang -xc++ -Werror -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3
@@ -932,7 +951,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        clang -xc++ -Dd_m3HasWASI -DDEBUG \
+        clang -xc++ -Werror -Dd_m3HasWASI -DDEBUG \
             -Dd_m3HasTypedRefs=1        \
             -Dd_m3EnableOpTracing=1     \
             -Dd_m3EnableStrace=1        \
@@ -967,7 +986,7 @@ jobs:
         make -f extra/utils.mk preprocess
         mkdir build
         cd build
-        gcc -Dd_m3HasWASI \
+        gcc -Werror -Dd_m3HasWASI \
             -I../source ../source/*.c ../platforms/app/main.c \
             -O3 -g0 -lm \
             -o wasm3

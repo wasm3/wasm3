@@ -8,6 +8,7 @@ set(sources
     "m3_code.c"
     "m3_compile.c"
     "m3_core.c"
+    "m3_deterministic.c"
     "m3_env.c"
     "m3_exec.c"
     "m3_function.c"

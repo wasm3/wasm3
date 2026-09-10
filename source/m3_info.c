@@ -347,7 +347,7 @@ void DecodeOperation (char* o_string, size_t i_stringBufferSize, m3opcode_t i_op
     }
 }
 
-// WARNING/TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
+// TODO: this isn't fully implemented. it blindly assumes each word is a Operation pointer
 // and, if an operation happens to missing from the c_operations table it won't be recognized here
 void dump_code_page (IM3CodePage i_codePage, pc_t i_startPC)
 {

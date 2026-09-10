@@ -17,6 +17,8 @@ which Binaryen accepted until it started enforcing the order.
 git clone --depth 1 https://github.com/kanaka/mal
 cd mal/impls/wasm
 
+sed -i 's/"wasi_unstable"/"wasi_snapshot_preview1"/g' platform_wasi.wam
+
 npm install --ignore-scripts
 make WASM_AS=/path/to/binaryen-108/wasm-as stepA_mal.wasm
 

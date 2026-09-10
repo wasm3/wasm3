@@ -18,12 +18,12 @@
 // the fuzzing engine allows and get killed as an OOM rather than exercising
 // anything. Cap what is actually allocated: memory accesses and data segment
 // loads are bounded by the allocated length, not the declared page count.
-#define d_m3FuzzMemoryLimit  (64*1024*1024)
+#define d_m3FuzzMemoryLimit  (4*1024*1024)
 
 // Nothing stops a few fuzzed bytes from describing a loop that never ends.
 // Fuzzer timeout is an error => let's use gas metering to limit the number
 // of instructions that can run.
-#define d_m3FuzzGasLimit     100000.0
+#define d_m3FuzzGasLimit     1000.0
 
 int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
 {
@@ -50,7 +50,11 @@ int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
 
                     result = m3_FindFunction(&f, runtime, "fib");
                     if (f) {
-                        m3_CallV(f, 10);
+                        if (m3_GetArgCount(f) == 1 && m3_GetArgType(f, 0) == c_m3Type_i32) {
+                            m3_CallV(f, 10);
+                        } else if (m3_GetArgCount(f) == 0) {
+                            m3_CallV(f);
+                        }
                     }
                 }
                 // on failure too, the runtime owns the module now

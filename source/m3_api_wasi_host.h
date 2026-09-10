@@ -102,6 +102,33 @@ typedef struct m3_wasi_iovec_t {
     size_t len;
 } m3_wasi_iovec_t;
 
+// One thing poll_oneoff is waiting for, with the guest's tagged union already
+// decoded and the difference between the two WASI revisions' layouts already gone.
+// Which fields carry anything is decided by 'type': a clock subscription fills in
+// the three below it, a descriptor subscription fills in 'fd'.
+typedef struct m3_wasi_pollsub_t {
+    __wasi_userdata_t  userdata;
+    __wasi_eventtype_t type;
+
+    __wasi_clockid_t   clockId;
+    __wasi_timestamp_t timeout;     // nanoseconds; a point in time when isAbsolute
+    bool               isAbsolute;
+
+    __wasi_fd_t        fd;
+} m3_wasi_pollsub_t;
+
+// One thing that turned out to be ready. 'error' describes that subscription alone -
+// a descriptor that was never open is one event with EBADF, not a failed call - and
+// the fields below it are only filled in for a descriptor event.
+typedef struct m3_wasi_pollevent_t {
+    __wasi_userdata_t     userdata;
+    __wasi_errno_t        error;
+    __wasi_eventtype_t    type;
+
+    __wasi_filesize_t     nbytes;
+    __wasi_eventrwflags_t flags;
+} m3_wasi_pollevent_t;
+
 
 d_m3EndExternC
 
