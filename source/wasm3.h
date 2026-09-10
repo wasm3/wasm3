@@ -11,7 +11,7 @@
 #define M3_VERSION_MAJOR 0
 #define M3_VERSION_MINOR 9
 #define M3_VERSION_REV   1
-#define M3_VERSION       "0.9.1-beta.1"
+#define M3_VERSION       "0.9.1"
 
 #include <stddef.h>
 #include <stdlib.h>
