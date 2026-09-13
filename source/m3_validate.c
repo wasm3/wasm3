@@ -107,7 +107,7 @@ static u32 v_max_align (m3opcode_t opcode)
 
 static M3Result v_push (ValCtx * v, m3type_t type)
 {
-    if (v->opdTop >= d_m3ValStack)
+    if (M3_UNLIKELY(v->opdTop >= d_m3ValStack))
         return m3Err_functionStackOverflow;
     v->opd[v->opdTop++] = type;
     return m3Err_none;
@@ -116,7 +116,7 @@ static M3Result v_push (ValCtx * v, m3type_t type)
 static M3Result v_pop (ValCtx * v, m3type_t * o_type)
 {
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
-    if (v->opdTop == f->height) {
+    if (M3_UNLIKELY(v->opdTop == f->height)) {
         if (f->is_unreachable) { *o_type = c_valBottom; return m3Err_none; }
         return m3Err_functionStackUnderrun;
     }
@@ -128,8 +128,8 @@ static M3Result v_pop_expect (ValCtx * v, m3type_t expect, m3type_t * o_actual)
 {
     m3type_t actual = c_valBottom;
     M3Result r = v_pop(v, &actual);
-    if (r) return r;
-    if (expect != c_valBottom && actual != c_valBottom && actual != expect)
+    if (M3_UNLIKELY(r)) return r;
+    if (M3_UNLIKELY(expect != c_valBottom && actual != c_valBottom && actual != expect))
         return m3Err_typeMismatch;
     *o_actual = (actual == c_valBottom) ? expect : actual;
     return m3Err_none;
@@ -139,7 +139,7 @@ static M3Result v_pop_expect (ValCtx * v, m3type_t expect, m3type_t * o_actual)
 
 static M3Result v_push_ctrl (ValCtx * v, m3opcode_t op, IM3FuncType type)
 {
-    if (v->ctrlTop >= d_m3ValCtrlDepth)
+    if (M3_UNLIKELY(v->ctrlTop >= d_m3ValCtrlDepth))
         return m3Err_functionStackOverflow;
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop++];
     f->opcode       = op;
@@ -153,7 +153,7 @@ static M3Result v_push_ctrl (ValCtx * v, m3opcode_t op, IM3FuncType type)
 
 static M3Result v_pop_ctrl (ValCtx * v, ValCtrlFrame * o_frame)
 {
-    if (v->ctrlTop == 0)
+    if (M3_UNLIKELY(v->ctrlTop == 0))
         return m3Err_wasmMalformed;
     ValCtrlFrame * f = &v->ctrl[v->ctrlTop - 1];
     // pop result types
@@ -161,10 +161,10 @@ static M3Result v_pop_ctrl (ValCtx * v, ValCtrlFrame * o_frame)
         for (u16 i = f->result_count; i > 0; i--) {
             m3type_t a;
             M3Result r = v_pop_expect(v, BaseTypeOf(f->type->types[i - 1]), &a);
-            if (r) return r;
+            if (M3_UNLIKELY(r)) return r;
         }
     }
-    if (v->opdTop != f->height)
+    if (M3_UNLIKELY(v->opdTop != f->height))
         return m3Err_typeCountMismatch;
     if (o_frame) *o_frame = *f;
     v->ctrlTop--;
@@ -212,7 +212,7 @@ static M3Result v_pop_labels (ValCtx * v, ValCtrlFrame * tgt)
     for (u16 i = n; i > 0; i--) {
         m3type_t a;
         M3Result r = v_pop_expect(v, v_label_t(tgt, i - 1), &a);
-        if (r) return r;
+        if (M3_UNLIKELY(r)) return r;
     }
     return m3Err_none;
 }
@@ -223,7 +223,7 @@ static M3Result v_push_labels (ValCtx * v, ValCtrlFrame * tgt)
     u16 n = v_label_n(tgt);
     for (u16 i = 0; i < n; i++) {
         M3Result r = v_push(v, v_label_t(tgt, i));
-        if (r) return r;
+        if (M3_UNLIKELY(r)) return r;
     }
     return m3Err_none;
 }
@@ -269,7 +269,7 @@ static M3Result v_read_blocktype (ValCtx * v, IM3FuncType * o_type)
 static M3Result v_unop (ValCtx * v, m3type_t in, m3type_t out)
 {
     m3type_t a; M3Result r = v_pop_expect(v, in, &a);
-    if (r) return r;
+    if (M3_UNLIKELY(r)) return r;
     return v_push(v, out);
 }
 
@@ -296,16 +296,16 @@ static M3Result v_check_tail_results (ValCtx * v, IM3FuncType i_calleeType)
 static M3Result v_binop (ValCtx * v, m3type_t t)
 {
     m3type_t a; M3Result r;
-    r = v_pop_expect(v, t, &a); if (r) return r;
-    r = v_pop_expect(v, t, &a); if (r) return r;
+    r = v_pop_expect(v, t, &a); if (M3_UNLIKELY(r)) return r;
+    r = v_pop_expect(v, t, &a); if (M3_UNLIKELY(r)) return r;
     return v_push(v, t);
 }
 
 static M3Result v_relop (ValCtx * v, m3type_t t)
 {
     m3type_t a; M3Result r;
-    r = v_pop_expect(v, t, &a); if (r) return r;
-    r = v_pop_expect(v, t, &a); if (r) return r;
+    r = v_pop_expect(v, t, &a); if (M3_UNLIKELY(r)) return r;
+    r = v_pop_expect(v, t, &a); if (M3_UNLIKELY(r)) return r;
     return v_push(v, c_m3Type_i32);
 }
 
@@ -384,7 +384,7 @@ static M3Result v_validate_body (ValCtx * v)
     {
         m3opcode_t opcode;
         r = Read_opcode(&opcode, &v->wasm, v->wasmEnd);
-        if (r) return r;
+        if (M3_UNLIKELY(r)) return r;
 
         switch (opcode)
         {

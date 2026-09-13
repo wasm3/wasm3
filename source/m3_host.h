@@ -189,6 +189,16 @@ void   m3_HostRelease (void* i_address, size_t i_bytes);
 bool   m3_HostProtectedCall (void (*i_body)(void*), void* i_context,
                              void* i_guardLow, size_t i_guardBytes);
 
+// Whether m3_HostProtectedCall can actually catch that fault, which is not a given:
+// a sanitizer takes the signal exclusively and a process is free to install whatever
+// it likes afterwards. Memory operations carry no bounds check in a guarded build, so
+// a false here means there is nothing underneath them and no Wasm may run.
+//
+// Puts the catching in place where it is not there yet, so this is also the call that
+// installs it. Settled once, when it goes in: something that takes the fault away
+// afterwards is not noticed, which is the bargain any handler in a process makes.
+bool   m3_HostGuardsActive (void);
+
 #endif // d_m3GuardedMemory
 
 d_m3EndExternC

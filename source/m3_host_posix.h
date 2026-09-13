@@ -308,13 +308,22 @@ typedef struct M3GuardFrame {
     struct M3GuardFrame* previous;
 } M3GuardFrame;
 
+// Installing happens once and is never retried: a second pass would capture guard_signal
+// itself as the previous handler, and an unclaimed fault would then call it forever. So
+// the attempt and what came of it are one piece of state, settled on the first ask.
+typedef enum M3GuardState {
+    guards_initial = 0,
+    guards_active,
+    guards_unavailable
+} M3GuardState;
+
 static M3_THREAD_LOCAL M3GuardFrame* g_guardFrame;
 
 // The handlers that were there first. A fault this does not claim has to end the way
 // it would have without any of this, so those are called rather than replaced.
 static struct sigaction              g_previousSegv;
 static struct sigaction              g_previousBus;
-static bool                          g_handlersInstalled;
+static M3GuardState                  g_guards;
 
 static
 void guard_signal (int i_signal, siginfo_t* i_info, void* i_ucontext)
@@ -348,13 +357,29 @@ void guard_signal (int i_signal, siginfo_t* i_info, void* i_ucontext)
     }
 }
 
+// Whether i_signal is being delivered to guard_signal. sigaction reporting success is
+// not enough on its own: AddressSanitizer's interceptor returns 0 for a handler it has
+// no intention of installing, so the only answer to trust is the one the system gives
+// back when asked what is installed.
 static
-void install_guard_handlers (void)
+bool guard_handler_took (int i_signal)
 {
-    if (g_handlersInstalled) {
-        return;
+    struct sigaction installed;
+    memset(&installed, 0, sizeof(installed));
+
+    if (sigaction(i_signal, NULL, &installed) != 0) {
+        return false;
     }
-    g_handlersInstalled = true;
+
+    return (installed.sa_flags & SA_SIGINFO) and installed.sa_sigaction == guard_signal;
+}
+
+static
+bool install_guard_handlers (void)
+{
+    if (g_guards != guards_initial) {
+        return g_guards == guards_active;
+    }
 
     struct sigaction action;
     memset(&action, 0, sizeof(action));
@@ -368,6 +393,12 @@ void install_guard_handlers (void)
     // Darwin reports a write to a PROT_NONE page as SIGBUS where Linux reports
     // SIGSEGV, so both have to be claimed
     sigaction(SIGBUS, &action, &g_previousBus);
+
+    g_guards = (guard_handler_took(SIGSEGV) and guard_handler_took(SIGBUS))
+                 ? guards_active
+                 : guards_unavailable;
+
+    return g_guards == guards_active;
 }
 
 // A stack for the handler to run on, so that a fault which happens because the
@@ -399,6 +430,11 @@ void install_alt_stack (void)
     alt.ss_flags = 0;
 
     sigaltstack(&alt, NULL);
+}
+
+bool m3_HostGuardsActive (void)
+{
+    return install_guard_handlers();
 }
 
 bool m3_HostProtectedCall (void (*i_body)(void*), void* i_context,

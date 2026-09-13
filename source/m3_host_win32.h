@@ -166,6 +166,13 @@ bool guard_fault (EXCEPTION_POINTERS* i_info, void* i_low, size_t i_bytes)
     return address >= (const u8*)i_low and address < (const u8*)i_low + i_bytes;
 }
 
+bool m3_HostGuardsActive (void)
+{
+    // __try/__except is part of the frame m3_HostProtectedCall compiles to, so there is
+    // nothing to install and nothing another part of the process can take away
+    return true;
+}
+
 // Structured exception handling rather than a vectored handler: the unwind is the
 // system's to do, so the stack between here and the fault is given back properly
 // instead of being jumped over. It is also why this needs a compiler that speaks

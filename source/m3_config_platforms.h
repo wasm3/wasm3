@@ -255,6 +255,18 @@ typedef int8_t         i8;
 
 // Guarded memories ask the system to catch an access past the end of a linear memory,
 // which takes address space to reserve and a way to catch the fault.
+//
+// AddressSanitizer claims SIGSEGV exclusively, so the fault a guarded memory is built
+// around never reaches wasm3 and kills the process instead of becoming a trap. Such a
+// build takes the bounds checks, which is also the path worth instrumenting: a
+// reservation is a plain mapping that ASan cannot see into. Setting d_m3GuardedMemory
+// explicitly still wins, for a process that has arranged to keep the signal.
+#if defined(__SANITIZE_ADDRESS__) || M3_COMPILER_HAS_FEATURE(address_sanitizer)
+#  ifndef d_m3GuardedMemory
+#    define d_m3GuardedMemory                    0
+#  endif
+#endif
+
 #if (d_m3HasPosixHost) || (d_m3HasWin32Host && defined(_MSC_VER))
 #  if !(defined(d_m3FixedHeap) && d_m3FixedHeap) && !defined(__CYGWIN__)
 #    if defined(__x86_64__) || defined(__aarch64__) || defined(_M_X64) || defined(_M_ARM64)

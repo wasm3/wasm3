@@ -1229,6 +1229,13 @@ void RunCodeBody (void* io_context)
 static
 M3Result RunCodeProtected (IM3Runtime i_runtime, pc_t i_pc, M3MemoryHeader* i_mem)
 {
+    // Memory operations in this build carry no bounds check, so code only runs where a
+    // fault past the end of a memory can still be turned into a trap
+    if (M3_UNLIKELY(not m3_HostGuardsActive())) {
+        return ErrorRuntime(m3Err_memoryGuardsUnavailable, i_runtime,
+                            "another part of the process holds the fault signal");
+    }
+
     M3ProtectedRun run;
     run.pc      = i_pc;
     run.runtime = i_runtime;

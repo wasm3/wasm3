@@ -35,7 +35,7 @@ M3Result EnsureCodePageNumLines (IM3Compilation o, u32 i_numLines)
 
     i_numLines += 2; // room for Bridge
 
-    if (NumFreeLines(o->page) < i_numLines) {
+    if (M3_UNLIKELY(NumFreeLines(o->page) < i_numLines)) {
         IM3CodePage page = AcquireCodePageWithCapacity(o->runtime, i_numLines);
 
         if (page) {
@@ -86,7 +86,7 @@ M3Result EmitOp (IM3Compilation o, IM3Operation i_operation)
         // have execution jump to a new page if slots are critically low
         result = EnsureCodePageNumLines(o, d_m3CodePageFreeLinesThreshold);
 
-        if (not result) {
+        if (M3_LIKELY(not result)) {
             if (d_m3LogEmit) {
                 log_emit(o, i_operation);
             }
@@ -481,7 +481,7 @@ M3Result GetStackTopIndexThrows (IM3Compilation o, i16* o_stackIndex)
 {
     *o_stackIndex = o->stackIndex - 1;
 
-    if (o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic(o)) {
+    if (M3_LIKELY(o->stackIndex > o->stackFirstDynamicIndex or IsStackPolymorphic(o))) {
         return m3Err_none;
     } else {
         return m3Err_functionStackUnderrun;
@@ -645,7 +645,7 @@ void MarkSlotAllocated (IM3Compilation o, u16 i_slot)
 static inline
 M3Result MarkSlotsAllocated (IM3Compilation o, u16 i_slot, u16 i_numSlots)
 {
-    if (i_slot + i_numSlots > d_m3MaxFunctionSlots) {
+    if (M3_UNLIKELY(i_slot + i_numSlots > d_m3MaxFunctionSlots)) {
         return m3Err_functionStackOverflow;
     }
 
@@ -715,7 +715,7 @@ M3Result IncrementSlotUsageCount (IM3Compilation o, u16 i_slot)
 
     // OPTZ (memory): 'm3Slots' could still be fused with 'typeStack' if 4 bits were used to indicate: [0,1,2,many]. The many-case
     // would scan 'wasmStack' to determine the actual usage count
-    if (o->m3Slots[i_slot] < 0xFF) {
+    if (M3_LIKELY(o->m3Slots[i_slot] < 0xFF)) {
         o->m3Slots[i_slot]++;
     } else {
         result = "slot usage count overflow";
@@ -798,7 +798,7 @@ _       (AllocateSlots(o, &slot, type));
         o->wasmStack[stackIndex] = slot;
 
         // Ensure type is within the valid range
-        if (BaseTypeOf(type) < c_m3Type_count) {
+        if (M3_LIKELY(BaseTypeOf(type) < c_m3Type_count)) {
 _           (EmitOp(o, c_setSetOps[BaseTypeOf(type)]));
         } else {
             _throw(m3Err_unknownType);
@@ -901,7 +901,7 @@ M3Result Pop (IM3Compilation o)
 {
     M3Result result = m3Err_none;
 
-    if (o->stackIndex > o->block.blockStackIndex) {
+    if (M3_LIKELY(o->stackIndex > o->block.blockStackIndex)) {
         o->stackIndex--;                                                //  printf ("pop: %d\n", (i32) o->stackIndex);
 
         u16      slot = o->wasmStack[o->stackIndex];
@@ -910,7 +910,7 @@ M3Result Pop (IM3Compilation o)
         if (IsRegisterSlotAlias(slot)) {
             u32 regSelect = IsFpRegisterSlotAlias(slot);
             DeallocateRegister(o, regSelect);
-        } else if (slot >= o->slotMaxAllocatedIndexPlusOne) {
+        } else if (M3_UNLIKELY(slot >= o->slotMaxAllocatedIndexPlusOne)) {
             return m3Err_functionStackUnderrun; // Return error for invalid slot indices
         } else if (slot >= o->slotFirstDynamicIndex) {
             DeallocateSlot(o, slot, type);
@@ -929,7 +929,7 @@ M3Result PopType (IM3Compilation o, m3type_t i_type)
 
     m3type_t topType = GetStackTopType(o);
 
-    if (IsSubTypeOf(topType, i_type) or o->block.isPolymorphic) {
+    if (M3_LIKELY(IsSubTypeOf(topType, i_type) or o->block.isPolymorphic)) {
 _       (Pop(o));
     } else {
         _throw(m3Err_typeMismatch);
@@ -978,7 +978,7 @@ M3Result PushConst (IM3Compilation o, u64 i_word, m3type_t i_type)
     // When compile-walking a constant expression without emitting there is no
     // constant table to place the value in, but the type still has to land on
     // the stack: extended-const arithmetic downstream consumes it.
-    if (!o->page) {
+    if (M3_UNLIKELY(!o->page)) {
         return PushAllocatedSlot(o, i_type);
     }
 
@@ -3722,7 +3722,7 @@ M3Result Compile_Operator (IM3Compilation o, m3opcode_t i_opcode)
     // moving out the way might be the optimal solution most often?
     // otherwise, the _r0 reg can get buried down in the stack
     // and be idle & wasted for a moment.
-    if (IsFpType(GetStackTopType(o)) and IsIntType(opInfo->type)) {
+    if (M3_UNLIKELY(IsFpType(GetStackTopType(o)) and IsIntType(opInfo->type))) {
 _       (PreserveRegisterIfOccupied(o, opInfo->type));
     }
 
@@ -3752,7 +3752,7 @@ _           (PreserveRegisterIfOccupied(o, opInfo->type));     // _ss
         }
     }
 
-    if (op) {
+    if (M3_LIKELY(op)) {
 _       (EmitOp(o, op));
 
 #if d_m3FoldSetLocal
@@ -4822,7 +4822,7 @@ _       (Read_opcode(&opcode, &o->wasm, o->wasmEnd));
         log_opcode(o, opcode);
 
         // Restrict opcodes when evaluating expressions
-        if (not o->function) {
+        if (M3_UNLIKELY(not o->function)) {
             // clang-format off
             switch (opcode) {
             case c_waOp_i32_const: case c_waOp_i64_const:
@@ -4844,7 +4844,7 @@ _       (Read_opcode(&opcode, &o->wasm, o->wasmEnd));
 
         IM3OpInfo opinfo = GetOpInfo(opcode);
 
-        if (opinfo == NULL) {
+        if (M3_UNLIKELY(opinfo == NULL)) {
             _throw(ErrorCompile(m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
         }
 

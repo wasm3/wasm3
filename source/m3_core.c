@@ -515,7 +515,7 @@ M3Result Read_u64 (u64* o_value, bytes_t* io_bytes, cbytes_t i_end)
     const u8* ptr = *io_bytes;
     ptr += sizeof(u64);
 
-    if (ptr <= i_end) {
+    if (M3_LIKELY(ptr <= i_end)) {
         memcpy(o_value, *io_bytes, sizeof(u64));
         M3_BSWAP_u64(*o_value);
         *io_bytes = ptr;
@@ -531,7 +531,7 @@ M3Result Read_u32 (u32* o_value, bytes_t* io_bytes, cbytes_t i_end)
     const u8* ptr = *io_bytes;
     ptr += sizeof(u32);
 
-    if (ptr <= i_end) {
+    if (M3_LIKELY(ptr <= i_end)) {
         memcpy(o_value, *io_bytes, sizeof(u32));
         M3_BSWAP_u32(*o_value);
         *io_bytes = ptr;
@@ -548,7 +548,7 @@ M3Result Read_f64 (f64* o_value, bytes_t* io_bytes, cbytes_t i_end)
     const u8* ptr = *io_bytes;
     ptr += sizeof(f64);
 
-    if (ptr <= i_end) {
+    if (M3_LIKELY(ptr <= i_end)) {
         memcpy(o_value, *io_bytes, sizeof(f64));
         M3_BSWAP_f64(*o_value);
         *io_bytes = ptr;
@@ -564,7 +564,7 @@ M3Result Read_f32 (f32* o_value, bytes_t* io_bytes, cbytes_t i_end)
     const u8* ptr = *io_bytes;
     ptr += sizeof(f32);
 
-    if (ptr <= i_end) {
+    if (M3_LIKELY(ptr <= i_end)) {
         memcpy(o_value, *io_bytes, sizeof(f32));
         M3_BSWAP_f32(*o_value);
         *io_bytes = ptr;
@@ -580,7 +580,7 @@ M3Result Read_u8 (u8* o_value, bytes_t* io_bytes, cbytes_t i_end)
 {
     const u8* ptr = *io_bytes;
 
-    if (ptr < i_end) {
+    if (M3_LIKELY(ptr < i_end)) {
         *o_value  = *ptr;
         *io_bytes = ptr + 1;
 
@@ -594,7 +594,7 @@ M3Result Read_opcode (m3opcode_t* o_value, bytes_t* io_bytes, cbytes_t i_end)
 {
     const u8* ptr = *io_bytes;
 
-    if (ptr < i_end) {
+    if (M3_LIKELY(ptr < i_end)) {
         // 0xFC is returned as the bare prefix: its sub-opcode is a LEB128 u32, which
         // only the callers - Compile_ExtendedOpcode and the validator - can read.
         m3opcode_t opcode = *ptr++;
@@ -624,12 +624,12 @@ M3Result ReadLebUnsigned (u64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cby
         value |= ((byte & 0x7f) << shift);
         shift += 7;
 
-        if ((byte & 0x80) == 0) {
+        if (M3_LIKELY((byte & 0x80) == 0)) {
             result = m3Err_none;
 
 #if d_m3EnableValidation
             // The last byte must not carry bits past i_maxNumBits
-            if (shift > i_maxNumBits) {
+            if (M3_UNLIKELY(shift > i_maxNumBits)) {
                 u32 numUsedBits = i_maxNumBits + 7 - shift;
 
                 if (byte >> numUsedBits) {
@@ -640,7 +640,7 @@ M3Result ReadLebUnsigned (u64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cby
             break;
         }
 
-        if (shift >= i_maxNumBits) {
+        if (M3_UNLIKELY(shift >= i_maxNumBits)) {
             result = m3Err_lebOverflow;
             break;
         }
@@ -668,13 +668,13 @@ M3Result ReadLebSigned (i64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cbyte
         value |= ((byte & 0x7f) << shift);
         shift += 7;
 
-        if ((byte & 0x80) == 0) {
+        if (M3_LIKELY((byte & 0x80) == 0)) {
             result = m3Err_none;
 
 #if d_m3EnableValidation
             // The bits of the last byte past i_maxNumBits must all repeat the
             // sign bit, otherwise the value doesn't fit
-            if (shift > i_maxNumBits) {
+            if (M3_UNLIKELY(shift > i_maxNumBits)) {
                 u32 numUsedBits = i_maxNumBits + 7 - shift;
                 u8  signBits    = (u8)((0x7f << (numUsedBits - 1)) & 0x7f);
                 u8  bits        = (u8)(byte & signBits);
@@ -693,7 +693,7 @@ M3Result ReadLebSigned (i64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cbyte
             break;
         }
 
-        if (shift >= i_maxNumBits) {
+        if (M3_UNLIKELY(shift >= i_maxNumBits)) {
             result = m3Err_lebOverflow;
             break;
         }
