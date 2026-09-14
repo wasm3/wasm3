@@ -59,7 +59,7 @@ void m3_FreeModule (IM3Module i_module)
         }
         m3_Free(i_module->globals);
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
         for (u32 i = 0; i < i_module->numTags; ++i) {
             m3_Free(i_module->tags[i].name);
             FreeImportInfo(&(i_module->tags[i].import));
@@ -242,7 +242,7 @@ _try {
 }
 
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
 
 M3Result Module_AddTag (IM3Module io_module, IM3Tag* o_tag, IM3FuncType i_type, bool i_isImported)
 {
@@ -264,7 +264,40 @@ _try {
     return result;
 }
 
-#endif // d_m3HasExceptionHandling
+#endif // d_m3HasExceptionHandling || d_m3HasStackSwitching
+
+
+#if d_m3HasStackSwitching
+
+// The continuation type a spelled-out reference names. Reference types carry
+// the canonical index, and the module's own type space is where a name for it
+// can be found again - which switch needs, because the type of the peer it
+// suspends into is only written down as the last parameter of the type it
+// switches to.
+IM3FuncType Module_ContTypeOfRef (IM3Module i_module, m3type_t i_refType)
+{
+    if (not IsSpelledRefType(i_refType)) {
+        return NULL;
+    }
+
+    u32 heap = HeapTypeOf(i_refType);
+
+    if (heap == d_m3Type_heapAbstract) {
+        return NULL;
+    }
+
+    for (u32 i = 0; i < i_module->numFuncTypes; ++i) {
+        IM3FuncType ftype = i_module->funcTypes[i];
+
+        if (ftype and ftype->isContinuation and ftype->canonicalIndex == heap) {
+            return ftype;
+        }
+    }
+
+    return NULL;
+}
+
+#endif // d_m3HasStackSwitching
 
 
 M3Result Module_AddGlobal (IM3Module io_module, IM3Global* o_global, m3type_t i_type, bool i_mutable, bool i_isImported)

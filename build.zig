@@ -152,7 +152,6 @@ const cflags = [_][]const u8{
     "-Wstrict-aliasing=2",
     "-Werror=implicit-function-declaration",
     "-Wno-unused-function",
-    "-Wno-unused-variable",
     "-Wno-unused-parameter",
     "-Wno-date-time",
     "-Wno-missing-field-initializers",

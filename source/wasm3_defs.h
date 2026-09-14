@@ -14,6 +14,13 @@
 #define M3_CONCAT__(a,b) a##b
 #define M3_CONCAT(a,b)   M3_CONCAT__(a,b)
 
+// A declaration the API requires to be made but does not require to be read
+#if defined(__GNUC__) || defined(__clang__)
+#  define M3_UNUSED __attribute__((unused))
+#else
+#  define M3_UNUSED
+#endif
+
 /*
  * Detect compiler
  */

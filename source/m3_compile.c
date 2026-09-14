@@ -182,19 +182,19 @@ void* ReservePointer (IM3Compilation o)
 static const IM3Operation c_preserveSetSlot[] = { NULL, op_PreserveSetSlot_i32,       op_PreserveSetSlot_i64,
                                                     FPOP(op_PreserveSetSlot_f32), FPOP(op_PreserveSetSlot_f64),
                                                     NULL, REFOP(PreserveSetSlot),  REFOP(PreserveSetSlot),
-                                                    REFOP(PreserveSetSlot) };
+                                                    REFOP(PreserveSetSlot),       REFOP(PreserveSetSlot) };
 static const IM3Operation c_setSetOps[] =       { NULL, op_SetSlot_i32,               op_SetSlot_i64,
                                                     FPOP(op_SetSlot_f32),         FPOP(op_SetSlot_f64),
                                                     NULL, REFOP(SetSlot),         REFOP(SetSlot),
-                                                    REFOP(SetSlot) };
+                                                    REFOP(SetSlot),               REFOP(SetSlot) };
 static const IM3Operation c_setGlobalOps[] =    { NULL, op_SetGlobal_i32,             op_SetGlobal_i64,
                                                     FPOP(op_SetGlobal_f32),       FPOP(op_SetGlobal_f64),
                                                     NULL, REFOP(SetGlobal),       REFOP(SetGlobal),
-                                                    REFOP(SetGlobal) };
+                                                    REFOP(SetGlobal),             REFOP(SetGlobal) };
 static const IM3Operation c_setRegisterOps[] =  { NULL, op_SetRegister_i32,           op_SetRegister_i64,
                                                     FPOP(op_SetRegister_f32),     FPOP(op_SetRegister_f64),
                                                     NULL, REFOP(SetRegister),     REFOP(SetRegister),
-                                                    REFOP(SetRegister) };
+                                                    REFOP(SetRegister),           REFOP(SetRegister) };
 
 // A table shorter than the enum reads out of bounds, so tie the two together at
 // build time: adding a value type must not silently outgrow these.
@@ -400,7 +400,6 @@ static const IM3Operation c_fpSelectOps[2][2][3] = {
 #endif
 
 // all args & returns are 64-bit aligned, so use 2 slots for a d_m3Use32BitSlots=1 build
-static const u16 c_ioSlotCount = sizeof(u64) / sizeof(m3slot_t);
 
 static
 M3Result AcquireCompilationCodePage (IM3Compilation o, IM3CodePage* o_codePage)
@@ -3123,7 +3122,12 @@ M3Result ReadBlockType (IM3Compilation o, IM3FuncType* o_blockType)
     if (o->wasm < o->wasmEnd and (*o->wasm == d_waEncode_ref or *o->wasm == d_waEncode_refNull)) {
         m3type_t refType;
 _       (ParseValueType(o->module, &refType, &o->wasm, o->wasmEnd));
-        *o_blockType = o->module->environment->retFuncTypes[BaseTypeOf(refType)];
+        IM3FuncType ftype = NULL;
+_       (AllocFuncType(&ftype, 1));
+        ftype->numRets  = 1;
+        ftype->types[0] = refType;
+        Environment_AddFuncType(o->module->environment, &ftype);
+        *o_blockType = ftype;
         return result;
     }
 #endif
@@ -3248,6 +3252,28 @@ _       (GetBlockScope(o, &scope, clause->labelDepth + 1));
 
         IM3FuncType payload = clause->tag ? clause->tag->type : NULL;
         u16         numArgs = GetFuncTypeNumParams(payload);
+
+        // What the stub hands the label - the payload, then the exnref for a
+        // _ref clause - has to be what the label takes. ResolveBlockResults
+        // only counts the values, and the validator compares base types, so a
+        // typed reference is only checked here: (ref null $t) reaching a label
+        // that takes (ref $t) has to be rejected.
+        {
+            bool isLoop         = (scope->opcode == c_waOp_loop);
+            u16  numLabelValues = isLoop ? GetFuncTypeNumParams(scope->type)
+                                         : GetFuncTypeNumResults(scope->type);
+
+            _throwif(m3Err_typeCountMismatch, numLabelValues != numArgs + (clause->hasRef ? 1 : 0));
+
+            for (u16 a = 0; a < numLabelValues; ++a) {
+                m3type_t given  = (a < numArgs) ? GetFuncTypeParamType(payload, a)
+                                                : (m3type_t)c_m3Type_exnref;
+                m3type_t wanted = isLoop ? GetFuncTypeParamType(scope->type, a)
+                                         : GetFuncTypeResultType(scope->type, a);
+
+                _throwif(m3Err_typeMismatch, not IsSubTypeOf(given, wanted));
+            }
+        }
 
         IM3CodePage stubPage;
 _       (AcquireCompilationCodePage(o, &stubPage));
@@ -3470,6 +3496,472 @@ _   (SetStackPolymorphic(o));
 }
 
 #endif // d_m3HasExceptionHandling
+
+#if d_m3HasStackSwitching
+
+static
+M3Result Compile_ContNew (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    u32 typeIndex;
+_   (ReadLEB_u32(&typeIndex, &o->wasm, o->wasmEnd));
+    _throwif(m3Err_typeCountMismatch, typeIndex >= o->module->numFuncTypes);
+
+    IM3FuncType funcType = o->module->funcTypes[typeIndex];
+    _throwif("type is not a continuation", not funcType->isContinuation);
+
+    // the operands are read out of slots, so nothing may still be in a register
+_   (PreserveRegisters(o));
+
+    // cont.new $ct : [(ref null $ft)] -> [(ref $ct)], where $ct ~~ cont $ft:
+    // the function has to be one this continuation type can run
+    m3type_t topType = GetStackTopType(o);
+    _throwif(m3Err_typeMismatch,
+             not IsSubTypeOf(topType, RefTypeOfFuncType(funcType->contFuncType, false)));
+
+    u16 funcSlot = GetStackTopSlotNumber(o);
+_   (Pop(o));
+
+    u16 dstSlot;
+_   (PushAllocatedSlot(o, RefTypeOfFuncType(funcType, true)));
+    dstSlot = GetStackTopSlotNumber(o);
+
+_   (EnsureCodePageNumLines(o, 4 + d_m3CodePageFreeLinesThreshold));
+_   (EmitOp(o, op_ContNew));
+    EmitPointer(o, funcType);
+    EmitSlotOffset(o, dstSlot);
+    EmitSlotOffset(o, funcSlot);
+
+} _catch: return result;
+}
+
+static
+M3Result Compile_ContBind (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    u32 typeIndex1, typeIndex2;
+_   (ReadLEB_u32(&typeIndex1, &o->wasm, o->wasmEnd));
+_   (ReadLEB_u32(&typeIndex2, &o->wasm, o->wasmEnd));
+    _throwif(m3Err_typeCountMismatch, typeIndex1 >= o->module->numFuncTypes);
+    _throwif(m3Err_typeCountMismatch, typeIndex2 >= o->module->numFuncTypes);
+
+    IM3FuncType ct1 = o->module->funcTypes[typeIndex1];
+    IM3FuncType ct2 = o->module->funcTypes[typeIndex2];
+    _throwif("type is not a continuation", not ct1->isContinuation || not ct2->isContinuation);
+
+    // the operands are read out of slots, so nothing may still be in a register
+_   (PreserveRegisters(o));
+
+    m3type_t contType = GetStackTopType(o);
+    _throwif(m3Err_typeMismatch, not IsSubTypeOf(contType, RefTypeOfFuncType(ct1, false)));
+    u16 contSlot = GetStackTopSlotNumber(o);
+_   (Pop(o));
+
+    IM3FuncType ft1 = ct1->contFuncType ? ct1->contFuncType : ct1;
+    IM3FuncType ft2 = ct2->contFuncType ? ct2->contFuncType : ct2;
+
+    u16 numParams1 = GetFuncTypeNumParams(ft1);
+    u16 numParams2 = GetFuncTypeNumParams(ft2);
+    _throwif(m3Err_typeMismatch, numParams1 < numParams2);
+    u32 numBound = numParams1 - numParams2;
+
+    u16 argSlots[d_m3MaxContinuationPayload];
+    _throwif("too many bound args", numBound > d_m3MaxContinuationPayload);
+
+    for (u32 i = 0; i < numBound; ++i) {
+        u32      paramIdx     = numBound - 1 - i;
+        m3type_t expectedType = GetFuncTypeParamType(ft1, paramIdx);
+        m3type_t actualType   = GetStackTopType(o);
+        _throwif(m3Err_typeMismatch, not IsSubTypeOf(actualType, expectedType));
+        argSlots[paramIdx] = GetStackTopSlotNumber(o);
+_       (Pop(o));
+    }
+
+    u16 dstSlot;
+_   (PushAllocatedSlot(o, RefTypeOfFuncType(ct2, true)));
+    dstSlot = GetStackTopSlotNumber(o);
+
+_   (EnsureCodePageNumLines(o, 6 + numBound * 2 + d_m3CodePageFreeLinesThreshold));
+_   (EmitOp(o, op_ContBind));
+    EmitPointer(o, ct1);
+    EmitPointer(o, ct2);
+    EmitSlotOffset(o, dstSlot);
+    EmitSlotOffset(o, contSlot);
+    EmitConstant32(o, numBound);
+    for (u32 i = 0; i < numBound; ++i) {
+        EmitSlotOffset(o, argSlots[i]);
+        EmitConstant32(o, Is64BitType(GetFuncTypeParamType(ft1, i)));
+    }
+
+} _catch: return result;
+}
+
+static
+M3Result Compile_Suspend (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    u32 tagIndex;
+_   (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
+    _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
+
+    IM3Tag tag        = &o->module->tags[tagIndex];
+    u16    numParams  = GetFuncTypeNumParams(tag->type);
+    u16    numResults = GetFuncTypeNumResults(tag->type);
+
+_   (PreserveRegisters(o));
+
+    u16 paramSlots[d_m3MaxContinuationPayload];
+    _throwif("too many tag params", numParams > d_m3MaxContinuationPayload);
+    for (u16 i = 0; i < numParams; ++i) {
+        u16      pIdx         = numParams - 1 - i;
+        m3type_t expectedType = GetFuncTypeParamType(tag->type, pIdx);
+        m3type_t actualType   = GetStackTopType(o);
+        _throwif(m3Err_typeMismatch, not IsSubTypeOf(actualType, expectedType));
+        paramSlots[pIdx] = GetStackTopSlotNumber(o);
+_       (Pop(o));
+    }
+
+    u16 resultSlots[d_m3MaxContinuationPayload];
+    _throwif("too many tag results", numResults > d_m3MaxContinuationPayload);
+    for (u16 i = 0; i < numResults; ++i) {
+        m3type_t rtype = GetFuncTypeResultType(tag->type, i);
+_       (PushAllocatedSlot(o, rtype));
+        resultSlots[i] = GetStackTopSlotNumber(o);
+    }
+
+_   (EnsureCodePageNumLines(o, 4 + numParams * 2 + numResults * 2 + d_m3CodePageFreeLinesThreshold));
+_   (EmitOp(o, op_Suspend));
+    EmitPointer(o, tag);
+    EmitConstant32(o, numParams);
+    for (u16 i = 0; i < numParams; ++i) {
+        EmitSlotOffset(o, paramSlots[i]);
+        EmitConstant32(o, Is64BitType(GetFuncTypeParamType(tag->type, i)));
+    }
+    EmitConstant32(o, numResults);
+    for (u16 i = 0; i < numResults; ++i) {
+        EmitSlotOffset(o, resultSlots[i]);
+        EmitConstant32(o, Is64BitType(GetFuncTypeResultType(tag->type, i)));
+    }
+
+} _catch: return result;
+}
+
+// resume, resume_throw and resume_throw_ref. All three run a continuation
+// under a handler table and take its results; they differ only in what they
+// hand it to start with - arguments, a fresh exception, or one off the stack.
+//
+// Emitted as: the continuation type, the slot holding it, the operands that
+// belong to this form, the handler table, then the result slots. Keeping the
+// tail identical is what lets one runtime path finish all three.
+static
+M3Result Compile_Resume (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3ResumeHandler* handlers      = NULL;
+    IM3CodePage      displacedPage = NULL;
+_try {
+    bool isThrow    = (i_opcode == c_waOp_resumeThrow);
+    bool isThrowRef = (i_opcode == c_waOp_resumeThrowRef);
+
+    u32 typeIndex;
+_   (ReadLEB_u32(&typeIndex, &o->wasm, o->wasmEnd));
+    _throwif(m3Err_typeCountMismatch, typeIndex >= o->module->numFuncTypes);
+
+    IM3FuncType contFuncType = o->module->funcTypes[typeIndex];
+    _throwif("type is not a continuation", not contFuncType->isContinuation);
+
+    IM3FuncType innerType      = contFuncType->contFuncType;
+    u16         numContResults = GetFuncTypeNumResults(innerType);
+
+    IM3Tag exnTag      = NULL;
+    u16    numOperands = 0;
+
+    if (isThrow) {
+        u32 tagIndex;
+_       (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
+        _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
+
+        exnTag = &o->module->tags[tagIndex];
+
+        // it is an exception that gets raised, so the tag must be one throw
+        // could have raised: no results
+        _throwif(m3Err_typeMismatch, GetFuncTypeNumResults(exnTag->type) != 0);
+
+        numOperands = GetFuncTypeNumParams(exnTag->type);
+    } else if (not isThrowRef) {
+        // a plain resume hands over the continuation's own parameters. An
+        // aborted one never receives them, so they are unconstrained there.
+        numOperands = GetFuncTypeNumParams(innerType);
+    }
+
+    u32 numClauses;
+_   (ReadLEB_u32(&numClauses, &o->wasm, o->wasmEnd));
+
+    u32 clauseLabelDepths[16];
+    _throwif("too many resume clauses", numClauses > 16);
+
+    if (numClauses) {
+        handlers = m3_AllocArray(M3ResumeHandler, numClauses);
+        _throwifnull(handlers);
+    }
+
+    for (u32 i = 0; i < numClauses; ++i) {
+        u8 kind;
+_       (Read_u8(&kind, &o->wasm, o->wasmEnd));
+        _throwif(m3Err_wasmMalformed, kind > 0x01);
+
+        handlers[i].kind = kind;
+
+        u32 tagIndex;
+_       (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
+        _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
+
+        handlers[i].tag    = &o->module->tags[tagIndex];
+        handlers[i].stubPC = NULL;
+
+        if (kind == 0x00) {
+_           (ReadLEB_u32(&clauseLabelDepths[i], &o->wasm, o->wasmEnd));
+        } else {
+            // (on $e switch): the tag carries no payload, and what the switch
+            // site yields is what this resume yields
+            _throwif(m3Err_typeMismatch, GetFuncTypeNumParams(handlers[i].tag->type) != 0);
+            clauseLabelDepths[i] = 0;
+        }
+    }
+
+    // the operands are read out of slots, so nothing may still be in a register
+_   (PreserveRegisters(o));
+
+    m3type_t contTopType = GetStackTopType(o);
+    _throwif(m3Err_typeMismatch, not IsSubTypeOf(contTopType, RefTypeOfFuncType(contFuncType, false)));
+    u16 contSlot = GetStackTopSlotNumber(o);
+_   (Pop(o));
+
+    u16 exnSlot = 0;
+
+    if (isThrowRef) {
+        m3type_t exnType = GetStackTopType(o);
+        _throwif(m3Err_typeMismatch, BaseTypeOf(exnType) != c_m3Type_exnref);
+        exnSlot = GetStackTopSlotNumber(o);
+_       (Pop(o));
+    }
+
+    u16 operandSlots[d_m3MaxContinuationPayload];
+    _throwif("too many resume operands", numOperands > d_m3MaxContinuationPayload);
+
+    IM3FuncType operandType = isThrow ? exnTag->type : innerType;
+
+    for (u16 i = 0; i < numOperands; ++i) {
+        u16      pIdx         = (u16)(numOperands - 1 - i);
+        m3type_t expectedType = GetFuncTypeParamType(operandType, pIdx);
+        m3type_t actualType   = GetStackTopType(o);
+        _throwif(m3Err_typeMismatch, not IsSubTypeOf(actualType, expectedType));
+        operandSlots[pIdx] = GetStackTopSlotNumber(o);
+_       (Pop(o));
+    }
+
+    for (u32 i = 0; i < numClauses; ++i) {
+        if (handlers[i].kind != 0x00) {
+            continue;
+        }
+
+        IM3CompilationScope scope;
+_       (GetBlockScope(o, &scope, clauseLabelDepths[i]));
+
+        IM3Tag tag        = handlers[i].tag;
+        u16    numPayload = GetFuncTypeNumParams(tag->type);
+
+        IM3CodePage stubPage;
+_       (AcquireCompilationCodePage(o, &stubPage));
+        pc_t startPC  = GetPagePC(stubPage);
+        displacedPage = o->page;
+        o->page       = stubPage;
+
+        u16 firstIndex = o->stackIndex;
+        for (u16 a = 0; a < numPayload; ++a) {
+_           (PushAllocatedSlot(o, GetFuncTypeParamType(tag->type, a)));
+        }
+
+        // The handler is handed the suspended continuation. Its type is the
+        // resume's own: a tag with results would strictly call for a type whose
+        // parameters are those results, and that is not a type the module need
+        // have written down anywhere.
+_       (PushAllocatedSlot(o, RefTypeOfFuncType(contFuncType, true)));
+
+_       (EnsureCodePageNumLines(o, 2 * numPayload + 4 + d_m3CodePageFreeLinesThreshold));
+_       (EmitOp(o, op_ResumePayload));
+        EmitConstant32(o, numPayload);
+        for (u16 a = 0; a < numPayload; ++a) {
+            u16 index = firstIndex + a;
+            EmitSlotOffset(o, GetSlotForStackIndex(o, index));
+            EmitConstant32(o, Is64BitType(GetStackTypeFromBottom(o, index)));
+        }
+        EmitSlotOffset(o, GetSlotForStackIndex(o, firstIndex + numPayload));
+
+        if (scope->opcode == c_waOp_loop) {
+_           (ResolveBlockResults(o, scope, true));
+_           (EmitOp(o, op_ContinueLoop));
+            EmitPointer(o, scope->pc);
+        } else if (scope->depth == 0) {
+_           (ReturnValues(o, scope, true));
+_           (EmitOp(o, op_Return));
+        } else {
+_           (ResolveBlockResults(o, scope, true));
+_           (EmitPatchingBranch(o, scope));
+        }
+
+        ReleaseCompilationCodePage(o);
+        o->page       = displacedPage;
+        displacedPage = NULL;
+
+        handlers[i].stubPC = startPC;
+
+        while (o->stackIndex > firstIndex) {
+_           (Pop(o));
+        }
+    }
+
+    u16 resSlots[d_m3MaxContinuationPayload];
+    _throwif("too many cont results", numContResults > d_m3MaxContinuationPayload);
+    for (u16 i = 0; i < numContResults; ++i) {
+        m3type_t rtype = GetFuncTypeResultType(innerType, i);
+_       (PushAllocatedSlot(o, rtype));
+        resSlots[i] = GetStackTopSlotNumber(o);
+    }
+
+_   (EnsureCodePageNumLines(o, 8 + numOperands * 2 + numClauses * 3 + numContResults * 2 +
+                                  d_m3CodePageFreeLinesThreshold));
+
+_   (EmitOp(o, op_Resume));
+    EmitPointer(o, contFuncType);
+    EmitSlotOffset(o, contSlot);
+    EmitConstant32(o, isThrow ? d_m3ResumeThrow : (isThrowRef ? d_m3ResumeThrowRef : d_m3ResumeNormal));
+
+    if (isThrowRef) {
+        EmitSlotOffset(o, exnSlot);
+    } else {
+        if (isThrow) {
+            EmitPointer(o, exnTag);
+        }
+
+        EmitConstant32(o, numOperands);
+        for (u16 i = 0; i < numOperands; ++i) {
+            EmitSlotOffset(o, operandSlots[i]);
+            EmitConstant32(o, Is64BitType(GetFuncTypeParamType(operandType, i)));
+        }
+    }
+
+    EmitConstant32(o, numClauses);
+    for (u32 i = 0; i < numClauses; ++i) {
+        EmitConstant32(o, handlers[i].kind);
+        EmitPointer(o, handlers[i].tag);
+        EmitPointer(o, handlers[i].stubPC);
+    }
+
+    EmitConstant32(o, numContResults);
+    for (u16 i = 0; i < numContResults; ++i) {
+        EmitSlotOffset(o, resSlots[i]);
+        EmitConstant32(o, Is64BitType(GetFuncTypeResultType(innerType, i)));
+    }
+
+} _catch:
+    if (displacedPage) {
+        ReleaseCompilationCodePage(o);
+        o->page = displacedPage;
+    }
+    m3_Free(handlers);
+    return result;
+}
+
+
+static
+M3Result Compile_Switch (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    u32 typeIndex, tagIndex;
+_   (ReadLEB_u32(&typeIndex, &o->wasm, o->wasmEnd));
+_   (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
+    _throwif(m3Err_typeCountMismatch, typeIndex >= o->module->numFuncTypes);
+    _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
+
+    IM3FuncType targetContType = o->module->funcTypes[typeIndex];
+    IM3Tag      tag            = &o->module->tags[tagIndex];
+
+    _throwif("type is not a continuation", not targetContType->isContinuation);
+
+    // a switch tag carries no payload of its own: the values travel as the
+    // peer's arguments, and the tag's results are what the switch site yields
+    _throwif(m3Err_typeMismatch, GetFuncTypeNumParams(tag->type) != 0);
+
+    // switch $ct1 : [t1* (ref null $ct1)] -> [t2*]
+    //   where $ct1 = cont [t1* (ref null? $ct2)] -> [..]
+    //   and   $ct2 = cont [t2*] -> [..]
+    //
+    // The trailing parameter of $ct1 is not an operand: the peer receives the
+    // continuation this instruction suspends. And what this instruction yields
+    // is not $ct1's results but $ct2's parameters - the values whoever comes
+    // back this way will hand over.
+    IM3FuncType targetType = targetContType->contFuncType;
+    u16         numParams  = GetFuncTypeNumParams(targetType);
+
+    _throwif("switch target takes no continuation", numParams == 0);
+
+    m3type_t    peerRefType  = GetFuncTypeParamType(targetType, (u16)(numParams - 1));
+    IM3FuncType selfContType = Module_ContTypeOfRef(o->module, peerRefType);
+
+    _throwif(m3Err_typeMismatch, not selfContType);
+
+    IM3FuncType selfType   = selfContType->contFuncType;
+    u16         numArgs    = (u16)(numParams - 1);
+    u16         numResults = GetFuncTypeNumParams(selfType);
+
+    // the operands are read out of slots, so nothing may still be in a register
+_   (PreserveRegisters(o));
+
+    m3type_t contTopType = GetStackTopType(o);
+    _throwif(m3Err_typeMismatch, not IsSubTypeOf(contTopType, RefTypeOfFuncType(targetContType, false)));
+    u16 targetContSlot = GetStackTopSlotNumber(o);
+_   (Pop(o));
+
+    u16 argSlots[d_m3MaxContinuationPayload];
+    _throwif("too many switch params", numArgs > d_m3MaxContinuationPayload);
+
+    for (u16 i = 0; i < numArgs; ++i) {
+        u16      pIdx         = (u16)(numArgs - 1 - i);
+        m3type_t expectedType = GetFuncTypeParamType(targetType, pIdx);
+        m3type_t actualType   = GetStackTopType(o);
+        _throwif(m3Err_typeMismatch, not IsSubTypeOf(actualType, expectedType));
+        argSlots[pIdx] = GetStackTopSlotNumber(o);
+_       (Pop(o));
+    }
+
+    u16 resultSlots[d_m3MaxContinuationPayload];
+    _throwif("too many switch results", numResults > d_m3MaxContinuationPayload);
+
+    for (u16 i = 0; i < numResults; ++i) {
+_       (PushAllocatedSlot(o, GetFuncTypeParamType(selfType, i)));
+        resultSlots[i] = GetStackTopSlotNumber(o);
+    }
+
+_   (EnsureCodePageNumLines(o, 6 + numArgs * 2 + numResults * 2 + d_m3CodePageFreeLinesThreshold));
+_   (EmitOp(o, op_Switch));
+    EmitPointer(o, targetContType);
+    EmitPointer(o, tag);
+    EmitSlotOffset(o, targetContSlot);
+    EmitConstant32(o, numArgs);
+    for (u16 i = 0; i < numArgs; ++i) {
+        EmitSlotOffset(o, argSlots[i]);
+        EmitConstant32(o, Is64BitType(GetFuncTypeParamType(targetType, i)));
+    }
+    EmitConstant32(o, numResults);
+    for (u16 i = 0; i < numResults; ++i) {
+        EmitSlotOffset(o, resultSlots[i]);
+        EmitConstant32(o, Is64BitType(GetFuncTypeParamType(selfType, i)));
+    }
+
+} _catch: return result;
+}
+
+#endif // d_m3HasStackSwitching
 
 
 static
@@ -4062,7 +4554,8 @@ M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const
     d_m3CompilerList_f( _ )             \
     d_m3CompilerList_refTypes( _ )      \
     d_m3CompilerList_typedRefs( _ )     \
-    d_m3CompilerList_eh( _ )
+    d_m3CompilerList_eh( _ )            \
+    d_m3CompilerList_stackSwitching( _ )
 
 #if d_m3ImplementFloat
 #  define d_m3CompilerList_f(_)         \
@@ -4103,6 +4596,17 @@ M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const
     _( Compile_TryTable )
 #else
 #  define d_m3CompilerList_eh(_)
+#endif
+
+#if d_m3HasStackSwitching
+#  define d_m3CompilerList_stackSwitching(_) \
+    _( Compile_ContNew )                     \
+    _( Compile_ContBind )                    \
+    _( Compile_Suspend )                     \
+    _( Compile_Resume )                      \
+    _( Compile_Switch )
+#else
+#  define d_m3CompilerList_stackSwitching(_)
 #endif
 
 // Index 0 is "this opcode has no compiler", so that a zeroed entry - which is
@@ -4489,6 +4993,15 @@ enum {
     c_opHigh_refAsNonNull,
 #  endif
 #endif
+#if d_m3HasStackSwitching
+    c_opHigh_contNew,
+    c_opHigh_contBind,
+    c_opHigh_suspend,
+    c_opHigh_resume,
+    c_opHigh_resumeThrow,
+    c_opHigh_resumeThrowRef,
+    c_opHigh_switch,
+#endif
     c_opHigh_extended   // always present, so the enum is never empty
 };
 
@@ -4503,6 +5016,15 @@ static const M3OpInfo c_operationsHigh[] =
 #  if d_m3HasTypedRefs
     M3OP( "ref.as_non_null", 0, any,               d_cc(Compile_Ref_AsNonNull),  d_emptyOpList ),  // 0xd4  c_opHigh_refAsNonNull
 #  endif
+#endif
+#if d_m3HasStackSwitching
+    M3OP( "cont.new",          1, any,             d_cc(Compile_ContNew),        d_emptyOpList ),  // 0xe0  c_opHigh_contNew
+    M3OP( "cont.bind",         2, any,             d_cc(Compile_ContBind),       d_emptyOpList ),  // 0xe1  c_opHigh_contBind
+    M3OP( "suspend",           1, any,             d_cc(Compile_Suspend),        d_emptyOpList ),  // 0xe2  c_opHigh_suspend
+    M3OP( "resume",            1, any,             d_cc(Compile_Resume),         d_emptyOpList ),  // 0xe3  c_opHigh_resume
+    M3OP( "resume_throw",      2, any,             d_cc(Compile_Resume)   ,    d_emptyOpList ),  // 0xe4  c_opHigh_resumeThrow
+    M3OP( "resume_throw_ref",  1, any,             d_cc(Compile_Resume)      , d_emptyOpList ),  // 0xe5  c_opHigh_resumeThrowRef
+    M3OP( "switch",            2, any,             d_cc(Compile_Switch),         d_emptyOpList ),  // 0xe6  c_opHigh_switch
 #endif
 
     M3OP( "0xFC",            0, c_m3Type_unknown,  d_cc(Compile_ExtendedOpcode), d_emptyOpList ),  // 0xfc  c_opHigh_extended
@@ -4536,6 +5058,15 @@ i32 GetHighOpIndex (m3opcode_t opcode)
 #  if d_m3HasTypedRefs
     case c_waOp_refAsNonNull: return c_opHigh_refAsNonNull;
 #  endif
+#endif
+#if d_m3HasStackSwitching
+    case c_waOp_contNew: return c_opHigh_contNew;
+    case c_waOp_contBind: return c_opHigh_contBind;
+    case c_waOp_suspend: return c_opHigh_suspend;
+    case c_waOp_resume: return c_opHigh_resume;
+    case c_waOp_resumeThrow: return c_opHigh_resumeThrow;
+    case c_waOp_resumeThrowRef: return c_opHigh_resumeThrowRef;
+    case c_waOp_switch: return c_opHigh_switch;
 #endif
     case c_waOp_extended: return c_opHigh_extended;
     default: return -1;

@@ -96,7 +96,7 @@ M3Result Environment_AddFuncType (IM3Environment i_environment, IM3FuncType* io_
     IM3FuncType newType = i_environment->funcTypes;
 
     while (newType) {
-        if (AreFuncTypesEqual(newType, addType)) {
+        if (not newType->inRecGroup and AreFuncTypesEqual(newType, addType)) {
             m3_Free(addType);
             break;
         }
@@ -121,6 +121,36 @@ M3Result Environment_AddFuncType (IM3Environment i_environment, IM3FuncType* io_
     *io_funcType = newType;
 
     return m3Err_none;
+}
+
+
+// Adds a type without looking for an equal one first, and hands back the index
+// it was given.
+//
+// Members of a recursive group do not get to share an entry with a type that
+// merely looks like them: the group is their identity, so two groups spelled
+// the same way are still two groups, and a type inside one is never the type
+// outside it that matches field for field. Reserving the indices up front is
+// also what lets the members refer to each other while they are being read.
+M3Result Environment_ReserveFuncTypes (IM3Environment i_environment, u32 i_count, u16* o_firstIndex)
+{
+    if ((u64)i_environment->numFuncTypes + i_count > d_m3MaxSaneTypesCount) {
+        return "too many distinct function types";
+    }
+
+    *o_firstIndex = i_environment->numFuncTypes;
+    i_environment->numFuncTypes += (u16)i_count;
+
+    return m3Err_none;
+}
+
+
+void Environment_AdoptFuncType (IM3Environment i_environment, IM3FuncType i_funcType, u16 i_canonicalIndex)
+{
+    i_funcType->inRecGroup     = true;
+    i_funcType->canonicalIndex = i_canonicalIndex;
+    i_funcType->next           = i_environment->funcTypes;
+    i_environment->funcTypes   = i_funcType;
 }
 
 
@@ -343,6 +373,10 @@ void Runtime_Release (IM3Runtime i_runtime)
 #if d_m3EnableValidation
     m3_Free(i_runtime->validator);
 #endif
+
+#if d_m3HasStackSwitching
+    Continuation_ReleaseAll(i_runtime);
+#endif
 }
 
 
@@ -355,6 +389,109 @@ void m3_FreeRuntime (IM3Runtime i_runtime)
         m3_Free(i_runtime);
     }
 }
+
+
+#if d_m3HasStackSwitching
+
+IM3Continuation Continuation_New (IM3Runtime i_runtime, IM3FuncType i_type, IM3Function i_function)
+{
+    IM3Continuation cont = m3_AllocStruct(M3Continuation);
+    if (!cont) {
+        return NULL;
+    }
+
+    cont->type          = i_type;
+    cont->entryFunction = i_function;
+    cont->state         = cont_allocated;
+
+    cont->numStackSlots = d_m3ContinuationStackSlots;
+    cont->valStack      = m3_AllocArray(m3slot_t, cont->numStackSlots + 4);
+    if (!cont->valStack) {
+        m3_Free(cont);
+        return NULL;
+    }
+
+    // frames are recorded only when this continuation actually suspends, and
+    // only as deep as it got, so the array starts out unallocated
+    cont->frames    = NULL;
+    cont->framesCap = 0;
+    cont->numFrames = 0;
+
+    cont->sp = cont->valStack;
+    cont->pc = i_function ? i_function->compiled : NULL;
+    cont->r0 = 0;
+#  if d_m3HasFloat
+    cont->fp0 = 0;
+#  endif
+    cont->boundArgsCount    = 0;
+    cont->numSuspendResults = 0;
+    cont->numHandlers       = 0;
+    cont->handlersPC        = NULL;
+    cont->parent            = NULL;
+
+    cont->next               = i_runtime->continuations;
+    i_runtime->continuations = cont;
+
+    return cont;
+}
+
+// Continuations live until the runtime does. They are one-shot, but a resumed
+// one is still reachable from the Wasm stack that holds its reference, and the
+// engine has no way to know when the last copy is gone.
+void Continuation_ReleaseAll (IM3Runtime io_runtime)
+{
+    IM3Continuation cont = io_runtime->continuations;
+
+    while (cont) {
+        IM3Continuation next = cont->next;
+
+        m3_Free(cont->valStack);
+        m3_Free(cont->frames);
+        m3_Free(cont);
+
+        cont = next;
+    }
+
+    io_runtime->continuations      = NULL;
+    io_runtime->activeContinuation = NULL;
+}
+
+
+m3ret_t Continuation_RecordFrame (IM3Runtime i_runtime, const M3Frame* i_frame)
+{
+    IM3Continuation cont = i_runtime->activeContinuation;
+
+    // the marker only travels between a suspend and the resume that runs it,
+    // and that whole stretch has an active continuation
+    d_m3Assert(cont);
+
+    if (cont->numFrames == cont->framesCap) {
+        u32 newCap = cont->framesCap ? cont->framesCap * 2 : 8;
+
+        if (newCap > d_m3ContinuationMaxFrames) {
+            newCap = d_m3ContinuationMaxFrames;
+        }
+
+        if (newCap == cont->framesCap) {
+            return m3Err_trapStackOverflow;
+        }
+
+        M3Frame* frames = m3_ReallocArray(M3Frame, cont->frames, newCap, cont->framesCap);
+
+        if (not frames) {
+            return m3Err_mallocFailed;
+        }
+
+        cont->frames    = frames;
+        cont->framesCap = newCap;
+    }
+
+    cont->frames[cont->numFrames++] = *i_frame;
+
+    return m3Err_continuationSuspended;
+}
+
+#endif // d_m3HasStackSwitching
 
 M3Result EvaluateExpression (IM3Module i_module, void* o_expressed, m3type_t i_type, bytes_t* io_bytes, cbytes_t i_end)
 {
@@ -392,10 +529,32 @@ M3Result EvaluateExpression (IM3Module i_module, void* o_expressed, m3type_t i_t
     o->page = AcquireCodePage(&runtime);
 
     if (o->page) {
-        IM3FuncType ftype = runtime.environment->retFuncTypes[BaseTypeOf(i_type)];
+        IM3FuncType ftype = NULL;
+
+#if d_m3HasTypedRefs
+        // A reference type has to be checked as the type it is: the shared
+        // return types are one per storage class, so borrowing one of those
+        // would let any reference at all satisfy a particular one.
+        if (IsSpelledRefType(i_type)) {
+            result = AllocFuncType(&ftype, 1);
+
+            if (not result) {
+                ftype->numRets  = 1;
+                ftype->types[0] = i_type;
+
+                result = Environment_AddFuncType(runtime.environment, &ftype);
+            }
+        } else
+#endif
+        {
+            ftype = runtime.environment->retFuncTypes[BaseTypeOf(i_type)];
+        }
 
         pc_t m3code = GetPagePC(o->page);
-        result      = CompileExpression(o, ftype);
+
+        if (not result) {
+            result = CompileExpression(o, ftype);
+        }
 
         if (not result && o->maxStackSlots >= runtime.numStackSlots) {
             result = m3Err_trapStackOverflow;
@@ -1276,12 +1435,22 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
     i_runtime->tryDepth = 0;
     i_runtime->exceptionNesting++;
 #endif
+#if d_m3HasStackSwitching
+    // nor do continuations: the native frames on the far side of a host call
+    // are not ours to record, so a suspend in here has no handler to reach and
+    // no resume to unwind to
+    IM3Continuation savedContinuation = i_runtime->activeContinuation;
+    i_runtime->activeContinuation     = NULL;
+#endif
 #if d_m3GuardedMemory
     M3Result result = RunCodeProtected(i_runtime, i_pc, _mem);
 #elif (d_m3EnableOpProfiling || d_m3EnableOpTracing)
     M3Result result = (M3Result)RunCode(i_pc, (m3stack_t)i_runtime->stack, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
 #else
     M3Result result = (M3Result)RunCode(i_pc, (m3stack_t)i_runtime->stack, _mem, d_m3OpDefaultArgs);
+#endif
+#if d_m3HasStackSwitching
+    i_runtime->activeContinuation = savedContinuation;
 #endif
 #if d_m3HasExceptionHandling
     i_runtime->tryDepth = savedTryDepth;

@@ -32,6 +32,12 @@ _   (ReadLebSigned(&heap, 33, io_bytes, i_end));
         *o_heapBits = d_m3Type_heapAbstract;
     } else if (heap == -d_waType_externref) {
         *o_heapBits = d_m3Type_refExtern | d_m3Type_heapAbstract;
+#  if d_m3HasStackSwitching
+    } else if (heap == -d_waType_heap_cont) {
+        *o_heapBits = d_m3Type_refCont | d_m3Type_heapAbstract;
+    } else if (heap == -d_waType_heap_nocont) {
+        *o_heapBits = d_m3Type_refCont | d_m3Type_heapNone;
+#  endif
     } else if (heap >= 0) {
         _throwif(m3Err_wasmMalformed, not i_module or (u64) heap >= i_module->numFuncTypes);
 
@@ -41,7 +47,7 @@ _   (ReadLebSigned(&heap, 33, io_bytes, i_end));
         // one that precedes it, recursion belongs to a later proposal
         _throwif(m3Err_wasmMalformed, not ftype);
 
-        *o_heapBits = ftype->canonicalIndex;
+        *o_heapBits = (ftype->isContinuation ? d_m3Type_refCont : 0) | ftype->canonicalIndex;
     } else {
         _throw(m3Err_invalidTypeId);
     }
@@ -276,6 +282,218 @@ _       (ReadLEB_u32(&logPageSize, io_bytes, i_end));
 }
 
 
+// One func type: [numArgs] argtypes [numRets] rettypes, with the results
+// stored ahead of the arguments the way M3FuncType wants them.
+static
+M3Result ParseFuncType (IM3Module io_module, IM3FuncType* o_type, bytes_t* io_bytes, cbytes_t i_end)
+{
+    IM3FuncType ftype = NULL;
+_try {
+    u32 numArgs;
+_   (ReadLEB_u32(&numArgs, io_bytes, i_end));
+
+    _throwif(m3Err_tooManyArgsRets, numArgs > d_m3MaxSaneFunctionArgRetCount);
+#if M3_HAS_VLA
+    m3type_t argTypes[numArgs + 1]; // make ubsan happy
+#else
+    m3type_t argTypes[d_m3MaxSaneFunctionArgRetCount];
+#endif
+    for (u32 a = 0; a < numArgs; ++a) {
+_       (ParseValueType(io_module, &argTypes[a], io_bytes, i_end));
+    }
+
+    u32 numRets;
+_   (ReadLEB_u32(&numRets, io_bytes, i_end));
+    _throwif(m3Err_tooManyArgsRets, (u64)(numRets) + numArgs > d_m3MaxSaneFunctionArgRetCount);
+
+_   (AllocFuncType(&ftype, numRets + numArgs));
+    ftype->numArgs = numArgs;
+    ftype->numRets = numRets;
+
+    for (u32 r = 0; r < numRets; ++r) {
+_       (ParseValueType(io_module, &ftype->types[r], io_bytes, i_end));
+    }
+    memcpy(ftype->types + numRets, argTypes, numArgs * sizeof(m3type_t));
+
+    *o_type = ftype;
+    ftype   = NULL;
+
+} _catch:
+    m3_Free(ftype);
+    return result;
+}
+
+
+#if d_m3HasStackSwitching
+
+// cont $ft. A continuation carries the shape of the function it runs, so that
+// resume and the rest can read the parameters and results straight off it.
+static
+M3Result ParseContType (IM3Module io_module, IM3FuncType* o_type, bytes_t* io_bytes, cbytes_t i_end)
+{
+    IM3FuncType ftype = NULL;
+_try {
+    i64 ftIndex;
+_   (ReadLebSigned(&ftIndex, 33, io_bytes, i_end));
+    _throwif(m3Err_wasmMalformed, ftIndex < 0 or (u64) ftIndex >= io_module->numFuncTypes);
+
+    IM3FuncType underlying = io_module->funcTypes[ftIndex];
+    _throwif(m3Err_wasmMalformed, not underlying or underlying->isContinuation);
+
+    u32 total = underlying->numRets + underlying->numArgs;
+_   (AllocFuncType(&ftype, total));
+    ftype->numRets        = underlying->numRets;
+    ftype->numArgs        = underlying->numArgs;
+    ftype->isContinuation = true;
+    ftype->contFuncType   = underlying;
+
+    if (total) {
+        memcpy(ftype->types, underlying->types, total * sizeof(m3type_t));
+    }
+
+    *o_type = ftype;
+    ftype   = NULL;
+
+} _catch:
+    m3_Free(ftype);
+    return result;
+}
+
+#endif // d_m3HasStackSwitching
+
+
+static
+M3Result ParseTypeDefinition (IM3Module io_module, i8 i_form, IM3FuncType* o_type,
+                              bytes_t* io_bytes, cbytes_t i_end)
+{
+#if d_m3HasStackSwitching
+    if (i_form == -35) {
+        return ParseContType(io_module, o_type, io_bytes, i_end);
+    }
+#endif
+    if (i_form != -32) { // for Wasm MVP
+        return m3Err_wasmMalformed;
+    }
+
+    return ParseFuncType(io_module, o_type, io_bytes, i_end);
+}
+
+
+#if d_m3HasStackSwitching
+
+// Walks one type definition without resolving anything, which is how the first
+// pass over a recursive group learns what each member is before any of them can
+// be built: the members are free to name each other, so nothing can be resolved
+// until every index in the group is spoken for.
+static
+M3Result SkipTypeDefinition (i8 i_form, bytes_t* io_bytes, cbytes_t i_end)
+{
+_try {
+    if (i_form == -35) {
+        i64 ftIndex;
+_       (ReadLebSigned(&ftIndex, 33, io_bytes, i_end));
+        return result;
+    }
+
+    _throwif(m3Err_wasmMalformed, i_form != -32);
+
+    for (u32 half = 0; half < 2; ++half) {
+        u32 count;
+_       (ReadLEB_u32(&count, io_bytes, i_end));
+        _throwif(m3Err_tooManyArgsRets, count > d_m3MaxSaneFunctionArgRetCount);
+
+        for (u32 v = 0; v < count; ++v) {
+            u8 encoding;
+_           (Read_u8(&encoding, io_bytes, i_end));
+
+            if (encoding == d_waEncode_ref or encoding == d_waEncode_refNull) {
+                i64 heap;
+_               (ReadLebSigned(&heap, 33, io_bytes, i_end));
+            }
+        }
+    }
+
+} _catch: return result;
+}
+
+
+// A recursive type group. Its members may name each other, in either order, so
+// the indices they will occupy have to exist before any body is read: the group
+// is scanned once for shapes, its indices are reserved, and only then are the
+// definitions built - func types first, because a cont type is spelled in terms
+// of one.
+static
+M3Result ParseRecGroup (IM3Module io_module, u32 i_count, u32 i_firstIndex,
+                        bytes_t* io_bytes, cbytes_t i_end)
+{
+    IM3FuncType* placeholders = NULL;
+_try {
+    bytes_t groupStart = *io_bytes;
+
+    placeholders = m3_AllocArray(IM3FuncType, i_count);
+    _throwifnull(placeholders);
+
+    // pass one: what each member is, without looking at what it refers to
+    for (u32 j = 0; j < i_count; ++j) {
+        i8 form;
+_       (ReadLEB_i7(&form, io_bytes, i_end));
+_       (SkipTypeDefinition(form, io_bytes, i_end));
+
+_       (AllocFuncType(&placeholders[j], 0));
+        placeholders[j]->isContinuation = (form == -35);
+    }
+
+    u16 firstCanonical;
+_   (Environment_ReserveFuncTypes(io_module->environment, i_count, &firstCanonical));
+
+    for (u32 j = 0; j < i_count; ++j) {
+        placeholders[j]->canonicalIndex        = (u16)(firstCanonical + j);
+        io_module->funcTypes[i_firstIndex + j] = placeholders[j];
+    }
+
+    // pass two: the definitions themselves. A cont type copies the shape of the
+    // func type it names, so every func type in the group has to be standing
+    // before any cont type in it is read.
+    for (u32 pass = 0; pass < 2; ++pass) {
+        bytes_t bytes = groupStart;
+
+        for (u32 j = 0; j < i_count; ++j) {
+            i8 form;
+_           (ReadLEB_i7(&form, &bytes, i_end));
+
+            if ((form == -35) != (pass == 1)) {
+_               (SkipTypeDefinition(form, &bytes, i_end));
+                continue;
+            }
+
+            IM3FuncType ftype = NULL;
+_           (ParseTypeDefinition(io_module, form, &ftype, &bytes, i_end));
+
+            Environment_AdoptFuncType(io_module->environment, ftype, placeholders[j]->canonicalIndex);
+
+            m3_Free(placeholders[j]);
+            placeholders[j]                        = NULL;
+            io_module->funcTypes[i_firstIndex + j] = ftype;
+        }
+
+        if (pass == 1) {
+            *io_bytes = bytes;
+        }
+    }
+
+} _catch:
+    if (placeholders) {
+        for (u32 j = 0; j < i_count; ++j) {
+            m3_Free(placeholders[j]);
+        }
+        m3_Free(placeholders);
+    }
+    return result;
+}
+
+#endif // d_m3HasStackSwitching
+
+
 M3Result ParseSection_Type (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
 {
     IM3FuncType ftype = NULL;
@@ -292,41 +510,60 @@ _   (ReadLEB_u32(&numTypes, &i_bytes, i_end));                                  
         _throwifnull(io_module->funcTypes);
         io_module->numFuncTypes = numTypes;
 
+        // a recursive group is one entry of the section but any number of type
+        // indices, so the two counts part ways as soon as one appears
+#if d_m3HasStackSwitching
+        u32 capacity = numTypes;
+#endif
+        u32 index = 0;
+
         for (u32 i = 0; i < numTypes; ++i) {
             i8 form;
 _           (ReadLEB_i7(&form, &i_bytes, i_end));
-            _throwif(m3Err_wasmMalformed, form != -32); // for Wasm MVP
 
-            u32 numArgs;
-_           (ReadLEB_u32(&numArgs, &i_bytes, i_end));
+#if d_m3HasStackSwitching
+            if (form == -50) { // rec
+                u32 count;
+_               (ReadLEB_u32(&count, &i_bytes, i_end));
 
-            _throwif(m3Err_tooManyArgsRets, numArgs > d_m3MaxSaneFunctionArgRetCount);
-#if M3_HAS_VLA
-            m3type_t argTypes[numArgs + 1]; // make ubsan happy
-#else
-            m3type_t argTypes[d_m3MaxSaneFunctionArgRetCount];
+                // room for this group, and for one more entry per section
+                // entry still to come
+                u64 needed = (u64)index + count + (numTypes - 1 - i);
+
+                _throwif("too many types", needed > d_m3MaxSaneTypesCount);
+
+                if (needed > capacity) {
+                    u32 grown = (u32)needed;
+
+                    IM3FuncType* types =
+                      m3_ReallocArray(IM3FuncType, io_module->funcTypes, grown, capacity);
+                    _throwifnull(types);
+
+                    io_module->funcTypes    = types;
+                    capacity                = grown;
+                    io_module->numFuncTypes = grown;
+                }
+
+                // a group of one says nothing a plain definition does not, and
+                // has to be able to share an entry with one
+                if (count == 1) {
+_                   (ReadLEB_i7(&form, &i_bytes, i_end));
+                } else {
+_                   (ParseRecGroup(io_module, count, index, &i_bytes, i_end));
+                    index += count;
+                    continue;
+                }
+            }
 #endif
-            for (u32 a = 0; a < numArgs; ++a) {
-_               (ParseValueType(io_module, &argTypes[a], &i_bytes, i_end));
-            }
 
-            u32 numRets;
-_           (ReadLEB_u32(&numRets, &i_bytes, i_end));
-            _throwif(m3Err_tooManyArgsRets, (u64)(numRets) + numArgs > d_m3MaxSaneFunctionArgRetCount);
-
-_           (AllocFuncType(&ftype, numRets + numArgs));
-            ftype->numArgs = numArgs;
-            ftype->numRets = numRets;
-
-            for (u32 r = 0; r < numRets; ++r) {
-_               (ParseValueType(io_module, &ftype->types[r], &i_bytes, i_end));
-            }
-            memcpy(ftype->types + numRets, argTypes, numArgs * sizeof(m3type_t));                                   m3log (parse, "    type %2d: %s", i, SPrintFuncTypeSignature (ftype));
+_           (ParseTypeDefinition(io_module, form, &ftype, &i_bytes, i_end));       m3log (parse, "    type %2d: %s", index, SPrintFuncTypeSignature (ftype));
 
             Environment_AddFuncType(io_module->environment, &ftype);
-            io_module->funcTypes[i] = ftype;
-            ftype                   = NULL; // ownership transferred to environment
+            io_module->funcTypes[index++] = ftype;
+            ftype                         = NULL; // ownership transferred to environment
         }
+
+        io_module->numFuncTypes = index;
     }
 
     _throwif(m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
@@ -381,7 +618,7 @@ typedef struct M3ImportDesc {
 } M3ImportDesc;
 
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
 
 // A tag_type: a reserved attribute byte that must be 0 (the exception
 // attribute) and the index of the function type giving the payload. The
@@ -398,13 +635,15 @@ _   (Read_u8(&attribute, io_bytes, i_end));
 _   (ReadLEB_u32(o_typeIndex, io_bytes, i_end));
     _throwif(m3Err_unknownType, not i_module or *o_typeIndex >= i_module->numFuncTypes);
 
+#  if !d_m3HasStackSwitching
     // an exception tag's type describes its payload, so it yields nothing
     _throwif(m3Err_wasmMalformed, GetFuncTypeNumResults(i_module->funcTypes[*o_typeIndex]) != 0);
+#  endif
 
     _catch: return result;
 }
 
-#endif // d_m3HasExceptionHandling
+#endif // d_m3HasExceptionHandling || d_m3HasStackSwitching
 
 
 // Reads and validates one externtype. Mutates nothing in the module, so an
@@ -435,7 +674,7 @@ _       (ReadLEB_u7(&o_desc->isMutable, io_bytes, i_end));                      
         _throwif(m3Err_wasmMalformed, o_desc->isMutable > 1);
         break;
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
     case d_externalKind_tag:
 _       (ReadTagType(i_module, &o_desc->typeIndex, io_bytes, i_end));
         break;
@@ -496,7 +735,7 @@ _       (Module_AddGlobal(io_module, &global, i_desc->type, i_desc->isMutable, t
         *io_import     = clearImport;
     } break;
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
     case d_externalKind_tag: {
         IM3Tag tag;
 _       (Module_AddTag(io_module, &tag, io_module->funcTypes[i_desc->typeIndex], true /* isImport */));
@@ -528,7 +767,7 @@ bool IsEmptyName (bytes_t i_bytes, cbytes_t i_end)
 #endif // d_m3HasCompactImports
 
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
 
 M3Result ParseSection_Tag (IM3Module io_module, bytes_t i_bytes, cbytes_t i_end)
 {
@@ -754,7 +993,7 @@ _           (Module_DeclareFunction(io_module, index));
 
             utf8 = NULL; // ownership transferred to M3Table
         }
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
         else if (exportKind == d_externalKind_tag) {
             _throwif(m3Err_wasmMalformed, index >= io_module->numTags);
             IM3Tag tag = &(io_module->tags[index]);
@@ -1217,7 +1456,7 @@ M3Result ParseModuleSection (M3Module* o_module, u8 i_sectionType, bytes_t i_byt
         ParseSection_Code,      // 10
         ParseSection_Data,      // 11
         ParseSection_DataCount, // 12
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
         ParseSection_Tag,       // 13
 #endif
     };
@@ -1263,7 +1502,7 @@ _   (Read_u32(&version, &pos, end));
     _throwif(m3Err_wasmMalformed, magic != 0x6d736100);
     _throwif(m3Err_incompatibleWasmVersion, version != 1);
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
     // the tag section sits between memory (5) and global (6)
     static const u8 sectionsOrder[] = { 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11, 0 }; // 0 is a placeholder
 #else

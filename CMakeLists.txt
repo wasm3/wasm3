@@ -193,7 +193,7 @@ elseif(MSVC OR CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
     # /W3 is Clang's own -Wall here, so it needs the same answer the GCC and Clang
     # builds below give it: a WASI entry point has to declare every argument it is
     # handed, including the ones its implementation ignores
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable -Wno-unused-function")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function")
 
     # /Oxs on its own is -Os to clang-cl, and /clang: is how a driver option gets
     # through. The "-Clang -O3" that used to be here was dropped as unknown, so
@@ -208,7 +208,7 @@ else()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasTracer") #-Dd_m3FixedHeap=1048576
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wparentheses -Wundef -Wpointer-arith -Wstrict-aliasing=2")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=implicit-function-declaration") # -Werror=cast-align
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers")
   if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     # TODO: Place clang-specific options here
   elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")

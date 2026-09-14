@@ -398,6 +398,11 @@ M3Result NormalizeType (u8* o_type, i8 i_convolutedWasmType)
         type = c_m3Type_exnref;
     }
 #endif
+#if d_m3HasStackSwitching
+    else if (type == d_waType_heap_cont or type == d_waType_heap_nocont) {
+        type = c_m3Type_contref;
+    }
+#endif
     // Accept v128 (wasm-encoded as 0x7b → -i_convolutedWasmType == 5)
     // as an opaque slot so modules with v128 in signatures or local
     // declarations parse. Actual v128 opcodes still hit
@@ -418,6 +423,9 @@ M3Result NormalizeType (u8* o_type, i8 i_convolutedWasmType)
 u8 BaseTypeOf (m3type_t i_type)
 {
     if (IsSpelledRefType(i_type)) {
+        if (i_type & d_m3Type_refCont) {
+            return c_m3Type_contref;
+        }
         return (i_type & d_m3Type_refExtern) ? c_m3Type_externref : c_m3Type_funcref;
     }
 
@@ -443,6 +451,13 @@ bool IsSubTypeOf (m3type_t i_sub, m3type_t i_super)
         return false;
     }
 
+#  if d_m3HasStackSwitching
+    // nocont sits under every continuation type
+    if (HeapTypeOf(i_sub) == d_m3Type_heapNone) {
+        return true;
+    }
+#  endif
+
     // $t <: func, and function types are invariant among themselves, so a
     // concrete heap type matches only itself or the abstract one. Indices are
     // canonical, so structurally equal types compare equal here.
@@ -466,6 +481,9 @@ bool IsRefType (m3type_t i_type)
     return (i_m3Type == c_m3Type_funcref or i_m3Type == c_m3Type_externref
 #if d_m3HasExceptionHandling
             or i_m3Type == c_m3Type_exnref
+#endif
+#if d_m3HasStackSwitching
+            or i_m3Type == c_m3Type_contref
 #endif
     );
 }
@@ -956,7 +974,7 @@ u32 FindModuleOffset (IM3Runtime i_runtime, pc_t i_pc)
         u32 result = 0;
 
         bool pcFound = MapPCToOffset(curr, i_pc, &result);
-                                                                                d_m3Assert (pcFound);
+        (void)pcFound;                                                          d_m3Assert (pcFound);
 
         return result;
     } else {

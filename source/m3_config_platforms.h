@@ -168,7 +168,20 @@ typedef int8_t         i8;
  * Apply settings
  */
 
-#if M3_COMPILER_HAS_ATTRIBUTE(preserve_none) && M3_GUARANTEED_TAIL_CALL && \
+#if defined(__SANITIZE_ADDRESS__) || M3_COMPILER_HAS_FEATURE(address_sanitizer)
+#  define M3_HAS_ASAN 1
+#else
+#  define M3_HAS_ASAN 0
+#endif
+
+// preserve_none keeps nothing across a call, x19 included -- and x19 is the register
+// AArch64 reserves for a frame base when a function both realigns its stack and has a
+// dynamic alloca, which is what ASan's use-after-return check makes of every frame
+// holding an address-taken local. The base pointer then does not survive a dispatch,
+// and the frame it addressed is read back through whatever the callee left in x19.
+// LLVM diagnoses the same conflict on x86-64 and refuses to compile it; on AArch64 it
+// emits the code anyway. An instrumented build has no use for the convention regardless.
+#if M3_COMPILER_HAS_ATTRIBUTE(preserve_none) && M3_GUARANTEED_TAIL_CALL && !M3_HAS_ASAN && \
   (defined(__x86_64__) || defined(__aarch64__))
 #  define vectorcall   __attribute__((preserve_none))
 #elif defined(M3_COMPILER_MSVC)
@@ -261,7 +274,7 @@ typedef int8_t         i8;
 // build takes the bounds checks, which is also the path worth instrumenting: a
 // reservation is a plain mapping that ASan cannot see into. Setting d_m3GuardedMemory
 // explicitly still wins, for a process that has arranged to keep the signal.
-#if defined(__SANITIZE_ADDRESS__) || M3_COMPILER_HAS_FEATURE(address_sanitizer)
+#if M3_HAS_ASAN
 #  ifndef d_m3GuardedMemory
 #    define d_m3GuardedMemory                    0
 #  endif
@@ -303,6 +316,12 @@ typedef int8_t         i8;
 #  endif
 #  ifndef d_m3HasMemory64
 #    define d_m3HasMemory64                      0
+#  endif
+#  ifndef d_m3HasTypedRefs
+#    define d_m3HasTypedRefs                     0
+#  endif
+#  ifndef d_m3HasStackSwitching
+#    define d_m3HasStackSwitching                0
 #  endif
 #endif
 

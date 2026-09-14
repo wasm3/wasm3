@@ -100,6 +100,10 @@ typedef enum M3ValueType {
     // point is holding a dangling reference.
     c_m3Type_exnref    = 8,
 
+    // A first-class continuation reference, from the stack switching proposal.
+    // Holds an IM3Continuation pointer, or 0 for null.
+    c_m3Type_contref   = 9,
+
     // the number of concrete value types
     c_m3Type_count,
 
@@ -241,11 +245,15 @@ d_m3ErrorConst(trapUnsupportedInstruction,     "[trap] unsupported instruction")
 d_m3ErrorConst(trapStackOverflow,              "[trap] stack overflow")
 d_m3ErrorConst(trapOutOfGas,                   "[trap] out of gas")
 d_m3ErrorConst(trapUncaughtException,          "[trap] uncaught exception")
+d_m3ErrorConst(trapContinuationConsumed,       "[trap] continuation already consumed")
+d_m3ErrorConst(trapNullContinuationRef,        "[trap] null continuation reference")
+d_m3ErrorConst(trapUnhandledControlTag,        "[trap] unhandled control tag")
 
 // Internal: the marker an in-flight exception rides back up the native stack
 // on. Never escapes m3_Call - the outermost RunCodeChecked turns it into
 // m3Err_trapUncaughtException.
 d_m3ErrorConst(pendingException,               "[internal] exception in flight")
+d_m3ErrorConst(continuationSuspended,          "[internal] continuation suspended")
 
 // clang-format on
 
@@ -471,13 +479,17 @@ IM3BacktraceInfo m3_GetBacktrace (IM3Runtime i_runtime);
 #define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)_mem + (uint32_t)(offset))
 #define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)_mem)
 
-#define m3ApiReturnType(TYPE)                 TYPE* raw_return = ((TYPE*) (_sp++));
-#define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME = ((TYPE*) (_sp++));
-#define m3ApiGetArg(TYPE, NAME)               TYPE NAME = \
+// Each of these walks _sp as it goes, so an entry point has to name every
+// argument it is handed whether or not its implementation has a use for the
+// value - which is why the declarations carry M3_UNUSED rather than the build
+// turning the warning off for everything.
+#define m3ApiReturnType(TYPE)                 TYPE* raw_return M3_UNUSED = ((TYPE*) (_sp++));
+#define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME M3_UNUSED = ((TYPE*) (_sp++));
+#define m3ApiGetArg(TYPE, NAME)               TYPE NAME M3_UNUSED = \
    (sizeof(TYPE) >= sizeof(uint32_t)) ? \
    (*((TYPE *)(_sp++))) : \
    ((TYPE)(uintptr_t)(*((uint32_t *)(_sp++))));
-#define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
+#define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME M3_UNUSED = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
 
 #define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
 
@@ -496,7 +508,7 @@ IM3BacktraceInfo m3_GetBacktrace (IM3Runtime i_runtime);
            m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess);                           \
    }
 
-#define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
+#define m3ApiRawFunction(NAME)               const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
 #define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}
 #define m3ApiMultiValueReturn(NAME, VALUE)   { *NAME = (VALUE); }
 #define m3ApiTrap(VALUE)                     { return VALUE; }

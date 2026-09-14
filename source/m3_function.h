@@ -26,6 +26,14 @@ typedef struct M3FuncType {
     // structural equivalence the spec asks for.
     u16                canonicalIndex;
 
+    bool               isContinuation;
+    struct M3FuncType* contFuncType;
+
+    // A member of a recursive group. The group is its identity, so it never
+    // shares an entry with a type that merely matches it field for field -
+    // not one outside any group, and not one in a group spelled the same way.
+    bool               inRecGroup;
+
     m3type_t           types[];        // returns, then args
 } M3FuncType;
 

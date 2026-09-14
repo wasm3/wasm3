@@ -72,7 +72,9 @@ typedef u32 m3slot_t;
 typedef u64 m3slot_t;
 #endif
 
-typedef m3slot_t*         m3stack_t;
+typedef m3slot_t* m3stack_t;
+
+#define c_ioSlotCount ((u16)(sizeof(u64) / sizeof(m3slot_t)))
 
 typedef const void* const cvptr_t;
 
@@ -185,7 +187,7 @@ typedef struct M3CodePageHeader {
 
 #if d_m3HasTypedRefs
 // a heap type index has to fit in the spare bits of an m3type_t, see below
-#  define d_m3MaxSaneTypesCount             8190
+#  define d_m3MaxSaneTypesCount             4094
 #else
 // M3Environment.numFuncTypes is the u16 that hands out M3FuncType.canonicalIndex,
 // so the count has to stay below 65536 here as well
@@ -228,6 +230,11 @@ typedef struct M3CodePageHeader {
 // exception handling: exnref is wasm-encoded as -0x17
 #define d_waType_exnref                     23
 
+// stack switching: cont type form is -0x23 (35); heap types: cont is -0x18 (24), nocont is -0x0b (11)
+#define d_waType_cont                       35
+#define d_waType_heap_cont                  24
+#define d_waType_heap_nocont                11
+
 // function-references: a reference type spelled out as (ref ht) / (ref null ht),
 // where the abstract heap types reuse the funcref and externref encodings
 #define d_waEncode_ref                      0x64
@@ -235,8 +242,8 @@ typedef struct M3CodePageHeader {
 
 // indexed by M3ValueType: c_m3Type_count entries for the concrete types, plus
 // one more for c_m3Type_unknown, which sits right after them
-static const char* const c_waTypes[] = { "nil", "i32", "i64", "f32", "f64", "v128", "funcref", "externref", "exnref", "unknown" };
-static const char* const c_waCompactTypes[] = { "_", "i", "I", "f", "F", "V", "r", "R", "e", "?" };
+static const char* const c_waTypes[] = { "nil", "i32", "i64", "f32", "f64", "v128", "funcref", "externref", "exnref", "contref", "unknown" };
+static const char* const c_waCompactTypes[] = { "_", "i", "I", "f", "F", "V", "r", "R", "e", "c", "?" };
 
 
 #if d_m3VerboseErrorMessages
@@ -384,15 +391,22 @@ void* m3_Realloc (ccstr_t name, void* i_ptr, size_t i_newSize, size_t i_oldSize)
 //   bit 15     spelled-out reference type rather than a plain M3ValueType
 //   bit 14     non-null, i.e. (ref ht) rather than (ref null ht)
 //   bit 13     heap type extern rather than func
-//   bits 12-0  canonical function type index, or d_m3Type_heapAbstract
+//   bit 12     heap type cont rather than func
+//   bits 11-0  canonical function type index, or d_m3Type_heapAbstract
 
 #if d_m3HasTypedRefs
 
 #  define d_m3Type_ref                0x8000u
 #  define d_m3Type_refNonNull         0x4000u
 #  define d_m3Type_refExtern          0x2000u
-#  define d_m3Type_heapMask           0x1FFFu
-#  define d_m3Type_heapAbstract       0x1FFFu     // plain 'func' or 'extern'
+#  define d_m3Type_refCont            0x1000u
+#  define d_m3Type_heapMask           0x0FFFu
+#  define d_m3Type_heapAbstract       0x0FFFu     // plain 'func', 'extern', or 'cont'
+// 'nocont', the bottom of the continuation types: a reference to it is a
+// reference to every one of them, which is what makes ref.null nocont usable
+// wherever a particular continuation is expected. One below heapAbstract, and
+// so out of reach of d_m3MaxSaneTypesCount.
+#  define d_m3Type_heapNone           0x0FFEu
 
 // The storage type a value of this type occupies: a reference of any shape is
 // just a funcref or an externref once the type checking is done with.

@@ -17,7 +17,7 @@ shutil.copytree(src, dst / "src")
 library_json = {
     "name": "Wasm3",
     "build": {
-        "flags": "-Os -fomit-frame-pointer -fno-stack-check -fno-stack-protector -Wfatal-errors -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers",
+        "flags": "-Os -fomit-frame-pointer -fno-stack-check -fno-stack-protector -Wfatal-errors -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers",
         "srcFilter": ["+<*>", "-<extensions/*>"],
         "libArchive": False,
     },

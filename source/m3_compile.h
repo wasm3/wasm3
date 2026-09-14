@@ -66,6 +66,14 @@ enum {
     c_waOp_brOnNull           = 0xd5,
     c_waOp_brOnNonNull        = 0xd6,
 
+    c_waOp_contNew            = 0xe0,
+    c_waOp_contBind           = 0xe1,
+    c_waOp_suspend            = 0xe2,
+    c_waOp_resume             = 0xe3,
+    c_waOp_resumeThrow        = 0xe4,
+    c_waOp_resumeThrowRef     = 0xe5,
+    c_waOp_switch             = 0xe6,
+
     c_waOp_extended           = 0xfc,
 
     c_waOp_memoryInit         = 0xfc08,

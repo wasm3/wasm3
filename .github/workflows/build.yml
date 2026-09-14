@@ -173,7 +173,7 @@ jobs:
     - uses: actions/checkout@v7
     - name: Configure
       env:
-        CFLAGS: -Dd_m3HasTypedRefs=1 ${{ matrix.config.cflags }}
+        CFLAGS: ${{ matrix.config.cflags }}
         LDFLAGS: ${{ matrix.config.ldflags }}
       run: |
         mkdir build
@@ -232,7 +232,7 @@ jobs:
     - uses: actions/checkout@v7
     - name: Configure
       env:
-        CFLAGS: -Dd_m3HasTypedRefs=1 ${{ matrix.config.cflags }}
+        CFLAGS: ${{ matrix.config.cflags }}
         LDFLAGS: ${{ matrix.config.ldflags }}
       run: |
         mkdir build
@@ -412,9 +412,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    env:
-      CFLAGS: -Dd_m3HasTypedRefs=1
-
     steps:
     - uses: actions/checkout@v7
     - name: Setup environment
@@ -487,7 +484,7 @@ jobs:
 
     - name: Configure, Build wasm3-strace
       env:
-        CFLAGS: -Dd_m3HasTypedRefs=1 -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
+        CFLAGS: -DDEBUG -Dd_m3EnableStrace=2 -Dd_m3RecordBacktraces=1
       run: |
         mkdir build-strace
         cd build-strace
@@ -948,7 +945,6 @@ jobs:
         mkdir build
         cd build
         clang -xc++ -Werror -Dd_m3HasWASI -DDEBUG \
-            -Dd_m3HasTypedRefs=1        \
             -Dd_m3EnableOpTracing=1     \
             -Dd_m3EnableStrace=1        \
             -Dd_m3LogParse=1            \
