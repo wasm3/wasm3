@@ -600,10 +600,6 @@ jobs:
         rm -rf ./pywasm3/external/wasm3
         cp -r wasm3 ./pywasm3/external/wasm3
         pip install ./pywasm3
-    - name: Install WABT
-      run: |
-        sudo apt update
-        sudo apt install wabt
     - name: Test
       run: |
         pip install pytest
