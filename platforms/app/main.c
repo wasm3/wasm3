@@ -111,8 +111,10 @@ M3Result read_wasm_file (const char* i_path, M3HostFile* o_bin)
 // the module the most recent :load / :load-hex produced
 static IM3Module lastLoadedModule = NULL;
 
-static bool   argGasMeter = false;
-static double argGasLimit = GAS_LIMIT;
+static bool        argGasMeter     = false;
+static double      argGasLimit     = GAS_LIMIT;
+static const char* argSnapshotFile = NULL;
+static const char* argResumeFile   = NULL;
 
 M3Result link_all (IM3Module module)
 {
@@ -189,9 +191,13 @@ M3Result repl_load (const char* fn)
         goto on_error_after_load;
     }
 
-    result = m3_RunStart(module);
-    if (result) {
-        goto on_error_after_load;
+    // a snapshot about to be restored already holds what the start function
+    // did, and restoring marks it done
+    if (not argResumeFile) {
+        result = m3_RunStart(module);
+        if (result) {
+            goto on_error_after_load;
+        }
     }
 
     return result;
@@ -772,6 +778,7 @@ M3Result repl_dump ()
 void repl_free ()
 {
     if (runtime) {
+        m3_HostRemoveInterruptHandler();
         m3_FreeRuntime(runtime);
         runtime = NULL;
     }
@@ -821,6 +828,14 @@ M3Result repl_init (unsigned stack)
     runtime            = m3_NewRuntime(env, stack, NULL);
     if (runtime == NULL) {
         return "m3_NewRuntime failed";
+    }
+
+    // likewise armed before anything is compiled: a body compiled while this
+    // is off gets back edges that cannot suspend. It is re-armed here rather
+    // than once in main because :init builds a new runtime.
+    if (argSnapshotFile || argResumeFile) {
+        m3_SetSuspendable(runtime, true);
+        m3_HostInstallInterruptHandler(runtime);
     }
 
     // has to be armed before anything is compiled: only the function bodies
@@ -937,9 +952,49 @@ void print_usage ()
     puts("  --validate-only       only validate <file>");
     puts("  --no-validate         skip validation");
     puts("  --spec-repl           repl for the spec tests");
-    puts("  --dump-on-trap        dump wasm memory");
+    puts("  --dump-on-trap        save wasm3_dump.w3s on a trap");
     puts("  --gas-meter           meter gas usage");
     puts("  --gas-limit <gas>     apply gas limit");
+    puts("  --snapshot <fn>       enable suspension and save to <fn>");
+    puts("  --resume <fn>         resume execution from <fn>");
+}
+
+static
+M3Result FileSnapshotWriter (const void* i_data, size_t i_size, void* i_userdata)
+{
+    FILE* f = (FILE*)i_userdata;
+    if (fwrite(i_data, 1, i_size, f) != i_size) {
+        return "failed writing snapshot file";
+    }
+    return m3Err_none;
+}
+
+static
+void SaveTrapSnapshot ()
+{
+    FILE* f = fopen("wasm3_dump.w3s", "wb");
+    if (!f) {
+        fprintf(stderr, "Error opening wasm3_dump.w3s for writing\n");
+        return;
+    }
+
+    M3Result result = m3_SaveSnapshot(runtime, FileSnapshotWriter, f);
+    fclose(f);
+    if (result) {
+        fprintf(stderr, "Error saving trap snapshot: %s\n", result);
+    } else {
+        fprintf(stderr, "Trap snapshot saved to wasm3_dump.w3s\n");
+    }
+}
+
+static
+M3Result FileSnapshotReader (void* o_buffer, size_t i_size, void* i_userdata)
+{
+    FILE* f = (FILE*)i_userdata;
+    if (fread(o_buffer, 1, i_size, f) != i_size) {
+        return "failed reading snapshot file";
+    }
+    return m3Err_none;
 }
 
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
@@ -1014,8 +1069,13 @@ int main (int i_argc, const char* i_argv[])
             (void)argDir;
         } else if (!strcmp("--func", arg) or !strcmp("-f", arg)) {
             ARGV_SET(argFunc);
+        } else if (!strcmp("--snapshot", arg)) {
+            ARGV_SET(argSnapshotFile);
+        } else if (!strcmp("--resume", arg)) {
+            ARGV_SET(argResumeFile);
         }
     }
+
 
     if ((argRepl and (i_argc > 1)) or   // repl supports 0 or 1 args
         (not argRepl and (i_argc < 1))  // normal expects at least 1
@@ -1074,7 +1134,7 @@ int main (int i_argc, const char* i_argv[])
             FATAL("repl_load: %s", result);
         }
 
-        if (argCompile) {
+        if (argCompile || argResumeFile) {
             result = repl_compile();
             if (result) {
                 FATAL("repl_compile: %s", result);
@@ -1088,6 +1148,52 @@ int main (int i_argc, const char* i_argv[])
             return 0;
         }
 
+        if (argResumeFile) {
+            FILE* f = fopen(argResumeFile, "rb");
+            if (!f) {
+                FATAL("cannot open snapshot file: %s", argResumeFile);
+            }
+            result = m3_LoadSnapshot(runtime, lastLoadedModule, FileSnapshotReader, f);
+            fclose(f);
+            if (result) {
+                FATAL("failed loading snapshot: %s", result);
+            }
+
+            result = m3_ResumeRuntime(runtime);
+            if (result == m3Err_continuationSuspended) {
+                const char* snapPath = argSnapshotFile ? argSnapshotFile : argResumeFile;
+                FILE*       sf       = fopen(snapPath, "wb");
+                if (sf) {
+                    M3Result sres = m3_SaveSnapshot(runtime, FileSnapshotWriter, sf);
+                    fclose(sf);
+                    if (sres) {
+                        fprintf(stderr, "Error saving snapshot: %s\n", sres);
+                    } else {
+                        fprintf(stderr, "Execution suspended. Snapshot saved to %s\n", snapPath);
+                    }
+                } else {
+                    fprintf(stderr, "Error opening %s for writing\n", snapPath);
+                }
+                m3_HostRemoveInterruptHandler();
+                repl_free();
+                m3_FreeEnvironment(env);
+                return 0;
+            }
+
+            if (result) {
+                if (argDumpOnTrap) {
+                    SaveTrapSnapshot();
+                }
+                print_backtrace();
+                goto _onfatal;
+            }
+
+            m3_HostRemoveInterruptHandler();
+            repl_free();
+            m3_FreeEnvironment(env);
+            return 0;
+        }
+
         if (argFunc and not argRepl) {
             if (!strcmp(argFunc, "_start")) {
                 // When passing args to WASI, include wasm filename as argv[0]
@@ -1096,9 +1202,31 @@ int main (int i_argc, const char* i_argv[])
                 result = repl_call(argFunc, i_argc, i_argv);
             }
 
+            // only --snapshot makes this runtime suspendable here: --resume
+            // never reaches this far
+            if (result == m3Err_continuationSuspended) {
+                const char* snapPath = argSnapshotFile;
+                FILE*       sf       = fopen(snapPath, "wb");
+                if (sf) {
+                    M3Result sres = m3_SaveSnapshot(runtime, FileSnapshotWriter, sf);
+                    fclose(sf);
+                    if (sres) {
+                        fprintf(stderr, "Error saving snapshot: %s\n", sres);
+                    } else {
+                        fprintf(stderr, "Execution suspended. Snapshot saved to %s\n", snapPath);
+                    }
+                } else {
+                    fprintf(stderr, "Error opening %s for writing\n", snapPath);
+                }
+                m3_HostRemoveInterruptHandler();
+                repl_free();
+                m3_FreeEnvironment(env);
+                return 0;
+            }
+
             if (result) {
                 if (argDumpOnTrap) {
-                    repl_dump();
+                    SaveTrapSnapshot();
                 }
                 print_backtrace();
                 goto _onfatal;
@@ -1228,6 +1356,7 @@ _onfatal:
         fprintf(stderr, "\n");
     }
 
+    m3_HostRemoveInterruptHandler();
     m3_FreeRuntime(runtime);
     m3_FreeEnvironment(env);
 

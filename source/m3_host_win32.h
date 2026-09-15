@@ -43,6 +43,32 @@ void* m3_HostStackBase (void)
     return mbi.AllocationBase;
 }
 
+static IM3Runtime s_win32SuspendRuntime = NULL;
+
+static
+BOOL WINAPI m3_ConsoleCtrlHandler (DWORD dwCtrlType)
+{
+    if (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT) {
+        if (s_win32SuspendRuntime && !s_win32SuspendRuntime->suspendRequested) {
+            s_win32SuspendRuntime->suspendRequested = true;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+void m3_HostInstallInterruptHandler (IM3Runtime io_runtime)
+{
+    s_win32SuspendRuntime = io_runtime;
+    SetConsoleCtrlHandler(m3_ConsoleCtrlHandler, TRUE);
+}
+
+void m3_HostRemoveInterruptHandler (void)
+{
+    SetConsoleCtrlHandler(m3_ConsoleCtrlHandler, FALSE);
+    s_win32SuspendRuntime = NULL;
+}
+
 // FILE_SHARE_READ and nothing else: another process may read the file, and one
 // trying to write or delete it is refused for as long as the mapping lives. The
 // kernel enforces that, so it is the real thing rather than the advisory lock POSIX

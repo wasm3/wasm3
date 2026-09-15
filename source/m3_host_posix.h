@@ -24,6 +24,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <signal.h>
 
 // Whether pthread_getattr_np - or Darwin's pair of calls - can be reached without
 // asking the build to link a threading library it may not be linking. glibc moved
@@ -179,6 +180,46 @@ void* m3_HostStackBase (void)
     return base;
 
 #endif
+}
+
+static IM3Runtime       s_posixSuspendRuntime = NULL;
+static struct sigaction s_oldSigTstp;
+static struct sigaction s_oldSigInt;
+static bool             s_suspendHandlersInstalled = false;
+
+static
+void m3_PosixSignalHandler (int sig)
+{
+    (void)sig;
+    if (s_posixSuspendRuntime) {
+        s_posixSuspendRuntime->suspendRequested = true;
+    }
+}
+
+void m3_HostInstallInterruptHandler (IM3Runtime io_runtime)
+{
+    s_posixSuspendRuntime = io_runtime;
+    if (!s_suspendHandlersInstalled) {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = m3_PosixSignalHandler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+
+        sigaction(SIGTSTP, &sa, &s_oldSigTstp);
+        sigaction(SIGINT, &sa, &s_oldSigInt);
+        s_suspendHandlersInstalled = true;
+    }
+}
+
+void m3_HostRemoveInterruptHandler (void)
+{
+    if (s_suspendHandlersInstalled) {
+        sigaction(SIGTSTP, &s_oldSigTstp, NULL);
+        sigaction(SIGINT, &s_oldSigInt, NULL);
+        s_suspendHandlersInstalled = false;
+    }
+    s_posixSuspendRuntime = NULL;
 }
 
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)

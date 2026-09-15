@@ -255,6 +255,9 @@ _try {
 
     tag->type     = i_type;
     tag->imported = i_isImported;
+    tag->name     = NULL;
+    tag->resolved = NULL;
+    memset(&tag->import, 0, sizeof(tag->import));
 
     if (o_tag) {
         *o_tag = tag;

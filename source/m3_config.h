@@ -334,6 +334,20 @@
 #  define d_m3ContinuationMaxFrames            256
 #endif
 
+// Snapshot serialization & deserialization. Allows saving suspended execution
+// state (linear memory, globals, tables, value stack, and virtual frames) and
+// restoring it to resume execution.
+#ifndef d_m3HasSnapshots
+#  define d_m3HasSnapshots                     d_m3HasStackSwitching
+#endif
+
+// Minimum run length of consecutive 0x00 or 0xFF bytes to trigger sparse
+// compression during snapshot linear memory encoding.
+#ifndef d_m3SnapshotRunThreshold
+#  define d_m3SnapshotRunThreshold             128
+#endif
+
+
 // Gas metering. Once m3_SetGasLimit has armed a runtime, the compiler
 // instruments the function bodies it compiles from then on: each straight-line
 // segment of a body is charged, before any of it runs, for the instructions it

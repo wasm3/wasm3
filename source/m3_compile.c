@@ -1921,6 +1921,29 @@ IM3Operation GetBranchFusionOp (IM3Compilation o, bool i_isIf)
 }
 #endif // d_m3FuseBranch
 
+static inline
+IM3Operation Op_ContinueLoop (IM3Compilation o)
+{
+#if d_m3HasStackSwitching
+    if (M3_UNLIKELY(o->module->runtime and o->module->runtime->isSuspendable)) {
+        return op_ContinueLoop_Suspendable;
+    }
+#endif
+    return op_ContinueLoop;
+}
+
+static inline
+IM3Operation Op_ContinueLoopIf (IM3Compilation o)
+{
+#if d_m3HasStackSwitching
+    if (M3_UNLIKELY(o->module->runtime and o->module->runtime->isSuspendable)) {
+        return op_ContinueLoopIf_Suspendable;
+    }
+#endif
+    return op_ContinueLoopIf;
+}
+
+
 static
 M3Result Compile_Branch (IM3Compilation o, m3opcode_t i_opcode)
 {
@@ -1962,7 +1985,7 @@ _               (EmitPopTryFrames(o, numTryFrames));
 _                   (ResolveBlockResults(o, scope, /* isBranch: */ true));
                 }
 
-_               (EmitOp(o, op_ContinueLoop));
+_               (EmitOp(o, Op_ContinueLoop(o)));
                 EmitPointer(o, scope->pc);
 
                 *jumpTo = GetPC(o);
@@ -1971,7 +1994,7 @@ _               (EmitOp(o, op_ContinueLoop));
 _               (CopyStackTopToRegister(o, false));
 _               (PopType(o, c_m3Type_i32));
 
-_               (EmitOp(o, op_ContinueLoopIf));
+_               (EmitOp(o, Op_ContinueLoopIf(o)));
                 EmitPointer(o, scope->pc);
             }
 
@@ -1985,7 +2008,7 @@ _           (EmitPopTryFrames(o, numTryFrames));
 _               (ResolveBlockResults(o, scope, /* isBranch: */ true));
             }
 
-_           (EmitOp(o, op_ContinueLoop));
+_           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
             o->block.isPolymorphic = true;
         }
@@ -2151,7 +2174,7 @@ _           (EmitPopTryFrames(o, numTryFrames));
 _               (ResolveBlockResults(o, scope, true));
             }
 
-_           (EmitOp(o, op_ContinueLoop));
+_           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
         } else {
             if (not IsStackPolymorphic(o)) {
@@ -3126,7 +3149,7 @@ _       (ParseValueType(o->module, &refType, &o->wasm, o->wasmEnd));
 _       (AllocFuncType(&ftype, 1));
         ftype->numRets  = 1;
         ftype->types[0] = refType;
-        Environment_AddFuncType(o->module->environment, &ftype);
+_       (Environment_AddFuncType(o->module->environment, &ftype));
         *o_blockType = ftype;
         return result;
     }
@@ -3312,7 +3335,7 @@ _       (EmitPopTryFrames(o, NumTryFramesToPop(o->block.outer, scope)));
         if (scope->opcode == c_waOp_loop) {
 _           (ResolveBlockResults(o, scope, /* isBranch: */ true));
 
-_           (EmitOp(o, op_ContinueLoop));
+_           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
         } else if (scope->depth == 0) {
 _           (ReturnValues(o, scope, /* isBranch: */ true));
@@ -3382,7 +3405,8 @@ _       (Read_u8(&kind, &o->wasm, o->wasmEnd));
 _           (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
             _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
 
-            clauses[i].tag = &o->module->tags[tagIndex];
+            IM3Tag tag     = &o->module->tags[tagIndex];
+            clauses[i].tag = tag->resolved ? tag->resolved : tag;
         }
 
 _       (ReadLEB_u32(&clauses[i].labelDepth, &o->wasm, o->wasmEnd));
@@ -3425,6 +3449,9 @@ _   (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
     _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
 
     IM3Tag tag = &o->module->tags[tagIndex];
+    if (tag->resolved) {
+        tag = tag->resolved;
+    }
 
     u16 numArgs = GetFuncTypeNumParams(tag->type);
 
@@ -3565,6 +3592,16 @@ _   (Pop(o));
     _throwif(m3Err_typeMismatch, numParams1 < numParams2);
     u32 numBound = numParams1 - numParams2;
 
+    u16 numResults1 = GetFuncTypeNumResults(ft1);
+    u16 numResults2 = GetFuncTypeNumResults(ft2);
+    _throwif(m3Err_typeMismatch, numResults1 != numResults2);
+    for (u16 i = 0; i < numResults1; ++i) {
+        _throwif(m3Err_typeMismatch, GetFuncTypeResultType(ft1, i) != GetFuncTypeResultType(ft2, i));
+    }
+    for (u16 i = 0; i < numParams2; ++i) {
+        _throwif(m3Err_typeMismatch, GetFuncTypeParamType(ft1, numBound + i) != GetFuncTypeParamType(ft2, i));
+    }
+
     u16 argSlots[d_m3MaxContinuationPayload];
     _throwif("too many bound args", numBound > d_m3MaxContinuationPayload);
 
@@ -3604,9 +3641,12 @@ _try {
 _   (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
     _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
 
-    IM3Tag tag        = &o->module->tags[tagIndex];
-    u16    numParams  = GetFuncTypeNumParams(tag->type);
-    u16    numResults = GetFuncTypeNumResults(tag->type);
+    IM3Tag tag = &o->module->tags[tagIndex];
+    if (tag->resolved) {
+        tag = tag->resolved;
+    }
+    u16 numParams  = GetFuncTypeNumParams(tag->type);
+    u16 numResults = GetFuncTypeNumResults(tag->type);
 
 _   (PreserveRegisters(o));
 
@@ -3715,7 +3755,8 @@ _       (Read_u8(&kind, &o->wasm, o->wasmEnd));
 _       (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
         _throwif(m3Err_unknownTag, tagIndex >= o->module->numTags);
 
-        handlers[i].tag    = &o->module->tags[tagIndex];
+        IM3Tag tag         = &o->module->tags[tagIndex];
+        handlers[i].tag    = tag->resolved ? tag->resolved : tag;
         handlers[i].stubPC = NULL;
 
         if (kind == 0x00) {
@@ -3770,6 +3811,10 @@ _       (GetBlockScope(o, &scope, clauseLabelDepths[i]));
         IM3Tag tag        = handlers[i].tag;
         u16    numPayload = GetFuncTypeNumParams(tag->type);
 
+        m3type_t labelContType = (scope->opcode == c_waOp_loop)
+                                   ? GetFuncTypeParamType(scope->type, numPayload)
+                                   : GetFuncTypeResultType(scope->type, numPayload);
+
         IM3CodePage stubPage;
 _       (AcquireCompilationCodePage(o, &stubPage));
         pc_t startPC  = GetPagePC(stubPage);
@@ -3781,11 +3826,8 @@ _       (AcquireCompilationCodePage(o, &stubPage));
 _           (PushAllocatedSlot(o, GetFuncTypeParamType(tag->type, a)));
         }
 
-        // The handler is handed the suspended continuation. Its type is the
-        // resume's own: a tag with results would strictly call for a type whose
-        // parameters are those results, and that is not a type the module need
-        // have written down anywhere.
-_       (PushAllocatedSlot(o, RefTypeOfFuncType(contFuncType, true)));
+        // The handler is handed the suspended continuation.
+_       (PushAllocatedSlot(o, labelContType));
 
 _       (EnsureCodePageNumLines(o, 2 * numPayload + 4 + d_m3CodePageFreeLinesThreshold));
 _       (EmitOp(o, op_ResumePayload));
@@ -3799,7 +3841,7 @@ _       (EmitOp(o, op_ResumePayload));
 
         if (scope->opcode == c_waOp_loop) {
 _           (ResolveBlockResults(o, scope, true));
-_           (EmitOp(o, op_ContinueLoop));
+_           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
         } else if (scope->depth == 0) {
 _           (ReturnValues(o, scope, true));
@@ -3885,6 +3927,9 @@ _   (ReadLEB_u32(&tagIndex, &o->wasm, o->wasmEnd));
 
     IM3FuncType targetContType = o->module->funcTypes[typeIndex];
     IM3Tag      tag            = &o->module->tags[tagIndex];
+    if (tag->resolved) {
+        tag = tag->resolved;
+    }
 
     _throwif("type is not a continuation", not targetContType->isContinuation);
 
@@ -4904,6 +4949,9 @@ const M3OpInfo c_operations[] =
     d_m3DebugOp (Unsupported),      d_m3DebugOp (CallRawFunction),
 
     d_m3DebugOp (GetGlobal_s32),    d_m3DebugOp (GetGlobal_s64),    d_m3DebugOp (ContinueLoop),     d_m3DebugOp (ContinueLoopIf),
+# if d_m3HasStackSwitching
+    d_m3DebugOp (ContinueLoop_Suspendable), d_m3DebugOp (ContinueLoopIf_Suspendable),
+# endif
 
     d_m3DebugOp (CopySlot_32),      d_m3DebugOp (PreserveCopySlot_32), d_m3DebugOp (If_s),          d_m3DebugOp (BranchIfPrologue_s),
     d_m3DebugOp (CopySlot_64),      d_m3DebugOp (PreserveCopySlot_64), d_m3DebugOp (If_r),          d_m3DebugOp (BranchIfPrologue_r),
@@ -5785,3 +5833,40 @@ _   (CompileBlockStatements(o));
 
     return result;
 }
+
+#if d_m3HasStackSwitching
+m3ret_t ResumeContinuation (IM3Runtime i_runtime, IM3Continuation i_cont)
+{
+    if (M3_UNLIKELY(!i_cont || i_cont->state != cont_suspended)) {
+        return m3Err_none;
+    }
+
+    M3MemoryHeader* _mem = i_cont->entryFunction ? Module_MemoryHeader(i_cont->entryFunction->module) : NULL;
+
+    i_runtime->activeContinuation = i_cont;
+    i_cont->state                 = cont_running;
+
+    i32 outermost     = (i32)i_cont->numFrames - 1;
+    i_cont->numFrames = 0;
+
+#  if d_m3HasFloat
+    f64 fp0 = i_cont->fp0;
+#  endif
+
+    m3ret_t r;
+    if (outermost >= 0) {
+        r = ReplayFrames(i_cont, outermost, _mem);
+    } else {
+        r = d_m3CallWithRegs(i_cont->pc, i_cont->sp, _mem, i_cont->r0, fp0);
+    }
+
+    if (r == m3Err_continuationSuspended) {
+        i_cont->state = cont_suspended;
+    } else {
+        i_cont->state = cont_returned;
+    }
+    i_runtime->activeContinuation = NULL;
+
+    return r;
+}
+#endif

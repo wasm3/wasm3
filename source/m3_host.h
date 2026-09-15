@@ -44,6 +44,10 @@ d_m3BeginExternC
 // what keeps the difference.
 void* m3_HostStackBase (void);
 
+// Suspension interrupt handlers (Ctrl+Z / SIGTSTP / SIGINT / Console Ctrl)
+void  m3_HostInstallInterruptHandler (IM3Runtime io_runtime);
+void  m3_HostRemoveInterruptHandler (void);
+
 
 // A file's bytes and how they were come by.
 //

@@ -312,6 +312,12 @@ M3Result CompileFunction (IM3Function io_function);
 
 M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const void* i_function, const void* i_userdata);
 
+struct M3Continuation;
+
+#if d_m3HasStackSwitching
+m3ret_t ResumeContinuation (IM3Runtime i_runtime, struct M3Continuation* i_cont);
+#endif
+
 d_m3EndExternC
 
 #endif // m3_compile_h

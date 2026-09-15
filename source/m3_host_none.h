@@ -26,6 +26,15 @@ void* m3_HostStackBase (void)
     return NULL;
 }
 
+void m3_HostInstallInterruptHandler (IM3Runtime io_runtime)
+{
+    (void)io_runtime;
+}
+
+void m3_HostRemoveInterruptHandler (void)
+{
+}
+
 // No mmap here, so the module's bytes are read directly onto the heap
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 {

@@ -264,28 +264,28 @@ d_m3ErrorConst(continuationSuspended,          "[internal] continuation suspende
 //-------------------------------------------------------------------------------------------------------------------------------
 //  global environment than can host multiple runtimes
 //-------------------------------------------------------------------------------------------------------------------------------
-IM3Environment   m3_NewEnvironment (void);
+IM3Environment m3_NewEnvironment (void);
 
-void             m3_FreeEnvironment (IM3Environment i_environment);
+void           m3_FreeEnvironment (IM3Environment i_environment);
 
-void             m3_SetCustomSectionHandler (IM3Environment i_environment, M3SectionHandler i_handler);
+void           m3_SetCustomSectionHandler (IM3Environment i_environment, M3SectionHandler i_handler);
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  execution context
 //-------------------------------------------------------------------------------------------------------------------------------
 
-IM3Runtime       m3_NewRuntime (IM3Environment io_environment,
-                                uint32_t       i_stackSizeInBytes,
-                                void*          i_userdata);
+IM3Runtime     m3_NewRuntime (IM3Environment io_environment,
+                              uint32_t       i_stackSizeInBytes,
+                              void*          i_userdata);
 
-void             m3_FreeRuntime (IM3Runtime i_runtime);
+void           m3_FreeRuntime (IM3Runtime i_runtime);
 
 // The validator runs as a pre-pass of compiling a function body, so it
 // follows lazy compilation: a body is checked the first time it is compiled.
 // Turning it off means trusting the module - nothing then checks a body's
 // types before it runs. On by default (a no-op in a build without validation).
-void             m3_SetValidation (IM3Runtime i_runtime, bool i_enable);
+void           m3_SetValidation (IM3Runtime i_runtime, bool i_enable);
 
 // Gas metering. Arming a runtime with a gas budget makes the compiler
 // instrument the function bodies it compiles from then on: each straight-line
@@ -304,10 +304,10 @@ void             m3_SetValidation (IM3Runtime i_runtime, bool i_enable);
 // it is charged in full before the trap. A build with d_m3HasGasMetering=0
 // compiles the instrumentation out: m3_SetGasLimit does nothing there, and the
 // two getters answer 0.
-void             m3_SetGasLimit (IM3Runtime i_runtime, double i_gas);
+void           m3_SetGasLimit (IM3Runtime i_runtime, double i_gas);
 
-double           m3_GetGasLimit (IM3Runtime i_runtime);
-double           m3_GetGasUsed (IM3Runtime i_runtime);
+double         m3_GetGasLimit (IM3Runtime i_runtime);
+double         m3_GetGasUsed (IM3Runtime i_runtime);
 
 // A memory belongs to the module that declares it, so these take the module
 // rather than the runtime - a runtime can hold several modules, each with
@@ -316,27 +316,27 @@ double           m3_GetGasUsed (IM3Runtime i_runtime);
 //
 // Sizes are size_t, not uint32_t: a linear memory may be a full 4 GiB, which
 // is one byte too many to count in 32 bits.
-uint8_t*         m3_GetMemory (IM3Module i_module,
-                               size_t*   o_memorySizeInBytes,
-                               uint32_t  i_memoryIndex);
+uint8_t*       m3_GetMemory (IM3Module i_module,
+                             size_t*   o_memorySizeInBytes,
+                             uint32_t  i_memoryIndex);
 
-size_t           m3_GetMemorySize (IM3Module i_module,
-                                   uint32_t  i_memoryIndex);
+size_t         m3_GetMemorySize (IM3Module i_module,
+                                 uint32_t  i_memoryIndex);
 
 // Size of the memory a pointer addresses into - specifically the _mem a raw
 // function is handed, which is the memory of whichever module is calling,
 // and need not be any particular module's. Used by m3ApiCheckMem.
-size_t           m3_GetMemorySizeAt (const void* i_memory);
+size_t         m3_GetMemorySizeAt (const void* i_memory);
 
-void*            m3_GetUserData (IM3Runtime i_runtime);
+void*          m3_GetUserData (IM3Runtime i_runtime);
 
 // The index of the memory the module exports under i_name. A host module
 // whose ABI names the memory it addresses looks it up this way - WASI names
 // it "memory". Returns m3Err_unknownMemory when no memory is exported
 // under that name.
-M3Result         m3_FindExportedMemory (IM3Module         i_module,
-                                        const char* const i_name,
-                                        uint32_t*         o_memoryIndex);
+M3Result       m3_FindExportedMemory (IM3Module         i_module,
+                                      const char* const i_name,
+                                      uint32_t*         o_memoryIndex);
 
 // Pin which of the module's memories the host functions imported from
 // i_importModule address ("*" for every namespace, as in
@@ -344,9 +344,9 @@ M3Result         m3_FindExportedMemory (IM3Module         i_module,
 // so call it after linking them. Left alone, a host function addresses
 // memory 0 - what a bare i32 guest pointer means when nothing says
 // otherwise - so this is only needed by a host module that names a memory.
-M3Result         m3_BindImportMemory (IM3Module         io_module,
-                                      const char* const i_importModule,
-                                      uint32_t          i_memoryIndex);
+M3Result       m3_BindImportMemory (IM3Module         io_module,
+                                    const char* const i_importModule,
+                                    uint32_t          i_memoryIndex);
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -354,13 +354,13 @@ M3Result         m3_BindImportMemory (IM3Module         io_module,
 //-------------------------------------------------------------------------------------------------------------------------------
 
 // i_wasmBytes data must be persistent during the lifetime of the module
-M3Result         m3_ParseModule (IM3Environment       i_environment,
-                                 IM3Module*           o_module,
-                                 const uint8_t* const i_wasmBytes,
-                                 uint32_t             i_numWasmBytes);
+M3Result       m3_ParseModule (IM3Environment       i_environment,
+                               IM3Module*           o_module,
+                               const uint8_t* const i_wasmBytes,
+                               uint32_t             i_numWasmBytes);
 
 // Only a module that was never handed to m3_LoadModule needs to be freed.
-void             m3_FreeModule (IM3Module i_module);
+void           m3_FreeModule (IM3Module i_module);
 
 //  Transfers ownership of the module to the runtime - whether or not it
 //  succeeds. A failed instantiation can already have written this module's
@@ -368,98 +368,118 @@ void             m3_FreeModule (IM3Module i_module);
 //  it managed to do, so those entries stay callable; the module has to
 //  outlive the failure for them not to dangle. m3_FreeRuntime releases it.
 //  Do not call m3_FreeModule on a module after passing it here.
-M3Result         m3_LoadModule (IM3Runtime io_runtime, IM3Module io_module);
+M3Result       m3_LoadModule (IM3Runtime io_runtime, IM3Module io_module);
 
 // Optional, compiles all functions in the module
-M3Result         m3_CompileModule (IM3Module io_module);
+M3Result       m3_CompileModule (IM3Module io_module);
 
 // Calling m3_RunStart is optional
-M3Result         m3_RunStart (IM3Module i_module);
+M3Result       m3_RunStart (IM3Module i_module);
 
 // Arguments and return values are passed in and out through the stack pointer _sp.
 // Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
 // Return values should be written into _sp [0] to _sp [num_returns - 1]
-M3Result         m3_LinkRawFunction (IM3Module         io_module,
+M3Result       m3_LinkRawFunction (IM3Module         io_module,
+                                   const char* const i_moduleName,
+                                   const char* const i_functionName,
+                                   const char* const i_signature,
+                                   M3RawCall         i_function);
+
+M3Result       m3_LinkRawFunctionEx (IM3Module         io_module,
                                      const char* const i_moduleName,
                                      const char* const i_functionName,
                                      const char* const i_signature,
-                                     M3RawCall         i_function);
-
-M3Result         m3_LinkRawFunctionEx (IM3Module         io_module,
-                                       const char* const i_moduleName,
-                                       const char* const i_functionName,
-                                       const char* const i_signature,
-                                       M3RawCall         i_function,
-                                       const void*       i_userdata);
+                                     M3RawCall         i_function,
+                                     const void*       i_userdata);
 
 // supplies the value of an imported global, regardless of its mutability
-M3Result         m3_LinkGlobal (IM3Module            io_module,
-                                const char* const    i_moduleName,
-                                const char* const    i_globalName,
-                                const IM3TaggedValue i_value);
+M3Result       m3_LinkGlobal (IM3Module            io_module,
+                              const char* const    i_moduleName,
+                              const char* const    i_globalName,
+                              const IM3TaggedValue i_value);
 
-const char*      m3_GetModuleName (IM3Module i_module);
-void             m3_SetModuleName (IM3Module i_module, const char* name);
-IM3Runtime       m3_GetModuleRuntime (IM3Module i_module);
+const char*    m3_GetModuleName (IM3Module i_module);
+void           m3_SetModuleName (IM3Module i_module, const char* name);
+IM3Runtime     m3_GetModuleRuntime (IM3Module i_module);
 
 // The module registered under i_moduleName, or NULL. Most recently loaded
 // first, so a name registered twice names the newer module.
-IM3Module        m3_FindModule (IM3Runtime        i_runtime,
-                                const char* const i_moduleName);
+IM3Module      m3_FindModule (IM3Runtime        i_runtime,
+                              const char* const i_moduleName);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  globals
 //-------------------------------------------------------------------------------------------------------------------------------
-IM3Global        m3_FindGlobal (IM3Module         io_module,
-                                const char* const i_globalName);
+IM3Global      m3_FindGlobal (IM3Module         io_module,
+                              const char* const i_globalName);
 
-M3Result         m3_GetGlobal (IM3Global      i_global,
-                               IM3TaggedValue o_value);
+M3Result       m3_GetGlobal (IM3Global      i_global,
+                             IM3TaggedValue o_value);
 
-M3Result         m3_SetGlobal (IM3Global            i_global,
-                               const IM3TaggedValue i_value);
+M3Result       m3_SetGlobal (IM3Global            i_global,
+                             const IM3TaggedValue i_value);
 
-M3ValueType      m3_GetGlobalType (IM3Global i_global);
+M3ValueType    m3_GetGlobalType (IM3Global i_global);
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  functions
 //-------------------------------------------------------------------------------------------------------------------------------
-M3Result         m3_Yield (void);
+M3Result       m3_Yield (void);
 
 // o_function is valid during the lifetime of the originating runtime.
 // m3_FindFunction searches every module loaded into the runtime, most
 // recently loaded first; m3_FindFunctionIn searches just the one, which is
 // what naming a module's export means.
-M3Result         m3_FindFunction (IM3Function*      o_function,
-                                  IM3Runtime        i_runtime,
+M3Result       m3_FindFunction (IM3Function*      o_function,
+                                IM3Runtime        i_runtime,
+                                const char* const i_functionName);
+M3Result       m3_FindFunctionIn (IM3Function*      o_function,
+                                  IM3Module         i_module,
                                   const char* const i_functionName);
-M3Result         m3_FindFunctionIn (IM3Function*      o_function,
-                                    IM3Module         i_module,
-                                    const char* const i_functionName);
-M3Result         m3_GetTableFunction (IM3Function* o_function,
-                                      IM3Module    i_module,
-                                      uint32_t     i_index);
+M3Result       m3_GetTableFunction (IM3Function* o_function,
+                                    IM3Module    i_module,
+                                    uint32_t     i_index);
 
-uint32_t         m3_GetArgCount (IM3Function i_function);
-uint32_t         m3_GetRetCount (IM3Function i_function);
-M3ValueType      m3_GetArgType (IM3Function i_function, uint32_t i_index);
-M3ValueType      m3_GetRetType (IM3Function i_function, uint32_t i_index);
+uint32_t       m3_GetArgCount (IM3Function i_function);
+uint32_t       m3_GetRetCount (IM3Function i_function);
+M3ValueType    m3_GetArgType (IM3Function i_function, uint32_t i_index);
+M3ValueType    m3_GetRetType (IM3Function i_function, uint32_t i_index);
 
-M3Result         m3_CallV (IM3Function i_function, ...);
-M3Result         m3_CallVL (IM3Function i_function, va_list i_args);
-M3Result         m3_Call (IM3Function i_function, uint32_t i_argc, const void* i_argptrs[]);
-M3Result         m3_CallArgv (IM3Function i_function, uint32_t i_argc, const char* i_argv[]);
+M3Result       m3_CallV (IM3Function i_function, ...);
+M3Result       m3_CallVL (IM3Function i_function, va_list i_args);
+M3Result       m3_Call (IM3Function i_function, uint32_t i_argc, const void* i_argptrs[]);
+M3Result       m3_CallArgv (IM3Function i_function, uint32_t i_argc, const char* i_argv[]);
 
-M3Result         m3_GetResultsV (IM3Function i_function, ...);
-M3Result         m3_GetResultsVL (IM3Function i_function, va_list o_rets);
-M3Result         m3_GetResults (IM3Function i_function, uint32_t i_retc, const void* o_retptrs[]);
+M3Result       m3_GetResultsV (IM3Function i_function, ...);
+M3Result       m3_GetResultsVL (IM3Function i_function, va_list o_rets);
+M3Result       m3_GetResults (IM3Function i_function, uint32_t i_retc, const void* o_retptrs[]);
 
 
-void             m3_GetErrorInfo (IM3Runtime i_runtime, M3ErrorInfo* o_info);
-void             m3_ResetErrorInfo (IM3Runtime i_runtime);
+void           m3_GetErrorInfo (IM3Runtime i_runtime, M3ErrorInfo* o_info);
+void           m3_ResetErrorInfo (IM3Runtime i_runtime);
 
-const char*      m3_GetFunctionName (IM3Function i_function);
-IM3Module        m3_GetFunctionModule (IM3Function i_function);
+const char*    m3_GetFunctionName (IM3Function i_function);
+IM3Module      m3_GetFunctionModule (IM3Function i_function);
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//  snapshots & suspendable execution
+//-------------------------------------------------------------------------------------------------------------------------------
+
+typedef M3Result (*M3SnapshotWriter)(const void* i_data, size_t i_size, void* i_userdata);
+typedef M3Result (*M3SnapshotReader)(void* o_buffer, size_t i_size, void* i_userdata);
+
+void             m3_SetSuspendable (IM3Runtime io_runtime, bool i_suspendable);
+void             m3_RequestSuspend (IM3Runtime io_runtime);
+bool             m3_IsSuspended (IM3Runtime i_runtime);
+
+M3Result         m3_SaveSnapshot (IM3Runtime io_runtime, M3SnapshotWriter i_writer, void* i_userdata);
+M3Result         m3_LoadSnapshot (IM3Runtime io_runtime, IM3Module i_module, M3SnapshotReader i_reader, void* i_userdata);
+
+M3Result         m3_SaveSnapshotToBuffer (IM3Runtime io_runtime, void** o_bytes, size_t* o_size);
+M3Result         m3_LoadSnapshotFromBuffer (IM3Runtime io_runtime, IM3Module i_module, const void* i_bytes, size_t i_size);
+
+M3Result         m3_ResumeRuntime (IM3Runtime io_runtime);
+
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  debug info

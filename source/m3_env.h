@@ -202,10 +202,11 @@ typedef struct M3Global {
 // An exception / control tag, as the tag section declares it. Tags are compared by
 // identity, and this struct's address is that identity.
 typedef struct M3Tag {
-    M3ImportInfo import;
-    IM3FuncType  type;           // params are the payload; results are empty for EH, can be non-empty for stack switching
-    cstr_t       name;           // export name, if any
-    bool         imported;
+    M3ImportInfo  import;
+    IM3FuncType   type;           // params are the payload; results are empty for EH, can be non-empty for stack switching
+    cstr_t        name;           // export name, if any
+    struct M3Tag* resolved;
+    bool          imported;
 } M3Tag;
 
 typedef M3Tag* IM3Tag;
@@ -380,6 +381,7 @@ typedef struct M3Continuation {
 } M3Continuation, *IM3Continuation;
 
 IM3Continuation Continuation_New (IM3Runtime i_runtime, IM3FuncType i_type, IM3Function i_function);
+IM3Continuation Continuation_ForkSuspended (IM3Runtime i_runtime, IM3Continuation i_cont);
 void            Continuation_ReleaseAll (IM3Runtime io_runtime);
 
 // Appends one frame to the suspending continuation. Returns the marker the
@@ -555,6 +557,8 @@ typedef struct M3Runtime {
     u32            numStackSlots;
     void*          stackLimit;     // native C-stack low-water mark; Wasm calls trap past it (NULL = unset)
     IM3Function    lastCalled;     // last function that successfully executed
+    IM3Function    entered;        // entry point of the outermost call in flight, or of the last one, trapped or not
+    u32            callNesting;    // RunCodeChecked() recursion depth
 
     void*          userdata;
 
@@ -591,13 +595,20 @@ typedef struct M3Runtime {
     u32          tryDepth;           // number of try regions whose body is executing
     M3Exception* pendingException;   // the exception currently unwinding, if any
     M3Exception* exceptions;         // the ones it still holds
-    u32          exceptionNesting;   // RunCodeChecked() recursion depth
 #endif
+
+    // Set by the embedder and by the host's interrupt handler, so they are here
+    // whether or not the interpreter was built able to act on them. Only the
+    // suspendable operations read suspendRequested, and those exist only with
+    // stack switching, so without it m3_RequestSuspend is simply never answered.
+    bool          isSuspendable;
+    volatile bool suspendRequested;
 
 #if d_m3HasStackSwitching
     IM3Continuation activeContinuation;
     IM3Continuation suspendedContinuation;
     IM3Continuation continuations;
+    IM3Continuation rootContinuation;
 
     // The suspend on its way out, if there is one. Only ever one at a time -
     // it travels up the native stack and is answered before anything else can

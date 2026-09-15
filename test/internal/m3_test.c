@@ -478,6 +478,7 @@ static const u8 c_ssResumeThrowRefWasm[] = {
 
 #endif
 
+
 // How the inner call ended, for the case to check after the outer one returns
 static M3Result g_reenterResult;
 
@@ -1138,6 +1139,61 @@ int main (int argc, const char* argv[])
 #endif
     }
 
+    // 0x40 encodes the empty block type. It is not a value type, so it has to be
+    // refused everywhere a valtype is expected, while still working as a block type.
+    Test(parse.empty_block_type_is_not_a_valtype)
+    {
+        M3Result  result;
+        IM3Module module;
+
+        // (type (func (result 0x40)))
+        static const u8 c_resultWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x40
+        };
+
+        // (type (func (param 0x40)))
+        static const u8 c_paramWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x05, 0x01, 0x60, 0x01, 0x40, 0x00
+        };
+
+        // (global (mut 0x40) (i32.const 0))
+        static const u8 c_globalWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+            0x06, 0x06, 0x01, 0x40, 0x01, 0x41, 0x00, 0x0b
+        };
+
+        // (func (result i32) (block) (i32.const 42))  -- 0x40 as a block type
+        static const u8 c_blockWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f,
+            0x03, 0x02, 0x01, 0x00,
+            0x07, 0x08, 0x01, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x00, 0x00,
+            0x0a, 0x09, 0x01, 0x07, 0x00, 0x02, 0x40, 0x0b, 0x41, 0x2a, 0x0b
+        };
+
+        result = m3_ParseModule(env, &module, c_resultWasm, sizeof(c_resultWasm));  expect(result == m3Err_invalidTypeId)
+        result = m3_ParseModule(env, &module, c_paramWasm, sizeof(c_paramWasm));    expect(result == m3Err_invalidTypeId)
+        result = m3_ParseModule(env, &module, c_globalWasm, sizeof(c_globalWasm));  expect(result == m3Err_invalidTypeId)
+
+        // the block form still parses, compiles and runs
+        IM3Runtime runtime = m3_NewRuntime(env, 1024, NULL);
+        result             = m3_ParseModule(env, &module, c_blockWasm, sizeof(c_blockWasm));
+        expect(result == m3Err_none)
+        result = m3_LoadModule(runtime, module);                                    expect(result == m3Err_none)
+
+        IM3Function function = NULL;
+        result               = m3_FindFunction(&function, runtime, "main");         expect(result == m3Err_none)
+        if (function) {
+            result  = m3_CallV(function);                                           expect(result == m3Err_none)
+            i32 ret = 0;
+            m3_GetResultsV(function, &ret);                                         expect(ret == 42)
+        }
+        m3_FreeRuntime(runtime);
+    }
+
 #if d_m3HasStackSwitching
     // Runs "main" from a module and checks what came back. The stack-switching
     // cases differ only in the module bytes and the expected result.
@@ -1270,9 +1326,671 @@ int main (int argc, const char* argv[])
         expectStackSwitchResult(c_ssScheduler2Wasm, 123)
     }
 
+    Test(stack_switching.host_suspend_inside_a_resume)
+    {
+        // $body counts to 1000 in a loop and stores the count in $out; main
+        // resumes it under a handler for a tag nothing suspends with. A suspend
+        // the host asks for belongs to no handler, so it has to reach the host
+        // through that resume rather than stop at it.
+        static const u8 c_hostSuspendInResumeWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x06, 0x02, 0x60, 0x00, 0x00, 0x5d, 0x00,
+            0x03, 0x03, 0x02, 0x00, 0x00, 0x0d, 0x03, 0x01,
+            0x00, 0x00, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41,
+            0x00, 0x0b, 0x07, 0x0e, 0x02, 0x03, 0x6f, 0x75,
+            0x74, 0x03, 0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e,
+            0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01,
+            0x00, 0x0a, 0x33, 0x02, 0x1a, 0x01, 0x01, 0x7f,
+            0x03, 0x40, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x21,
+            0x00, 0x20, 0x00, 0x41, 0xe8, 0x07, 0x49, 0x0d,
+            0x00, 0x0b, 0x20, 0x00, 0x24, 0x00, 0x0b, 0x16,
+            0x00, 0x02, 0x63, 0x01, 0xd2, 0x00, 0xe0, 0x01,
+            0xe3, 0x01, 0x01, 0x00, 0x00, 0x00, 0x0f, 0x0b,
+            0x1a, 0x41, 0x7f, 0x24, 0x00, 0x0b
+        };
+
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(runtime != NULL);
+        m3_SetSuspendable(runtime, true);
+
+        IM3Module module = NULL;
+        M3Result  r      = m3_ParseModule(env, &module, c_hostSuspendInResumeWasm, sizeof(c_hostSuspendInResumeWasm));
+        expect(!r);
+        r = m3_LoadModule(runtime, module);
+        expect(!r);
+
+        IM3Function function = NULL;
+        r                    = m3_FindFunction(&function, runtime, "main");
+        expect(!r);
+
+        m3_RequestSuspend(runtime);
+
+        r = m3_CallV(function);
+        expect(r == m3Err_continuationSuspended);
+        expect(m3_IsSuspended(runtime));
+
+        r = m3_ResumeRuntime(runtime);
+        expect(!r);
+        expect(!m3_IsSuspended(runtime));
+
+        M3TaggedValue out;
+        r = m3_GetGlobal(m3_FindGlobal(module, "out"), &out);
+        expect(!r);
+        expect(out.value.i32 == 1000);
+
+        m3_FreeRuntime(runtime);
+    }
+
+    Test(stack_switching.host_call_while_suspended)
+    {
+        // run sums 1..1000 in two locals and stores the sum in $out; other
+        // overwrites four locals of its own and returns its argument plus one.
+        // Called while run is paused, other must not land on run's locals.
+        static const u8 c_callWhileSuspendedWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x09, 0x02, 0x60, 0x00, 0x00, 0x60, 0x01,
+            0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x01,
+            0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b,
+            0x07, 0x15, 0x03, 0x03, 0x6f, 0x75, 0x74, 0x03,
+            0x00, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x00, 0x05,
+            0x6f, 0x74, 0x68, 0x65, 0x72, 0x00, 0x01, 0x0a,
+            0x3d, 0x02, 0x21, 0x01, 0x02, 0x7f, 0x03, 0x40,
+            0x20, 0x00, 0x41, 0x01, 0x6a, 0x21, 0x00, 0x20,
+            0x01, 0x20, 0x00, 0x6a, 0x21, 0x01, 0x20, 0x00,
+            0x41, 0xe8, 0x07, 0x49, 0x0d, 0x00, 0x0b, 0x20,
+            0x01, 0x24, 0x00, 0x0b, 0x19, 0x01, 0x04, 0x7f,
+            0x41, 0x7f, 0x21, 0x01, 0x41, 0x7f, 0x21, 0x02,
+            0x41, 0x7f, 0x21, 0x03, 0x41, 0x7f, 0x21, 0x04,
+            0x20, 0x00, 0x41, 0x01, 0x6a, 0x0b
+        };
+
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(runtime != NULL);
+        m3_SetSuspendable(runtime, true);
+
+        IM3Module module = NULL;
+        M3Result  r      = m3_ParseModule(env, &module, c_callWhileSuspendedWasm, sizeof(c_callWhileSuspendedWasm));
+        expect(!r);
+        r = m3_LoadModule(runtime, module);
+        expect(!r);
+
+        IM3Function run   = NULL;
+        IM3Function other = NULL;
+        r                 = m3_FindFunction(&run, runtime, "run");
+        expect(!r);
+        r = m3_FindFunction(&other, runtime, "other");
+        expect(!r);
+
+        m3_RequestSuspend(runtime);
+
+        r = m3_CallV(run);
+        expect(r == m3Err_continuationSuspended);
+
+        r = m3_CallV(other, 41);
+        expect(!r);
+        i32 ret = 0;
+        r       = m3_GetResultsV(other, &ret);
+        expect(!r);
+        expect(ret == 42);
+        expect(m3_IsSuspended(runtime));
+
+        r = m3_ResumeRuntime(runtime);
+        expect(!r);
+
+        M3TaggedValue out;
+        r = m3_GetGlobal(m3_FindGlobal(module, "out"), &out);
+        expect(!r);
+        expect(out.value.i32 == 500500);
+
+        m3_FreeRuntime(runtime);
+    }
+
 #  undef expectStackSwitchResult
 #  undef expectStackSwitchTrap
 #endif
+
+#if d_m3HasSnapshots
+
+    // A frame far larger than the snapshot writer's old fixed window: 81 i64
+    // locals, with the last one holding a value that has to survive the round
+    // trip. Saving a fixed number of slots past sp brought this one back as zero.
+    static const u8 c_snapshotBigFrameWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02,
+        0x01, 0x00, 0x06, 0x06, 0x01, 0x7e, 0x01, 0x42,
+        0x00, 0x0b, 0x07, 0x0d, 0x02, 0x03, 0x72, 0x75,
+        0x6e, 0x00, 0x00, 0x03, 0x6f, 0x75, 0x74, 0x03,
+        0x00, 0x0a, 0x23, 0x01, 0x21, 0x02, 0x01, 0x7f,
+        0x51, 0x7e, 0x42, 0xee, 0xff, 0x83, 0x06, 0x21,
+        0x51, 0x41, 0x03, 0x21, 0x00, 0x03, 0x40, 0x20,
+        0x00, 0x41, 0x01, 0x6b, 0x22, 0x00, 0x0d, 0x00,
+        0x0b, 0x20, 0x51, 0x24, 0x00, 0x0b
+    };
+
+    static const u8 c_loopCounterWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x14, 0x03, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01, 0x67, 0x03, 0x00, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x00, 0x0a, 0x19, 0x01, 0x17, 0x00, 0x03, 0x40, 0x23, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x23, 0x00, 0x41, 0xa0, 0x8d, 0x06, 0x48, 0x0d, 0x00, 0x0b, 0x23, 0x00, 0x0b
+    };
+
+    static const u8 c_nestedCallWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x14, 0x03, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01, 0x67, 0x03, 0x00, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01, 0x0a, 0x1e, 0x02, 0x17, 0x00, 0x03, 0x40, 0x23, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x23, 0x00, 0x41, 0xa0, 0x8d, 0x06, 0x48, 0x0d, 0x00, 0x0b, 0x23, 0x00, 0x0b, 0x04, 0x00, 0x10, 0x00, 0x0b
+    };
+
+    Test(snapshot.postmortem_without_suspension)
+    {
+        // run sets $g to 9 and traps, in a runtime that was never made
+        // suspendable and so has no root continuation to describe the call
+        static const u8 c_trapWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02,
+            0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06,
+            0x06, 0x01, 0x7f, 0x01, 0x41, 0x07, 0x0b, 0x07,
+            0x0b, 0x02, 0x01, 0x67, 0x03, 0x00, 0x03, 0x72,
+            0x75, 0x6e, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07,
+            0x00, 0x41, 0x09, 0x24, 0x00, 0x00, 0x0b, 0x0b,
+            0x07, 0x01, 0x00, 0x41, 0x10, 0x0b, 0x01, 0x2a
+        };
+
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(runtime != NULL);
+
+        IM3Module module = NULL;
+        M3Result  r      = m3_ParseModule(env, &module, c_trapWasm, sizeof(c_trapWasm));
+        expect(!r);
+        r = m3_LoadModule(runtime, module);
+        expect(!r);
+
+        IM3Function run = NULL;
+        r               = m3_FindFunction(&run, runtime, "run");
+        expect(!r);
+
+        r = m3_CallV(run);
+        expect(r == m3Err_trapUnreachable);
+
+        void*  bytes = NULL;
+        size_t size  = 0;
+        r            = m3_SaveSnapshotToBuffer(runtime, &bytes, &size);
+        expect(!r);
+        expect(bytes != NULL && size >= 8);
+        if (bytes && size >= 8) {
+            u32 flags = 0;
+            memcpy(&flags, (u8*)bytes + 4, sizeof(flags));
+            expect(memcmp(bytes, "W3S\x01", 4) == 0);
+            expect(flags == 1);
+        }
+
+        r = m3_LoadSnapshotFromBuffer(runtime, module, bytes, size);
+        expect(r && !strcmp(r, "postmortem snapshots cannot be resumed"));
+
+        free(bytes);
+        m3_FreeRuntime(runtime);
+    }
+
+    Test(snapshot.restore_does_not_rerun_start)
+    {
+        // the start function adds one to $n; run loops, and get returns $n
+        static const u8 c_startWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x08, 0x02, 0x60, 0x00, 0x00, 0x60, 0x00,
+            0x01, 0x7f, 0x03, 0x04, 0x03, 0x00, 0x00, 0x01,
+            0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b,
+            0x07, 0x11, 0x03, 0x01, 0x6e, 0x03, 0x00, 0x03,
+            0x72, 0x75, 0x6e, 0x00, 0x01, 0x03, 0x67, 0x65,
+            0x74, 0x00, 0x02, 0x08, 0x01, 0x00, 0x0a, 0x27,
+            0x03, 0x09, 0x00, 0x23, 0x00, 0x41, 0x01, 0x6a,
+            0x24, 0x00, 0x0b, 0x16, 0x01, 0x01, 0x7f, 0x03,
+            0x40, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x21, 0x00,
+            0x20, 0x00, 0x41, 0xe8, 0x07, 0x49, 0x0d, 0x00,
+            0x0b, 0x0b, 0x04, 0x00, 0x23, 0x00, 0x0b
+        };
+
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_startWasm, sizeof(c_startWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function run = NULL;
+        r               = m3_FindFunction(&run, rt1, "run");
+        expect(!r);
+
+        // the call runs the start function first, so $n is 1 when it pauses
+        m3_RequestSuspend(rt1);
+        r = m3_CallV(run);
+        expect(r == m3Err_continuationSuspended);
+
+        void*  snapBytes = NULL;
+        size_t snapSize  = 0;
+        r                = m3_SaveSnapshotToBuffer(rt1, &snapBytes, &snapSize);
+        expect(!r);
+        m3_FreeRuntime(rt1);
+
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_startWasm, sizeof(c_startWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, snapBytes, snapSize);
+        expect(!r);
+        free(snapBytes);
+
+        r = m3_ResumeRuntime(rt2);
+        expect(!r);
+
+        IM3Function get = NULL;
+        r               = m3_FindFunction(&get, rt2, "get");
+        expect(!r);
+        r = m3_CallV(get);
+        expect(!r);
+        i32 n = 0;
+        m3_GetResultsV(get, &n);
+        expect(n == 1);
+
+        m3_FreeRuntime(rt2);
+    }
+
+    Test(snapshot.suspended_start_is_finished_by_resume)
+    {
+        // the start function loops before adding one to $n; get returns $n
+        static const u8 c_startLoopWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x08, 0x02, 0x60, 0x00, 0x00, 0x60, 0x00,
+            0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x01, 0x06,
+            0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07,
+            0x0b, 0x02, 0x01, 0x6e, 0x03, 0x00, 0x03, 0x67,
+            0x65, 0x74, 0x00, 0x01, 0x08, 0x01, 0x00, 0x0a,
+            0x24, 0x02, 0x1d, 0x01, 0x01, 0x7f, 0x03, 0x40,
+            0x20, 0x00, 0x41, 0x01, 0x6a, 0x21, 0x00, 0x20,
+            0x00, 0x41, 0xe8, 0x07, 0x49, 0x0d, 0x00, 0x0b,
+            0x23, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x0b,
+            0x04, 0x00, 0x23, 0x00, 0x0b
+        };
+
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(runtime != NULL);
+        m3_SetSuspendable(runtime, true);
+
+        IM3Module module = NULL;
+        M3Result  r      = m3_ParseModule(env, &module, c_startLoopWasm, sizeof(c_startLoopWasm));
+        expect(!r);
+        r = m3_LoadModule(runtime, module);
+        expect(!r);
+
+        m3_RequestSuspend(runtime);
+        r = m3_RunStart(module);
+        expect(r == m3Err_continuationSuspended);
+
+        r = m3_ResumeRuntime(runtime);
+        expect(!r);
+
+        IM3Function get = NULL;
+        r               = m3_FindFunction(&get, runtime, "get");
+        expect(!r);
+        r = m3_CallV(get);
+        expect(!r);
+        i32 n = 0;
+        m3_GetResultsV(get, &n);
+        expect(n == 1);
+
+        m3_FreeRuntime(runtime);
+    }
+
+    Test(snapshot.frame_larger_than_the_save_window)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_snapshotBigFrameWasm, sizeof(c_snapshotBigFrameWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function func1 = NULL;
+        r                 = m3_FindFunction(&func1, rt1, "run");
+        expect(!r);
+
+        m3_RequestSuspend(rt1);
+
+        r = m3_Call(func1, 0, NULL);
+        expect(r == m3Err_continuationSuspended);
+        expect(m3_IsSuspended(rt1));
+
+        void*  snapBytes = NULL;
+        size_t snapSize  = 0;
+        r                = m3_SaveSnapshotToBuffer(rt1, &snapBytes, &snapSize);
+        expect(!r);
+        expect(snapBytes != NULL && snapSize > 0);
+        expect(snapSize >= 4);
+        expect(memcmp(snapBytes, "W3S\x01", 4) == 0);
+
+        m3_FreeRuntime(rt1);
+
+        // a fresh runtime, so the only way the locals get back is the snapshot
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_snapshotBigFrameWasm, sizeof(c_snapshotBigFrameWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, snapBytes, snapSize);
+        expect(!r);
+
+        r = m3_ResumeRuntime(rt2);
+        expect(!r);
+
+        IM3Global g = m3_FindGlobal(mod2, "out");
+        expect(g != NULL);
+
+        M3TaggedValue gv;
+        r = m3_GetGlobal(g, &gv);
+        expect(!r);
+        expect(gv.value.i64 == 0xC0FFEE);
+
+        void*  postmortemBytes = NULL;
+        size_t postmortemSize  = 0;
+        r                      = m3_SaveSnapshotToBuffer(rt2, &postmortemBytes, &postmortemSize);
+        expect(!r);
+        expect(postmortemBytes != NULL && postmortemSize > 0);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, postmortemBytes, postmortemSize);
+        expect(r && !strcmp(r, "postmortem snapshots cannot be resumed"));
+
+        free(snapBytes);
+        free(postmortemBytes);
+        m3_FreeRuntime(rt2);
+    }
+
+    Test(snapshot.suspend_and_resume_loop)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function func1 = NULL;
+        r                 = m3_FindFunction(&func1, rt1, "run");
+        expect(!r);
+
+        // Arm suspension request before running
+        m3_RequestSuspend(rt1);
+
+        r = m3_Call(func1, 0, NULL);
+        expect(r == m3Err_continuationSuspended);
+        expect(m3_IsSuspended(rt1));
+
+        // Save snapshot to buffer
+        void*  snapBytes = NULL;
+        size_t snapSize  = 0;
+        r                = m3_SaveSnapshotToBuffer(rt1, &snapBytes, &snapSize);
+        expect(!r);
+        expect(snapBytes != NULL && snapSize > 0);
+
+        m3_FreeRuntime(rt1);
+
+        // Restore snapshot into a brand new runtime
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, snapBytes, snapSize);
+        expect(!r);
+        expect(m3_IsSuspended(rt2));
+
+        free(snapBytes);
+
+        // Resume execution to completion
+        r = m3_ResumeRuntime(rt2);
+        expect(!r);
+        expect(!m3_IsSuspended(rt2));
+
+        // Verify global value reached 100000
+        IM3Global g = m3_FindGlobal(mod2, "g");
+        expect(g != NULL);
+        M3TaggedValue tv;
+        r = m3_GetGlobal(g, &tv);
+        expect(!r);
+        expect(tv.type == c_m3Type_i32 && tv.value.i32 == 100000);
+
+        m3_FreeRuntime(rt2);
+    }
+
+#  if d_m3HasGasMetering
+    Test(snapshot.gas_out_suspend_and_resume)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetGasLimit(rt1, 100);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function func1 = NULL;
+        r                 = m3_FindFunction(&func1, rt1, "run");
+        expect(!r);
+
+        // Run until out of gas
+        r = m3_Call(func1, 0, NULL);
+        expect(r == m3Err_continuationSuspended);
+        expect(m3_IsSuspended(rt1));
+
+        // Verify partial progress was made
+        IM3Global g1 = m3_FindGlobal(mod1, "g");
+        expect(g1 != NULL);
+        M3TaggedValue tv1;
+        r = m3_GetGlobal(g1, &tv1);
+        expect(!r);
+        expect(tv1.type == c_m3Type_i32 && tv1.value.i32 > 0 && tv1.value.i32 < 100000);
+
+        // Save snapshot to buffer
+        void*  snapBytes = NULL;
+        size_t snapSize  = 0;
+        r                = m3_SaveSnapshotToBuffer(rt1, &snapBytes, &snapSize);
+        expect(!r);
+        expect(snapBytes != NULL && snapSize > 0);
+
+        m3_FreeRuntime(rt1);
+
+        // Restore snapshot into fresh runtime with replenished gas
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+        m3_SetGasLimit(rt2, 10000000);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, snapBytes, snapSize);
+        expect(!r);
+        expect(m3_IsSuspended(rt2));
+
+        free(snapBytes);
+
+        // Resume to completion
+        r = m3_ResumeRuntime(rt2);
+        expect(!r);
+        expect(!m3_IsSuspended(rt2));
+
+        IM3Global g2 = m3_FindGlobal(mod2, "g");
+        expect(g2 != NULL);
+        M3TaggedValue tv2;
+        r = m3_GetGlobal(g2, &tv2);
+        expect(!r);
+        expect(tv2.type == c_m3Type_i32 && tv2.value.i32 == 100000);
+
+        m3_FreeRuntime(rt2);
+    }
+#  endif
+
+    Test(snapshot.nested_call_suspend)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_nestedCallWasm, sizeof(c_nestedCallWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function func1 = NULL;
+        r                 = m3_FindFunction(&func1, rt1, "run");
+        expect(!r);
+
+        m3_RequestSuspend(rt1);
+
+        r = m3_Call(func1, 0, NULL);
+        expect(r == m3Err_continuationSuspended);
+        expect(m3_IsSuspended(rt1));
+
+        void*  snapBytes = NULL;
+        size_t snapSize  = 0;
+        r                = m3_SaveSnapshotToBuffer(rt1, &snapBytes, &snapSize);
+        expect(!r);
+        expect(snapBytes != NULL && snapSize > 0);
+
+        m3_FreeRuntime(rt1);
+
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_nestedCallWasm, sizeof(c_nestedCallWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, snapBytes, snapSize);
+        expect(!r);
+        expect(m3_IsSuspended(rt2));
+
+        free(snapBytes);
+
+        r = m3_ResumeRuntime(rt2);
+        expect(!r);
+
+        IM3Global g = m3_FindGlobal(mod2, "g");
+        expect(g != NULL);
+        M3TaggedValue tv;
+        r = m3_GetGlobal(g, &tv);
+        expect(!r);
+        expect(tv.type == c_m3Type_i32 && tv.value.i32 == 100000);
+
+        m3_FreeRuntime(rt2);
+    }
+
+    Test(snapshot.sparse_compression)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        // Populate linear memory with sparse data
+        size_t memSize = 0;
+        u8*    mem     = m3_GetMemory(mod1, &memSize, 0);
+        expect(mem != NULL && memSize >= 65536);
+
+        // Write patterns
+        memset(mem + 500, 0xFF, 256);  // run of 0xFF >= 128 -> should be compressed with CHUNK_FILL_FF
+        memset(mem + 1000, 0x42, 64);  // raw chunk
+        memset(mem + 2000, 0x99, 10);  // small raw chunk
+
+        IM3Function func1 = NULL;
+        r                 = m3_FindFunction(&func1, rt1, "run");
+        expect(!r);
+
+        m3_RequestSuspend(rt1);
+        r = m3_Call(func1, 0, NULL);
+        expect(r == m3Err_continuationSuspended);
+
+        void*  snapBytes = NULL;
+        size_t snapSize  = 0;
+        r                = m3_SaveSnapshotToBuffer(rt1, &snapBytes, &snapSize);
+        expect(!r);
+        expect(snapBytes != NULL);
+
+        // Sparse compression verification: 64KB memory with only ~74 active bytes
+        // should be tightly compressed to less than 1500 bytes!
+        expect(snapSize < 1500);
+
+        m3_FreeRuntime(rt1);
+
+        // Restore into fresh runtime
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, snapBytes, snapSize);
+        expect(!r);
+
+        free(snapBytes);
+
+        // Verify restored linear memory
+        size_t memSize2 = 0;
+        u8*    mem2     = m3_GetMemory(mod2, &memSize2, 0);
+        expect(mem2 != NULL && memSize2 == memSize);
+
+        // Verify zeros before 500
+        for (u32 i = 0; i < 500; ++i) {
+            expect(mem2[i] == 0x00);
+        }
+        // Verify 0xFF fill
+        for (u32 i = 500; i < 756; ++i) {
+            expect(mem2[i] == 0xFF);
+        }
+        // Verify 0x42 data
+        for (u32 i = 1000; i < 1064; ++i) {
+            expect(mem2[i] == 0x42);
+        }
+        // Verify 0x99 data
+        for (u32 i = 2000; i < 2010; ++i) {
+            expect(mem2[i] == 0x99);
+        }
+
+        m3_FreeRuntime(rt2);
+    }
+
+#endif // d_m3HasSnapshots
+
 
     m3_FreeEnvironment(env);
 

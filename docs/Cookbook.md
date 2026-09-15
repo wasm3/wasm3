@@ -501,6 +501,10 @@ Instruction costs come from the table
 is written against, whose unit is a ten-thousandth of a gas - hence the four
 decimal places.
 
+# Suspendable execution and snapshots
+
+See [Snapshots](./Snapshots.md)
+
 # Deterministic execution
 
 `d_m3DeterministicProfile` builds an interpreter on which the same module, fed the

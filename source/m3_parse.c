@@ -84,6 +84,10 @@ _       (ParseHeapType(i_module, &heapBits, io_bytes, i_end));
 _   (ReadLEB_i7(&wasmType, io_bytes, i_end));
 _   (NormalizeType(&plainType, wasmType));
 
+    // 0x40 is the empty block type, not a value type. NormalizeType has to
+    // accept it for the block forms, so every valtype position turns it away here.
+    _throwif(m3Err_invalidTypeId, plainType == c_m3Type_none);
+
     *o_type = plainType;
 
     _catch: return result;
