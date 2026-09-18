@@ -479,6 +479,140 @@ static const u8 c_ssResumeThrowRefWasm[] = {
 #endif
 
 
+#if d_m3HasSnapshots && d_m3HasGasMetering
+
+// A runtime of its own, in an environment of its own: a program carried across
+// thousands of these would otherwise fill one environment's type table
+typedef struct RoundTripLeg {
+    IM3Environment env;
+    IM3Runtime     runtime;
+} RoundTripLeg;
+
+static
+void EndRoundTripLeg (RoundTripLeg* io_leg)
+{
+    if (io_leg->runtime) {
+        m3_FreeRuntime(io_leg->runtime);
+    }
+    if (io_leg->env) {
+        m3_FreeEnvironment(io_leg->env);
+    }
+
+    io_leg->runtime = NULL;
+    io_leg->env     = NULL;
+}
+
+// Runs "main" to its end in as many runtimes as it takes: whenever the gas runs
+// out, the program is saved, its runtime is thrown away, and a new one takes
+// over from the snapshot with a fresh budget. The result can only come out
+// right if every one of those stops came back whole.
+//
+// Each runtime is kept until the next one has run, so nothing the new one
+// allocates can land where a pointer the snapshot failed to translate would
+// still happen to work.
+//
+// The budget starts at a single segment's worth of the cheapest instructions,
+// so the program stops at nearly every metering point it has. A budget too
+// small for the segment in front of it stops where it started, having used
+// none of it, and is doubled until it is enough.
+static
+M3Result RunInRoundTrips (const u8* i_wasm, u32 i_size, i32* o_result, u32* o_numStops)
+{
+    M3Result     result    = m3Err_none;
+    RoundTripLeg leg       = { NULL, NULL };
+    RoundTripLeg retired   = { NULL, NULL };
+    IM3Function  function  = NULL;
+    void*        saved     = NULL;
+    size_t       savedSize = 0;
+    double       minBudget = 0.00015;     // one gas unit, clear of rounding down to none
+    double       budget    = minBudget;
+
+    *o_numStops = 0;
+
+    for (;;) {
+        IM3Module module = NULL;
+
+        leg.env     = m3_NewEnvironment();
+        leg.runtime = leg.env ? m3_NewRuntime(leg.env, 64 * 1024, NULL) : NULL;
+        if (not leg.runtime) {
+            result = m3Err_mallocFailed;
+            break;
+        }
+
+        // both before anything compiles
+        m3_SetSuspendable(leg.runtime, true);
+        m3_SetGasLimit(leg.runtime, budget);
+
+        result = m3_ParseModule(leg.env, &module, i_wasm, i_size);
+        if (result) {
+            break;
+        }
+        result = m3_LoadModule(leg.runtime, module);
+        if (result) {
+            break;
+        }
+        result = m3_FindFunction(&function, leg.runtime, "main");
+        if (result) {
+            break;
+        }
+
+        if (saved) {
+            result = m3_LoadSnapshotFromBuffer(leg.runtime, module, saved, savedSize);
+            if (result) {
+                break;
+            }
+            result = m3_ResumeRuntime(leg.runtime);
+        } else {
+            result = m3_CallV(function);
+        }
+
+        EndRoundTripLeg(&retired);
+
+        if (result != m3Err_continuationSuspended) {
+            break;
+        }
+
+        bool progressed = m3_GetGasUsed(leg.runtime) > 0;
+
+        free(saved);
+        saved  = NULL;
+        result = m3_SaveSnapshotToBuffer(leg.runtime, &saved, &savedSize);
+        if (result) {
+            break;
+        }
+
+        if (progressed) {
+            budget = minBudget;
+            ++*o_numStops;
+        } else {
+            budget *= 2;
+        }
+
+        retired     = leg;
+        leg.env     = NULL;
+        leg.runtime = NULL;
+
+        if (*o_numStops > 100000 or budget > 1e9) {
+            result = "the program stopped making progress";
+            break;
+        }
+    }
+
+    if (not result) {
+        *o_result = 0;
+        result    = m3_GetResultsV(function, o_result);
+    }
+
+    free(saved);
+
+    EndRoundTripLeg(&retired);
+    EndRoundTripLeg(&leg);
+
+    return result;
+}
+
+#endif
+
 // How the inner call ended, for the case to check after the outer one returns
 static M3Result g_reenterResult;
 
@@ -1986,6 +2120,284 @@ int main (int argc, const char* argv[])
             expect(mem2[i] == 0x99);
         }
 
+        m3_FreeRuntime(rt2);
+    }
+
+    // funcrefs in a local, a table and a global, carried across a loop:
+    // 0 + 1 + ... + 19, then 7 and 11 called through the table
+    static const u8 c_snapshotFuncrefsWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03,
+        0x04, 0x03, 0x00, 0x00, 0x00, 0x04, 0x04, 0x01,
+        0x70, 0x00, 0x01, 0x06, 0x06, 0x01, 0x70, 0x01,
+        0xd0, 0x70, 0x0b, 0x07, 0x08, 0x01, 0x04, 0x6d,
+        0x61, 0x69, 0x6e, 0x00, 0x02, 0x09, 0x06, 0x01,
+        0x03, 0x00, 0x02, 0x00, 0x01, 0x0a, 0x50, 0x03,
+        0x04, 0x00, 0x41, 0x07, 0x0b, 0x04, 0x00, 0x41,
+        0x0b, 0x0b, 0x44, 0x02, 0x01, 0x70, 0x02, 0x7f,
+        0xd2, 0x00, 0x21, 0x00, 0xd2, 0x01, 0x24, 0x00,
+        0x03, 0x40, 0x20, 0x02, 0x20, 0x01, 0x6a, 0x21,
+        0x02, 0x20, 0x01, 0x41, 0x01, 0x6a, 0x21, 0x01,
+        0x20, 0x01, 0x41, 0x14, 0x49, 0x0d, 0x00, 0x0b,
+        0x41, 0x00, 0x20, 0x00, 0x26, 0x00, 0x20, 0x02,
+        0x41, 0x00, 0x11, 0x00, 0x00, 0x6a, 0x21, 0x02,
+        0x41, 0x00, 0x23, 0x00, 0x26, 0x00, 0x20, 0x02,
+        0x41, 0x00, 0x11, 0x00, 0x00, 0x6a, 0x0b
+    };
+
+    // a funcref carried round a loop as its parameter, which every back edge
+    // writes into the loop's own landing pad: 0 + 1 + ... + 29, and 1 more
+    // called through it
+    static const u8 c_snapshotLoopParamWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x0a, 0x02, 0x60, 0x00, 0x01, 0x7f, 0x60,
+        0x01, 0x70, 0x01, 0x70, 0x03, 0x03, 0x02, 0x00,
+        0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07,
+        0x08, 0x01, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x00,
+        0x01, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00,
+        0x0a, 0x37, 0x02, 0x04, 0x00, 0x41, 0x01, 0x0b,
+        0x30, 0x02, 0x02, 0x7f, 0x01, 0x70, 0xd2, 0x00,
+        0x03, 0x01, 0x20, 0x01, 0x20, 0x00, 0x6a, 0x21,
+        0x01, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x21, 0x00,
+        0x20, 0x00, 0x41, 0x1e, 0x49, 0x0d, 0x00, 0x0b,
+        0x21, 0x02, 0x41, 0x00, 0x20, 0x02, 0x26, 0x00,
+        0x20, 0x01, 0x41, 0x00, 0x11, 0x00, 0x00, 0x6a,
+        0x0b
+    };
+
+#  if d_m3HasExceptionHandling
+    // an exnref caught into a local, carried across a loop of 10 and thrown
+    // again: its payload of 40, plus the loop count
+    static const u8 c_snapshotExnrefWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x0e, 0x03, 0x60, 0x01, 0x7f, 0x00, 0x60,
+        0x00, 0x01, 0x7f, 0x60, 0x00, 0x02, 0x7f, 0x69,
+        0x03, 0x02, 0x01, 0x01, 0x0d, 0x03, 0x01, 0x00,
+        0x00, 0x07, 0x08, 0x01, 0x04, 0x6d, 0x61, 0x69,
+        0x6e, 0x00, 0x00, 0x0a, 0x40, 0x01, 0x3e, 0x02,
+        0x01, 0x69, 0x02, 0x7f, 0x02, 0x02, 0x1f, 0x40,
+        0x01, 0x01, 0x00, 0x00, 0x41, 0x28, 0x08, 0x00,
+        0x0b, 0x00, 0x0b, 0x21, 0x00, 0x1a, 0x03, 0x40,
+        0x20, 0x01, 0x41, 0x01, 0x6a, 0x21, 0x01, 0x20,
+        0x01, 0x41, 0x0a, 0x49, 0x0d, 0x00, 0x0b, 0x02,
+        0x7f, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x20,
+        0x00, 0x0a, 0x0b, 0x00, 0x0b, 0x21, 0x02, 0x20,
+        0x02, 0x20, 0x01, 0x6a, 0x0b
+    };
+#  endif
+
+#  if d_m3HasGasMetering
+    // Every program here, stopped at every gas charge it reaches and carried
+    // to a new runtime each time. The stack switching ones stop inside the
+    // continuations they run, so the stops take whole chains of them along.
+    Test(snapshot.round_trip_at_every_gas_stop)
+    {
+        static const struct {
+            const char* name;
+            const u8*   wasm;
+            u32         size;
+            i32         expected;
+        } c_programs[] = {
+            { "funcrefs",             c_snapshotFuncrefsWasm,     sizeof(c_snapshotFuncrefsWasm),     208    },
+            { "loop_param",           c_snapshotLoopParamWasm,    sizeof(c_snapshotLoopParamWasm),    436    },
+#    if d_m3HasExceptionHandling
+            { "exnref",               c_snapshotExnrefWasm,       sizeof(c_snapshotExnrefWasm),       50     },
+            { "suspend_in_try",       c_ssSuspendInTryWasm,       sizeof(c_ssSuspendInTryWasm),       7      },
+            { "resume_throw",         c_ssResumeThrowWasm,        sizeof(c_ssResumeThrowWasm),        107    },
+            { "resume_throw_caught",  c_ssResumeThrowCaughtWasm,  sizeof(c_ssResumeThrowCaughtWasm),  57     },
+            { "resume_throw_fresh",   c_ssResumeThrowFreshWasm,   sizeof(c_ssResumeThrowFreshWasm),   9      },
+            { "resume_throw_ref",     c_ssResumeThrowRefWasm,     sizeof(c_ssResumeThrowRefWasm),     57     },
+#    endif
+            { "basic",                c_ssBasicWasm,              sizeof(c_ssBasicWasm),              42     },
+            { "bind",                 c_ssBindWasm,               sizeof(c_ssBindWasm),               42     },
+            { "nested_loops",         c_ssNestedLoopsWasm,        sizeof(c_ssNestedLoopsWasm),        12     },
+            { "call_in_loop",         c_ssCallInLoopWasm,         sizeof(c_ssCallInLoopWasm),         6      },
+            { "loop_call_loop",       c_ssLoopCallLoopWasm,       sizeof(c_ssLoopCallLoopWasm),       12     },
+            { "grow_in_continuation", c_ssGrowInContinuationWasm, sizeof(c_ssGrowInContinuationWasm), 13     },
+            { "switch",               c_ssSwitchWasm,             sizeof(c_ssSwitchWasm),             1234   },
+            { "nested_prompt",        c_ssNestedPromptWasm,       sizeof(c_ssNestedPromptWasm),       1745   },
+            { "nested_prompt2",       c_ssNestedPrompt2Wasm,      sizeof(c_ssNestedPrompt2Wasm),      127465 },
+            { "scheduler2",           c_ssScheduler2Wasm,         sizeof(c_ssScheduler2Wasm),         123    },
+        };
+
+        u32 totalStops = 0;
+
+        for (u32 i = 0; i < sizeof(c_programs) / sizeof(c_programs[0]); ++i) {
+            i32      value    = 0;
+            u32      numStops = 0;
+            M3Result r        = RunInRoundTrips(c_programs[i].wasm, c_programs[i].size, &value, &numStops);
+
+            if (r or value != c_programs[i].expected) {
+                printf("  %s: %s, result %d, %u stops\n", c_programs[i].name, r ? r : "ok", value, numStops);
+            }
+
+            expect(!r);
+            expect(value == c_programs[i].expected);
+
+            totalStops += numStops;
+        }
+
+        // a program without a branch is one segment, and has nowhere to stop
+        // part way; together they have plenty
+        expect(totalStops > 100);
+    }
+#  endif
+
+    // Stopped on the back edge itself, where the loop's parameter has just been
+    // written into its landing pad and nothing else holds it
+    Test(snapshot.loop_param_across_back_edge)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_snapshotLoopParamWasm, sizeof(c_snapshotLoopParamWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function main1 = NULL;
+        r                 = m3_FindFunction(&main1, rt1, "main");
+        expect(!r);
+
+        m3_RequestSuspend(rt1);
+        r = m3_CallV(main1);
+        expect(r == m3Err_continuationSuspended);
+
+        void*  bytes = NULL;
+        size_t size  = 0;
+        r            = m3_SaveSnapshotToBuffer(rt1, &bytes, &size);
+        expect(!r);
+
+        // kept until the end, so the restore cannot land on its addresses
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_snapshotLoopParamWasm, sizeof(c_snapshotLoopParamWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, bytes, size);
+        expect(!r);
+        free(bytes);
+
+        r = m3_ResumeRuntime(rt2);
+        expect(!r);
+
+        IM3Function main2 = NULL;
+        r                 = m3_FindFunction(&main2, rt2, "main");
+        expect(!r);
+
+        i32 value = 0;
+        r         = m3_GetResultsV(main2, &value);
+        expect(!r);
+        expect(value == 436);
+
+        m3_FreeRuntime(rt2);
+        m3_FreeRuntime(rt1);
+    }
+
+    // An externref is the host's to name, and a snapshot has no way to: one
+    // that is not null refuses the save, where a null one does not
+    Test(snapshot.externref_is_refused)
+    {
+        static const u8 c_externWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03,
+            0x02, 0x01, 0x00, 0x06, 0x06, 0x01, 0x6f, 0x01,
+            0xd0, 0x6f, 0x0b, 0x07, 0x0f, 0x02, 0x04, 0x68,
+            0x6f, 0x73, 0x74, 0x03, 0x00, 0x04, 0x6d, 0x61,
+            0x69, 0x6e, 0x00, 0x00, 0x0a, 0x1a, 0x01, 0x18,
+            0x01, 0x01, 0x7f, 0x03, 0x40, 0x20, 0x00, 0x41,
+            0x01, 0x6a, 0x21, 0x00, 0x20, 0x00, 0x41, 0xe8,
+            0x07, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x00, 0x0b
+        };
+
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(runtime != NULL);
+        m3_SetSuspendable(runtime, true);
+
+        IM3Module module = NULL;
+        M3Result  r      = m3_ParseModule(env, &module, c_externWasm, sizeof(c_externWasm));
+        expect(!r);
+        r = m3_LoadModule(runtime, module);
+        expect(!r);
+
+        IM3Function function = NULL;
+        r                    = m3_FindFunction(&function, runtime, "main");
+        expect(!r);
+
+        m3_RequestSuspend(runtime);
+        r = m3_CallV(function);
+        expect(r == m3Err_continuationSuspended);
+
+        IM3Global host = m3_FindGlobal(module, "host");
+        expect(host != NULL);
+
+        void*  bytes = NULL;
+        size_t size  = 0;
+
+        if (host) {
+            static int c_hostObject;
+
+            host->refValue = &c_hostObject;
+            r              = m3_SaveSnapshotToBuffer(runtime, &bytes, &size);
+            expect(r and !strcmp(r, "an externref belongs to the host, and cannot be saved"));
+            expect(bytes == NULL);
+
+            host->refValue = NULL;
+            r              = m3_SaveSnapshotToBuffer(runtime, &bytes, &size);
+            expect(!r);
+            free(bytes);
+        }
+
+        m3_FreeRuntime(runtime);
+    }
+
+    // A snapshot names the module it was taken from, and does not go into another
+    Test(snapshot.refuses_another_module)
+    {
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function func1 = NULL;
+        r                 = m3_FindFunction(&func1, rt1, "run");
+        expect(!r);
+
+        m3_RequestSuspend(rt1);
+        r = m3_CallV(func1);
+        expect(r == m3Err_continuationSuspended);
+
+        void*  bytes = NULL;
+        size_t size  = 0;
+        r            = m3_SaveSnapshotToBuffer(rt1, &bytes, &size);
+        expect(!r);
+        m3_FreeRuntime(rt1);
+
+        IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt2 != NULL);
+
+        IM3Module mod2 = NULL;
+        r              = m3_ParseModule(env, &mod2, c_snapshotFuncrefsWasm, sizeof(c_snapshotFuncrefsWasm));
+        expect(!r);
+        r = m3_LoadModule(rt2, mod2);
+        expect(!r);
+
+        r = m3_LoadSnapshotFromBuffer(rt2, mod2, bytes, size);
+        expect(r and !strcmp(r, "the snapshot was saved from a different module"));
+        expect(!m3_IsSuspended(rt2));
+
+        free(bytes);
         m3_FreeRuntime(rt2);
     }
 

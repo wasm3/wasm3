@@ -69,6 +69,7 @@ pub fn build(b: *std.Build) !void {
             "source/m3_info.c",
             "source/m3_module.c",
             "source/m3_parse.c",
+            "source/m3_snapshot.c",
         },
         .flags = if (libwasm3.rootModuleTarget().cpu.arch.isWasm())
             &cflags ++ [_][]const u8{

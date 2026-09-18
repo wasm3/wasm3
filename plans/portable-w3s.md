@@ -1,122 +1,62 @@
 # Portable W3S snapshots
 
-Snapshots already save and resume a suspended runtime. This plan covers what it
-takes for one to survive the trip to a different machine: a different
-architecture, a different operating system, or a different build of Wasm3.
+Snapshots save and resume a suspended runtime. This plan covers what it takes
+for one to survive the trip to a different machine: a different architecture, a
+different operating system, or a different build of Wasm3.
 
-The short of it: version 1 writes down interpreter state, and a portable
+The short of it: the format writes down interpreter state, and a portable
 snapshot has to write down Wasm state instead.
 
 ## Where it stands
 
-`--suspendable --snapshot run.w3s` writes the state of a suspended root
-continuation and `--resume` brings it back. The feature is built on the
-stack-switching machinery: suspension reifies the native frames into an
-`M3Frame` list, and `m3_SaveSnapshot` writes that list alongside linear memory,
-globals, tables and the value stack.
+`--snapshot run.w3s` writes the state of a suspended runtime and `--resume`
+brings it back. The feature is built on the stack-switching machinery:
+suspension reifies the native frames into an `M3Frame` list, and
+`m3_SaveSnapshot` writes those frames alongside linear memory, globals, tables
+and the value stack - for the paused call and for every continuation it can
+reach.
 
-Everything in the format is expressed in one build's own terms. Two fields
-carry that assumption: the program counter is an offset into compiled metacode,
-and the value stack is a block of raw untyped slots. [Cookbook.md](../docs/Cookbook.md)
-already warns that toggling gas metering invalidates a snapshot, which is the
-same problem seen from inside a single build.
+While a runtime is suspendable, the compiler records a snapshot map for each
+function (`M3SnapshotMap`, in `m3_function.h`):
 
-## What version 1 records
+- **Code runs** turn a pc into a count of the function's metacode words and
+  back, bridges not counted, so the same instruction is named in any process
+  running the same build.
+- **Safepoints** sit at every place a frame can be left standing: loop back
+  edges, gas charges, calls, suspends, switches and resumes. Each one lists the
+  slots, and the register, that hold references there.
 
-Every field is written with its exact width and no padding, so the stream is
-packed - but each one goes out in host byte order. The table below is a real
-384-byte snapshot: a counting loop suspended by gas exhaustion, x86-64 Linux,
-4-byte slots.
+With those, the format never writes an address. A `funcref` is a function
+index; a `contref` or `exnref` is the id of a continuation or exception the
+snapshot carries whole. The header pins everything else the file is expressed
+in: byte order, pointer and slot widths, a build fingerprint, whether gas
+metering was on, and a hash of the module. A mismatch is refused.
 
-| Offset | Bytes | Field | Value | Travels? |
-|---|---|---|---|---|
-| `0x000` | 4 | magic | `'W3SS'` | yes |
-| `0x004` | 4 | version | 1 | yes |
-| `0x008` | 4 | flags | 0 | unused |
-| `0x00c` | 4 | numMemories | 1 | yes |
-| `0x010` | 8 | numPages | 1 | yes |
-| `0x018` | 8 | maxPages | 65536 | yes |
-| `0x020` | 1 | chunk END | memory all zero | yes |
-| `0x021` | 4 | numGlobals | 1 | yes |
-| `0x025` | 1 | global[0].type | 1 (i32) | yes |
-| `0x026` | 8 | global[0].value | 26595 | **host pointer when the value is a reference** |
-| `0x02e` | 4 | numTables | 0 | yes |
-| `0x032` | 4 | spSlot | 0 | **slot width** |
-| `0x036` | 4 | numSlotsToSave | 64 (`sp + 64`) | **heuristic** |
-| `0x03a` | 256 | value stack | 64 x 4 bytes, untyped | **this build only** |
-| `0x13a` | 4 | entryFuncIndex | 1 (`run`) | yes |
-| `0x13e` | 4 | currentFuncIndex | 1 (`run`) | yes |
-| `0x142` | 4 | pcOffset | 5 metacode words | **this build only** |
-| `0x146` | 8 | r0 | 0 | **untyped** |
-| `0x14e` | 8 | fp0 | 0.0 | yes |
-| `0x156` | 4 | numFrames | 1 | yes |
-| `0x15a` | 1 | frame[0].kind | 1 (loop) | **enum depends on build** |
-| `0x15b` | 4 | frame[0].spSlot | 0 | **slot width** |
-| `0x15f` | 4 | frame[0].funcIndex | 1 (`run`) | yes |
-| `0x163` | 4 | frame[0].pcOffset | 5 metacode words | **this build only** |
-| `0x167` | 8 | frame[0].r0 | 0 | **untyped** |
-| `0x16f` | 8 | frame[0].fp0 | 0.0 | yes |
-| `0x177` | 4 | frame[0].calleeIndex | 0 | yes |
-| `0x17b` | 4 | frame[0].numClauses | 0 | yes |
-| `0x17f` | 1 | frame[0].handlersLive | 0 | yes |
+[`extra/w3s-tool.py`](../extra/w3s-tool.py) is the reference for the layout.
 
-Frames are written outermost first, the reverse of the innermost-first order
-`M3Continuation.frames` holds them in.
+## What still ties a snapshot to one build
 
-The magic is the one field that self-describes: `0x53533357` written natively
-comes out as `57 33 53 53` on a little-endian host and reversed on a big-endian
-one, so the file does say which way round it is. Nothing else does.
+**The program counter names a place in metacode.** A pc is a count of metacode
+words. It changes with the Wasm3 revision, with the config, and with gas
+metering, because instrumentation moves the emission.
 
-## What has to change
+**Only references are typed.** The value stack goes out as the build's own slots,
+in host byte order. The safepoints say which slots hold references, and nothing
+says what the rest hold - so a different slot width or byte order cannot be
+translated.
 
-### Wrong today
+**Registers and frames are the build's own.** `r0` and `fp0` are saved raw, and
+the frame list mirrors the interpreter's native frames: a loop, a try region and
+an entry frame are there because this interpreter keeps a native frame for them.
 
-These three are defects in the current format, independent of portability.
-
-**The value stack is saved by guess.** `numSlotsToSave = spSlot + 64`, capped at
-the runtime's stack size. A function whose frame needs more than 64 slots comes
-back with its locals and working space partly filled with whatever the
-destination stack happened to hold. The bound should be the innermost
-function's `maxStackSlots`, which the compiler already knows.
-
-**Nothing identifies the module or the build.** `--resume` takes a `.wasm` on
-faith. Hand it a different module and the function indices and metacode offsets
-land somewhere arbitrary. A hash of the module bytes plus a build fingerprint -
-Wasm3 revision, slot width, and whether gas metering was on - turns silent
-corruption into a refusal.
-
-**The memory chunk stream is conditional on two different things.** The writer
-emits it when `memory && memory->mallocated`; the reader consumes it when
-`memory`. Neither condition is in the file, so a memory that exists without
-allocation desyncs the stream and every field after it. Latent rather than
-live, but the two should agree.
-
-### Blocks the move
-
-**Slots are raw and untyped.** The stack is copied out whole. Its width follows
-`d_m3Use32BitSlots`, its contents are in host byte order, and any slot holding a
-reference holds a pointer into this process. Nothing in the file says which
-slots are which.
-
-**The program counter names a place in metacode.** `pcOffset` counts words into
-an array of `op_*` addresses. It changes with the Wasm3 revision, with the
-config, and with gas metering, because instrumentation moves the emission.
-
-**References are host pointers.** Tables are written as function indices, which
-is right, but only for `funcref`. A global or a slot holding an `externref`,
-`exnref` or `contref` is written as a raw `u64` of whatever the pointer was.
-
-**A captured resume is refused outright.** `m3_SaveSnapshot` rejects any
-`frame_resume`: the format has no room for the second continuation it points at.
-Correct and honest, but nested prompts are implemented now, so the format is the
-only thing holding this back.
+**An `externref` is refused.** It belongs to the embedder, and nothing lets the
+embedder name one.
 
 ## The idea
 
-A portable snapshot never writes down an address or a layout. The program
-counter becomes a function index plus a byte offset into that function's Wasm
-body. A slot becomes a typed value. A reference becomes an index into the thing
-it refers to. On arrival the destination recompiles, maps the Wasm offset back
+A portable snapshot never writes down a layout. The program counter becomes a
+function index plus a byte offset into that function's Wasm body. A slot becomes
+a typed value. On arrival the destination recompiles, maps the Wasm offset back
 to its own metacode, and places the values into whatever slots *its* compiler
 chose.
 
@@ -125,62 +65,44 @@ on a layout, only on the Wasm - so the same snapshot survives a different
 architecture, a different slot width, a different Wasm3 revision, and gas
 metering being toggled.
 
-Two of the three pieces exist:
-
 | Piece | Where |
 |---|---|
 | pc to Wasm byte offset | `EmitMappingEntry` records one per emitted operation, `MapPCToOffset` reads it back - today only under `d_m3RecordBacktraces` |
 | Native frames as data | `M3Frame` and `ReplayFrames`, from stack switching |
-| **Type of each live slot** | **missing** - the compiler holds it in `typeStack` and `wasmStack` and discards it when the function finishes |
+| Live slots at a safepoint | `RecordSafePoint`, from the compiler's `typeStack` and `wasmStack` - references only |
+| References by name | `m3_snapshot.c` |
 
 ## Plan
 
-### Phase 0 - fix version 1, and make it self-describing
+### Phase 1 - type every live slot
 
-Bound the saved stack by `maxStackSlots` instead of the `+64` guess. Put the
-slot width, the endianness, a module hash and a build fingerprint in the header,
-and refuse a mismatch rather than resuming into nonsense. Make the two
-memory-chunk conditions agree.
+Extend the safepoints from references to every live value: each live stack entry
+with its type, the register's type, and which Wasm local or operand stack
+position the entry is. The liveness rules already hold - a block's landing pads
+are not values, and a back edge writes its loop's parameters - so this is a
+matter of recording more of what `RecordSafePoint` already walks.
 
-None of this needs the portable format. It makes what exists trustworthy and
-gives the later work a header to grow into.
+This is real map size, and the same size argument that applies to backtraces
+applies here: behind its own flag.
 
-### Phase 1 - spike the slot map
+### Phase 2 - write W3S
 
-Before anything is designed around it: can the compiler emit, for a chosen
-point, the type of every live slot? Take `typeStack` and `wasmStack` at a loop
-back edge and write the table out. If the stack state turns out not to be
-reconstructible where capture needs to happen, the shape of the plan changes -
-so find out cheaply. This is the long pole.
-
-### Phase 2 - decide the safepoints
-
-Capture cannot happen at an arbitrary operation, only where the live state is
-describable: function entry, call sites, and loop back edges. `m3_Yield` already
-sits at the first two and suspension already uses the third.
-
-Emit slot maps at exactly those points, behind their own flag. This is real
-metacode size, and the same size argument that applies to backtraces applies
-here.
-
-### Phase 3 - write W3S version 2
-
-Program counters as (function index, Wasm byte offset). Slots as typed values,
-little-endian regardless of host. References by index: a `funcref` as a function
-index, an `exnref` as a tag index plus payload, a `contref` as a nested capture -
-which is also what lets `frame_resume` be represented at last.
+Program counters as (function index, Wasm byte offset). Values as Wasm values,
+little-endian regardless of host, placed by Wasm local index and operand stack
+position rather than by slot. Frames as Wasm constructs - a call, a block nest -
+rather than as native frames.
 
 An `externref` belongs to the embedder, so it needs a pair of hooks to name and
 re-bind it.
 
-### Phase 4 - restore by re-materialisation
+### Phase 3 - restore by re-materialisation
 
-Re-instantiate, compile the functions the snapshot names, map each Wasm offset
-to a local `pc`, place each typed value into the slot the destination's own map
-assigns, rebuild the frame list and hand it to `ReplayFrames`. The rebuild path
-already exists; what changes is where the frames come from.
+Re-instantiate, compile the functions the snapshot names, map each Wasm offset to
+a local pc and safepoint, place each value into the slot the destination's own
+map assigns it, rebuild the frame list and hand it to `ReplayFrames`. The rebuild
+path already exists; what changes is where the frames come from.
 
-### Phase 5 - draw the line at the host
+### Phase 4 - draw the line at the host
 
 Open descriptors, the working directory, preopens, clocks and entropy live
 outside the Wasm state. Ship the honest subset first - nothing open beyond
@@ -192,7 +114,7 @@ sockets and pipes, so it is the embedder's call and not the engine's.
 
 | Test | What it covers |
 |---|---|
-| Round trip | Snapshot at every safepoint, restore, run to the end, compare against the reference answer. One process, same build. Finds nearly everything. |
+| Round trip | `snapshot.round_trip_at_every_gas_stop`: a program stopped at every gas charge, restored into a fresh runtime each time, run to the end against the reference answer. |
 | **Cross-config** | Capture under `-Dd_m3Use32BitSlots=1`, restore under the 64-bit-slot build; then with and without gas metering. **This is the test that proves the snapshot carries Wasm state and not interpreter state.** |
 | Cross-endian | A big-endian target under qemu. `build-cross.py` has the scaffolding. |
 | Cross-OS | Windows and WSL on the same architecture, same `.wasm`, snapshot moved between them. |
@@ -219,11 +141,6 @@ $ extra/w3s-tool.py pack   count.d   -o patched.w3s
 $ extra/w3s-tool.py diff before.w3s after.w3s
 ```
 
-It recovers the endianness from the magic, and the slot width by trying both and
-keeping whichever accounts for every byte. Its table of frame kinds past
-`frame_try` is a guess, because the tail of the enum is conditional on the
-build - one more argument for the build fingerprint in Phase 0.
-
 ## Scope
 
 Migration becomes possible *at chosen points*, not at any instant. A program
@@ -231,5 +148,5 @@ blocked inside a host call never reaches one, which is the same boundary
 `RunCodeChecked` already enforces by clearing `activeContinuation`: the native
 frames on the far side of an import are not ours to describe.
 
-Phases 0 to 4 are ordinary engineering with a visible finish line. Phase 5 does
+Phases 1 to 3 are ordinary engineering with a visible finish line. Phase 4 does
 not have one, and should be scoped deliberately rather than allowed to grow.

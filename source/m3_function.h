@@ -56,6 +56,69 @@ m3type_t RefTypeOfFuncType (const IM3FuncType i_funcType, bool i_nonNull);
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
+// The ways a function's frame can be left standing while it waits to go on.
+// Two of them can share a pc - a call's return address can be the very next
+// operation, which is itself one that suspends - and they do not agree on
+// what the frame holds there, so a pc alone does not name one.
+typedef enum M3SafePointKind {
+    safepoint_op,           // at an operation that suspends in place: a loop back edge, a gas charge
+    safepoint_suspend,      // just past a suspend or a switch
+    safepoint_call,         // a call waiting on its callee
+    safepoint_resume,       // a resume waiting on the continuation it runs
+} M3SafePointKind;
+
+#if d_m3HasSnapshots
+
+// What a snapshot needs to know about a function's compiled code, recorded by
+// the compiler when the runtime is suspendable and nowhere else.
+//
+// A snapshot cannot write down a pc: the code lands wherever this process's
+// pages happened to have room. What it writes instead is how many words of the
+// function's metacode were emitted before that point. Compiling the same body
+// in the same build emits the same words in the same order, so the count names
+// the same instruction in any process - once the bridges are left out, since
+// where a page runs out is the one thing that does differ. A run is a stretch
+// of words laid down on one page without a break, and the runs are what turn a
+// pc into that count and back.
+typedef struct M3CodeRun {
+    pc_t start;
+    u32  numWords;
+    u32  offset;         // the function's words emitted before this run, bridges not counted
+} M3CodeRun;
+
+// A slot holding a reference at a safepoint, relative to the function's frame
+typedef struct M3SlotRef {
+    u16 slot;
+    u8  type;            // storage type: funcref, externref, exnref or contref
+} M3SlotRef;
+
+// A place a function can be suspended at, or be waiting on something that was:
+// a loop back edge, a gas charge, a call, a suspend, a switch or a resume. The
+// value stack is untyped, so these say which of the frame's slots hold
+// references there - the pointers a snapshot has to name rather than copy.
+typedef struct M3SafePoint {
+    pc_t pc;
+    u32  firstRef;       // into M3SnapshotMap.refs
+    u16  numRefs;
+    u8   kind;           // M3SafePointKind
+    u8   registerType;   // storage type of a reference held in _r0, or c_m3Type_none
+} M3SafePoint;
+
+typedef struct M3SnapshotMap {
+    M3CodeRun*   runs;
+    u32          numRuns;
+
+    M3SafePoint* safePoints;
+    u32          numSafePoints;
+
+    M3SlotRef*   refs;
+    u32          numRefs;
+} M3SnapshotMap;
+
+void SnapshotMap_Free (M3SnapshotMap* i_map);
+
+#endif // d_m3HasSnapshots
+
 typedef struct M3Function {
     struct M3Module*   module;
 
@@ -111,6 +174,10 @@ typedef struct M3Function {
 
     u16   numConstantBytes;
     void* constants;
+
+#if d_m3HasSnapshots
+    M3SnapshotMap* snapshotMap;                   // NULL unless compiled suspendable
+#endif
 } M3Function;
 
 

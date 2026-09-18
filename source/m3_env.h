@@ -354,6 +354,7 @@ typedef struct M3Continuation {
     u32                    numFrames;       // entries in use, innermost first
 
     pc_t                   pc;              // resume instruction pointer
+    u8                     suspendPoint;    // M3SafePointKind: what left pc where it is
     m3reg_t                r0;              // saved accumulator
 #  if d_m3HasFloat
     f64 fp0;
@@ -389,6 +390,11 @@ void            Continuation_ReleaseAll (IM3Runtime io_runtime);
 // recorded, or a trap when it could not be - a continuation that cannot record
 // its frames cannot be resumed, so the suspend has to become a trap instead.
 m3ret_t         Continuation_RecordFrame (IM3Runtime i_runtime, const M3Frame* i_frame);
+
+// Points runtime->stack, where the host's next call puts its arguments, above
+// whatever a suspended root continuation holds - or back at the bottom when
+// there is none.
+void            Runtime_PlaceCallStack (IM3Runtime io_runtime);
 
 #endif // d_m3HasStackSwitching
 

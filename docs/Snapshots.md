@@ -71,9 +71,10 @@ $ wasm3 --gas-limit 10000 --resume fib.w3s test/lang/fib32.wasm
 
 With `--snapshot <fn>`, exhausting gas suspends execution instead of trapping.
 Each resume gets a fresh budget from `--gas-limit`; the snapshot does not store
-the gas counter. Keep gas metering enabled on restore if it was enabled when
-saving: its instrumentation changes the compiled instruction offsets the snapshot
-refers to. The resumed CLI run does not print the function's return value.
+the gas counter. Gas metering has to be on for the restore exactly when it was on
+for the save, because its instrumentation changes the compiled code; a snapshot
+records which it was and is refused otherwise. The resumed CLI run does not print
+the function's return value.
 
 ## Suspend and resume from C
 
@@ -105,13 +106,17 @@ makes before `m3_ResumeRuntime` runs on a context of its own and leaves the paus
 one untouched. For gas-driven scheduling, set the first budget with
 `m3_SetGasLimit` before compilation, and replenish it before each resume.
 
+A resume that runs to the end leaves the results where the call would have, so
+`m3_GetResults` on the function that was called reads them.
+
 To persist a paused invocation, call
 `m3_SaveSnapshotToBuffer(runtime, &bytes, &size)`, with `void *bytes = NULL` and
 `size_t size = 0`, and check the result. Restore into a fresh runtime: enable
 suspension and the same metering mode, parse and load the original module, link its
 host imports, then call `m3_LoadSnapshotFromBuffer(runtime, module, bytes, size)`.
 After a successful load, call `m3_ResumeRuntime`. Release the allocated snapshot
-buffer with `free(bytes)` when finished with it.
+buffer with `free(bytes)` when finished with it. Every function the snapshot names
+has to be compiled after suspension is enabled; one compiled before it is refused.
 
 `m3_SaveSnapshot` and `m3_LoadSnapshot` instead stream through writer and reader
 callbacks. Each callback must transfer exactly the requested byte count and return
@@ -121,33 +126,18 @@ that save a loop's progress and restore it into a new runtime.
 
 ## What a snapshot preserves
 
-The snapshot records the entry module's linear memory, including each memory's
-page size, globals, function-table entries, value stack and suspended execution
-frames. Long runs of zero or `0xff` bytes in linear memory are compressed.
+A snapshot records the entry module's linear memories, globals, tables and dropped
+segments, together with the paused call and every continuation and exception it can
+still reach. Host state is not part of it. [W3S file format](W3S.md) specifies the
+binary layout, which references can be saved and which are refused, etc.
 
-Every snapshot starts with `W3S\x01`: the `W3S` signature followed by the
-one-byte format version. Version 1 is the only version currently supported.
+[`extra/w3s-tool.py`](../extra/w3s-tool.py) reads that
+format independently of Wasm3: `info` summarizes a snapshot, `verify` checks its
+structure, `unpack` and `pack` turn it into JSON plus binaries and back, and `diff`
+compares two.
 
-`--dump-on-trap` writes `wasm3_dump.w3s` after a trap. It is a postmortem
-snapshot: it records memories, globals and tables for inspection, but cannot be
-resumed. It does not enable suspension, so running out of gas still traps. From C,
-`m3_SaveSnapshot` on a runtime with no paused invocation writes the same postmortem
-for the module the last call entered.
-
-Use the original `.wasm`, the same Wasm3 build and compilation settings, and a
-runtime stack at least as large as the original. The format stores native values
-and instruction offsets measured from the start of each function's compiled code,
-so it is not a portable module or a compatibility format across versions and
-architectures. Anything that changes what the compiler emits moves those offsets
-and makes an existing snapshot meaningless - a different build, a different set
-of feature flags, or gas metering enabled on one side and not the other.
-
-Host state is outside the snapshot: open files and their positions, sockets,
-runtime userdata, WASI arguments and environment, and deterministic clock and random
-state must be arranged by the embedder. Restrict this workflow to single-module
-computations without live host references.
-
-Stack switching sets one further bound. A suspension the guest reached through
-`resume` is fine, but a continuation captured *across* a `resume` - one whose tag
-was named by a handler further out - spans two execution states, which is
-currently unsupported by w3s format.
+`--dump-on-trap` writes `wasm3_dump.w3s` after a trap. It is a postmortem snapshot:
+it records state for inspection, but cannot be resumed. It does not enable
+suspension, so running out of gas still traps. From C, `m3_SaveSnapshot` on a
+runtime with no paused invocation writes the same postmortem for the module the
+last call entered.

@@ -839,6 +839,30 @@ d_m3Op(SetGlobal_i64)
 }
 
 
+#if d_m3HasStackSwitching
+
+d_m3Op(Branch);
+d_m3Op(Entry);
+
+// The function a body of compiled code belongs to. op_Call is handed the code
+// rather than the function, but every body opens with op_Entry and the function
+// it enters - past a bridge, where the page ran out before the first op.
+static M3_NOINLINE
+IM3Function FunctionOfCompiledCode (pc_t i_pc)
+{
+    if (not i_pc) {
+        return NULL;
+    }
+
+    while ((IM3Operation)i_pc[0] == op_Branch) {
+        i_pc = (pc_t)i_pc[1];
+    }
+
+    return ((IM3Operation)i_pc[0] == op_Entry) ? (IM3Function)i_pc[1] : NULL;
+}
+
+#endif
+
 d_m3Op(Call)
 {
     d_m3CheckNativeStack();
@@ -860,7 +884,7 @@ d_m3Op(Call)
     if (M3_LIKELY(not r)) {
         nextOp();
     } else {
-        d_m3RecordCallFrame(memory, NULL);
+        d_m3RecordCallFrame(memory, FunctionOfCompiledCode(callPC));
         pushBacktraceFrame();
         forwardTrap(r);
     }
@@ -1698,6 +1722,7 @@ void SuspendWithoutTag (IM3Runtime io_runtime, IM3Continuation io_cont, pc_t i_p
     io_runtime->numSuspendPayload = 0;
 
     io_cont->pc = i_pc;
+    io_cont->suspendPoint = safepoint_op;
     io_cont->sp = i_sp;
     io_cont->r0 = i_r0;
 #  if d_m3HasFloat
@@ -2092,6 +2117,7 @@ d_m3Op(ContBind)
     dstCont->numFrames = srcCont->numFrames;
     dstCont->sp = srcCont->sp;
     dstCont->pc = srcCont->pc;
+    dstCont->suspendPoint = srcCont->suspendPoint;
     dstCont->r0 = srcCont->r0;
 #  if d_m3HasFloat
     dstCont->fp0 = srcCont->fp0;
@@ -2178,6 +2204,23 @@ IM3Continuation FindHandler (IM3Continuation i_cont, IM3Tag i_tag, u8 i_kind, pc
 }
 
 
+// Nulls the slots a suspend or switch leaves waiting for whatever resumes it.
+// Until something writes them they are part of the suspended frame holding
+// nothing, and a snapshot taken meanwhile reads each one as the type it will
+// have: a reference there has to be null rather than whatever the slot held.
+static
+void ClearSuspendResults (IM3Continuation io_cont, m3stack_t i_sp)
+{
+    for (u32 i = 0; i < io_cont->numSuspendResults; ++i) {
+        if (io_cont->suspendResultIs64[i]) {
+            *(u64*)(i_sp + io_cont->suspendResultOffsets[i]) = 0;
+        } else {
+            *(m3slot_t*)(i_sp + io_cont->suspendResultOffsets[i]) = 0;
+        }
+    }
+}
+
+
 d_m3Op(Suspend)
 {
     IM3Runtime      runtime = m3MemRuntime(_mem);
@@ -2208,6 +2251,8 @@ d_m3Op(Suspend)
         cont->suspendResultIs64[i] = immediate(u32);
     }
 
+    ClearSuspendResults(cont, _sp);
+
     pc_t            matchedStubPC = NULL;
     IM3Continuation searchCont = FindHandler(cont, tag, 0, &matchedStubPC);
 
@@ -2221,6 +2266,7 @@ d_m3Op(Suspend)
     runtime->suspendTag = tag;
 
     cont->pc = _pc;
+    cont->suspendPoint = safepoint_suspend;
     cont->sp = _sp;
     cont->r0 = _r0;
 #  if d_m3HasFloat
@@ -2878,12 +2924,15 @@ d_m3Op(Switch)
         cont->suspendResultIs64[i] = immediate(u32);
     }
 
+    ClearSuspendResults(cont, _sp);
+
     runtime->suspendStubPC = NULL;
     runtime->suspendHandlerCont = handlerCont;
     runtime->switchTarget = target;
     runtime->suspendTag = tag;
 
     cont->pc = _pc;
+    cont->suspendPoint = safepoint_suspend;
     cont->sp = _sp;
     cont->r0 = _r0;
 #  if d_m3HasFloat

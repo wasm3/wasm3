@@ -2,8 +2,10 @@
 """Read, inspect and rebuild wasm3 snapshots (.w3s).
 
 A snapshot holds the execution state of a suspended runtime: linear memory,
-globals, tables, the value stack and the frames that were standing when it
-suspended. `m3_SaveSnapshot` writes it and `m3_LoadSnapshot` reads it back.
+globals, tables, which segments were dropped, and every continuation and
+exception the suspended program can still reach - the root continuation that
+is the paused call itself among them. `m3_SaveSnapshot` writes it and
+`m3_LoadSnapshot` reads it back.
 
 As a command:
 
@@ -20,17 +22,16 @@ As a module:
     w3s = importlib.util.module_from_spec(spec); spec.loader.exec_module(w3s)
 
     snap = w3s.load("run.w3s")
-    print(snap.globals, snap.frames)
+    print(snap.globals, snap.root.frames)
     snap.memories[0].data          # bytes, expanded from the chunk encoding
     open("out.w3s", "wb").write(w3s.pack(snap))
 
-Version 1 of the format records the program counter as an offset into compiled
-metacode and the value stack as untyped slots, so a snapshot is only meaningful
-to a build that matches the one that wrote it: same wasm3 revision, same slot
-width, same endianness, and the same answer for whether gas metering was on.
-Neither the slot width nor the wasm3 revision is written down. This reader
-tries both endiannesses and slot widths, keeping the one that accounts for
-every byte.
+The format is written in one build's own terms: host byte order, the build's
+slot width, and program counters counted in that build's metacode words. The
+header says which, and carries a fingerprint of the build and a hash of the
+module, so wasm3 refuses a snapshot it cannot resume rather than guessing. No
+field is an address: a reference is written as a function index, or as the id
+of a continuation or exception the snapshot carries.
 """
 
 import argparse
@@ -42,11 +43,14 @@ import sys
 MAGIC = b"W3S"
 SUPPORTED_VERSIONS = (1,)
 
+FLAG_POSTMORTEM = 0x1
+
+NONE_INDEX = 0xFFFFFFFF
+NULL_REF = 0xFFFFFFFFFFFFFFFF
+
 CHUNK_END = 0x00
 CHUNK_RAW = 0x01
 CHUNK_FILL_FF = 0x02
-
-FLAG_POSTMORTEM = 0x1
 
 # M3ValueType
 TYPE_NAMES = {
@@ -61,13 +65,32 @@ TYPE_NAMES = {
     8: "exnref",
     9: "contref",
 }
+REF_TYPES = (6, 7, 8, 9)
 
-# M3FrameKind, in the order m3_env.h declares it. The tail of the list is
-# conditional on the build, so anything past frame_try is only a guess.
-FRAME_KINDS = {0: "call", 1: "loop", 2: "try", 3: "entry", 4: "resume"}
+CONT_ALLOCATED = 0
+CONT_SUSPENDED = 1
+CONT_FINISHED = 2
+CONT_STATES = {
+    CONT_ALLOCATED: "allocated",
+    CONT_SUSPENDED: "suspended",
+    CONT_FINISHED: "finished",
+}
 
-TRAILER_FIXED = 4 + 4 + 4 + 8 + 8 + 4  # entry, current, pc, r0, fp0, numFrames
-FRAME_SIZE = 1 + 4 + 4 + 4 + 8 + 8 + 4 + 4 + 1
+FRAME_CALL = 0
+FRAME_LOOP = 1
+FRAME_TRY = 2
+FRAME_ENTRY = 3
+FRAME_RESUME = 4
+FRAME_KINDS = {
+    FRAME_CALL: "call",
+    FRAME_LOOP: "loop",
+    FRAME_TRY: "try",
+    FRAME_ENTRY: "entry",
+    FRAME_RESUME: "resume",
+}
+
+# M3SafePointKind, for what left a continuation where it stopped
+SUSPEND_POINTS = {0: "op", 1: "suspend"}
 
 
 class FormatError(Exception):
@@ -78,12 +101,13 @@ class FormatError(Exception):
 
 
 class Memory:
-    __slots__ = ("_data", "chunks", "max_pages", "num_pages", "page_size")
+    __slots__ = ("_data", "chunks", "has_data", "max_pages", "num_pages", "page_size")
 
-    def __init__(self, num_pages, max_pages, chunks, page_size):
+    def __init__(self, num_pages, max_pages, page_size, has_data, chunks):
         self.num_pages = num_pages
         self.max_pages = max_pages
         self.page_size = page_size
+        self.has_data = has_data
         self.chunks = chunks  # list of (kind, offset, payload-or-length)
         self._data = None
 
@@ -95,7 +119,7 @@ class Memory:
     def data(self):
         """The linear memory, expanded. Always in Wasm byte order."""
         if self._data is None:
-            buf = bytearray(self.size)
+            buf = bytearray(self.size if self.has_data else 0)
             for kind, off, payload in self.chunks:
                 if kind == CHUNK_RAW:
                     buf[off : off + len(payload)] = payload
@@ -107,41 +131,115 @@ class Memory:
     def stats(self):
         raw = sum(len(p) for k, _, p in self.chunks if k == CHUNK_RAW)
         ff = sum(p for k, _, p in self.chunks if k == CHUNK_FILL_FF)
+        size = self.size if self.has_data else 0
         return {
             "pages": self.num_pages,
             "max_pages": self.max_pages,
             "page_size": self.page_size,
-            "bytes": self.size,
+            "has_data": self.has_data,
+            "bytes": size,
             "stored_bytes": raw,
             "filled_ff_bytes": ff,
-            "implicit_zero_bytes": self.size - raw - ff,
+            "implicit_zero_bytes": size - raw - ff,
             "chunks": len(self.chunks),
         }
 
 
-class Frame:
-    __slots__ = (
-        "callee_index",
-        "fp0",
-        "func_index",
-        "handlers_live",
-        "kind",
-        "num_clauses",
-        "pc_offset",
-        "r0",
-        "sp_slot",
-    )
+class Record:
+    """A plain bag of named fields, which is all most of the format is."""
+
+    __slots__ = ()
 
     def __init__(self, **kw):
         for k in self.__slots__:
-            setattr(self, k, kw[k])
+            setattr(self, k, kw.get(k))
+
+    def to_dict(self):
+        return {k: getattr(self, k) for k in self.__slots__}
+
+
+class Exception_(Record):
+    __slots__ = ("args", "tag_index")
+
+
+# which fields a frame of each kind carries, past the ones every frame has
+FRAME_COMMON_FIELDS = ("kind", "sp_slot", "memory_index", "func_index")
+FRAME_KIND_FIELDS = {
+    FRAME_CALL: ("pc_offset", "callee_index", "r0_type", "r0", "fp0"),
+    FRAME_LOOP: ("pc_offset",),
+    FRAME_TRY: ("pc_offset", "num_clauses", "handlers_live"),
+    FRAME_ENTRY: ("entry_func_index",),
+    FRAME_RESUME: (
+        "pc_offset",
+        "cont_id",
+        "handlers_offset",
+        "num_handlers",
+        "results_offset",
+        "num_results",
+    ),
+}
+
+
+class Frame(Record):
+    __slots__ = (
+        "callee_index",
+        "cont_id",
+        "entry_func_index",
+        "fp0",
+        "func_index",
+        "handlers_live",
+        "handlers_offset",
+        "kind",
+        "memory_index",
+        "num_clauses",
+        "num_handlers",
+        "num_results",
+        "pc_offset",
+        "r0",
+        "r0_type",
+        "results_offset",
+        "sp_slot",
+    )
 
     @property
     def kind_name(self):
         return FRAME_KINDS.get(self.kind, f"kind{self.kind}")
 
     def to_dict(self):
-        return {k: getattr(self, k) for k in self.__slots__}
+        d = {k: getattr(self, k) for k in FRAME_COMMON_FIELDS}
+        d["kind_name"] = self.kind_name
+        for k in FRAME_KIND_FIELDS.get(self.kind, ()):
+            d[k] = getattr(self, k)
+        return d
+
+
+class Continuation(Record):
+    __slots__ = (
+        "args",
+        "bound_args_count",
+        "entry_func_index",
+        "fp0",
+        "frames",
+        "has_own_pc",
+        "id",
+        "is_root",
+        "pc_func_index",
+        "pc_offset",
+        "r0",
+        "r0_type",
+        "relocations",
+        "resume_throw",
+        "sp_slot",
+        "stack",
+        "state",
+        "suspend_point",
+        "suspend_results",
+        "type_index",
+    )
+
+    @property
+    def state_name(self):
+        return CONT_STATES.get(self.state, f"state{self.state}")
 
 
 class Snapshot:
@@ -151,18 +249,18 @@ class Snapshot:
         self.version = 1
         self.flags = 0
         self.endian = "<"
+        self.pointer_size = 8
         self.slot_size = 4
+        self.build_fingerprint = 0
+        self.gas_metered = False
+        self.module_hash = 0
+        self.exceptions = []
         self.memories = []
-        self.globals = []  # list of (type, raw u64)
-        self.tables = []  # list of list of func index, -1 for null
-        self.sp_slot = 0
-        self.stack = b""
-        self.entry_func_index = 0
-        self.current_func_index = 0
-        self.pc_offset = 0
-        self.r0 = 0
-        self.fp0 = 0.0
-        self.frames = []  # outermost first, as written
+        self.globals = []  # list of (type, u64 word)
+        self.tables = []  # list of (element type, list of u64 words)
+        self.data_dropped = []
+        self.elem_dropped = []
+        self.continuations = []
         self.names = {}  # func index -> name, if a module was given
 
     # ---- convenience
@@ -176,31 +274,56 @@ class Snapshot:
         return bool(self.flags & FLAG_POSTMORTEM)
 
     @property
-    def num_slots(self):
-        return len(self.stack) // self.slot_size
-
-    def slots(self):
-        """The value stack as integers. Untyped - version 1 records no types."""
-        fmt = "I" if self.slot_size == 4 else "Q"
-        return list(struct.unpack(f"{self.endian}{self.num_slots}{fmt}", self.stack))
+    def root(self):
+        for c in self.continuations:
+            if c.is_root:
+                return c
+        return None
 
     def func_name(self, index):
         return self.names.get(index)
 
     def describe_func(self, index):
+        if index is None or index == NONE_INDEX:
+            return "-"
         name = self.func_name(index)
         return f"{index} ({name})" if name else f"{index}"
 
-    def to_dict(self, *, include_stack=False):
-        d = {
+    def describe_value(self, type_id, word):
+        if type_id in REF_TYPES:
+            if word == NULL_REF:
+                return "null"
+            if type_id == 6:
+                return f"func {self.describe_func(word)}"
+            if type_id == 8:
+                return f"exception #{word}"
+            if type_id == 9:
+                return f"continuation #{word}"
+            return f"extern {word}"
+        return str(_as_signed(word, type_id))
+
+    def slots(self, cont):
+        """A continuation's saved value stack as integers. Slots are untyped;
+        the relocations say which ones hold references."""
+        fmt = "I" if self.slot_size == 4 else "Q"
+        count = len(cont.stack) // self.slot_size
+        return list(struct.unpack(f"{self.endian}{count}{fmt}", cont.stack))
+
+    def to_dict(self):
+        return {
             "format": {
                 "magic": "W3S",
                 "version": self.version,
                 "flags": self.flags,
                 "postmortem": self.is_postmortem,
                 "endian": self.endian_name,
+                "pointer_size": self.pointer_size,
                 "slot_size": self.slot_size,
+                "build_fingerprint": f"{self.build_fingerprint:016x}",
+                "gas_metered": self.gas_metered,
+                "module_hash": f"{self.module_hash:016x}",
             },
+            "exceptions": [e.to_dict() for e in self.exceptions],
             "memories": [m.stats() for m in self.memories],
             "globals": [
                 {
@@ -215,35 +338,65 @@ class Snapshot:
             "tables": [
                 {
                     "index": i,
-                    "size": len(t),
-                    "elements": t,
-                    "non_null": sum(1 for e in t if e >= 0),
+                    "type_id": t,
+                    "type": TYPE_NAMES.get(t, f"type{t}"),
+                    "size": len(elems),
+                    "elements": elems,
+                    "non_null": sum(1 for e in elems if e != NULL_REF),
                 }
-                for i, t in enumerate(self.tables)
+                for i, (t, elems) in enumerate(self.tables)
             ],
-            "execution": {
-                "entry_func_index": self.entry_func_index,
-                "entry_func_name": self.func_name(self.entry_func_index),
-                "current_func_index": self.current_func_index,
-                "current_func_name": self.func_name(self.current_func_index),
-                "pc_offset_words": self.pc_offset,
-                "r0": self.r0,
-                "fp0": self.fp0,
-                "sp_slot": self.sp_slot,
-                "saved_slots": self.num_slots,
-            },
-            "frames": [
-                dict(
-                    f.to_dict(),
-                    kind_name=f.kind_name,
-                    func_name=self.func_name(f.func_index),
-                )
-                for f in self.frames
-            ],
+            "data_dropped": self.data_dropped,
+            "elem_dropped": self.elem_dropped,
+            "continuations": [_cont_to_dict(self, c) for c in self.continuations],
         }
-        if include_stack:
-            d["stack_slots"] = self.slots()
-        return d
+
+
+def _cont_to_dict(snap, c):
+    d = {
+        "id": c.id,
+        "state": c.state_name,
+        "state_id": c.state,
+        "is_root": c.is_root,
+        "type_index": c.type_index,
+        "entry_func_index": c.entry_func_index,
+        "entry_func_name": snap.func_name(c.entry_func_index),
+        "bound_args_count": c.bound_args_count,
+        "resume_throw": c.resume_throw,
+    }
+    if c.args is not None:
+        d["args"] = c.args
+    if c.stack is not None:
+        d.update(
+            {
+                "saved_slots": len(c.stack) // snap.slot_size,
+                "relocations": [
+                    {
+                        "slot": s,
+                        "type_id": t,
+                        "type": TYPE_NAMES.get(t, f"type{t}"),
+                        "word": w,
+                    }
+                    for s, t, w in c.relocations
+                ],
+                "has_own_pc": c.has_own_pc,
+                "suspend_point": c.suspend_point,
+                "pc_func_index": c.pc_func_index,
+                "pc_offset_words": c.pc_offset,
+                "sp_slot": c.sp_slot,
+                "r0_type": c.r0_type,
+                "r0": c.r0,
+                "fp0": c.fp0,
+                "suspend_results": [
+                    {"offset": o, "is64": w} for o, w in c.suspend_results
+                ],
+                "frames": [
+                    dict(f.to_dict(), func_name=snap.func_name(f.func_index))
+                    for f in c.frames
+                ],
+            }
+        )
+    return d
 
 
 def _as_signed(value, type_id):
@@ -269,7 +422,7 @@ class _Cursor:
         self.endian = endian
 
     def take(self, n):
-        if self.pos + n > len(self.data):
+        if n < 0 or self.pos + n > len(self.data):
             raise FormatError(
                 f"truncated: wanted {n} bytes at offset {self.pos}, "
                 f"{len(self.data) - self.pos} remain"
@@ -278,101 +431,30 @@ class _Cursor:
         self.pos += n
         return out
 
+    def _unpack(self, fmt, size):
+        return struct.unpack(f"{self.endian}{fmt}", self.take(size))[0]
+
     def u8(self):
         return self.take(1)[0]
 
+    def u16(self):
+        return self._unpack("H", 2)
+
     def u32(self):
-        return struct.unpack(f"{self.endian}I", self.take(4))[0]
+        return self._unpack("I", 4)
 
     def i32(self):
-        return struct.unpack(f"{self.endian}i", self.take(4))[0]
+        return self._unpack("i", 4)
 
     def u64(self):
-        return struct.unpack(f"{self.endian}Q", self.take(8))[0]
+        return self._unpack("Q", 8)
 
     def f64(self):
-        return struct.unpack(f"{self.endian}d", self.take(8))[0]
+        return self._unpack("d", 8)
 
     @property
     def remaining(self):
         return len(self.data) - self.pos
-
-
-def _read_header(data):
-    if len(data) < 4:
-        raise FormatError("too short to be a snapshot")
-    if data[:3] != MAGIC:
-        raise FormatError(f"not a W3S snapshot (magic is {data[:3].hex()})")
-    return data[3]
-
-
-def _parse(data, endian, slot_size):
-    c = _Cursor(data[4:], endian)
-    s = Snapshot()
-    s.endian = endian
-    s.slot_size = slot_size
-
-    s.version = _read_header(data)
-    if s.version not in SUPPORTED_VERSIONS:
-        raise FormatError(f"unsupported version {s.version}")
-    s.flags = c.u32()
-
-    for _ in range(_sane(c.u32(), "memories")):
-        num_pages = c.u64()
-        max_pages = c.u64()
-        page_size = c.u32()
-        chunks = []
-        while True:
-            kind = c.u8()
-            if kind == CHUNK_END:
-                break
-            if kind == CHUNK_RAW:
-                off, ln = c.u32(), c.u32()
-                chunks.append((kind, off, c.take(ln)))
-            elif kind == CHUNK_FILL_FF:
-                off, ln = c.u32(), c.u32()
-                chunks.append((kind, off, ln))
-            else:
-                raise FormatError(
-                    f"unknown memory chunk type 0x{kind:02x} at offset {c.pos - 1}"
-                )
-        s.memories.append(Memory(num_pages, max_pages, chunks, page_size))
-
-    for _ in range(_sane(c.u32(), "globals")):
-        s.globals.append((c.u8(), c.u64()))
-
-    for _ in range(_sane(c.u32(), "tables")):
-        s.tables.append([c.i32() for _ in range(_sane(c.u32(), "table elements"))])
-
-    s.sp_slot = c.u32()
-    num_slots = c.u32()
-    s.stack = c.take(num_slots * slot_size)
-
-    s.entry_func_index = c.u32()
-    s.current_func_index = c.u32()
-    s.pc_offset = c.u32()
-    s.r0 = c.u64()
-    s.fp0 = c.f64()
-
-    for _ in range(_sane(c.u32(), "frames")):
-        s.frames.append(
-            Frame(
-                kind=c.u8(),
-                sp_slot=c.u32(),
-                func_index=c.u32(),
-                pc_offset=c.u32(),
-                r0=c.u64(),
-                fp0=c.f64(),
-                callee_index=c.u32(),
-                num_clauses=c.u32(),
-                handlers_live=c.u8(),
-            )
-        )
-
-    if c.remaining:
-        raise FormatError(f"{c.remaining} trailing bytes")
-
-    return s
 
 
 def _sane(count, what, limit=1 << 24):
@@ -381,12 +463,164 @@ def _sane(count, what, limit=1 << 24):
     return count
 
 
-def load(source, *, slot_size=None, module=None):
+def _read_frame(c):
+    f = Frame(kind=c.u8(), sp_slot=c.u32(), memory_index=c.u32(), func_index=c.u32())
+    if f.kind == FRAME_CALL:
+        f.pc_offset = c.u32()
+        f.callee_index = c.u32()
+        f.r0_type = c.u8()
+        f.r0 = c.u64()
+        f.fp0 = c.f64()
+    elif f.kind == FRAME_LOOP:
+        f.pc_offset = c.u32()
+    elif f.kind == FRAME_TRY:
+        f.pc_offset = c.u32()
+        f.num_clauses = c.u32()
+        f.handlers_live = c.u8()
+    elif f.kind == FRAME_ENTRY:
+        f.entry_func_index = c.u32()
+    elif f.kind == FRAME_RESUME:
+        f.pc_offset = c.u32()
+        f.cont_id = c.u64()
+        f.handlers_offset = c.u32()
+        f.num_handlers = c.u32()
+        f.results_offset = c.u32()
+        f.num_results = c.u32()
+    else:
+        raise FormatError(f"unknown frame kind {f.kind} at offset {c.pos}")
+    return f
+
+
+def _read_continuation(c, snap, cont_id):
+    k = Continuation(
+        id=cont_id,
+        state=c.u8(),
+        is_root=bool(c.u8()),
+        type_index=c.u32(),
+        entry_func_index=c.u32(),
+        bound_args_count=c.u32(),
+        resume_throw=c.u64(),
+    )
+    if snap.is_postmortem:
+        return k
+
+    if k.state == CONT_ALLOCATED:
+        k.args = [
+            c.u64()
+            for _ in range(_sane(k.bound_args_count, "bound arguments", 1 << 16))
+        ]
+    elif k.state == CONT_SUSPENDED:
+        k.stack = c.take(_sane(c.u32(), "stack slots") * snap.slot_size)
+        k.relocations = [
+            (c.u32(), c.u8(), c.u64()) for _ in range(_sane(c.u32(), "relocations"))
+        ]
+        k.has_own_pc = bool(c.u8())
+        if k.has_own_pc:
+            k.suspend_point = c.u8()
+            k.pc_func_index = c.u32()
+            k.pc_offset = c.u32()
+            k.sp_slot = c.u32()
+            k.r0_type = c.u8()
+            k.r0 = c.u64()
+        k.fp0 = c.f64()
+        k.suspend_results = [
+            (c.i32(), c.u8()) for _ in range(_sane(c.u32(), "suspend results", 1 << 16))
+        ]
+        k.frames = [_read_frame(c) for _ in range(_sane(c.u32(), "frames", 1 << 16))]
+    elif k.state != CONT_FINISHED:
+        raise FormatError(f"continuation {cont_id}: unknown state {k.state}")
+    return k
+
+
+def _parse(data):
+    if len(data) < 12:
+        raise FormatError("too short to be a snapshot")
+    if data[:3] != MAGIC:
+        raise FormatError(f"not a W3S snapshot (magic is {data[:3].hex()})")
+
+    s = Snapshot()
+    s.version = data[3]
+    if s.version not in SUPPORTED_VERSIONS:
+        raise FormatError(f"unsupported version {s.version}")
+
+    # the byte order marker follows the flags, and says how to read both
+    marker = data[8:10]
+    if marker == b"\x02\x01":
+        s.endian = "<"
+    elif marker == b"\x01\x02":
+        s.endian = ">"
+    else:
+        raise FormatError(f"unrecognized byte order marker {marker.hex()}")
+
+    c = _Cursor(data, s.endian)
+    c.take(4)
+    s.flags = c.u32()
+    c.u16()
+    s.pointer_size = c.u8()
+    s.slot_size = c.u8()
+    if s.slot_size not in (4, 8) or s.pointer_size not in (4, 8):
+        raise FormatError(
+            f"implausible widths: pointer {s.pointer_size}, slot {s.slot_size}"
+        )
+    s.build_fingerprint = c.u64()
+    s.gas_metered = bool(c.u8())
+    s.module_hash = c.u64()
+
+    num_continuations = _sane(c.u32(), "continuations")
+    num_exceptions = _sane(c.u32(), "exceptions")
+
+    headers = [(c.u32(), c.u32()) for _ in range(num_exceptions)]
+
+    for _ in range(_sane(c.u32(), "memories")):
+        num_pages = c.u64()
+        max_pages = c.u64()
+        page_size = c.u32()
+        has_data = bool(c.u8())
+        chunks = []
+        if has_data:
+            while True:
+                kind = c.u8()
+                if kind == CHUNK_END:
+                    break
+                if kind not in (CHUNK_RAW, CHUNK_FILL_FF):
+                    raise FormatError(
+                        f"unknown memory chunk type 0x{kind:02x} at offset {c.pos - 1}"
+                    )
+                off, ln = c.u32(), c.u32()
+                chunks.append((kind, off, c.take(ln) if kind == CHUNK_RAW else ln))
+        s.memories.append(Memory(num_pages, max_pages, page_size, has_data, chunks))
+
+    for _ in range(_sane(c.u32(), "globals")):
+        s.globals.append((c.u8(), c.u64()))
+
+    for _ in range(_sane(c.u32(), "tables")):
+        type_id = c.u8()
+        s.tables.append(
+            (type_id, [c.u64() for _ in range(_sane(c.u32(), "table elements"))])
+        )
+
+    s.data_dropped = [c.u8() for _ in range(_sane(c.u32(), "data segments"))]
+    s.elem_dropped = [c.u8() for _ in range(_sane(c.u32(), "element segments"))]
+
+    for tag_index, num_args in headers:
+        s.exceptions.append(
+            Exception_(tag_index=tag_index, args=[c.u64() for _ in range(num_args)])
+        )
+
+    for i in range(num_continuations):
+        s.continuations.append(_read_continuation(c, s, i))
+
+    if c.remaining:
+        raise FormatError(f"{c.remaining} trailing bytes")
+
+    return s
+
+
+def load(source, *, module=None):
     """Read a snapshot from a path, a file object or bytes.
 
-    slot_size is 4 or 8; when omitted both are tried and the one that accounts
-    for the whole file wins. module is a path to the .wasm the snapshot belongs
-    to, used only to put names to function indices.
+    module is a path to the .wasm the snapshot belongs to, used only to put
+    names to function indices.
     """
     if isinstance(source, (bytes, bytearray)):
         data = bytes(source)
@@ -396,108 +630,180 @@ def load(source, *, slot_size=None, module=None):
         with open(source, "rb") as f:
             data = f.read()
 
-    version = _read_header(data)
-    if version not in SUPPORTED_VERSIONS:
-        raise FormatError(f"unsupported version {version}")
-    candidates = [slot_size] if slot_size else [4, 8]
-
-    errors = []
-    for endian in ("<", ">"):
-        endian_name = "little" if endian == "<" else "big"
-        for size in candidates:
-            try:
-                snap = _parse(data, endian, size)
-            except FormatError as e:
-                errors.append(f"{endian_name}-endian, slot_size={size}: {e}")
-                continue
-            if module:
-                snap.names = read_function_names(module)
-            return snap
-
-    error_list = "\n  ".join(errors)
-    raise FormatError(f"could not parse snapshot:\n  {error_list}")
+    snap = _parse(data)
+    if module:
+        snap.names = read_function_names(module)
+    return snap
 
 
 # --------------------------------------------------------------------------- writing
 
 
+class _Writer:
+    def __init__(self, endian):
+        self.out = bytearray()
+        self.endian = endian
+
+    def _pack(self, fmt, v):
+        self.out.extend(struct.pack(f"{self.endian}{fmt}", v))
+
+    def u8(self, v):
+        self.out.append(int(v) & 0xFF)
+
+    def u16(self, v):
+        self._pack("H", v & 0xFFFF)
+
+    def u32(self, v):
+        self._pack("I", v & 0xFFFFFFFF)
+
+    def i32(self, v):
+        self._pack("i", v)
+
+    def u64(self, v):
+        self._pack("Q", v & 0xFFFFFFFFFFFFFFFF)
+
+    def f64(self, v):
+        self._pack("d", v)
+
+    def raw(self, b):
+        self.out.extend(b)
+
+
+def _write_frame(w, f):
+    w.u8(f.kind)
+    w.u32(f.sp_slot)
+    w.u32(f.memory_index)
+    w.u32(f.func_index)
+    if f.kind == FRAME_CALL:
+        w.u32(f.pc_offset)
+        w.u32(f.callee_index)
+        w.u8(f.r0_type)
+        w.u64(f.r0)
+        w.f64(f.fp0)
+    elif f.kind == FRAME_LOOP:
+        w.u32(f.pc_offset)
+    elif f.kind == FRAME_TRY:
+        w.u32(f.pc_offset)
+        w.u32(f.num_clauses)
+        w.u8(f.handlers_live)
+    elif f.kind == FRAME_ENTRY:
+        w.u32(f.entry_func_index)
+    elif f.kind == FRAME_RESUME:
+        w.u32(f.pc_offset)
+        w.u64(f.cont_id)
+        w.u32(f.handlers_offset)
+        w.u32(f.num_handlers)
+        w.u32(f.results_offset)
+        w.u32(f.num_results)
+    else:
+        raise FormatError(f"unknown frame kind {f.kind}")
+
+
 def pack(snap):
     """Serialize a Snapshot back to bytes, byte-for-byte with what wasm3 wrote."""
-    e = snap.endian
-    out = bytearray()
+    w = _Writer(snap.endian)
 
-    def u8(v):
-        out.append(v & 0xFF)
+    w.raw(MAGIC)
+    w.u8(snap.version)
+    w.u32(snap.flags)
+    w.u16(0x0102)
+    w.u8(snap.pointer_size)
+    w.u8(snap.slot_size)
+    w.u64(snap.build_fingerprint)
+    w.u8(snap.gas_metered)
+    w.u64(snap.module_hash)
 
-    def u32(v):
-        out.extend(struct.pack(f"{e}I", v & 0xFFFFFFFF))
+    w.u32(len(snap.continuations))
+    w.u32(len(snap.exceptions))
 
-    def i32(v):
-        out.extend(struct.pack(f"{e}i", v))
+    for e in snap.exceptions:
+        w.u32(e.tag_index)
+        w.u32(len(e.args))
 
-    def u64(v):
-        out.extend(struct.pack(f"{e}Q", v & 0xFFFFFFFFFFFFFFFF))
-
-    def f64(v):
-        out.extend(struct.pack(f"{e}d", v))
-
-    out.extend(MAGIC)
-    u8(snap.version)
-    u32(snap.flags)
-
-    u32(len(snap.memories))
+    w.u32(len(snap.memories))
     for m in snap.memories:
-        u64(m.num_pages)
-        u64(m.max_pages)
-        u32(m.page_size)
-        for kind, off, payload in m.chunks:
-            u8(kind)
-            u32(off)
-            if kind == CHUNK_RAW:
-                u32(len(payload))
-                out.extend(payload)
-            else:
-                u32(payload)
-        u8(CHUNK_END)
+        w.u64(m.num_pages)
+        w.u64(m.max_pages)
+        w.u32(m.page_size)
+        w.u8(m.has_data)
+        if m.has_data:
+            for kind, off, payload in m.chunks:
+                w.u8(kind)
+                w.u32(off)
+                if kind == CHUNK_RAW:
+                    w.u32(len(payload))
+                    w.raw(payload)
+                else:
+                    w.u32(payload)
+            w.u8(CHUNK_END)
 
-    u32(len(snap.globals))
+    w.u32(len(snap.globals))
     for type_id, value in snap.globals:
-        u8(type_id)
-        u64(value)
+        w.u8(type_id)
+        w.u64(value)
 
-    u32(len(snap.tables))
-    for table in snap.tables:
-        u32(len(table))
-        for elem in table:
-            i32(elem)
+    w.u32(len(snap.tables))
+    for type_id, elems in snap.tables:
+        w.u8(type_id)
+        w.u32(len(elems))
+        for e in elems:
+            w.u64(e)
 
-    u32(snap.sp_slot)
-    u32(snap.num_slots)
-    out.extend(snap.stack)
+    w.u32(len(snap.data_dropped))
+    for d in snap.data_dropped:
+        w.u8(d)
+    w.u32(len(snap.elem_dropped))
+    for d in snap.elem_dropped:
+        w.u8(d)
 
-    u32(snap.entry_func_index)
-    u32(snap.current_func_index)
-    u32(snap.pc_offset)
-    u64(snap.r0)
-    f64(snap.fp0)
+    for e in snap.exceptions:
+        for a in e.args:
+            w.u64(a)
 
-    u32(len(snap.frames))
-    for f in snap.frames:
-        u8(f.kind)
-        u32(f.sp_slot)
-        u32(f.func_index)
-        u32(f.pc_offset)
-        u64(f.r0)
-        f64(f.fp0)
-        u32(f.callee_index)
-        u32(f.num_clauses)
-        u8(f.handlers_live)
+    for k in snap.continuations:
+        w.u8(k.state)
+        w.u8(k.is_root)
+        w.u32(k.type_index)
+        w.u32(k.entry_func_index)
+        w.u32(k.bound_args_count)
+        w.u64(k.resume_throw)
 
-    return bytes(out)
+        if snap.is_postmortem:
+            continue
+
+        if k.state == CONT_ALLOCATED:
+            for a in k.args:
+                w.u64(a)
+        elif k.state == CONT_SUSPENDED:
+            w.u32(len(k.stack) // snap.slot_size)
+            w.raw(k.stack)
+            w.u32(len(k.relocations))
+            for slot, type_id, word in k.relocations:
+                w.u32(slot)
+                w.u8(type_id)
+                w.u64(word)
+            w.u8(k.has_own_pc)
+            if k.has_own_pc:
+                w.u8(k.suspend_point)
+                w.u32(k.pc_func_index)
+                w.u32(k.pc_offset)
+                w.u32(k.sp_slot)
+                w.u8(k.r0_type)
+                w.u64(k.r0)
+            w.f64(k.fp0)
+            w.u32(len(k.suspend_results))
+            for offset, is64 in k.suspend_results:
+                w.i32(offset)
+                w.u8(is64)
+            w.u32(len(k.frames))
+            for f in k.frames:
+                _write_frame(w, f)
+
+    return bytes(w.out)
 
 
 def encode_memory(data, run_threshold=128):
-    """Chunk-encode linear memory the way StreamWriteMemoryChunks does.
+    """Chunk-encode linear memory the way wasm3 does.
 
     Runs of 0x00 at least run_threshold long are dropped (memory starts zeroed);
     runs of 0xFF that long become a fill. Everything else is stored raw.
@@ -507,29 +813,24 @@ def encode_memory(data, run_threshold=128):
     i = 0
     while i < n:
         b = data[i]
-        if b in (0x00, 0xFF):
-            run = 1
-            while i + run < n and data[i + run] == b:
-                run += 1
-            if run >= run_threshold:
-                if b == 0xFF:
-                    chunks.append((CHUNK_FILL_FF, i, run))
-                i += run
-                continue
+        run = 1
+        while i + run < n and data[i + run] == b:
+            run += 1
+        if b in (0x00, 0xFF) and run >= run_threshold:
+            if b == 0xFF:
+                chunks.append((CHUNK_FILL_FF, i, run))
+            i += run
+            continue
         start = i
         while i < n:
             b = data[i]
-            if b in (0x00, 0xFF):
-                run = 1
-                while i + run < n and data[i + run] == b:
-                    run += 1
-                if run >= run_threshold:
-                    break
-                i += run
-            else:
-                i += 1
-        if i > start:
-            chunks.append((CHUNK_RAW, start, data[start:i]))
+            length = 1
+            while i + length < n and data[i + length] == b:
+                length += 1
+            if b in (0x00, 0xFF) and length >= run_threshold:
+                break
+            i += length
+        chunks.append((CHUNK_RAW, start, data[start:i]))
     return chunks
 
 
@@ -554,7 +855,6 @@ def read_function_names(path):
         return {}
 
     pos = 8
-    imported_funcs = 0
     names = {}
     exported = {}
 
@@ -577,38 +877,7 @@ def read_function_names(path):
         if end > len(data):
             break
 
-        if section_id == 2:  # imports
-            count, p = leb(pos)
-            for _ in range(count):
-                mlen, p = leb(p)
-                p += mlen
-                nlen, p = leb(p)
-                p += nlen
-                kind = data[p]
-                p += 1
-                if kind == 0x00:
-                    imported_funcs += 1
-                    _, p = leb(p)
-                elif kind == 0x01:  # table
-                    p += 1
-                    limits = data[p]
-                    p += 1
-                    _, p = leb(p)
-                    if limits & 0x01:
-                        _, p = leb(p)
-                elif kind == 0x02:  # memory
-                    limits = data[p]
-                    p += 1
-                    _, p = leb(p)
-                    if limits & 0x01:
-                        _, p = leb(p)
-                elif kind == 0x03:  # global
-                    p += 2
-                else:  # tag
-                    p += 1
-                    _, p = leb(p)
-
-        elif section_id == 0:  # custom
+        if section_id == 0:  # custom
             nlen, p = leb(pos)
             if data[p : p + nlen] == b"name":
                 p += nlen
@@ -642,8 +911,6 @@ def read_function_names(path):
 
     # wasm3 indexes M3Module.functions with imports first, which is the same
     # index space the name and export sections use
-    _ = imported_funcs
-
     for idx, name in exported.items():
         names.setdefault(idx, name)
 
@@ -656,6 +923,18 @@ def read_function_names(path):
 def verify(snap):
     """Structural complaints about a snapshot. Empty list means nothing found."""
     problems = []
+    num_conts = len(snap.continuations)
+    num_exns = len(snap.exceptions)
+
+    def check_ref(where, type_id, word):
+        if type_id not in REF_TYPES or word == NULL_REF:
+            return
+        if type_id == 7:
+            problems.append(f"{where}: an externref, which wasm3 never writes")
+        elif type_id == 8 and word >= num_exns:
+            problems.append(f"{where}: exception #{word} is not in the snapshot")
+        elif type_id == 9 and word >= num_conts:
+            problems.append(f"{where}: continuation #{word} is not in the snapshot")
 
     for i, m in enumerate(snap.memories):
         if m.max_pages and m.num_pages > m.max_pages:
@@ -669,39 +948,78 @@ def verify(snap):
                     f"memory {i}: chunk at {off}+{length} runs past {m.size} bytes"
                 )
 
-    for i, (type_id, _) in enumerate(snap.globals):
+    for i, (type_id, word) in enumerate(snap.globals):
         if type_id not in TYPE_NAMES:
             problems.append(f"global {i}: unknown type id {type_id}")
+        check_ref(f"global {i}", type_id, word)
 
-    if snap.sp_slot > snap.num_slots:
-        problems.append(
-            f"sp is slot {snap.sp_slot} but only {snap.num_slots} slots were saved"
-        )
+    for i, (type_id, elems) in enumerate(snap.tables):
+        if type_id not in REF_TYPES:
+            problems.append(f"table {i}: element type {type_id} is not a reference")
+        for j, e in enumerate(elems):
+            check_ref(f"table {i}[{j}]", type_id, e)
 
-    for i, f in enumerate(snap.frames):
-        if f.kind not in FRAME_KINDS:
-            problems.append(f"frame {i}: unknown kind {f.kind}")
-        if f.sp_slot > snap.num_slots:
+    roots = [k for k in snap.continuations if k.is_root]
+    if snap.is_postmortem:
+        if roots:
+            problems.append("a postmortem snapshot has a root continuation")
+    else:
+        if len(roots) != 1 or snap.continuations[0] is not roots[0]:
             problems.append(
-                f"frame {i}: sp is slot {f.sp_slot} but only {snap.num_slots} slots were saved"
+                "a resumable snapshot needs exactly one root, as continuation #0"
             )
-        if f.kind == 4:
-            problems.append(
-                f"frame {i}: a captured resume, which version 1 cannot "
-                "represent - the file is probably corrupt"
-            )
+        elif roots[0].state != CONT_SUSPENDED:
+            problems.append("the root continuation is not suspended")
 
-    if snap.names:
-        highest = max(snap.names)
-        for label, idx in (
-            ("entry", snap.entry_func_index),
-            ("current", snap.current_func_index),
-        ):
-            if idx > highest:
+    for k in snap.continuations:
+        where = f"continuation #{k.id}"
+        if k.resume_throw != NULL_REF and k.resume_throw >= num_exns:
+            problems.append(
+                f"{where}: resume_throw names exception #{k.resume_throw}, not in the snapshot"
+            )
+        if k.stack is None:
+            continue
+        num_slots = len(k.stack) // snap.slot_size
+        pointer_slots = -(-snap.pointer_size // snap.slot_size)
+        for slot, type_id, word in k.relocations:
+            if slot + pointer_slots > num_slots:
                 problems.append(
-                    f"{label} function index {idx} is past the last function "
-                    f"in the module ({highest})"
+                    f"{where}: a reference at slot {slot} is past the {num_slots} saved"
                 )
+            if type_id not in REF_TYPES:
+                problems.append(
+                    f"{where}: relocation at slot {slot} has non-reference type {type_id}"
+                )
+            check_ref(f"{where} slot {slot}", type_id, word)
+        if k.has_own_pc:
+            if k.sp_slot > num_slots:
+                problems.append(
+                    f"{where}: sp is slot {k.sp_slot} but only {num_slots} were saved"
+                )
+            if k.suspend_point not in SUSPEND_POINTS:
+                problems.append(f"{where}: unknown suspend point {k.suspend_point}")
+        elif not k.frames or k.frames[-1].kind != FRAME_RESUME:
+            problems.append(
+                f"{where}: has no pc of its own, but its innermost frame is not a resume"
+            )
+        for i, f in enumerate(k.frames):
+            if f.kind not in FRAME_KINDS:
+                problems.append(f"{where} frame {i}: unknown kind {f.kind}")
+            if f.sp_slot > num_slots:
+                problems.append(
+                    f"{where} frame {i}: sp is slot {f.sp_slot} but only {num_slots} were saved"
+                )
+            if f.kind == FRAME_RESUME:
+                if i != len(k.frames) - 1:
+                    problems.append(
+                        f"{where} frame {i}: a resume that is not the innermost frame"
+                    )
+                if f.cont_id >= num_conts:
+                    problems.append(
+                        f"{where} frame {i}: resumes continuation #{f.cont_id}, not in the snapshot"
+                    )
+            if f.kind == FRAME_CALL and f.r0_type in REF_TYPES:
+                check_ref(f"{where} frame {i} register", f.r0_type, f.r0)
 
     return problems
 
@@ -739,10 +1057,19 @@ def diff(a, b):
         for i, (ga, gb) in enumerate(zip(a.globals, b.globals))
         if ga[1] != gb[1]
     ]
+
+    ra, rb = a.root, b.root
     out["execution"] = {
-        "current_func_index": [a.current_func_index, b.current_func_index],
-        "pc_offset_words": [a.pc_offset, b.pc_offset],
-        "frame_depth": [len(a.frames), len(b.frames)],
+        "continuations": [len(a.continuations), len(b.continuations)],
+        "exceptions": [len(a.exceptions), len(b.exceptions)],
+        "root_pc": [
+            (ra.pc_func_index, ra.pc_offset) if ra else None,
+            (rb.pc_func_index, rb.pc_offset) if rb else None,
+        ],
+        "root_frame_depth": [
+            len(ra.frames) if ra else None,
+            len(rb.frames) if rb else None,
+        ],
     }
     return out
 
@@ -758,14 +1085,18 @@ def unpack(snap, directory):
     manifest["files"] = {}
 
     for i, m in enumerate(snap.memories):
-        name = f"memory{i}.bin"
-        with open(os.path.join(directory, name), "wb") as f:
-            f.write(m.data)
-        manifest["files"][f"memory{i}"] = name
+        if m.has_data:
+            name = f"memory{i}.bin"
+            with open(os.path.join(directory, name), "wb") as f:
+                f.write(m.data)
+            manifest["files"][f"memory{i}"] = name
 
-    with open(os.path.join(directory, "stack.bin"), "wb") as f:
-        f.write(snap.stack)
-    manifest["files"]["stack"] = "stack.bin"
+    for k in snap.continuations:
+        if k.stack is not None:
+            name = f"stack{k.id}.bin"
+            with open(os.path.join(directory, name), "wb") as f:
+                f.write(k.stack)
+            manifest["files"][f"stack{k.id}"] = name
 
     with open(os.path.join(directory, "snapshot.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, sort_keys=False)
@@ -784,50 +1115,67 @@ def pack_directory(directory, run_threshold=128):
     snap.version = fmt["version"]
     snap.flags = fmt["flags"]
     snap.endian = "<" if fmt["endian"] == "little" else ">"
+    snap.pointer_size = fmt["pointer_size"]
     snap.slot_size = fmt["slot_size"]
+    snap.build_fingerprint = int(fmt["build_fingerprint"], 16)
+    snap.gas_metered = fmt["gas_metered"]
+    snap.module_hash = int(fmt["module_hash"], 16)
 
     files = manifest.get("files", {})
 
+    def blob(key):
+        with open(os.path.join(directory, files[key]), "rb") as f:
+            return f.read()
+
+    snap.exceptions = [
+        Exception_(tag_index=e["tag_index"], args=e["args"])
+        for e in manifest["exceptions"]
+    ]
+
     for i, m in enumerate(manifest["memories"]):
-        with open(os.path.join(directory, files[f"memory{i}"]), "rb") as f:
-            data = f.read()
+        chunks = (
+            encode_memory(blob(f"memory{i}"), run_threshold) if m["has_data"] else []
+        )
         snap.memories.append(
-            Memory(
-                m["pages"],
-                m["max_pages"],
-                encode_memory(data, run_threshold),
-                m["page_size"],
-            )
+            Memory(m["pages"], m["max_pages"], m["page_size"], m["has_data"], chunks)
         )
 
     snap.globals = [(g["type_id"], g["value"]) for g in manifest["globals"]]
-    snap.tables = [t["elements"] for t in manifest["tables"]]
+    snap.tables = [(t["type_id"], t["elements"]) for t in manifest["tables"]]
+    snap.data_dropped = manifest["data_dropped"]
+    snap.elem_dropped = manifest["elem_dropped"]
 
-    with open(os.path.join(directory, files["stack"]), "rb") as f:
-        snap.stack = f.read()
-
-    ex = manifest["execution"]
-    snap.sp_slot = ex["sp_slot"]
-    snap.entry_func_index = ex["entry_func_index"]
-    snap.current_func_index = ex["current_func_index"]
-    snap.pc_offset = ex["pc_offset_words"]
-    snap.r0 = ex["r0"]
-    snap.fp0 = ex["fp0"]
-
-    snap.frames = [
-        Frame(
-            kind=f["kind"],
-            sp_slot=f["sp_slot"],
-            func_index=f["func_index"],
-            pc_offset=f["pc_offset"],
-            r0=f["r0"],
-            fp0=f["fp0"],
-            callee_index=f["callee_index"],
-            num_clauses=f["num_clauses"],
-            handlers_live=f["handlers_live"],
+    for d in manifest["continuations"]:
+        k = Continuation(
+            id=d["id"],
+            state=d["state_id"],
+            is_root=d["is_root"],
+            type_index=d["type_index"],
+            entry_func_index=d["entry_func_index"],
+            bound_args_count=d["bound_args_count"],
+            resume_throw=d["resume_throw"],
+            args=d.get("args"),
         )
-        for f in manifest["frames"]
-    ]
+        if "relocations" in d:
+            k.stack = blob(f"stack{k.id}")
+            k.relocations = [
+                (r["slot"], r["type_id"], r["word"]) for r in d["relocations"]
+            ]
+            k.has_own_pc = d["has_own_pc"]
+            k.suspend_point = d["suspend_point"]
+            k.pc_func_index = d["pc_func_index"]
+            k.pc_offset = d["pc_offset_words"]
+            k.sp_slot = d["sp_slot"]
+            k.r0_type = d["r0_type"]
+            k.r0 = d["r0"]
+            k.fp0 = d["fp0"]
+            k.suspend_results = [(r["offset"], r["is64"]) for r in d["suspend_results"]]
+            k.frames = []
+            for fd in d["frames"]:
+                fr = Frame(**{key: fd.get(key) for key in Frame.__slots__})
+                k.frames.append(fr)
+        snap.continuations.append(k)
+
     return snap
 
 
@@ -841,42 +1189,69 @@ def _human(n):
         n /= 1024.0
 
 
+def _print_continuation(snap, k):
+    kind = "root" if k.is_root else f"type {k.type_index}"
+    print(
+        f"  #{k.id:<3} {k.state_name:<10} {kind:<9} entry {snap.describe_func(k.entry_func_index)}"
+    )
+    if k.resume_throw != NULL_REF:
+        print(f"         resumes by raising exception #{k.resume_throw}")
+    if k.args:
+        print(f"         {len(k.args)} bound arguments")
+    if k.stack is None:
+        return
+    print(
+        f"         {len(k.stack) // snap.slot_size} slots saved, "
+        f"{len(k.relocations)} of them references"
+    )
+    if k.has_own_pc:
+        point = SUSPEND_POINTS.get(k.suspend_point, f"point{k.suspend_point}")
+        print(
+            f"         stopped ({point}) in {snap.describe_func(k.pc_func_index)} "
+            f"at metacode word {k.pc_offset}, sp slot {k.sp_slot}"
+        )
+    for i, f in enumerate(k.frames):
+        extra = ""
+        if f.kind == FRAME_CALL:
+            extra = f" -> calls {snap.describe_func(f.callee_index)}"
+        elif f.kind == FRAME_TRY:
+            extra = f" {f.num_clauses} clauses, handlers {'live' if f.handlers_live else 'retired'}"
+        elif f.kind == FRAME_RESUME:
+            extra = f" -> runs continuation #{f.cont_id}"
+        where = f"word {f.pc_offset}" if f.pc_offset is not None else ""
+        print(
+            f"         {i:2d}  {f.kind_name:<6} in {snap.describe_func(f.func_index):<20} "
+            f"{where:<11} sp slot {f.sp_slot}{extra}"
+        )
+
+
 def cmd_info(args):
-    snap = load(args.file, slot_size=args.slot_size, module=args.wasm)
+    snap = load(args.file, module=args.wasm)
     size = os.path.getsize(args.file) if os.path.exists(args.file) else 0
 
     print(f"{args.file}  {_human(size)}")
     kind = "postmortem" if snap.is_postmortem else "resumable"
     print(f"  format      W3S version {snap.version}, flags 0x{snap.flags:x} ({kind})")
-    print(f"  encoding    {snap.endian_name}-endian, {snap.slot_size}-byte slots")
-    print()
-    if snap.is_postmortem:
-        print("  execution   unavailable after the trap")
-    else:
-        print(
-            f"  suspended in function {snap.describe_func(snap.current_func_index)} "
-            f"at metacode word {snap.pc_offset}"
-        )
-        print(f"  invoked     function {snap.describe_func(snap.entry_func_index)}")
-        print(f"  registers   r0=0x{snap.r0:016x} fp0={snap.fp0!r}")
-        print(f"  value stack {snap.num_slots} slots saved, sp at slot {snap.sp_slot}")
+    print(
+        f"  encoding    {snap.endian_name}-endian, {snap.pointer_size}-byte pointers, "
+        f"{snap.slot_size}-byte slots"
+    )
+    print(
+        f"  build       {snap.build_fingerprint:016x}, gas metering {'on' if snap.gas_metered else 'off'}"
+    )
+    print(f"  module      {snap.module_hash:016x}")
 
+    if snap.continuations:
         print()
-        if snap.frames:
-            print("  frames (outermost first):")
-            for i, f in enumerate(snap.frames):
-                extra = ""
-                if f.kind_name == "call" and f.callee_index:
-                    extra = f" -> calls {snap.describe_func(f.callee_index)}"
-                elif f.kind_name == "try":
-                    extra = f" {f.num_clauses} clauses, handlers {'live' if f.handlers_live else 'retired'}"
-                print(
-                    f"    {i:2d}  {f.kind_name:<6} in "
-                    f"{snap.describe_func(f.func_index):<20} word {f.pc_offset:<6d} "
-                    f"sp slot {f.sp_slot:<6d}{extra}"
-                )
-        else:
-            print("  frames      none - suspended in the entry function itself")
+        print(f"  continuations ({len(snap.continuations)}):")
+        for k in snap.continuations:
+            _print_continuation(snap, k)
+
+    if snap.exceptions:
+        print()
+        print(f"  exceptions ({len(snap.exceptions)}):")
+        for i, e in enumerate(snap.exceptions):
+            print(f"  #{i:<3} tag {e.tag_index}, {len(e.args)} args")
 
     print()
     for i, m in enumerate(snap.memories):
@@ -892,13 +1267,20 @@ def cmd_info(args):
         for i, (type_id, value) in enumerate(snap.globals):
             print(
                 f"    {i:2d}  {TYPE_NAMES.get(type_id, f'type{type_id}'):<10} "
-                f"{_as_signed(value, type_id)}"
+                f"{snap.describe_value(type_id, value)}"
             )
 
-    for i, table in enumerate(snap.tables):
+    for i, (type_id, elems) in enumerate(snap.tables):
         print(
-            f"  table {i}     {len(table)} elements, "
-            f"{sum(1 for e in table if e >= 0)} non-null"
+            f"  table {i}     {TYPE_NAMES.get(type_id, f'type{type_id}')}, {len(elems)} elements, "
+            f"{sum(1 for e in elems if e != NULL_REF)} non-null"
+        )
+
+    dropped = sum(snap.data_dropped) + sum(snap.elem_dropped)
+    if snap.data_dropped or snap.elem_dropped:
+        print(
+            f"  segments    {len(snap.data_dropped)} data, {len(snap.elem_dropped)} element, "
+            f"{dropped} dropped"
         )
 
     problems = verify(snap)
@@ -912,7 +1294,7 @@ def cmd_info(args):
 
 
 def cmd_unpack(args):
-    snap = load(args.file, slot_size=args.slot_size, module=args.wasm)
+    snap = load(args.file, module=args.wasm)
     manifest = unpack(snap, args.output)
     print(f"unpacked to {args.output}")
     for key, name in manifest["files"].items():
@@ -932,7 +1314,7 @@ def cmd_pack(args):
 
 
 def cmd_verify(args):
-    snap = load(args.file, slot_size=args.slot_size, module=args.wasm)
+    snap = load(args.file, module=args.wasm)
     problems = verify(snap)
     if not problems:
         print(f"{args.file}: ok")
@@ -943,8 +1325,8 @@ def cmd_verify(args):
 
 
 def cmd_diff(args):
-    a = load(args.before, slot_size=args.slot_size, module=args.wasm)
-    b = load(args.after, slot_size=args.slot_size, module=args.wasm)
+    a = load(args.before, module=args.wasm)
+    b = load(args.after, module=args.wasm)
     print(json.dumps(diff(a, b), indent=2))
     return 0
 
@@ -952,12 +1334,6 @@ def cmd_diff(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Read, inspect and rebuild wasm3 snapshots (.w3s)"
-    )
-    parser.add_argument(
-        "--slot-size",
-        type=int,
-        choices=(4, 8),
-        help="value stack slot width; detected when omitted",
     )
     parser.add_argument(
         "--wasm", help="the module the snapshot belongs to, for function names"

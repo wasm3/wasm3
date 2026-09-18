@@ -201,6 +201,18 @@ typedef struct
     u32   gasCost;
 #endif
 
+#if d_m3HasSnapshots
+    // The function's snapshot map as it is being built, or NULL when this
+    // compilation records none. The run being emitted starts at runStart, and
+    // runOffset is how many of the function's words came before it.
+    M3SnapshotMap* snapshotMap;
+    u32            runsCapacity;
+    u32            safePointsCapacity;
+    u32            refsCapacity;
+    pc_t           runStart;
+    u32            runOffset;
+#endif
+
 #if d_m3FoldSetLocal
     // the last emitted op, when it is a candidate for local.set destination folding.
     // foldPatchPC is NULL whenever anything was emitted (or a branch target captured) since.

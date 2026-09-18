@@ -969,6 +969,40 @@ M3Result FileSnapshotWriter (const void* i_data, size_t i_size, void* i_userdata
     return m3Err_none;
 }
 
+// Writes the suspended execution to i_path and says what the process exits
+// with. The snapshot is taken whole before the file is opened: the path can be
+// the very snapshot this run resumed from, and a save that fails must not have
+// emptied it first.
+static
+int SaveSuspension (const char* i_path)
+{
+    void*    bytes  = NULL;
+    size_t   size   = 0;
+    M3Result result = m3_SaveSnapshotToBuffer(runtime, &bytes, &size);
+
+    if (result) {
+        fprintf(stderr, "Error saving snapshot: %s\n", result);
+        return 1;
+    }
+
+    FILE* f  = fopen(i_path, "wb");
+    bool  ok = f and fwrite(bytes, 1, size, f) == size;
+
+    if (f and fclose(f) != 0) {
+        ok = false;
+    }
+
+    free(bytes);
+
+    if (not ok) {
+        fprintf(stderr, "Error writing snapshot to %s\n", i_path);
+        return 1;
+    }
+
+    fprintf(stderr, "Execution suspended. Snapshot saved to %s\n", i_path);
+    return 0;
+}
+
 static
 void SaveTrapSnapshot ()
 {
@@ -1161,23 +1195,11 @@ int main (int i_argc, const char* i_argv[])
 
             result = m3_ResumeRuntime(runtime);
             if (result == m3Err_continuationSuspended) {
-                const char* snapPath = argSnapshotFile ? argSnapshotFile : argResumeFile;
-                FILE*       sf       = fopen(snapPath, "wb");
-                if (sf) {
-                    M3Result sres = m3_SaveSnapshot(runtime, FileSnapshotWriter, sf);
-                    fclose(sf);
-                    if (sres) {
-                        fprintf(stderr, "Error saving snapshot: %s\n", sres);
-                    } else {
-                        fprintf(stderr, "Execution suspended. Snapshot saved to %s\n", snapPath);
-                    }
-                } else {
-                    fprintf(stderr, "Error opening %s for writing\n", snapPath);
-                }
+                int status = SaveSuspension(argSnapshotFile ? argSnapshotFile : argResumeFile);
                 m3_HostRemoveInterruptHandler();
                 repl_free();
                 m3_FreeEnvironment(env);
-                return 0;
+                return status;
             }
 
             if (result) {
@@ -1205,23 +1227,11 @@ int main (int i_argc, const char* i_argv[])
             // only --snapshot makes this runtime suspendable here: --resume
             // never reaches this far
             if (result == m3Err_continuationSuspended) {
-                const char* snapPath = argSnapshotFile;
-                FILE*       sf       = fopen(snapPath, "wb");
-                if (sf) {
-                    M3Result sres = m3_SaveSnapshot(runtime, FileSnapshotWriter, sf);
-                    fclose(sf);
-                    if (sres) {
-                        fprintf(stderr, "Error saving snapshot: %s\n", sres);
-                    } else {
-                        fprintf(stderr, "Execution suspended. Snapshot saved to %s\n", snapPath);
-                    }
-                } else {
-                    fprintf(stderr, "Error opening %s for writing\n", snapPath);
-                }
+                int status = SaveSuspension(argSnapshotFile);
                 m3_HostRemoveInterruptHandler();
                 repl_free();
                 m3_FreeEnvironment(env);
-                return 0;
+                return status;
             }
 
             if (result) {

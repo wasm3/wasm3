@@ -111,9 +111,28 @@ void FreeImportInfo (M3ImportInfo* i_info)
 }
 
 
+#if d_m3HasSnapshots
+
+void SnapshotMap_Free (M3SnapshotMap* i_map)
+{
+    if (i_map) {
+        m3_Free(i_map->runs);
+        m3_Free(i_map->safePoints);
+        m3_Free(i_map->refs);
+        m3_Free(i_map);
+    }
+}
+
+#endif
+
 void Function_Release (IM3Function i_function)
 {
     m3_Free(i_function->constants);
+
+#if d_m3HasSnapshots
+    SnapshotMap_Free(i_function->snapshotMap);
+    i_function->snapshotMap = NULL;
+#endif
 
     for (int i = 0; i < i_function->numNames; i++) {
         // name can be an alias of fieldUtf8
