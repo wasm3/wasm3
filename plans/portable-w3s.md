@@ -67,40 +67,77 @@ metering being toggled.
 
 | Piece | Where |
 |---|---|
-| pc to Wasm byte offset | `EmitMappingEntry` records one per emitted operation, `MapPCToOffset` reads it back - today only under `d_m3RecordBacktraces` |
+| pc to Wasm byte offset | `RecordSafePoint` records `wasmOffset` directly in `M3SafePoint` (zero interpreter cost, avoids heavy `d_m3RecordBacktraces` tables) |
 | Native frames as data | `M3Frame` and `ReplayFrames`, from stack switching |
-| Live slots at a safepoint | `RecordSafePoint`, from the compiler's `typeStack` and `wasmStack` - references only |
+| Live values at a safepoint | `RecordSafePoint`, walking `typeStack` and `wasmStack` to capture canonical locals and live operand stack |
 | References by name | `m3_snapshot.c` |
 
 ## Plan
 
-### Phase 1 - type every live slot
+### Phase 1 - type every live value
 
-Extend the safepoints from references to every live value: each live stack entry
-with its type, the register's type, and which Wasm local or operand stack
-position the entry is. The liveness rules already hold - a block's landing pads
-are not values, and a back edge writes its loop's parameters - so this is a
-matter of recording more of what `RecordSafePoint` already walks.
+Extend safepoint collection from references to all live values:
+- Function locals ($0 \dots M-1$) in declaration order (types fixed by function signature and local decls).
+- Live operand stack entries ($0 \dots K-1$) in evaluation order (types tracked in compiler's `typeStack`).
+- Register destination (`_r0` or `_fp0`) if top of stack is cached.
 
-This is real map size, and the same size argument that applies to backtraces
-applies here: behind its own flag.
+The liveness rules already hold - a block's landing pads are not values, and a
+back edge writes its loop's parameters - so this is a matter of recording more
+of what `RecordSafePoint` already walks at compile time.
 
-### Phase 2 - write W3S
+**Performance impact:**
+- **Interpreter runtime:** 0.0% overhead. No dispatch loops, opcodes, or hot paths are modified.
+- **Compiler:** Negligible. A simple subtraction (`o->lastOpcodeStart - o->function->wasm`) and compact type recording only at safepoints (avoiding the heavy opcode-by-opcode tables of `d_m3RecordBacktraces`).
 
-Program counters as (function index, Wasm byte offset). Values as Wasm values,
-little-endian regardless of host, placed by Wasm local index and operand stack
-position rather than by slot. Frames as Wasm constructs - a call, a block nest -
-rather than as native frames.
+### Phase 2 - make W3S host-agnostic (Format v1)
 
-An `externref` belongs to the embedder, so it needs a pair of hooks to name and
-re-bind it.
+Since W3S is unreleased, the format remains Version 1 (`W3S\x01`) and is made
+host-agnostic directly:
+
+1. **Canonical Little-Endian:** All multi-byte integers, floats, and memory in
+   transit are encoded in canonical Little-Endian (matching the WebAssembly
+   specification). The `byte_order` marker is removed from the header.
+2. **Remove host layout and configuration metadata:** `pointer_size`, `slot_size`,
+   and `gas_metered` are removed from the header entirely. In the host-tied
+   format, `gas_metered` existed solely to prevent metacode PC drift caused by
+   gas instrumentation opcodes; in portable W3S, Wasm bytecode offsets are
+   decoupled from gas instrumentation. The snapshot carries execution state,
+   while gas limits remain host runtime policy.
+3. **Snapshot timestamp:** Include `timestamp_ms` (`u64`, 8 bytes) in the header
+   — a millisecond-level Unix timestamp (UTC milliseconds since epoch)
+   recording when the snapshot was taken.
+4. **Canonical values:** Values are serialized as canonical Wasm state (locals in
+   declaration order, then operand stack in evaluation order) normalized to
+   64-bit LE, rather than as raw host-dependent interpreter slots.
+5. **Program counters:** Recorded as `(function_index, wasm_offset)` relative
+   to the function body.
+6. **Header validation:** `BuildFingerprint` checks semantic feature compatibility
+   (e.g. float support) rather than internal metacode word emission.
+7. **Host references:** Embedder hooks for naming and re-binding `externref`.
+
+#### Updated 40-byte header layout
+
+| Offset | Field | Type | Description |
+|---|---|---|---|
+| 0 | `magic` | `u8[4]` | ASCII `"W3S\x01"` |
+| 4 | `flags` | `u32` | `0x1` = postmortem dump; `0x0` = resumable |
+| 8 | `timestamp_ms` | `u64` | Millisecond-level Unix timestamp (UTC) |
+| 16 | `wasm3_hash` | `u64` | FNV-1a hash of Wasm3 version string and feature configuration |
+| 24 | `module_hash` | `u64` | FNV-1a hash of the module's raw WebAssembly bytecode |
+| 32 | `num_continuations` | `u32` | Total number of continuations stored (index 0 is root) |
+| 36 | `num_exceptions` | `u32` | Total number of exceptions stored |
 
 ### Phase 3 - restore by re-materialisation
 
-Re-instantiate, compile the functions the snapshot names, map each Wasm offset to
-a local pc and safepoint, place each value into the slot the destination's own
-map assigns it, rebuild the frame list and hand it to `ReplayFrames`. The rebuild
-path already exists; what changes is where the frames come from.
+Restore becomes a clean 5-step pipeline:
+1. Re-instantiate the module and compile the functions the snapshot references.
+2. For each suspended frame, binary search the destination's sorted
+   `safePoints` array by `wasm_offset` to find the target `pc` and `M3SafePoint`.
+3. Inspect the target safepoint's slot/register map (`wasmStack`, `_r0`, `_fp0`).
+4. Scatter canonical Wasm values (locals and operands) from the snapshot into
+   the destination's physical slots and registers, performing 64-to-32 slot
+   adaptation or byte-swapping if the target host differs.
+5. Reconstruct the `M3Frame` list and hand off to `ReplayFrames` to resume.
 
 ### Phase 4 - draw the line at the host
 
@@ -109,6 +146,16 @@ outside the Wasm state. Ship the honest subset first - nothing open beyond
 preopens - and design the hook that lets an embedder serialize its own context.
 Reopening files by path and offset is reasonable for regular files and wrong for
 sockets and pipes, so it is the embedder's call and not the engine's.
+
+## Performance profile
+
+- **Interpreter execution:** Exactly 0.0% runtime overhead. Execution speed is
+  identical before, during, and after migration.
+- **Compilation overhead:** Negligible. 4 bytes (`wasmOffset`) added per
+  `M3SafePoint` and lightweight slot typing during existing `RecordSafePoint`
+  passes. No full-module backtrace tables required.
+- **Snapshot save/restore:** Fast contiguous serialization and $O(\log N)$ binary
+  search lookup during re-materialisation. Checkpointing is non-intrusive.
 
 ## How to know it works
 

@@ -69,6 +69,19 @@ void m3_HostRemoveInterruptHandler (void)
     s_win32SuspendRuntime = NULL;
 }
 
+// FILETIME counts 100ns intervals from 1601
+u64 m3_HostTimeMs (void)
+{
+    static const u64 c_unixEpoch = 116444736000000000ULL;
+
+    FILETIME         now;
+    GetSystemTimeAsFileTime(&now);
+
+    u64 ticks = ((u64)now.dwHighDateTime << 32) | now.dwLowDateTime;
+
+    return (ticks > c_unixEpoch) ? (ticks - c_unixEpoch) / 10000 : 0;
+}
+
 // FILE_SHARE_READ and nothing else: another process may read the file, and one
 // trying to write or delete it is refused for as long as the mapping lives. The
 // kernel enforces that, so it is the real thing rather than the advisory lock POSIX

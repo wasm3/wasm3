@@ -479,6 +479,55 @@ static const u8 c_ssResumeThrowRefWasm[] = {
 #endif
 
 
+#if d_m3HasSnapshots
+
+// The embedder side of a snapshot: an externref goes out as 42 and comes back
+// as whatever the loading runtime says 42 is, and the host's own state is a
+// string
+static void* g_snapshotTestBefore;
+static void* g_snapshotTestAfter;
+static char  g_snapshotTestHostState[32];
+
+static
+M3Result SnapshotTest_NameExternRef (void* i_userdata, void* i_reference, uint64_t* o_name)
+{
+    (void)i_userdata;
+    *o_name = 42;
+    return (i_reference == g_snapshotTestBefore) ? m3Err_none : "an externref the host did not make";
+}
+
+static
+M3Result SnapshotTest_BindExternRef (void* i_userdata, uint64_t i_name, void** o_reference)
+{
+    (void)i_userdata;
+    *o_reference = g_snapshotTestAfter;
+    return (i_name == 42) ? m3Err_none : "an externref the host never named";
+}
+
+static
+M3Result SnapshotTest_SaveHostState (void* i_userdata, M3SnapshotWriter i_writer, void* i_writerData)
+{
+    static const char c_state[] = "the host's own";
+
+    (void)i_userdata;
+    return i_writer(c_state, sizeof(c_state), i_writerData);
+}
+
+static
+M3Result SnapshotTest_LoadHostState (void* i_userdata, M3SnapshotReader i_reader, void* i_readerData, size_t i_size)
+{
+    (void)i_userdata;
+
+    if (i_size > sizeof(g_snapshotTestHostState)) {
+        return "more host state than was saved";
+    }
+
+    return i_reader(g_snapshotTestHostState, i_size, i_readerData);
+}
+
+#endif
+
+
 #if d_m3HasSnapshots && d_m3HasGasMetering
 
 // A runtime of its own, in an environment of its own: a program carried across
@@ -502,10 +551,57 @@ void EndRoundTripLeg (RoundTripLeg* io_leg)
     io_leg->env     = NULL;
 }
 
+// Runs "main" to its end from a snapshot, in a runtime that is not metering:
+// one whose code has no gas charges, where the snapshot stopped at one
+static
+M3Result FinishUnmetered (const u8* i_wasm, u32 i_size, const void* i_snapshot, size_t i_snapshotSize,
+                          i32* o_result)
+{
+    M3Result     result   = m3Err_none;
+    RoundTripLeg leg      = { NULL, NULL };
+    IM3Module    module   = NULL;
+    IM3Function  function = NULL;
+
+    *o_result = 0;
+
+    leg.env     = m3_NewEnvironment();
+    leg.runtime = leg.env ? m3_NewRuntime(leg.env, 64 * 1024, NULL) : NULL;
+
+    if (not leg.runtime) {
+        result = m3Err_mallocFailed;
+    }
+    if (not result) {
+        m3_SetSuspendable(leg.runtime, true);
+        result = m3_ParseModule(leg.env, &module, i_wasm, i_size);
+    }
+    if (not result) {
+        result = m3_LoadModule(leg.runtime, module);
+    }
+    if (not result) {
+        result = m3_FindFunction(&function, leg.runtime, "main");
+    }
+    if (not result) {
+        result = m3_LoadSnapshotFromBuffer(leg.runtime, module, i_snapshot, i_snapshotSize);
+    }
+    if (not result) {
+        result = m3_ResumeRuntime(leg.runtime);
+    }
+    if (not result) {
+        result = m3_GetResultsV(function, o_result);
+    }
+
+    EndRoundTripLeg(&leg);
+
+    return result;
+}
+
 // Runs "main" to its end in as many runtimes as it takes: whenever the gas runs
 // out, the program is saved, its runtime is thrown away, and a new one takes
 // over from the snapshot with a fresh budget. The result can only come out
 // right if every one of those stops came back whole.
+//
+// With i_finishUnmetered, every stop is also taken to the end in a runtime that
+// is not metering, and has to come out at i_expected there too.
 //
 // Each runtime is kept until the next one has run, so nothing the new one
 // allocates can land where a pointer the snapshot failed to translate would
@@ -516,7 +612,8 @@ void EndRoundTripLeg (RoundTripLeg* io_leg)
 // small for the segment in front of it stops where it started, having used
 // none of it, and is doubled until it is enough.
 static
-M3Result RunInRoundTrips (const u8* i_wasm, u32 i_size, i32* o_result, u32* o_numStops)
+M3Result RunInRoundTrips (const u8* i_wasm, u32 i_size, i32* o_result, u32* o_numStops, bool i_finishUnmetered,
+                          i32 i_expected)
 {
     M3Result     result    = m3Err_none;
     RoundTripLeg leg       = { NULL, NULL };
@@ -584,6 +681,18 @@ M3Result RunInRoundTrips (const u8* i_wasm, u32 i_size, i32* o_result, u32* o_nu
         if (progressed) {
             budget = minBudget;
             ++*o_numStops;
+
+            if (i_finishUnmetered) {
+                i32 finished = 0;
+
+                result = FinishUnmetered(i_wasm, i_size, saved, savedSize, &finished);
+                if (not result and finished != i_expected) {
+                    result = "a stop taken to the end without metering came out wrong";
+                }
+                if (result) {
+                    break;
+                }
+            }
         } else {
             budget *= 2;
         }
@@ -2165,7 +2274,7 @@ int main (int argc, const char* argv[])
         0x0b
     };
 
-#  if d_m3HasExceptionHandling
+#  if d_m3HasExceptionHandling && d_m3HasGasMetering
     // an exnref caught into a local, carried across a loop of 10 and thrown
     // again: its payload of 40, plus the loop count
     static const u8 c_snapshotExnrefWasm[] = {
@@ -2225,7 +2334,7 @@ int main (int argc, const char* argv[])
         for (u32 i = 0; i < sizeof(c_programs) / sizeof(c_programs[0]); ++i) {
             i32      value    = 0;
             u32      numStops = 0;
-            M3Result r        = RunInRoundTrips(c_programs[i].wasm, c_programs[i].size, &value, &numStops);
+            M3Result r        = RunInRoundTrips(c_programs[i].wasm, c_programs[i].size, &value, &numStops, false, 0);
 
             if (r or value != c_programs[i].expected) {
                 printf("  %s: %s, result %d, %u stops\n", c_programs[i].name, r ? r : "ok", value, numStops);
@@ -2240,6 +2349,46 @@ int main (int argc, const char* argv[])
         // a program without a branch is one segment, and has nowhere to stop
         // part way; together they have plenty
         expect(totalStops > 100);
+    }
+
+    // A runtime that is not metering has no gas charges to stop at, but it
+    // records where they would be: a snapshot taken at any one of them, in
+    // any of these programs, has to go on there and come out the same
+    Test(snapshot.gas_stop_resumes_unmetered)
+    {
+        static const struct {
+            const char* name;
+            const u8*   wasm;
+            u32         size;
+            i32         expected;
+        } c_programs[] = {
+            { "funcrefs",      c_snapshotFuncrefsWasm,  sizeof(c_snapshotFuncrefsWasm),  208  },
+            { "loop_param",    c_snapshotLoopParamWasm, sizeof(c_snapshotLoopParamWasm), 436  },
+#    if d_m3HasExceptionHandling
+            { "exnref",        c_snapshotExnrefWasm,    sizeof(c_snapshotExnrefWasm),    50   },
+            { "resume_throw",  c_ssResumeThrowWasm,     sizeof(c_ssResumeThrowWasm),     107  },
+#    endif
+            { "bind",          c_ssBindWasm,            sizeof(c_ssBindWasm),            42   },
+            { "call_in_loop",  c_ssCallInLoopWasm,      sizeof(c_ssCallInLoopWasm),      6    },
+            { "switch",        c_ssSwitchWasm,          sizeof(c_ssSwitchWasm),          1234 },
+            { "nested_prompt", c_ssNestedPromptWasm,    sizeof(c_ssNestedPromptWasm),    1745 },
+            { "scheduler2",    c_ssScheduler2Wasm,      sizeof(c_ssScheduler2Wasm),      123  },
+        };
+
+        for (u32 i = 0; i < sizeof(c_programs) / sizeof(c_programs[0]); ++i) {
+            i32      value    = 0;
+            u32      numStops = 0;
+            M3Result r        = RunInRoundTrips(c_programs[i].wasm, c_programs[i].size, &value, &numStops, true,
+                                                c_programs[i].expected);
+
+            if (r or value != c_programs[i].expected) {
+                printf("  %s: %s, result %d, %u stops\n", c_programs[i].name, r ? r : "ok", value, numStops);
+            }
+
+            expect(!r);
+            expect(value == c_programs[i].expected);
+            expect(numStops > 0);
+        }
     }
 #  endif
 
@@ -2300,22 +2449,24 @@ int main (int argc, const char* argv[])
         m3_FreeRuntime(rt1);
     }
 
+    // a mutable externref global "host", and "main", which counts to 1000 in
+    // a loop and returns the count
+    static const u8 c_externWasm[] = {
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03,
+        0x02, 0x01, 0x00, 0x06, 0x06, 0x01, 0x6f, 0x01,
+        0xd0, 0x6f, 0x0b, 0x07, 0x0f, 0x02, 0x04, 0x68,
+        0x6f, 0x73, 0x74, 0x03, 0x00, 0x04, 0x6d, 0x61,
+        0x69, 0x6e, 0x00, 0x00, 0x0a, 0x1a, 0x01, 0x18,
+        0x01, 0x01, 0x7f, 0x03, 0x40, 0x20, 0x00, 0x41,
+        0x01, 0x6a, 0x21, 0x00, 0x20, 0x00, 0x41, 0xe8,
+        0x07, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x00, 0x0b
+    };
+
     // An externref is the host's to name, and a snapshot has no way to: one
     // that is not null refuses the save, where a null one does not
     Test(snapshot.externref_is_refused)
     {
-        static const u8 c_externWasm[] = {
-            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03,
-            0x02, 0x01, 0x00, 0x06, 0x06, 0x01, 0x6f, 0x01,
-            0xd0, 0x6f, 0x0b, 0x07, 0x0f, 0x02, 0x04, 0x68,
-            0x6f, 0x73, 0x74, 0x03, 0x00, 0x04, 0x6d, 0x61,
-            0x69, 0x6e, 0x00, 0x00, 0x0a, 0x1a, 0x01, 0x18,
-            0x01, 0x01, 0x7f, 0x03, 0x40, 0x20, 0x00, 0x41,
-            0x01, 0x6a, 0x21, 0x00, 0x20, 0x00, 0x41, 0xe8,
-            0x07, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x00, 0x0b
-        };
-
         IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
         expect(runtime != NULL);
         m3_SetSuspendable(runtime, true);
@@ -2354,6 +2505,148 @@ int main (int argc, const char* argv[])
             free(bytes);
         }
 
+        m3_FreeRuntime(runtime);
+    }
+
+    // With hooks, the embedder names an externref on the way out and binds the
+    // name to a reference of its own on the way in, and carries state of its
+    // own along with the program's. A runtime without them refuses a snapshot
+    // that needs them.
+    Test(snapshot.hooks_carry_host_references_and_state)
+    {
+        static int c_before, c_after;
+
+        M3SnapshotHooks hooks;
+        memset(&hooks, 0, sizeof(hooks));
+        hooks.nameExternRef = SnapshotTest_NameExternRef;
+        hooks.bindExternRef = SnapshotTest_BindExternRef;
+        hooks.saveHostState = SnapshotTest_SaveHostState;
+        hooks.loadHostState = SnapshotTest_LoadHostState;
+
+        g_snapshotTestBefore = &c_before;
+        g_snapshotTestAfter  = &c_after;
+
+        IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(rt1 != NULL);
+        m3_SetSuspendable(rt1, true);
+        m3_SetSnapshotHooks(rt1, &hooks);
+
+        IM3Module mod1 = NULL;
+        M3Result  r    = m3_ParseModule(env, &mod1, c_externWasm, sizeof(c_externWasm));
+        expect(!r);
+        r = m3_LoadModule(rt1, mod1);
+        expect(!r);
+
+        IM3Function main1 = NULL;
+        r                 = m3_FindFunction(&main1, rt1, "main");
+        expect(!r);
+
+        m3_RequestSuspend(rt1);
+        r = m3_CallV(main1);
+        expect(r == m3Err_continuationSuspended);
+
+        IM3Global host1 = m3_FindGlobal(mod1, "host");
+        expect(host1 != NULL);
+        if (host1) {
+            host1->refValue = &c_before;
+        }
+
+        void*  bytes = NULL;
+        size_t size  = 0;
+        r            = m3_SaveSnapshotToBuffer(rt1, &bytes, &size);
+        expect(!r);
+
+        // one runtime with no hooks at all, and one with all of them
+        for (u32 withHooks = 0; withHooks < 2; ++withHooks) {
+            IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
+            expect(rt2 != NULL);
+            if (withHooks) {
+                m3_SetSnapshotHooks(rt2, &hooks);
+            }
+
+            IM3Module mod2 = NULL;
+            r              = m3_ParseModule(env, &mod2, c_externWasm, sizeof(c_externWasm));
+            expect(!r);
+            r = m3_LoadModule(rt2, mod2);
+            expect(!r);
+
+            g_snapshotTestHostState[0] = 0;
+
+            r = m3_LoadSnapshotFromBuffer(rt2, mod2, bytes, size);
+
+            if (not withHooks) {
+                expect(r and !strcmp(r, "the snapshot holds an externref, and nothing here can bind one"));
+            } else {
+                expect(!r);
+                expect(!strcmp(g_snapshotTestHostState, "the host's own"));
+
+                IM3Global host2 = m3_FindGlobal(mod2, "host");
+                expect(host2 != NULL and host2->refValue == &c_after);
+
+                r = m3_ResumeRuntime(rt2);
+                expect(!r);
+
+                IM3Function main2 = NULL;
+                r                 = m3_FindFunction(&main2, rt2, "main");
+                expect(!r);
+
+                i32 value = 0;
+                r         = m3_GetResultsV(main2, &value);
+                expect(!r and value == 1000);
+            }
+
+            m3_FreeRuntime(rt2);
+        }
+
+        free(bytes);
+        m3_FreeRuntime(rt1);
+    }
+
+    // Every number in a snapshot is little endian, whatever the host is, and
+    // the header is 40 bytes: magic, flags, when it was taken, the build and
+    // the module, then how many continuations and exceptions follow
+    Test(snapshot.header_is_little_endian)
+    {
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        expect(runtime != NULL);
+        m3_SetSuspendable(runtime, true);
+
+        IM3Module module = NULL;
+        M3Result  r      = m3_ParseModule(env, &module, c_loopCounterWasm, sizeof(c_loopCounterWasm));
+        expect(!r);
+        r = m3_LoadModule(runtime, module);
+        expect(!r);
+
+        IM3Function run = NULL;
+        r               = m3_FindFunction(&run, runtime, "run");
+        expect(!r);
+
+        m3_RequestSuspend(runtime);
+        r = m3_CallV(run);
+        expect(r == m3Err_continuationSuspended);
+
+        void*  bytes = NULL;
+        size_t size  = 0;
+        r            = m3_SaveSnapshotToBuffer(runtime, &bytes, &size);
+        expect(!r);
+        expect(size > 40);
+
+        if (bytes and size > 40) {
+            const u8* b         = (const u8*)bytes;
+            u64       timestamp = 0;
+
+            for (u32 i = 0; i < 8; ++i) {
+                timestamp |= (u64)b[8 + i] << (8 * i);
+            }
+
+            expect(memcmp(b, "W3S\x01", 4) == 0);
+            expect(b[4] == 0 and b[5] == 0 and b[6] == 0 and b[7] == 0);
+            expect(timestamp > 1700000000000ULL);                           // after late 2023
+            expect(b[32] == 1 and b[33] == 0 and b[34] == 0 and b[35] == 0); // the root, alone
+            expect(b[36] == 0 and b[37] == 0 and b[38] == 0 and b[39] == 0); // no exceptions
+        }
+
+        free(bytes);
         m3_FreeRuntime(runtime);
     }
 

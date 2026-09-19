@@ -60,11 +60,14 @@ m3type_t RefTypeOfFuncType (const IM3FuncType i_funcType, bool i_nonNull);
 // Two of them can share a pc - a call's return address can be the very next
 // operation, which is itself one that suspends - and they do not agree on
 // what the frame holds there, so a pc alone does not name one.
+//
+// A snapshot writes these down, so the numbering is part of the W3S format.
 typedef enum M3SafePointKind {
-    safepoint_op,           // at an operation that suspends in place: a loop back edge, a gas charge
+    safepoint_op,           // at a loop back edge, which suspends in place
     safepoint_suspend,      // just past a suspend or a switch
     safepoint_call,         // a call waiting on its callee
     safepoint_resume,       // a resume waiting on the continuation it runs
+    safepoint_gas,          // at a gas charge, before the segment it pays for
 } M3SafePointKind;
 
 #if d_m3HasSnapshots
@@ -72,47 +75,61 @@ typedef enum M3SafePointKind {
 // What a snapshot needs to know about a function's compiled code, recorded by
 // the compiler when the runtime is suspendable and nowhere else.
 //
-// A snapshot cannot write down a pc: the code lands wherever this process's
-// pages happened to have room. What it writes instead is how many words of the
-// function's metacode were emitted before that point. Compiling the same body
-// in the same build emits the same words in the same order, so the count names
-// the same instruction in any process - once the bridges are left out, since
-// where a page runs out is the one thing that does differ. A run is a stretch
-// of words laid down on one page without a break, and the runs are what turn a
-// pc into that count and back.
-typedef struct M3CodeRun {
-    pc_t start;
-    u32  numWords;
-    u32  offset;         // the function's words emitted before this run, bridges not counted
-} M3CodeRun;
+// A snapshot is written in Wasm's terms, not this build's: a place in a
+// function is the offset of a Wasm instruction, and the frame is the Wasm
+// locals and operand stack as typed values. The map is what translates. It
+// says, at every place a frame can be left standing, which slot or register
+// this build keeps each of those values in - so the values can be read out of
+// one build's frame and scattered into another's, whatever layout each chose.
 
-// A slot holding a reference at a safepoint, relative to the function's frame
-typedef struct M3SlotRef {
-    u16 slot;
-    u8  type;            // storage type: funcref, externref, exnref or contref
-} M3SlotRef;
+// A value the frame holds: where this build keeps it, and its type
+typedef struct M3SlotValue {
+    u16 slot;            // relative to the frame, or a register alias (d_m3Reg0SlotAlias, d_m3Fp0SlotAlias)
+    u8  type;            // storage type: i32, i64, f32, f64, or a reference's base type
+} M3SlotValue;
+
+// Values that go with a safepoint
+#  define d_m3SafePointTakenBranch    0x1     // resumes a br_if that was taken: _r0 has to hold its condition
 
 // A place a function can be suspended at, or be waiting on something that was:
-// a loop back edge, a gas charge, a call, a suspend, a switch or a resume. The
-// value stack is untyped, so these say which of the frame's slots hold
-// references there - the pointers a snapshot has to name rather than copy.
+// a loop back edge, a gas charge, a call, a suspend, a switch or a resume.
+//
+// Its identity in a snapshot is the instruction's offset and its kind, and -
+// since one br_table can branch back to several loops - how many safepoints of
+// that kind the same instruction recorded before it. Safepoints are recorded in
+// the order the body is read, so they are sorted by that offset.
 typedef struct M3SafePoint {
     pc_t pc;
-    u32  firstRef;       // into M3SnapshotMap.refs
-    u16  numRefs;
+    u32  wasmOffset;     // the instruction's, from the start of the function's body
+    u32  firstValue;     // into M3SnapshotMap.values
+    u16  numValues;      // the live operand stack, bottom up; the locals are the map's own
+    u16  numResults;     // suspend: the top values are the slots it waits in | call, resume: results not yet written
+    u16  aux;            // call: where the callee's frame starts, in slots above this one | resume: its handler count
     u8   kind;           // M3SafePointKind
-    u8   registerType;   // storage type of a reference held in _r0, or c_m3Type_none
+    u8   flags;
 } M3SafePoint;
 
+// A loop or a try_table, which the interpreter keeps a native frame for while
+// its body runs, and which a snapshot names by the instruction's offset
+typedef struct M3BlockStart {
+    pc_t pc;             // what the frame records: a loop's body, a try_table's clause table
+    u32  wasmOffset;
+    u16  numClauses;     // try_table
+    u8   opcode;         // c_waOp_loop or c_waOp_tryTable
+} M3BlockStart;
+
 typedef struct M3SnapshotMap {
-    M3CodeRun*   runs;
-    u32          numRuns;
+    M3SlotValue*  locals;            // the arguments, then the declared locals
+    u32           numLocals;
 
-    M3SafePoint* safePoints;
-    u32          numSafePoints;
+    M3SafePoint*  safePoints;
+    u32           numSafePoints;
 
-    M3SlotRef*   refs;
-    u32          numRefs;
+    M3SlotValue*  values;
+    u32           numValues;
+
+    M3BlockStart* blocks;
+    u32           numBlocks;
 } M3SnapshotMap;
 
 void SnapshotMap_Free (M3SnapshotMap* i_map);

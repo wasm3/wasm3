@@ -5,18 +5,25 @@
 //
 //  Saving a runtime's execution state to a stream and bringing it back.
 //
-//  A snapshot is written in this build's own terms - slot width, byte order,
-//  metacode - and the header says which, so a mismatch is refused rather than
-//  resumed into. What it never writes is an address. A pc becomes a function
-//  and a count of that function's metacode words; a reference becomes a
-//  function index or the id of a continuation or exception the snapshot carries
-//  whole. The compiler's snapshot maps (see M3SnapshotMap) are what make both
-//  possible: the value stack is untyped, and they say which slots hold what.
+//  A snapshot is written in Wasm's terms rather than this build's, so it can be
+//  resumed by a build on another architecture, with another slot width, another
+//  revision, or with gas metering set differently. Every number goes out little
+//  endian. A place in a function is the offset of a Wasm instruction; a frame is
+//  the function's locals and live operand stack as typed values; a reference is
+//  a function index, or the id of a continuation or exception the snapshot
+//  carries whole. Nothing in the file is an address, a slot or a metacode word.
+//
+//  The compiler's snapshot maps (see M3SnapshotMap) are what make this work.
+//  Saving reads each value out of wherever this build kept it; loading compiles
+//  the same functions, finds the same safepoints in the result, and puts each
+//  value wherever that build keeps it - and then stands up the native frames the
+//  interpreter needs from what its own code says they hold.
 //
 
 #include "m3_env.h"
 #include "m3_compile.h"
 #include "m3_exception.h"
+#include "m3_host.h"
 
 #include <limits.h>
 
@@ -27,8 +34,6 @@
 //---------------------------------------------------------------------------------------------------------------------------------
 
 static const u8 c_snapshotMagic[4] = { 'W', '3', 'S', 1 };
-
-#  define d_m3SnapshotByteOrder       0x0102
 
 #  define d_m3SnapshotFlagPostmortem  0x1
 
@@ -44,14 +49,11 @@ enum {
     snapshot_contFinished  = 2
 };
 
-// Frame kinds, as the file spells them: M3FrameKind is not stable across
-// builds, since some of its members exist only with some features.
+// The blocks inside a function that the interpreter keeps a native frame for
+// while their bodies run
 enum {
-    snapshot_frameCall   = 0,
-    snapshot_frameLoop   = 1,
-    snapshot_frameTry    = 2,
-    snapshot_frameEntry  = 3,
-    snapshot_frameResume = 4
+    snapshot_blockLoop = 1,
+    snapshot_blockTry  = 2
 };
 
 // Memory contents go out as runs, so the long stretches of zero or 0xFF that
@@ -79,39 +81,26 @@ u64 HashBytes (u64 i_hash, const void* i_bytes, size_t i_size)
 
 #  define d_m3HashSeed                0xcbf29ce484222325ULL
 
-// Whatever changes the metacode a body compiles to, which is what every pc in
-// a snapshot is counted in. Two builds that agree on all of this emit the same
-// words for the same Wasm.
+// The Wasm3 release, and the parts of Wasm it implements: what decides which
+// state a program can be in, and so what a snapshot can hold. Nothing that only
+// changes how that state is laid out belongs here - slot and pointer widths,
+// byte order, gas metering, how the compiler emits code - since none of that
+// reaches the file.
 static
 u64 BuildFingerprint (void)
 {
-    static const u32 c_config[] = {
-        (u32)sizeof(void*),
-        (u32)sizeof(m3slot_t),
+    static const u8 c_features[] = {
         d_m3HasFloat,
-        d_m3FoldSetLocal,
-        d_m3FuseBranch,
-        d_m3EntryKeepsFrame,
-        d_m3CanTailCall,
+        d_m3HasTypedRefs,
         d_m3HasExceptionHandling,
         d_m3HasStackSwitching,
-        d_m3HasTypedRefs,
         d_m3HasMultiMemory,
         d_m3HasMemory64,
-        d_m3GuardedMemory,
-        d_m3SkipMemoryBoundsCheck,
-        d_m3HasGasMetering,
-        d_m3EnableOpTracing,
-        d_m3EnableOpProfiling,
-        d_m3EnableStrace,
-        d_m3MaxContinuationPayload,
-        d_m3ContinuationStackSlots,
-        d_m3ContinuationMaxFrames,
     };
 
     u64 hash = HashBytes(d_m3HashSeed, M3_VERSION, sizeof(M3_VERSION));
 
-    return HashBytes(hash, c_config, sizeof(c_config));
+    return HashBytes(hash, c_features, sizeof(c_features));
 }
 
 static
@@ -124,92 +113,10 @@ u64 ModuleFingerprint (IM3Module i_module)
     return HashBytes(d_m3HashSeed, i_module->wasmStart, size);
 }
 
-static
-bool IsGasMetered (IM3Runtime i_runtime)
-{
-#  if d_m3HasGasMetering
-    return i_runtime->gasLimit != 0;
-#  else
-    (void)i_runtime;
-    return false;
-#  endif
-}
-
 
 //---------------------------------------------------------------------------------------------------------------------------------
-//  pc <-> (function, offset)
+//  safepoints
 //---------------------------------------------------------------------------------------------------------------------------------
-
-// A pc on a run's end names the word that follows the run - a bridge, which
-// carries on to wherever the function continues - so a pc that starts one run
-// and ends another belongs to the run it starts.
-static
-M3Result PcToOffset (IM3Function i_function, pc_t i_pc, u32* o_offset)
-{
-    const M3SnapshotMap* map = i_function->snapshotMap;
-
-    if (not map) {
-        return "a function in the snapshot was compiled before the runtime was made suspendable";
-    }
-
-    for (u32 i = 0; i < map->numRuns; ++i) {
-        const M3CodeRun* run = &map->runs[i];
-
-        if (i_pc >= run->start and i_pc < run->start + run->numWords) {
-            *o_offset = run->offset + (u32)(i_pc - run->start);
-            return m3Err_none;
-        }
-    }
-
-    for (u32 i = 0; i < map->numRuns; ++i) {
-        const M3CodeRun* run = &map->runs[i];
-
-        if (i_pc == run->start + run->numWords) {
-            *o_offset = run->offset + run->numWords;
-            return m3Err_none;
-        }
-    }
-
-    return "a pc in the snapshot is not in the code of the function it belongs to";
-}
-
-static
-M3Result OffsetToPc (IM3Function i_function, u32 i_offset, pc_t* o_pc)
-{
-    M3Result             result = m3Err_none;
-    const M3SnapshotMap* map;
-
-    if (not i_function->compiled) {
-_       (CompileFunction(i_function));
-    }
-
-    map = i_function->snapshotMap;
-
-    _throwif("a function in the snapshot was compiled before the runtime was made suspendable", not map);
-
-    for (u32 i = 0; i < map->numRuns; ++i) {
-        const M3CodeRun* run = &map->runs[i];
-
-        if (i_offset >= run->offset and i_offset < run->offset + run->numWords) {
-            *o_pc = run->start + (i_offset - run->offset);
-            return m3Err_none;
-        }
-    }
-
-    for (u32 i = 0; i < map->numRuns; ++i) {
-        const M3CodeRun* run = &map->runs[i];
-
-        if (i_offset == run->offset + run->numWords) {
-            *o_pc = run->start + run->numWords;
-            return m3Err_none;
-        }
-    }
-
-    _throw("a pc in the snapshot is past the end of its function");
-
-_catch:
-    return result;
-}
 
 static
 const M3SafePoint* FindSafePoint (IM3Function i_function, pc_t i_pc, u8 i_kind)
@@ -227,78 +134,94 @@ const M3SafePoint* FindSafePoint (IM3Function i_function, pc_t i_pc, u8 i_kind)
     return NULL;
 }
 
-
-//---------------------------------------------------------------------------------------------------------------------------------
-//  a suspended continuation's frames
-//---------------------------------------------------------------------------------------------------------------------------------
-
-// One function's frame within a suspended continuation, and the safepoint that
-// says what it holds
-typedef struct M3Activation {
-    IM3Function function;
-    m3stack_t   sp;
-    pc_t        pc;
-    u8          kind;           // M3SafePointKind
-    m3reg_t*    r0;             // the register this frame goes on with, or NULL where it goes on with none
-} M3Activation;
-
-#  define d_m3MaxActivations          (d_m3ContinuationMaxFrames + 1)
-
-// The frames of a suspended continuation, outermost first. A call frame is the
-// caller waiting at its call site; the callee is the next frame in. A resume
-// frame is the innermost frame there is when the suspension passed through
-// one, since the rest of it belongs to the continuation it was running.
-// Loop, try and entry frames stand inside a function frame already counted.
+// How many safepoints of the same kind the same instruction recorded before
+// this one. They sit next to each other, since the map is in body order.
 static
-M3Result ListActivations (IM3Continuation i_cont, M3Activation* o_list, u32* o_count)
+u32 SafePointOrdinal (const M3SnapshotMap* i_map, const M3SafePoint* i_point)
 {
-    M3Result    result   = m3Err_none;
-    IM3Function function = i_cont->entryFunction;
-    u32         count    = 0;
+    u32 ordinal = 0;
 
-    for (i32 i = (i32)i_cont->numFrames - 1; i >= 0; --i) {
-        M3Frame* frame = &i_cont->frames[i];
+    for (const M3SafePoint* point = i_point; point > i_map->safePoints; --point) {
+        const M3SafePoint* before = point - 1;
 
-        if (frame->kind == frame_call) {
-            _throwif("a suspended call does not say what it called", not function);
-
-            M3Activation* act = &o_list[count++];
-            act->function     = function;
-            act->sp           = frame->sp;
-            act->pc           = frame->pc;
-            act->kind         = safepoint_call;
-            act->r0           = &frame->call.r0;
-
-            function = frame->call.function;
-        } else if (frame->kind == frame_resume) {
-            _throwif("a suspended resume is not the innermost frame", i != 0);
-
-            M3Activation* act = &o_list[count++];
-            act->function     = function;
-            act->sp           = frame->sp;
-            act->pc           = frame->pc;
-            act->kind         = safepoint_resume;
-            act->r0           = NULL;       // a replayed resume carries on with clear registers
+        if (before->wasmOffset != i_point->wasmOffset) {
+            break;
+        }
+        if (before->kind == i_point->kind) {
+            ordinal++;
         }
     }
 
-    if (i_cont->numFrames == 0 or i_cont->frames[0].kind != frame_resume) {
-        _throwif("a suspended call does not say what it called", not function);
-
-        M3Activation* act = &o_list[count++];
-        act->function     = function;
-        act->sp           = i_cont->sp;
-        act->pc           = i_cont->pc;
-        act->kind         = i_cont->suspendPoint;
-        act->r0           = &i_cont->r0;
-    }
-
-    *o_count = count;
-
-_catch:
-    return result;
+    return ordinal;
 }
 
+static
+const M3SafePoint* FindSafePointAt (const M3SnapshotMap* i_map, u32 i_wasmOffset, u8 i_kind, u32 i_ordinal)
+{
+    u32 low  = 0;
+    u32 high = i_map->numSafePoints;
+
+    while (low < high) {
+        u32 middle = low + (high - low) / 2;
+
+        if (i_map->safePoints[middle].wasmOffset < i_wasmOffset) {
+            low = middle + 1;
+        } else {
+            high = middle;
+        }
+    }
+
+    for (u32 i = low; i < i_map->numSafePoints and i_map->safePoints[i].wasmOffset == i_wasmOffset; ++i) {
+        if (i_map->safePoints[i].kind == i_kind) {
+            if (i_ordinal == 0) {
+                return &i_map->safePoints[i];
+            }
+            i_ordinal--;
+        }
+    }
+
+    return NULL;
+}
+
+static
+const M3BlockStart* FindBlock (const M3SnapshotMap* i_map, u8 i_opcode, pc_t i_pc)
+{
+    for (u32 i = 0; i < i_map->numBlocks; ++i) {
+        if (i_map->blocks[i].opcode == i_opcode and i_map->blocks[i].pc == i_pc) {
+            return &i_map->blocks[i];
+        }
+    }
+
+    return NULL;
+}
+
+static
+const M3BlockStart* FindBlockAt (const M3SnapshotMap* i_map, u8 i_opcode, u32 i_wasmOffset)
+{
+    for (u32 i = 0; i < i_map->numBlocks; ++i) {
+        if (i_map->blocks[i].opcode == i_opcode and i_map->blocks[i].wasmOffset == i_wasmOffset) {
+            return &i_map->blocks[i];
+        }
+    }
+
+    return NULL;
+}
+
+
+//---------------------------------------------------------------------------------------------------------------------------------
+//  values in a frame
+//---------------------------------------------------------------------------------------------------------------------------------
+
+// The registers a frame goes on with. A frame that goes on with clear ones - a
+// resume - has none, and a value the map puts in one cannot be there.
+typedef struct M3FrameRegisters {
+    m3reg_t* r0;
+#  if d_m3HasFloat
+    f64* fp0;
+#  endif
+} M3FrameRegisters;
+
+// The stack a continuation's frames are on: the runtime's own for the root
 static
 M3Result ContinuationStack (IM3Runtime i_runtime, IM3Continuation i_cont, m3slot_t** o_base, u32* o_numSlots)
 {
@@ -313,10 +236,152 @@ M3Result ContinuationStack (IM3Runtime i_runtime, IM3Continuation i_cont, m3slot
     return (*o_base) ? m3Err_none : "a suspended continuation has no stack";
 }
 
+// Where a value is kept, or NULL for a register; o_bytes is how much of the
+// frame it takes, which has to be inside the stack the frame is on
 static
-u32 NumPointerSlots (void)
+M3Result LocateValue (m3slot_t* i_base, u32 i_numSlots, m3stack_t i_sp, const M3SlotValue* i_value, u8** o_where)
 {
-    return (u32)((sizeof(void*) + sizeof(m3slot_t) - 1) / sizeof(m3slot_t));
+    M3Result result = m3Err_none;
+    u8       type   = i_value->type;
+
+    *o_where = NULL;
+
+    _throwif("a v128 value cannot be saved", type == c_m3Type_v128);
+    _throwif(m3Err_wasmMalformed, type == c_m3Type_none or type > c_m3Type_contref);
+
+    if (not IsRegisterSlotAlias(i_value->slot)) {
+        size_t size   = IsRefType(type) ? sizeof(void*) : (Is64BitType(type) ? sizeof(u64) : sizeof(u32));
+        size_t offset = (size_t)((m3slot_t*)i_sp - i_base + i_value->slot) * sizeof(m3slot_t);
+
+        _throwif("a value is outside the stack its frame is on", offset + size > (size_t)i_numSlots * sizeof(m3slot_t));
+
+        *o_where = (u8*)i_base + offset;
+    }
+
+_catch:
+    return result;
+}
+
+// A value as the file holds it before a reference is named: a number's bits,
+// zero-extended to 64, or the reference itself
+static
+M3Result ReadValue (u8* i_where, const M3FrameRegisters* i_registers, const M3SlotValue* i_value, u64* o_bits,
+                    void** o_reference)
+{
+    M3Result result = m3Err_none;
+    u8       type   = i_value->type;
+
+    *o_bits      = 0;
+    *o_reference = NULL;
+
+    if (i_where) {
+        if (IsRefType(type)) {
+            memcpy(o_reference, i_where, sizeof(void*));
+        } else if (Is64BitType(type)) {
+            memcpy(o_bits, i_where, sizeof(u64));
+        } else {
+            u32 narrow;
+            memcpy(&narrow, i_where, sizeof(narrow));
+            *o_bits = narrow;
+        }
+    } else if (IsFpRegisterSlotAlias(i_value->slot)) {
+#  if d_m3HasFloat
+        _throwif("a value is kept in a register the frame does not hold", not i_registers or not i_registers->fp0);
+
+        if (type == c_m3Type_f32) {
+            f32 narrow = (f32)*i_registers->fp0;
+            u32 bits;
+            memcpy(&bits, &narrow, sizeof(bits));
+            *o_bits = bits;
+        } else {
+            _throwif(m3Err_wasmMalformed, type != c_m3Type_f64);
+            memcpy(o_bits, i_registers->fp0, sizeof(u64));
+        }
+#  else
+        _throw(m3Err_wasmMalformed);
+#  endif
+    } else {
+        _throwif("a value is kept in a register the frame does not hold", not i_registers or not i_registers->r0);
+
+        m3reg_t r0 = *i_registers->r0;
+
+        if (IsRefType(type)) {
+            *o_reference = (void*)(uintptr_t)r0;
+        } else if (Is64BitType(type)) {
+            *o_bits = (u64)r0;
+        } else {
+            *o_bits = (u32)r0;
+        }
+    }
+
+_catch:
+    return result;
+}
+
+static
+M3Result WriteValue (u8* o_where, const M3FrameRegisters* i_registers, const M3SlotValue* i_value, u64 i_bits,
+                     void* i_reference)
+{
+    M3Result result = m3Err_none;
+    u8       type   = i_value->type;
+
+    if (o_where) {
+        if (IsRefType(type)) {
+            memcpy(o_where, &i_reference, sizeof(void*));
+        } else if (Is64BitType(type)) {
+            memcpy(o_where, &i_bits, sizeof(u64));
+        } else {
+            u32 narrow = (u32)i_bits;
+            memcpy(o_where, &narrow, sizeof(narrow));
+        }
+    } else if (IsFpRegisterSlotAlias(i_value->slot)) {
+#  if d_m3HasFloat
+        _throwif("a value is kept in a register the frame does not hold", not i_registers or not i_registers->fp0);
+
+        if (type == c_m3Type_f32) {
+            u32 bits = (u32)i_bits;
+            f32 narrow;
+            memcpy(&narrow, &bits, sizeof(narrow));
+            *i_registers->fp0 = narrow;
+        } else {
+            _throwif(m3Err_wasmMalformed, type != c_m3Type_f64);
+            memcpy(i_registers->fp0, &i_bits, sizeof(u64));
+        }
+#  else
+        _throw(m3Err_wasmMalformed);
+#  endif
+    } else {
+        _throwif("a value is kept in a register the frame does not hold", not i_registers or not i_registers->r0);
+
+        if (IsRefType(type)) {
+            *i_registers->r0 = (m3reg_t)(uintptr_t)i_reference;
+        } else {
+            *i_registers->r0 = (m3reg_t)i_bits;
+        }
+    }
+
+_catch:
+    return result;
+}
+
+// The value a safepoint lists at i_index: the function's locals first, then
+// the operand stack
+static
+const M3SlotValue* FrameValue (const M3SnapshotMap* i_map, const M3SafePoint* i_point, u32 i_index)
+{
+    return (i_index < i_map->numLocals) ? &i_map->locals[i_index]
+                                        : &i_map->values[i_point->firstValue + i_index - i_map->numLocals];
+}
+
+// A frame's constants are copied in by op_Entry, and op_Entry already ran
+static
+void RestoreConstants (IM3Function i_function, m3stack_t i_sp)
+{
+    if (i_function->constants) {
+        u8* where = (u8*)((m3slot_t*)i_sp + i_function->numRetAndArgSlots) + i_function->numLocalBytes;
+
+        memcpy(where, i_function->constants, i_function->numConstantBytes);
+    }
 }
 
 
@@ -434,6 +499,66 @@ void PointerIds_Free (M3PointerIds* io_ids)
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
+//  buffers
+//---------------------------------------------------------------------------------------------------------------------------------
+
+typedef struct M3BufferWriter {
+    u8*    buffer;
+    size_t size;
+    size_t capacity;
+} M3BufferWriter;
+
+static
+M3Result BufferWriter_Write (const void* i_data, size_t i_size, void* i_userdata)
+{
+    M3BufferWriter* bw = (M3BufferWriter*)i_userdata;
+
+    if (bw->size + i_size > bw->capacity) {
+        size_t newCap = bw->capacity ? bw->capacity * 2 : 4096;
+        while (bw->size + i_size > newCap) {
+            newCap *= 2;
+        }
+        u8* newBuf = m3_ReallocArray(u8, bw->buffer, newCap, bw->capacity);
+        if (!newBuf) {
+            return m3Err_mallocFailed;
+        }
+        bw->buffer   = newBuf;
+        bw->capacity = newCap;
+    }
+
+    if (i_size) {
+        memcpy(bw->buffer + bw->size, i_data, i_size);
+        bw->size += i_size;
+    }
+
+    return m3Err_none;
+}
+
+typedef struct M3BufferReader {
+    const u8* buffer;
+    size_t    size;
+    size_t    cursor;
+} M3BufferReader;
+
+static
+M3Result BufferReader_Read (void* o_buffer, size_t i_size, void* i_userdata)
+{
+    M3BufferReader* br = (M3BufferReader*)i_userdata;
+
+    if (i_size > br->size - br->cursor) {
+        return m3Err_wasmMalformed;
+    }
+
+    if (i_size) {
+        memcpy(o_buffer, br->buffer + br->cursor, i_size);
+        br->cursor += i_size;
+    }
+
+    return m3Err_none;
+}
+
+
+//---------------------------------------------------------------------------------------------------------------------------------
 //  saving
 //---------------------------------------------------------------------------------------------------------------------------------
 
@@ -464,24 +589,34 @@ M3Result Put (M3SnapshotSave* s, const void* i_data, size_t i_size)
     return s->writing ? s->writer(i_data, i_size, s->userdata) : m3Err_none;
 }
 
-#  define d_m3Put(VALUE)              Put(s, &(VALUE), sizeof(VALUE))
-
 static
 M3Result PutU8 (M3SnapshotSave* s, u8 i_value)
 {
-    return d_m3Put(i_value);
+    return Put(s, &i_value, sizeof(i_value));
 }
 
 static
 M3Result PutU32 (M3SnapshotSave* s, u32 i_value)
 {
-    return d_m3Put(i_value);
+    u8 bytes[4];
+
+    for (u32 i = 0; i < sizeof(bytes); ++i) {
+        bytes[i] = (u8)(i_value >> (8 * i));
+    }
+
+    return Put(s, bytes, sizeof(bytes));
 }
 
 static
 M3Result PutU64 (M3SnapshotSave* s, u64 i_value)
 {
-    return d_m3Put(i_value);
+    u8 bytes[8];
+
+    for (u32 i = 0; i < sizeof(bytes); ++i) {
+        bytes[i] = (u8)(i_value >> (8 * i));
+    }
+
+    return Put(s, bytes, sizeof(bytes));
 }
 
 static
@@ -499,18 +634,6 @@ u32 FuncTypeIndex (IM3Module i_module, IM3FuncType i_type)
 {
     for (u32 i = 0; i < i_module->numFuncTypes; ++i) {
         if (i_module->funcTypes[i] == i_type) {
-            return i;
-        }
-    }
-
-    return d_m3SnapshotNone;
-}
-
-static
-u32 MemoryIndex (IM3Module i_module, IM3Memory i_memory)
-{
-    for (u32 i = 0; i < i_module->numMemories; ++i) {
-        if (i_module->memories[i] == i_memory) {
             return i;
         }
     }
@@ -544,8 +667,8 @@ u32 TagIndex (IM3Module i_module, IM3Tag i_tag)
 
 #  endif
 
-// The word a reference is written as: a function index or an object id, or
-// d_m3SnapshotNullRef
+// The word a reference is written as: a function index, an object id, the
+// embedder's name for an externref, or d_m3SnapshotNullRef
 static
 M3Result NameReference (M3SnapshotSave* s, u8 i_type, void* i_reference, u64* o_word)
 {
@@ -562,7 +685,16 @@ M3Result NameReference (M3SnapshotSave* s, u8 i_type, void* i_reference, u64* o_
         id = FunctionIndex(s->module, (IM3Function)i_reference);
         _throwif("a funcref names a function of another module", id == d_m3SnapshotNone);
     } else if (i_type == c_m3Type_externref) {
-        _throw("an externref belongs to the host, and cannot be saved");
+        const M3SnapshotHooks* hooks = &s->runtime->snapshotHooks;
+
+        _throwif("an externref belongs to the host, and cannot be saved", not hooks->nameExternRef);
+
+        u64 name = d_m3SnapshotNullRef;
+_       (hooks->nameExternRef(hooks->userdata, i_reference, &name));
+        _throwif("the host named an externref as null", name == d_m3SnapshotNullRef);
+
+        *o_word = name;
+        goto _catch;
     }
 #  if d_m3HasExceptionHandling
     else if (i_type == c_m3Type_exnref) {
@@ -591,8 +723,9 @@ _catch:
     return result;
 }
 
-// A value of the given type as the file holds it: a reference by name, a
-// 64-bit value whole, anything narrower zero-extended
+// A value held in memory - a global's cell, a bound argument - as the file
+// holds it: a reference by name, a 64-bit value whole, anything narrower
+// zero-extended
 static
 M3Result PutValue (M3SnapshotSave* s, m3type_t i_type, const void* i_where)
 {
@@ -690,8 +823,9 @@ _       (PutU64(s, memory ? memory->maxPages : 0));
 _       (PutU32(s, memory ? Memory_PageSize(memory) : d_m3DefaultMemPageSize));
 _       (PutU8(s, hasData));
 
-        // nothing in a memory is a reference, so the pass that follows them
-        // has no reason to read one
+        // linear memory is little endian whatever the host is, and nothing in
+        // it is a reference, so the pass that follows them has no reason to
+        // read it
         if (hasData and s->writing) {
 _           (PutMemoryChunks(s, m3MemData(memory->mallocated), (size_t)memory->numPages * Memory_PageSize(memory)));
         }
@@ -812,250 +946,229 @@ _catch:
 
 #  endif
 
+// One function's frame within a suspended continuation, as the native frames
+// the interpreter recorded describe it
+typedef struct M3Activation {
+    IM3Function      function;
+    m3stack_t        sp;
+    pc_t             pc;
+    u8               kind;            // M3SafePointKind
+    M3FrameRegisters registers;       // the ones it goes on with
+    const M3Frame*   resume;          // the resume it waits in, for safepoint_resume
+    i32              firstFrame;      // its frames, outermost first: firstFrame down to lastFrame
+    i32              lastFrame;
+} M3Activation;
+
+// The activation that starts at frame i_first, walking inward: the loops, try
+// regions and entry frame standing in the function, up to the call or resume it
+// waits on - or, for the innermost, up to the continuation's own suspension
+// point.
 static
-M3Result PutPc (M3SnapshotSave* s, IM3Function i_function, pc_t i_pc)
+M3Result NextActivation (IM3Module i_module, IM3Continuation i_cont, IM3Function i_function, m3stack_t i_sp,
+                         i32 i_first, M3Activation* o_act)
 {
     M3Result result = m3Err_none;
-    u32      offset;
+    i32      i      = i_first;
 
-_   (PcToOffset(i_function, i_pc, &offset));
-_   (PutU32(s, offset));
+    memset(o_act, 0, sizeof(*o_act));
 
-_catch:
-    return result;
-}
+    o_act->function   = i_function;
+    o_act->sp         = i_sp;
+    o_act->firstFrame = i_first;
 
-// A register as a frame goes on with it: a reference by name when the
-// safepoint says it holds one, the raw bits otherwise
-static
-M3Result PutRegister (M3SnapshotSave* s, const M3SafePoint* i_point, const m3reg_t* i_r0)
-{
-    M3Result result = m3Err_none;
-    u8       type   = i_r0 ? i_point->registerType : c_m3Type_none;
-    u64      word   = i_r0 ? (u64)*i_r0 : 0;
+    _throwif("a suspended call does not say what it called", not i_function);
 
-    if (type != c_m3Type_none) {
-_       (NameReference(s, type, (void*)(uintptr_t)*i_r0, &word));
+    for (; i >= 0; --i) {
+        const M3Frame* frame = &i_cont->frames[i];
+
+        _throwif("a suspended frame runs against another module's memory", frame->memory != Module_Memory0(i_module));
+        _throwif("a suspended frame is not where its function's frame is", frame->sp != i_sp);
+
+        if (frame->kind == frame_call) {
+            o_act->pc           = frame->pc;
+            o_act->kind         = safepoint_call;
+            o_act->registers.r0 = (m3reg_t*)&frame->call.r0;
+#  if d_m3HasFloat
+            o_act->registers.fp0 = (f64*)&frame->call.fp0;
+#  endif
+            break;
+        } else if (frame->kind == frame_resume) {
+            _throwif("a suspended resume is not the innermost frame", i != 0);
+
+            o_act->pc     = frame->pc;
+            o_act->kind   = safepoint_resume;
+            o_act->resume = frame;
+            break;
+        }
+#  if d_m3EntryKeepsFrame
+        else if (frame->kind == frame_entry) {
+            _throwif("a suspended frame is not the function it is entered with", frame->entry.function != i_function);
+        }
+#  endif
     }
 
-_   (PutU8(s, type));
-_   (PutU64(s, word));
+    if (i < 0) {
+        _throwif("a suspended frame is not where its function's frame is", i_cont->sp != i_sp);
+
+        o_act->pc           = i_cont->pc;
+        o_act->kind         = i_cont->suspendPoint;
+        o_act->registers.r0 = &i_cont->r0;
+#  if d_m3HasFloat
+        o_act->registers.fp0 = &i_cont->fp0;
+#  endif
+    }
+
+    o_act->lastFrame = i;
 
 _catch:
     return result;
 }
 
+static
+u32 NumBlocksInActivation (IM3Continuation i_cont, const M3Activation* i_act)
+{
+    u32 count = 0;
+
+    for (i32 i = i_act->firstFrame; i > i_act->lastFrame; --i) {
+        u8 kind = i_cont->frames[i].kind;
+
+#  if d_m3HasExceptionHandling
+        count += (kind == frame_try);
+#  endif
+        count += (kind == frame_loop);
+    }
+
+    return count;
+}
+
+// A function's frame: which function, the blocks standing in it, the safepoint
+// it waits at, and every value it holds there
+static
+M3Result SaveActivation (M3SnapshotSave* s, IM3Continuation i_cont, m3slot_t* i_base, u32 i_numSlots,
+                         const M3Activation* i_act, const M3SafePoint** o_point)
+{
+    M3Result             result        = m3Err_none;
+    IM3Function          function      = i_act->function;
+    const M3SnapshotMap* map           = function->snapshotMap;
+    u32                  functionIndex = FunctionIndex(s->module, function);
+    const M3SafePoint*   point         = FindSafePoint(function, i_act->pc, i_act->kind);
+    u32                  numValues;
+
+    _throwif("a suspended frame belongs to another module", functionIndex == d_m3SnapshotNone);
+    _throwif("a function in the snapshot was compiled before the runtime was made suspendable", not map);
+    _throwif("a suspended frame is not at a safepoint", not point);
+
+    *o_point = point;
+
+_   (PutU32(s, functionIndex));
+_   (PutU32(s, NumBlocksInActivation(i_cont, i_act)));
+
+    for (i32 i = i_act->firstFrame; i > i_act->lastFrame; --i) {
+        const M3Frame*      frame = &i_cont->frames[i];
+        const M3BlockStart* block = NULL;
+
+        if (frame->kind == frame_loop) {
+            block = FindBlock(map, c_waOp_loop, frame->pc);
+            _throwif("a loop standing in a suspended frame is not one its function has", not block);
+
+_           (PutU8(s, snapshot_blockLoop));
+_           (PutU32(s, block->wasmOffset));
+        }
+#  if d_m3HasExceptionHandling
+        else if (frame->kind == frame_try) {
+            block = FindBlock(map, c_waOp_tryTable, frame->pc);
+            _throwif("a try_table standing in a suspended frame is not one its function has", not block);
+
+_           (PutU8(s, snapshot_blockTry));
+_           (PutU32(s, block->wasmOffset));
+_           (PutU8(s, frame->try_.handlersLive));
+        }
+#  endif
+    }
+
+_   (PutU8(s, point->kind));
+_   (PutU32(s, point->wasmOffset));
+_   (PutU32(s, SafePointOrdinal(map, point)));
+
+    numValues = map->numLocals + point->numValues;
+
+_   (PutU32(s, numValues));
+
+    for (u32 v = 0; v < numValues; ++v) {
+        const M3SlotValue* value = FrameValue(map, point, v);
+        u8*                where;
+        u64                word;
+        void*              reference;
+
+_       (LocateValue(i_base, i_numSlots, i_act->sp, value, &where));
+_       (ReadValue(where, &i_act->registers, value, &word, &reference));
+
+        if (IsRefType(value->type)) {
+_           (NameReference(s, value->type, reference, &word));
+        }
+
+_       (PutU8(s, value->type));
+_       (PutU64(s, word));
+    }
+
+    if (point->kind == safepoint_resume) {
+        u64 word;
+_       (NameReference(s, c_m3Type_contref, i_act->resume->resume.cont, &word));
+        _throwif("a suspended resume runs no continuation", word == d_m3SnapshotNullRef);
+
+_       (PutU64(s, word));
+    }
+
+_catch:
+    return result;
+}
+
+// A suspended continuation, as the functions it is in the middle of, outermost
+// first. A call leaves the caller waiting and the callee next in; a resume the
+// suspension passed through ends the list, since the rest of it belongs to the
+// continuation that resume was running.
 static
 M3Result SaveSuspendedBody (M3SnapshotSave* s, IM3Continuation i_cont)
 {
-    M3Result      result      = m3Err_none;
-    IM3Module     module      = s->module;
-    M3Activation* activations = NULL;
-    u8*           stackCopy   = NULL;
-    m3slot_t*     base;
-    u32           capacity;
-    u32           numActivations;
-    u32           numSlots       = 0;
-    u32           numRelocations = 0;
-    u32           pointerSlots   = NumPointerSlots();
-    f64           fp0            = 0.;
-    IM3Function   function       = i_cont->entryFunction;
-    M3Activation* top;
-    bool          hasOwnPc;
+    M3Result    result   = m3Err_none;
+    IM3Function function = i_cont->entryFunction;
+    u32         numCalls = 0;
+    i32         first    = (i32)i_cont->numFrames - 1;
+    m3slot_t*   base;
+    u32         numSlots;
+    m3stack_t   sp;
 
-_   (ContinuationStack(s->runtime, i_cont, &base, &capacity));
+_   (ContinuationStack(s->runtime, i_cont, &base, &numSlots));
 
-    activations = m3_AllocArray(M3Activation, d_m3MaxActivations);
-    _throwifnull(activations);
-
-_   (ListActivations(i_cont, activations, &numActivations));
-
-    // Every frame must be this module's and have a map, and the stack is saved
-    // up to the furthest any of them can reach
-
-    for (u32 a = 0; a < numActivations; ++a) {
-        M3Activation* act = &activations[a];
-
-        _throwif("a suspended frame belongs to another module", FunctionIndex(module, act->function) == d_m3SnapshotNone);
-        _throwif("a function in the snapshot was compiled before the runtime was made suspendable", not act->function->snapshotMap);
-        _throwif("a suspended frame is not at a safepoint", not FindSafePoint(act->function, act->pc, act->kind));
-        _throwif("a suspended frame is outside its stack", act->sp < base or act->sp > base + capacity);
-
-        u32 reach = (u32)(act->sp - base) + act->function->maxStackSlots;
-        numSlots  = M3_MAX(numSlots, reach);
+    for (u32 i = 0; i < i_cont->numFrames; ++i) {
+        numCalls += (i_cont->frames[i].kind == frame_call);
     }
 
-    numSlots = M3_MIN(numSlots, capacity);
+_   (PutU32(s, numCalls + 1));
 
-    // The references go out by name, and the slots they were in go out empty:
-    // the file carries no addresses
+    sp = base;
 
-    if (s->writing) {
-        stackCopy = m3_AllocArray(u8, (size_t)numSlots * sizeof(m3slot_t) + 1);
-        _throwifnull(stackCopy);
-        memcpy(stackCopy, base, (size_t)numSlots * sizeof(m3slot_t));
-    }
+    for (u32 a = 0; a <= numCalls; ++a) {
+        M3Activation       act;
+        const M3SafePoint* point = NULL;
 
-    for (u32 a = 0; a < numActivations; ++a) {
-        M3Activation*      act   = &activations[a];
-        const M3SafePoint* point = FindSafePoint(act->function, act->pc, act->kind);
-        u32                frame = (u32)(act->sp - base);
+_       (NextActivation(s->module, i_cont, function, sp, first, &act));
+_       (SaveActivation(s, i_cont, base, numSlots, &act, &point));
 
-        for (u16 r = 0; r < point->numRefs; ++r) {
-            const M3SlotRef* ref  = &act->function->snapshotMap->refs[point->firstRef + r];
-            u32              slot = frame + ref->slot;
+        bool isInnermost = (a == numCalls);
 
-            _throwif("a reference is outside the saved stack", slot + pointerSlots > numSlots);
+        _throwif("a suspended frame waits on a call that is not its innermost", isInnermost != (act.kind != safepoint_call));
 
-            if (stackCopy) {
-                memset(stackCopy + (size_t)slot * sizeof(m3slot_t), 0, sizeof(void*));
-            }
+        if (not isInnermost) {
+            const M3Frame* call = &i_cont->frames[act.lastFrame];
 
-            numRelocations++;
-        }
-    }
-
-_   (PutU32(s, numSlots));
-_   (Put(s, stackCopy, s->writing ? (size_t)numSlots * sizeof(m3slot_t) : 0));
-_   (PutU32(s, numRelocations));
-
-    for (u32 a = 0; a < numActivations; ++a) {
-        M3Activation*      act   = &activations[a];
-        const M3SafePoint* point = FindSafePoint(act->function, act->pc, act->kind);
-        u32                frame = (u32)(act->sp - base);
-
-        for (u16 r = 0; r < point->numRefs; ++r) {
-            const M3SlotRef* ref  = &act->function->snapshotMap->refs[point->firstRef + r];
-            u32              slot = frame + ref->slot;
-            void*            reference;
-            u64              word;
-
-            memcpy(&reference, base + slot, sizeof(reference));
-
-_           (NameReference(s, ref->type, reference, &word));
-_           (PutU32(s, slot));
-_           (PutU8(s, ref->type));
-_           (PutU64(s, word));
-        }
-    }
-
-    // Where the continuation goes on from. A suspension that passed through a
-    // resume goes on from inside the continuation that resume was running, so
-    // this one's own pc is not used.
-    top      = &activations[numActivations - 1];
-    hasOwnPc = (i_cont->numFrames == 0 or i_cont->frames[0].kind != frame_resume);
-
-_   (PutU8(s, hasOwnPc));
-
-    if (hasOwnPc) {
-_       (PutU8(s, i_cont->suspendPoint));
-_       (PutU32(s, FunctionIndex(module, top->function)));
-_       (PutPc(s, top->function, i_cont->pc));
-_       (PutU32(s, (u32)(i_cont->sp - base)));
-_       (PutRegister(s, FindSafePoint(top->function, top->pc, top->kind), &i_cont->r0));
-    }
-
-#  if d_m3HasFloat
-    fp0 = i_cont->fp0;
-#  endif
-_   (d_m3Put(fp0));
-
-    // the slots a suspend is waiting on are the frame's own, and already typed
-_   (PutU32(s, i_cont->numSuspendResults));
-
-    for (u32 i = 0; i < i_cont->numSuspendResults; ++i) {
-_       (PutU32(s, (u32)i_cont->suspendResultOffsets[i]));
-_       (PutU8(s, (u8)i_cont->suspendResultIs64[i]));
-    }
-
-    // The frames, outermost first. Each pc is in the function the frame
-    // stands in, which a call frame hands on to its callee.
-_   (PutU32(s, i_cont->numFrames));
-
-    for (i32 i = (i32)i_cont->numFrames - 1; i >= 0; --i) {
-        M3Frame* frame = &i_cont->frames[i];
-
-        // a module without memories runs against a placeholder, written as none
-        u32 memoryIndex = MemoryIndex(module, frame->memory);
-        _throwif("a suspended frame runs against another module's memory",
-                 memoryIndex == d_m3SnapshotNone and frame->memory != &module->emptyMemory);
-        _throwif("a suspended frame is outside its stack", frame->sp < base or frame->sp > base + numSlots);
-
-        u8 kind = 0;
-
-        switch ((M3FrameKind)frame->kind) {
-        case frame_call: kind = snapshot_frameCall; break;
-        case frame_loop: kind = snapshot_frameLoop; break;
-#  if d_m3HasExceptionHandling
-        case frame_try: kind = snapshot_frameTry; break;
-#  endif
-#  if d_m3EntryKeepsFrame
-        case frame_entry: kind = snapshot_frameEntry; break;
-#  endif
-        case frame_resume: kind = snapshot_frameResume; break;
-        }
-
-_       (PutU8(s, kind));
-_       (PutU32(s, (u32)(frame->sp - base)));
-_       (PutU32(s, memoryIndex));
-_       (PutU32(s, FunctionIndex(module, function)));
-
-        switch ((M3FrameKind)frame->kind) {
-        case frame_call: {
-            const M3SafePoint* point = FindSafePoint(function, frame->pc, safepoint_call);
-
-            f64 callFp0 = 0.;
-#  if d_m3HasFloat
-            callFp0 = frame->call.fp0;
-#  endif
-
-_           (PutPc(s, function, frame->pc));
-_           (PutU32(s, FunctionIndex(module, frame->call.function)));
-_           (PutRegister(s, point, &frame->call.r0));
-_           (d_m3Put(callFp0));
-
-            function = frame->call.function;
-            break;
-        }
-
-        case frame_loop:
-_           (PutPc(s, function, frame->pc));
-            break;
-
-#  if d_m3HasExceptionHandling
-        case frame_try:
-_           (PutPc(s, function, frame->pc));
-_           (PutU32(s, frame->try_.numClauses));
-_           (PutU8(s, frame->try_.handlersLive));
-            break;
-#  endif
-
-#  if d_m3EntryKeepsFrame
-        case frame_entry:
-_           (PutU32(s, FunctionIndex(module, frame->entry.function)));
-            break;
-#  endif
-
-        case frame_resume: {
-            u64 word;
-_           (NameReference(s, c_m3Type_contref, frame->resume.cont, &word));
-            _throwif("a suspended resume runs no continuation", word == d_m3SnapshotNullRef);
-
-_           (PutPc(s, function, frame->pc));
-_           (PutU64(s, word));
-_           (PutPc(s, function, frame->resume.handlersPC));
-_           (PutU32(s, frame->resume.numHandlers));
-_           (PutPc(s, function, frame->resume.resultsPC));
-_           (PutU32(s, frame->resume.numResults));
-            break;
-        }
+            function = call->call.function;
+            sp       = act.sp + point->aux;
+            first    = act.lastFrame - 1;
         }
     }
 
 _catch:
-    m3_Free(stackCopy);
-    m3_Free(activations);
-
     return result;
 }
 
@@ -1117,6 +1230,28 @@ _catch:
     return result;
 }
 
+// The embedder's own state, framed by its size so a reader knows where it
+// ends. Only the writing pass asks for it: it holds no references to follow.
+static
+M3Result SaveHostState (M3SnapshotSave* s)
+{
+    M3Result               result = m3Err_none;
+    const M3SnapshotHooks* hooks  = &s->runtime->snapshotHooks;
+    M3BufferWriter         bw     = { NULL, 0, 0 };
+
+    if (s->writing and hooks->saveHostState and not s->postmortem) {
+_       (hooks->saveHostState(hooks->userdata, BufferWriter_Write, &bw));
+    }
+
+_   (PutU64(s, bw.size));
+_   (Put(s, bw.buffer, bw.size));
+
+_catch:
+    m3_Free(bw.buffer);
+
+    return result;
+}
+
 static
 M3Result SaveSections (M3SnapshotSave* s)
 {
@@ -1125,20 +1260,13 @@ M3Result SaveSections (M3SnapshotSave* s)
     u32      doneExceptions    = 0;
 
     if (s->writing) {
-        u16 byteOrder = d_m3SnapshotByteOrder;
-        u32 flags     = s->postmortem ? d_m3SnapshotFlagPostmortem : 0;
-        u64 build     = BuildFingerprint();
-        u64 module    = ModuleFingerprint(s->module);
+        u32 flags = s->postmortem ? d_m3SnapshotFlagPostmortem : 0;
 
 _       (Put(s, c_snapshotMagic, sizeof(c_snapshotMagic)));
 _       (PutU32(s, flags));
-_       (d_m3Put(byteOrder));
-_       (PutU8(s, (u8)sizeof(void*)));
-_       (PutU8(s, (u8)sizeof(m3slot_t)));
-_       (PutU64(s, build));
-_       (PutU8(s, IsGasMetered(s->runtime)));
-_       (PutU64(s, module));
-
+_       (PutU64(s, m3_HostTimeMs()));
+_       (PutU64(s, BuildFingerprint()));
+_       (PutU64(s, ModuleFingerprint(s->module)));
 _       (PutU32(s, s->continuations.count));
 _       (PutU32(s, s->exceptions.count));
     }
@@ -1171,11 +1299,11 @@ _           (SaveContinuation(s, (IM3Continuation)s->continuations.items[doneCon
         }
     }
 
+_   (SaveHostState(s));
+
 _catch:
     return result;
 }
-
-#  undef d_m3Put
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -1197,6 +1325,8 @@ typedef struct M3SnapshotLoad {
     M3Exception** exceptions;
 #  endif
     u32 numExceptions;
+
+    M3Frame* frames;           // a suspended continuation's frames as they are put together, outermost first
 } M3SnapshotLoad;
 
 static
@@ -1205,7 +1335,41 @@ M3Result Get (M3SnapshotLoad* l, void* o_data, size_t i_size)
     return l->reader(o_data, i_size, l->userdata);
 }
 
-#  define d_m3Get(VALUE)              Get(l, &(VALUE), sizeof(VALUE))
+static
+M3Result GetU8 (M3SnapshotLoad* l, u8* o_value)
+{
+    return Get(l, o_value, sizeof(*o_value));
+}
+
+static
+M3Result GetU32 (M3SnapshotLoad* l, u32* o_value)
+{
+    u8       bytes[4];
+    M3Result result = Get(l, bytes, sizeof(bytes));
+
+    *o_value = 0;
+
+    for (u32 i = 0; i < sizeof(bytes); ++i) {
+        *o_value |= (u32)bytes[i] << (8 * i);
+    }
+
+    return result;
+}
+
+static
+M3Result GetU64 (M3SnapshotLoad* l, u64* o_value)
+{
+    u8       bytes[8];
+    M3Result result = Get(l, bytes, sizeof(bytes));
+
+    *o_value = 0;
+
+    for (u32 i = 0; i < sizeof(bytes); ++i) {
+        *o_value |= (u64)bytes[i] << (8 * i);
+    }
+
+    return result;
+}
 
 static
 M3Result ResolveReference (M3SnapshotLoad* l, u8 i_type, u64 i_word, void** o_reference)
@@ -1221,6 +1385,11 @@ M3Result ResolveReference (M3SnapshotLoad* l, u8 i_type, u64 i_word, void** o_re
     if (i_type == c_m3Type_funcref) {
         _throwif(m3Err_wasmMalformed, i_word >= l->module->numFunctions);
         *o_reference = &l->module->functions[i_word];
+    } else if (i_type == c_m3Type_externref) {
+        const M3SnapshotHooks* hooks = &l->runtime->snapshotHooks;
+
+        _throwif("the snapshot holds an externref, and nothing here can bind one", not hooks->bindExternRef);
+_       (hooks->bindExternRef(hooks->userdata, i_word, o_reference));
     }
 #  if d_m3HasExceptionHandling
     else if (i_type == c_m3Type_exnref) {
@@ -1245,7 +1414,7 @@ M3Result GetValue (M3SnapshotLoad* l, m3type_t i_type, void* o_where)
     M3Result result = m3Err_none;
     u64      word;
 
-_   (d_m3Get(word));
+_   (GetU64(l, &word));
 
     if (IsRefType(i_type)) {
         void* reference;
@@ -1268,45 +1437,10 @@ M3Result GetFunction (M3SnapshotLoad* l, IM3Function* o_function)
     M3Result result = m3Err_none;
     u32      index;
 
-_   (d_m3Get(index));
+_   (GetU32(l, &index));
 
     _throwif(m3Err_wasmMalformed, index >= l->module->numFunctions);
     *o_function = &l->module->functions[index];
-
-_catch:
-    return result;
-}
-
-static
-M3Result GetPc (M3SnapshotLoad* l, IM3Function i_function, pc_t* o_pc)
-{
-    M3Result result = m3Err_none;
-    u32      offset;
-
-_   (d_m3Get(offset));
-_   (OffsetToPc(i_function, offset, o_pc));
-
-_catch:
-    return result;
-}
-
-static
-M3Result GetRegister (M3SnapshotLoad* l, m3reg_t* o_r0)
-{
-    M3Result result = m3Err_none;
-    u8       type;
-    u64      word;
-
-_   (d_m3Get(type));
-_   (d_m3Get(word));
-
-    if (type == c_m3Type_none) {
-        *o_r0 = (m3reg_t)word;
-    } else {
-        void* reference;
-_       (ResolveReference(l, type, word, &reference));
-        *o_r0 = (m3reg_t)(uintptr_t)reference;
-    }
 
 _catch:
     return result;
@@ -1319,15 +1453,15 @@ M3Result LoadMemoryChunks (M3SnapshotLoad* l, u8* o_bytes, size_t i_size)
 
     for (;;) {
         u8 chunkType;
-_       (d_m3Get(chunkType));
+_       (GetU8(l, &chunkType));
 
         if (chunkType == d_m3ChunkEnd) {
             break;
         }
 
         u32 offset, length;
-_       (d_m3Get(offset));
-_       (d_m3Get(length));
+_       (GetU32(l, &offset));
+_       (GetU32(l, &length));
 
         _throwif(m3Err_wasmMalformed, (size_t)offset + length > i_size);
 
@@ -1351,7 +1485,7 @@ M3Result LoadMemories (M3SnapshotLoad* l)
     IM3Module module = l->module;
     u32       numMemories;
 
-_   (d_m3Get(numMemories));
+_   (GetU32(l, &numMemories));
     _throwif(m3Err_wasmMalformed, numMemories != module->numMemories);
 
     for (u32 m = 0; m < numMemories; ++m) {
@@ -1359,10 +1493,10 @@ _   (d_m3Get(numMemories));
         u32 pageSize;
         u8  hasData;
 
-_       (d_m3Get(numPages));
-_       (d_m3Get(maxPages));
-_       (d_m3Get(pageSize));
-_       (d_m3Get(hasData));
+_       (GetU64(l, &numPages));
+_       (GetU64(l, &maxPages));
+_       (GetU32(l, &pageSize));
+_       (GetU8(l, &hasData));
 
         IM3Memory memory = module->memories[m];
 
@@ -1394,7 +1528,7 @@ M3Result LoadGlobals (M3SnapshotLoad* l)
     IM3Module module = l->module;
     u32       numGlobals;
 
-_   (d_m3Get(numGlobals));
+_   (GetU32(l, &numGlobals));
     _throwif(m3Err_wasmMalformed, numGlobals != module->numGlobals);
 
     for (u32 g = 0; g < numGlobals; ++g) {
@@ -1402,7 +1536,7 @@ _   (d_m3Get(numGlobals));
         M3Global* cell   = global->resolved ? global->resolved : global;
         u8        type;
 
-_       (d_m3Get(type));
+_       (GetU8(l, &type));
         _throwif(m3Err_wasmMalformed, type != BaseTypeOf(global->type));
 
 _       (GetValue(l, global->type, &cell->i64Value));
@@ -1419,7 +1553,7 @@ M3Result LoadTables (M3SnapshotLoad* l)
     IM3Module module = l->module;
     u32       numTables;
 
-_   (d_m3Get(numTables));
+_   (GetU32(l, &numTables));
     _throwif(m3Err_wasmMalformed, numTables != module->numTables);
 
     for (u32 t = 0; t < numTables; ++t) {
@@ -1427,8 +1561,8 @@ _   (d_m3Get(numTables));
         u8       type;
         u32      size;
 
-_       (d_m3Get(type));
-_       (d_m3Get(size));
+_       (GetU8(l, &type));
+_       (GetU32(l, &size));
 
         _throwif(m3Err_wasmMalformed, type != BaseTypeOf(table->type));
         _throwif(m3Err_wasmMalformed, size > (table->maxSize ? table->maxSize : d_m3MaxSaneTableSize));
@@ -1446,7 +1580,7 @@ _       (d_m3Get(size));
 
         for (u32 e = 0; e < size; ++e) {
             u64 word;
-_           (d_m3Get(word));
+_           (GetU64(l, &word));
 _           (ResolveReference(l, type, word, &table->elements[e]));
         }
     }
@@ -1462,21 +1596,21 @@ M3Result LoadSegments (M3SnapshotLoad* l)
     IM3Module module = l->module;
     u32       count;
 
-_   (d_m3Get(count));
+_   (GetU32(l, &count));
     _throwif(m3Err_wasmMalformed, count != module->numDataSegments);
 
     for (u32 i = 0; i < count; ++i) {
         u8 dropped;
-_       (d_m3Get(dropped));
+_       (GetU8(l, &dropped));
         module->dataSegments[i].dropped = dropped;
     }
 
-_   (d_m3Get(count));
+_   (GetU32(l, &count));
     _throwif(m3Err_wasmMalformed, count != module->numElementSegments);
 
     for (u32 i = 0; i < count; ++i) {
         u8 dropped;
-_       (d_m3Get(dropped));
+_       (GetU8(l, &dropped));
         module->elementSegments[i].dropped = dropped;
     }
 
@@ -1484,108 +1618,275 @@ _catch:
     return result;
 }
 
-// A frame's constants are copied in by op_Entry, and op_Entry already ran
+// A frame for the continuation being put together, outermost first
 static
-void RestoreConstants (const M3Activation* i_activation)
+M3Result AddFrame (M3SnapshotLoad* l, u32* io_numFrames, M3FrameKind i_kind, m3stack_t i_sp, M3Frame** o_frame)
 {
-    IM3Function function = i_activation->function;
-
-    if (function->constants) {
-        u8* where = (u8*)((m3slot_t*)i_activation->sp + function->numRetAndArgSlots) + function->numLocalBytes;
-
-        memcpy(where, function->constants, function->numConstantBytes);
+    if (*io_numFrames >= d_m3ContinuationMaxFrames) {
+        return "the snapshot's frames do not fit this build's";
     }
+
+    M3Frame* frame = &l->frames[(*io_numFrames)++];
+
+    memset(frame, 0, sizeof(*frame));
+    frame->kind   = (u8)i_kind;
+    frame->sp     = i_sp;
+    frame->memory = Module_Memory0(l->module);
+
+    *o_frame = frame;
+
+    return m3Err_none;
+}
+
+// Compiled, and with a snapshot map: where a function's frame in a snapshot is
+// found in this build's code
+static
+M3Result PrepareFunction (IM3Function i_function)
+{
+    M3Result result = m3Err_none;
+
+    if (not i_function->compiled) {
+_       (CompileFunction(i_function));
+    }
+
+    _throwif("a function in the snapshot was compiled before the runtime was made suspendable", not i_function->snapshotMap);
+
+_catch:
+    return result;
 }
 
 static
+M3Result LoadBlocks (M3SnapshotLoad* l, IM3Function i_function, m3stack_t i_sp, u32* io_numFrames)
+{
+    M3Result             result = m3Err_none;
+    const M3SnapshotMap* map    = i_function->snapshotMap;
+    u32                  numBlocks;
+
+_   (GetU32(l, &numBlocks));
+
+    for (u32 b = 0; b < numBlocks; ++b) {
+        u8       kind;
+        u32      wasmOffset;
+        M3Frame* frame;
+
+_       (GetU8(l, &kind));
+_       (GetU32(l, &wasmOffset));
+
+        if (kind == snapshot_blockLoop) {
+            const M3BlockStart* block = FindBlockAt(map, c_waOp_loop, wasmOffset);
+            _throwif("a loop in the snapshot is not one its function has", not block);
+
+_           (AddFrame(l, io_numFrames, frame_loop, i_sp, &frame));
+            frame->pc = block->pc;
+        }
+#  if d_m3HasExceptionHandling
+        else if (kind == snapshot_blockTry) {
+            const M3BlockStart* block = FindBlockAt(map, c_waOp_tryTable, wasmOffset);
+            _throwif("a try_table in the snapshot is not one its function has", not block);
+
+            u8 handlersLive;
+_           (GetU8(l, &handlersLive));
+
+_           (AddFrame(l, io_numFrames, frame_try, i_sp, &frame));
+            frame->pc                = block->pc;
+            frame->try_.numClauses   = block->numClauses;
+            frame->try_.handlersLive = handlersLive;
+        }
+#  endif
+        else {
+            _throw("the snapshot holds a block this build does not have");
+        }
+    }
+
+_catch:
+    return result;
+}
+
+// Puts a function's values where this build keeps them at the safepoint
+static
+M3Result LoadValues (M3SnapshotLoad* l, m3slot_t* i_base, u32 i_numSlots, m3stack_t i_sp,
+                     const M3SnapshotMap* i_map, const M3SafePoint* i_point, const M3FrameRegisters* i_registers)
+{
+    M3Result result = m3Err_none;
+    u32      numValues;
+
+_   (GetU32(l, &numValues));
+    _throwif("the snapshot's frame does not match what this build compiled", numValues != i_map->numLocals + i_point->numValues);
+
+    for (u32 v = 0; v < numValues; ++v) {
+        const M3SlotValue* value = FrameValue(i_map, i_point, v);
+        u8                 type;
+        u64                word;
+        void*              reference = NULL;
+        u8*                where;
+
+_       (GetU8(l, &type));
+_       (GetU64(l, &word));
+
+        _throwif("the snapshot's frame does not match what this build compiled", type != value->type);
+
+        if (IsRefType(type)) {
+_           (ResolveReference(l, type, word, &reference));
+        }
+
+_       (LocateValue(i_base, i_numSlots, i_sp, value, &where));
+_       (WriteValue(where, i_registers, value, word, reference));
+    }
+
+_catch:
+    return result;
+}
+
+// The functions a suspended continuation is in the middle of, outermost first.
+// Each one's frame is found in this build's code, its values put where this
+// build keeps them, and the native frames the interpreter needs to stand it
+// back up are made from what its own maps say about them.
+static
 M3Result LoadSuspendedBody (M3SnapshotLoad* l, IM3Continuation io_cont)
 {
-    M3Result      result      = m3Err_none;
-    IM3Module     module      = l->module;
-    M3Activation* activations = NULL;
-    m3slot_t*     base;
-    u32           capacity;
-    u32           numSlots, numRelocations;
-    u32           pointerSlots = NumPointerSlots();
+    M3Result    result    = m3Err_none;
+    u32         numFrames = 0;
+    M3Frame*    callFrame = NULL;
+    IM3Function function  = NULL;
+    m3slot_t*   base;
+    u32         numSlots;
+    u32         numActivations;
+    m3stack_t   sp;
 
-_   (ContinuationStack(l->runtime, io_cont, &base, &capacity));
+_   (ContinuationStack(l->runtime, io_cont, &base, &numSlots));
 
-_   (d_m3Get(numSlots));
-    _throwif("the snapshot's stack does not fit this runtime's", numSlots > capacity);
+_   (GetU32(l, &numActivations));
+    _throwif(m3Err_wasmMalformed, numActivations == 0 or numActivations > d_m3ContinuationMaxFrames);
 
-_   (Get(l, base, (size_t)numSlots * sizeof(m3slot_t)));
-
-_   (d_m3Get(numRelocations));
-
-    for (u32 i = 0; i < numRelocations; ++i) {
-        u32   slot;
-        u8    type;
-        u64   word;
-        void* reference;
-
-_       (d_m3Get(slot));
-_       (d_m3Get(type));
-_       (d_m3Get(word));
-
-        _throwif(m3Err_wasmMalformed, slot + pointerSlots > numSlots);
-
-_       (ResolveReference(l, type, word, &reference));
-        memcpy(base + slot, &reference, sizeof(reference));
-    }
-
-    u8 hasOwnPc;
-_   (d_m3Get(hasOwnPc));
-
-    io_cont->pc = NULL;
-    io_cont->sp = base;
-    io_cont->r0 = 0;
-
-    if (hasOwnPc) {
-        u8          suspendPoint;
-        IM3Function function = NULL;
-        u32         spSlot;
-
-_       (d_m3Get(suspendPoint));
-        _throwif(m3Err_wasmMalformed, suspendPoint != safepoint_op and suspendPoint != safepoint_suspend);
-
-_       (GetFunction(l, &function));
-_       (GetPc(l, function, &io_cont->pc));
-_       (d_m3Get(spSlot));
-_       (GetRegister(l, &io_cont->r0));
-
-        _throwif(m3Err_wasmMalformed, spSlot > numSlots);
-
-        io_cont->suspendPoint = suspendPoint;
-        io_cont->sp           = base + spSlot;
-    }
-
-    f64 fp0;
-_   (d_m3Get(fp0));
+    io_cont->pc                = NULL;
+    io_cont->r0                = 0;
+    io_cont->numSuspendResults = 0;
+    io_cont->suspendPoint      = safepoint_op;
 #  if d_m3HasFloat
-    io_cont->fp0 = fp0;
+    io_cont->fp0 = 0.;
 #  endif
 
-    u32 numSuspendResults;
-_   (d_m3Get(numSuspendResults));
-    _throwif(m3Err_wasmMalformed, numSuspendResults > d_m3MaxContinuationPayload);
+    sp = base;
 
-    io_cont->numSuspendResults = numSuspendResults;
+    for (u32 a = 0; a < numActivations; ++a) {
+        bool               isInnermost = (a + 1 == numActivations);
+        const M3SafePoint* point;
+        M3FrameRegisters   registers;
+        u8                 kind;
+        u32                wasmOffset, ordinal;
 
-    for (u32 i = 0; i < numSuspendResults; ++i) {
-        u32 offset;
-        u8  is64;
+        memset(&registers, 0, sizeof(registers));
 
-_       (d_m3Get(offset));
-_       (d_m3Get(is64));
+_       (GetFunction(l, &function));
+        _throwif(m3Err_wasmMalformed, a == 0 and function != io_cont->entryFunction);
 
-        io_cont->suspendResultOffsets[i] = (i32)offset;
-        io_cont->suspendResultIs64[i]    = is64;
+_       (PrepareFunction(function));
+
+        const M3SnapshotMap* map = function->snapshotMap;
+
+        _throwif("the snapshot's stack does not fit this runtime's",
+                 (u32)(sp - base) + function->maxStackSlots > numSlots);
+
+        // the call the frame outside this one is waiting on
+        if (callFrame) {
+            callFrame->call.function = function;
+        }
+
+#  if d_m3EntryKeepsFrame
+        {
+            M3Frame* entry;
+_           (AddFrame(l, &numFrames, frame_entry, sp, &entry));
+            entry->pc             = function->compiled;
+            entry->entry.function = function;
+        }
+#  endif
+
+_       (LoadBlocks(l, function, sp, &numFrames));
+
+_       (GetU8(l, &kind));
+_       (GetU32(l, &wasmOffset));
+_       (GetU32(l, &ordinal));
+
+        point = FindSafePointAt(map, wasmOffset, kind, ordinal);
+        _throwif("a frame in the snapshot is not at a safepoint of this build's", not point);
+
+        if (not isInnermost) {
+            _throwif(m3Err_wasmMalformed, kind != safepoint_call);
+
+_           (AddFrame(l, &numFrames, frame_call, sp, &callFrame));
+            callFrame->pc = point->pc;
+            registers.r0  = &callFrame->call.r0;
+#  if d_m3HasFloat
+            registers.fp0 = &callFrame->call.fp0;
+#  endif
+        } else if (kind == safepoint_resume) {
+            M3Frame* frame;
+            u32      numResults = point->numResults;
+            pc_t     resultsPC  = point->pc - 2 * numResults;
+
+_           (AddFrame(l, &numFrames, frame_resume, sp, &frame));
+            frame->pc                 = point->pc;
+            frame->resume.resultsPC   = resultsPC;
+            frame->resume.numResults  = numResults;
+            frame->resume.numHandlers = point->aux;
+            frame->resume.handlersPC  = resultsPC - 1 - 3 * point->aux;
+
+            // a replayed resume carries on with clear registers, so the frame
+            // keeps nothing in them
+            callFrame = frame;
+        } else {
+            _throwif(m3Err_wasmMalformed, kind != safepoint_op and kind != safepoint_gas and kind != safepoint_suspend);
+
+            io_cont->pc           = point->pc;
+            io_cont->suspendPoint = kind;
+            registers.r0          = &io_cont->r0;
+#  if d_m3HasFloat
+            registers.fp0 = &io_cont->fp0;
+#  endif
+        }
+
+_       (LoadValues(l, base, numSlots, sp, map, point, &registers));
+
+        RestoreConstants(function, sp);
+
+        if (not isInnermost) {
+            sp = sp + point->aux;
+        } else if (kind == safepoint_resume) {
+            u64 word;
+_           (GetU64(l, &word));
+            _throwif(m3Err_wasmMalformed, word == d_m3SnapshotNullRef or word >= l->numContinuations);
+
+            callFrame->resume.cont = l->continuations[word];
+        } else {
+            // op_ContinueLoopIf suspends before it has branched, and goes on
+            // by reading the condition again
+            if (point->flags & d_m3SafePointTakenBranch) {
+                io_cont->r0 = 1;
+            }
+
+            // a suspend waits for its results in the slots at the top of what
+            // it holds, which is where whatever resumes it writes them
+            if (kind == safepoint_suspend) {
+                _throwif(m3Err_wasmMalformed, point->numResults > point->numValues or
+                                                point->numResults > d_m3MaxContinuationPayload);
+
+                io_cont->numSuspendResults = point->numResults;
+
+                for (u32 i = 0; i < point->numResults; ++i) {
+                    const M3SlotValue* value = &map->values[point->firstValue + point->numValues - point->numResults + i];
+
+                    _throwif(m3Err_wasmMalformed, IsRegisterSlotAlias(value->slot));
+
+                    io_cont->suspendResultOffsets[i] = value->slot;
+                    io_cont->suspendResultIs64[i]    = Is64BitType(value->type);
+                }
+            }
+        }
     }
 
-    u32 numFrames;
-_   (d_m3Get(numFrames));
-    _throwif(m3Err_wasmMalformed, numFrames > d_m3ContinuationMaxFrames);
+    io_cont->sp = sp;
 
+    // held innermost first
     if (numFrames > io_cont->framesCap) {
         M3Frame* frames = m3_ReallocArray(M3Frame, io_cont->frames, numFrames, io_cont->framesCap);
         _throwifnull(frames);
@@ -1594,119 +1895,13 @@ _   (d_m3Get(numFrames));
         io_cont->framesCap = numFrames;
     }
 
-    io_cont->numFrames = 0;
-
     for (u32 k = 0; k < numFrames; ++k) {
-        // written outermost first, held innermost first
-        M3Frame* frame = &io_cont->frames[numFrames - 1 - k];
-
-        u8          kind;
-        u32         spSlot, memoryIndex;
-        IM3Function function = NULL;
-
-_       (d_m3Get(kind));
-_       (d_m3Get(spSlot));
-_       (d_m3Get(memoryIndex));
-_       (GetFunction(l, &function));
-
-        _throwif(m3Err_wasmMalformed, spSlot > numSlots);
-        _throwif(m3Err_wasmMalformed, memoryIndex != d_m3SnapshotNone and memoryIndex >= module->numMemories);
-        _throwif(m3Err_wasmMalformed, memoryIndex == d_m3SnapshotNone and module->numMemories);
-
-        memset(frame, 0, sizeof(*frame));
-        frame->sp     = base + spSlot;
-        frame->memory = (memoryIndex != d_m3SnapshotNone) ? module->memories[memoryIndex] : &module->emptyMemory;
-
-        switch (kind) {
-        case snapshot_frameCall: {
-            f64 callFp0;
-
-            frame->kind = frame_call;
-_           (GetPc(l, function, &frame->pc));
-_           (GetFunction(l, &frame->call.function));
-_           (GetRegister(l, &frame->call.r0));
-_           (d_m3Get(callFp0));
-#  if d_m3HasFloat
-            frame->call.fp0 = callFp0;
-#  endif
-            // the callee's code is where the frame inside this one stands
-            if (not frame->call.function->compiled) {
-_               (CompileFunction(frame->call.function));
-            }
-            break;
-        }
-
-        case snapshot_frameLoop:
-            frame->kind = frame_loop;
-_           (GetPc(l, function, &frame->pc));
-            break;
-
-#  if d_m3HasExceptionHandling
-        case snapshot_frameTry: {
-            u8 handlersLive;
-
-            frame->kind = frame_try;
-_           (GetPc(l, function, &frame->pc));
-_           (d_m3Get(frame->try_.numClauses));
-_           (d_m3Get(handlersLive));
-            frame->try_.handlersLive = handlersLive;
-            break;
-        }
-#  endif
-
-#  if d_m3EntryKeepsFrame
-        case snapshot_frameEntry:
-            frame->kind = frame_entry;
-_           (GetFunction(l, &frame->entry.function));
-            break;
-#  endif
-
-        case snapshot_frameResume: {
-            u64 word;
-
-            frame->kind = frame_resume;
-_           (GetPc(l, function, &frame->pc));
-_           (d_m3Get(word));
-            _throwif(m3Err_wasmMalformed, word == d_m3SnapshotNullRef or word >= l->numContinuations);
-            frame->resume.cont = l->continuations[word];
-_           (GetPc(l, function, &frame->resume.handlersPC));
-_           (d_m3Get(frame->resume.numHandlers));
-_           (GetPc(l, function, &frame->resume.resultsPC));
-_           (d_m3Get(frame->resume.numResults));
-            break;
-        }
-
-        default:
-            _throw("the snapshot holds a frame this build does not have");
-        }
+        io_cont->frames[numFrames - 1 - k] = l->frames[k];
     }
 
     io_cont->numFrames = numFrames;
 
-    _throwif(m3Err_wasmMalformed, not hasOwnPc and (numFrames == 0 or io_cont->frames[0].kind != frame_resume));
-
-    // every frame has to be at a safepoint of its own function, which is also
-    // what says the file and the code it was checked against agree
-    activations = m3_AllocArray(M3Activation, d_m3MaxActivations);
-    _throwifnull(activations);
-
-    u32 numActivations;
-_   (ListActivations(io_cont, activations, &numActivations));
-
-    for (u32 a = 0; a < numActivations; ++a) {
-        _throwif("a frame in the snapshot is not at a safepoint",
-                 not FindSafePoint(activations[a].function, activations[a].pc, activations[a].kind));
-
-        RestoreConstants(&activations[a]);
-    }
-
 _catch:
-    m3_Free(activations);
-
-    if (result) {
-        io_cont->numFrames = 0;
-    }
-
     return result;
 }
 
@@ -1721,12 +1916,12 @@ M3Result LoadContinuation (M3SnapshotLoad* l, u32 i_id)
     u32 typeIndex, entryIndex, boundArgsCount;
     u64 resumeThrow;
 
-_   (d_m3Get(state));
-_   (d_m3Get(isRoot));
-_   (d_m3Get(typeIndex));
-_   (d_m3Get(entryIndex));
-_   (d_m3Get(boundArgsCount));
-_   (d_m3Get(resumeThrow));
+_   (GetU8(l, &state));
+_   (GetU8(l, &isRoot));
+_   (GetU32(l, &typeIndex));
+_   (GetU32(l, &entryIndex));
+_   (GetU32(l, &boundArgsCount));
+_   (GetU64(l, &resumeThrow));
 
     _throwif(m3Err_wasmMalformed, (bool)isRoot != (cont == l->runtime->rootContinuation));
     _throwif(m3Err_wasmMalformed, isRoot and state != snapshot_contSuspended);
@@ -1771,10 +1966,6 @@ _           (GetValue(l, GetFuncTypeParamType(inner, (u16)i), cont->valStack + (
     } else if (state == snapshot_contSuspended) {
         _throwif(m3Err_wasmMalformed, not cont->entryFunction);
 
-        if (not cont->entryFunction->compiled) {
-_           (CompileFunction(cont->entryFunction));
-        }
-
 _       (LoadSuspendedBody(l, cont));
 
         cont->state = cont_suspended;
@@ -1782,6 +1973,55 @@ _       (LoadSuspendedBody(l, cont));
         cont->state = cont_consumed;
     } else {
         _throw(m3Err_wasmMalformed);
+    }
+
+_catch:
+    if (result) {
+        cont->numFrames = 0;
+    }
+
+    return result;
+}
+
+// Reads the embedder's state through a reader that stops where it ends
+typedef struct M3BoundedReader {
+    M3SnapshotLoad* load;
+    u64             remaining;
+} M3BoundedReader;
+
+static
+M3Result BoundedReader_Read (void* o_buffer, size_t i_size, void* i_userdata)
+{
+    M3BoundedReader* br = (M3BoundedReader*)i_userdata;
+
+    if (i_size > br->remaining) {
+        return "the host read past the end of its state";
+    }
+
+    br->remaining -= i_size;
+
+    return Get(br->load, o_buffer, i_size);
+}
+
+static
+M3Result LoadHostState (M3SnapshotLoad* l)
+{
+    M3Result               result = m3Err_none;
+    const M3SnapshotHooks* hooks  = &l->runtime->snapshotHooks;
+    M3BoundedReader        reader;
+    u64                    size;
+
+_   (GetU64(l, &size));
+
+    if (size) {
+        _throwif("the snapshot carries host state, and nothing here restores it", not hooks->loadHostState);
+        _throwif(m3Err_wasmMalformed, (u64)(size_t)size != size);
+
+        reader.load      = l;
+        reader.remaining = size;
+
+_       (hooks->loadHostState(hooks->userdata, BoundedReader_Read, &reader, (size_t)size));
+        _throwif("the host did not read all of its state", reader.remaining != 0);
     }
 
 _catch:
@@ -1795,27 +2035,20 @@ M3Result LoadHeader (M3SnapshotLoad* l)
 
     u8  magic[sizeof(c_snapshotMagic)];
     u32 flags;
-    u16 byteOrder;
-    u8  pointerBytes, slotBytes, gasMetered;
-    u64 build, module;
+    u64 timestamp, build, module;
 
 _   (Get(l, magic, sizeof(magic)));
     _throwif(m3Err_wasmMalformed, memcmp(magic, c_snapshotMagic, sizeof(magic)) != 0);
 
-_   (d_m3Get(flags));
-_   (d_m3Get(byteOrder));
-_   (d_m3Get(pointerBytes));
-_   (d_m3Get(slotBytes));
-_   (d_m3Get(build));
-_   (d_m3Get(gasMetered));
-_   (d_m3Get(module));
+_   (GetU32(l, &flags));
+_   (GetU64(l, &timestamp));
+_   (GetU64(l, &build));
+_   (GetU64(l, &module));
+
+    (void)timestamp;
 
     _throwif("postmortem snapshots cannot be resumed", flags & d_m3SnapshotFlagPostmortem);
-    _throwif("the snapshot was saved on a machine of the other byte order", byteOrder != d_m3SnapshotByteOrder);
-    _throwif("the snapshot was saved with another pointer or slot width",
-             pointerBytes != sizeof(void*) or slotBytes != sizeof(m3slot_t));
-    _throwif("the snapshot was saved by a different build of Wasm3", build != BuildFingerprint());
-    _throwif("the snapshot was saved with gas metering set differently", (bool)gasMetered != IsGasMetered(l->runtime));
+    _throwif("the snapshot was saved by an incompatible build of Wasm3", build != BuildFingerprint());
     _throwif("the snapshot was saved from a different module", module != ModuleFingerprint(l->module));
 
 _catch:
@@ -1832,13 +2065,16 @@ _   (LoadHeader(l));
 
     l->started = true;
 
-_   (d_m3Get(l->numContinuations));
-_   (d_m3Get(l->numExceptions));
+_   (GetU32(l, &l->numContinuations));
+_   (GetU32(l, &l->numExceptions));
 
     _throwif(m3Err_wasmMalformed, l->numContinuations == 0);
 #  if !d_m3HasExceptionHandling
-    _throwif(m3Err_wasmMalformed, l->numExceptions != 0);
+    _throwif("the snapshot holds exceptions, and this build has none", l->numExceptions != 0);
 #  endif
+
+    l->frames = m3_AllocArray(M3Frame, d_m3ContinuationMaxFrames);
+    _throwifnull(l->frames);
 
     // Every object first, so that a reference to one resolves wherever it is
     // met. The root continuation is the first, and is the runtime's own.
@@ -1871,8 +2107,8 @@ _   (d_m3Get(l->numExceptions));
     for (u32 i = 0; i < l->numExceptions; ++i) {
         u32 tagIndex, numArgs;
 
-_       (d_m3Get(tagIndex));
-_       (d_m3Get(numArgs));
+_       (GetU32(l, &tagIndex));
+_       (GetU32(l, &numArgs));
 
         _throwif(m3Err_wasmMalformed, tagIndex >= l->module->numTags);
 
@@ -1899,7 +2135,7 @@ _   (LoadSegments(l));
             m3type_t argType = GetFuncTypeParamType(exception->tag->type, (u16)a);
             u64      word;
 
-_           (d_m3Get(word));
+_           (GetU64(l, &word));
 
             if (IsRefType(argType)) {
                 void* reference;
@@ -1916,11 +2152,11 @@ _               (ResolveReference(l, BaseTypeOf(argType), word, &reference));
 _       (LoadContinuation(l, i));
     }
 
+_   (LoadHostState(l));
+
 _catch:
     return result;
 }
-
-#  undef d_m3Get
 
 #endif // d_m3HasSnapshots
 
@@ -2047,6 +2283,7 @@ M3Result m3_LoadSnapshot (IM3Runtime io_runtime, IM3Module i_module, M3SnapshotR
 
         Runtime_PlaceCallStack(io_runtime);
 
+        m3_Free(load.frames);
         m3_Free(load.continuations);
 #  if d_m3HasExceptionHandling
         m3_Free(load.exceptions);
@@ -2062,66 +2299,29 @@ _catch:
 }
 
 
-typedef struct M3BufferWriter {
-    u8*    buffer;
-    size_t size;
-    size_t capacity;
-} M3BufferWriter;
-
-static
-M3Result BufferWriter_Write (const void* i_data, size_t i_size, void* i_userdata)
+void m3_SetSnapshotHooks (IM3Runtime io_runtime, const M3SnapshotHooks* i_hooks)
 {
-    M3BufferWriter* bw = (M3BufferWriter*)i_userdata;
-
-    if (bw->size + i_size > bw->capacity) {
-        size_t newCap = bw->capacity ? bw->capacity * 2 : 4096;
-        while (bw->size + i_size > newCap) {
-            newCap *= 2;
+#if d_m3HasSnapshots
+    if (io_runtime) {
+        if (i_hooks) {
+            io_runtime->snapshotHooks = *i_hooks;
+        } else {
+            memset(&io_runtime->snapshotHooks, 0, sizeof(io_runtime->snapshotHooks));
         }
-        u8* newBuf = m3_ReallocArray(u8, bw->buffer, newCap, bw->capacity);
-        if (!newBuf) {
-            return m3Err_mallocFailed;
-        }
-        bw->buffer   = newBuf;
-        bw->capacity = newCap;
     }
-
-    if (i_size) {
-        memcpy(bw->buffer + bw->size, i_data, i_size);
-        bw->size += i_size;
-    }
-
-    return m3Err_none;
+#else
+    (void)io_runtime;
+    (void)i_hooks;
+#endif
 }
 
-typedef struct M3BufferReader {
-    const u8* buffer;
-    size_t    size;
-    size_t    cursor;
-} M3BufferReader;
-
-static
-M3Result BufferReader_Read (void* o_buffer, size_t i_size, void* i_userdata)
-{
-    M3BufferReader* br = (M3BufferReader*)i_userdata;
-
-    if (i_size > br->size - br->cursor) {
-        return m3Err_wasmMalformed;
-    }
-
-    if (i_size) {
-        memcpy(o_buffer, br->buffer + br->cursor, i_size);
-        br->cursor += i_size;
-    }
-
-    return m3Err_none;
-}
 
 M3Result m3_SaveSnapshotToBuffer (IM3Runtime io_runtime, void** o_bytes, size_t* o_size)
 {
     if (!io_runtime || !o_bytes || !o_size) {
         return m3Err_mallocFailed;
     }
+#if d_m3HasSnapshots
     M3BufferWriter bw     = { NULL, 0, 0 };
     M3Result       result = m3_SaveSnapshot(io_runtime, BufferWriter_Write, &bw);
     if (result) {
@@ -2133,6 +2333,11 @@ M3Result m3_SaveSnapshotToBuffer (IM3Runtime io_runtime, void** o_bytes, size_t*
     *o_bytes = bw.buffer;
     *o_size  = bw.size;
     return m3Err_none;
+#else
+    *o_bytes = NULL;
+    *o_size  = 0;
+    return "snapshots are not available in this build of Wasm3";
+#endif
 }
 
 M3Result m3_LoadSnapshotFromBuffer (IM3Runtime io_runtime, IM3Module i_module, const void* i_bytes, size_t i_size)
@@ -2140,6 +2345,11 @@ M3Result m3_LoadSnapshotFromBuffer (IM3Runtime io_runtime, IM3Module i_module, c
     if (!io_runtime || !i_module || !i_bytes) {
         return m3Err_mallocFailed;
     }
+#if d_m3HasSnapshots
     M3BufferReader br = { (const u8*)i_bytes, i_size, 0 };
     return m3_LoadSnapshot(io_runtime, i_module, BufferReader_Read, &br);
+#else
+    (void)i_size;
+    return "snapshots are not available in this build of Wasm3";
+#endif
 }

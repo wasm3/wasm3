@@ -2,17 +2,17 @@
 """Read, inspect and rebuild wasm3 snapshots (.w3s).
 
 A snapshot holds the execution state of a suspended runtime: linear memory,
-globals, tables, which segments were dropped, and every continuation and
-exception the suspended program can still reach - the root continuation that
-is the paused call itself among them. `m3_SaveSnapshot` writes it and
-`m3_LoadSnapshot` reads it back.
+globals, tables, which segments were dropped, every continuation and exception
+the suspended program can still reach - the root continuation that is the
+paused call itself among them - and whatever state the embedder saved with it.
+`m3_SaveSnapshot` writes it and `m3_LoadSnapshot` reads it back.
 
 As a command:
 
     w3s-tool.py info    run.w3s [--wasm run.wasm]
     w3s-tool.py unpack  run.w3s -o run.d [--wasm run.wasm]
     w3s-tool.py pack    run.d -o run.w3s
-    w3s-tool.py verify  run.w3s
+    w3s-tool.py verify  run.w3s [--wasm run.wasm]
     w3s-tool.py diff    before.w3s after.w3s
 
 As a module:
@@ -22,16 +22,17 @@ As a module:
     w3s = importlib.util.module_from_spec(spec); spec.loader.exec_module(w3s)
 
     snap = w3s.load("run.w3s")
-    print(snap.globals, snap.root.frames)
+    print(snap.globals, snap.root.activations)
     snap.memories[0].data          # bytes, expanded from the chunk encoding
     open("out.w3s", "wb").write(w3s.pack(snap))
 
-The format is written in one build's own terms: host byte order, the build's
-slot width, and program counters counted in that build's metacode words. The
-header says which, and carries a fingerprint of the build and a hash of the
-module, so wasm3 refuses a snapshot it cannot resume rather than guessing. No
-field is an address: a reference is written as a function index, or as the id
-of a continuation or exception the snapshot carries.
+The format is written in Wasm's terms, not in any one build's. Every number is
+little endian. A place in a function is a byte offset into its body, and a
+suspended function is its locals and live operand stack as typed values, so a
+snapshot can be resumed by a build of another architecture, slot width or
+revision. No field is an address: a reference is written as a function index,
+as the id of a continuation or exception the snapshot carries, or as the name
+the embedder gave an externref.
 """
 
 import argparse
@@ -42,6 +43,7 @@ import sys
 
 MAGIC = b"W3S"
 SUPPORTED_VERSIONS = (1,)
+HEADER_SIZE = 40
 
 FLAG_POSTMORTEM = 0x1
 
@@ -65,6 +67,7 @@ TYPE_NAMES = {
     8: "exnref",
     9: "contref",
 }
+VALUE_TYPES = (1, 2, 3, 4, 6, 7, 8, 9)
 REF_TYPES = (6, 7, 8, 9)
 
 CONT_ALLOCATED = 0
@@ -76,21 +79,25 @@ CONT_STATES = {
     CONT_FINISHED: "finished",
 }
 
-FRAME_CALL = 0
-FRAME_LOOP = 1
-FRAME_TRY = 2
-FRAME_ENTRY = 3
-FRAME_RESUME = 4
-FRAME_KINDS = {
-    FRAME_CALL: "call",
-    FRAME_LOOP: "loop",
-    FRAME_TRY: "try",
-    FRAME_ENTRY: "entry",
-    FRAME_RESUME: "resume",
-}
+BLOCK_LOOP = 1
+BLOCK_TRY = 2
+BLOCK_KINDS = {BLOCK_LOOP: "loop", BLOCK_TRY: "try_table"}
 
-# M3SafePointKind, for what left a continuation where it stopped
-SUSPEND_POINTS = {0: "op", 1: "suspend"}
+# M3SafePointKind: where a function's frame can be left standing
+SITE_OP = 0
+SITE_SUSPEND = 1
+SITE_CALL = 2
+SITE_RESUME = 3
+SITE_GAS = 4
+SITE_KINDS = {
+    SITE_OP: "back edge",
+    SITE_SUSPEND: "suspend",
+    SITE_CALL: "call",
+    SITE_RESUME: "resume",
+    SITE_GAS: "gas charge",
+}
+# what the innermost function of a continuation can have stopped at
+INNERMOST_SITES = (SITE_OP, SITE_SUSPEND, SITE_RESUME, SITE_GAS)
 
 
 class FormatError(Exception):
@@ -117,7 +124,7 @@ class Memory:
 
     @property
     def data(self):
-        """The linear memory, expanded. Always in Wasm byte order."""
+        """The linear memory, expanded."""
         if self._data is None:
             buf = bytearray(self.size if self.has_data else 0)
             for kind, off, payload in self.chunks:
@@ -162,78 +169,55 @@ class Exception_(Record):
     __slots__ = ("args", "tag_index")
 
 
-# which fields a frame of each kind carries, past the ones every frame has
-FRAME_COMMON_FIELDS = ("kind", "sp_slot", "memory_index", "func_index")
-FRAME_KIND_FIELDS = {
-    FRAME_CALL: ("pc_offset", "callee_index", "r0_type", "r0", "fp0"),
-    FRAME_LOOP: ("pc_offset",),
-    FRAME_TRY: ("pc_offset", "num_clauses", "handlers_live"),
-    FRAME_ENTRY: ("entry_func_index",),
-    FRAME_RESUME: (
-        "pc_offset",
-        "cont_id",
-        "handlers_offset",
-        "num_handlers",
-        "results_offset",
-        "num_results",
-    ),
-}
+class Block(Record):
+    """A loop or try_table standing in a function's frame, by its offset."""
 
-
-class Frame(Record):
-    __slots__ = (
-        "callee_index",
-        "cont_id",
-        "entry_func_index",
-        "fp0",
-        "func_index",
-        "handlers_live",
-        "handlers_offset",
-        "kind",
-        "memory_index",
-        "num_clauses",
-        "num_handlers",
-        "num_results",
-        "pc_offset",
-        "r0",
-        "r0_type",
-        "results_offset",
-        "sp_slot",
-    )
+    __slots__ = ("handlers_live", "kind", "wasm_offset")
 
     @property
     def kind_name(self):
-        return FRAME_KINDS.get(self.kind, f"kind{self.kind}")
+        return BLOCK_KINDS.get(self.kind, f"kind{self.kind}")
 
     def to_dict(self):
-        d = {k: getattr(self, k) for k in FRAME_COMMON_FIELDS}
-        d["kind_name"] = self.kind_name
-        for k in FRAME_KIND_FIELDS.get(self.kind, ()):
-            d[k] = getattr(self, k)
+        d = {
+            "kind": self.kind_name,
+            "kind_id": self.kind,
+            "wasm_offset": self.wasm_offset,
+        }
+        if self.kind == BLOCK_TRY:
+            d["handlers_live"] = self.handlers_live
         return d
+
+
+class Activation(Record):
+    """One function's frame in a suspended continuation: where it stands and
+    what it holds there - its locals, then its live operand stack."""
+
+    __slots__ = (
+        "blocks",
+        "cont_id",
+        "func_index",
+        "ordinal",
+        "site",
+        "values",
+        "wasm_offset",
+    )
+
+    @property
+    def site_name(self):
+        return SITE_KINDS.get(self.site, f"site{self.site}")
 
 
 class Continuation(Record):
     __slots__ = (
+        "activations",
         "args",
         "bound_args_count",
         "entry_func_index",
-        "fp0",
-        "frames",
-        "has_own_pc",
         "id",
         "is_root",
-        "pc_func_index",
-        "pc_offset",
-        "r0",
-        "r0_type",
-        "relocations",
         "resume_throw",
-        "sp_slot",
-        "stack",
         "state",
-        "suspend_point",
-        "suspend_results",
         "type_index",
     )
 
@@ -243,16 +227,13 @@ class Continuation(Record):
 
 
 class Snapshot:
-    """Everything a .w3s file holds, plus how it was encoded."""
+    """Everything a .w3s file holds."""
 
     def __init__(self):
         self.version = 1
         self.flags = 0
-        self.endian = "<"
-        self.pointer_size = 8
-        self.slot_size = 4
-        self.build_fingerprint = 0
-        self.gas_metered = False
+        self.timestamp_ms = 0
+        self.wasm3_hash = 0
         self.module_hash = 0
         self.exceptions = []
         self.memories = []
@@ -261,13 +242,10 @@ class Snapshot:
         self.data_dropped = []
         self.elem_dropped = []
         self.continuations = []
-        self.names = {}  # func index -> name, if a module was given
+        self.host_state = b""
+        self.module = None  # ModuleInfo, if a module was given
 
     # ---- convenience
-
-    @property
-    def endian_name(self):
-        return "little" if self.endian == "<" else "big"
 
     @property
     def is_postmortem(self):
@@ -281,13 +259,25 @@ class Snapshot:
         return None
 
     def func_name(self, index):
-        return self.names.get(index)
+        return self.module.names.get(index) if self.module else None
 
     def describe_func(self, index):
         if index is None or index == NONE_INDEX:
             return "-"
         name = self.func_name(index)
         return f"{index} ({name})" if name else f"{index}"
+
+    def describe_offset(self, func_index, wasm_offset):
+        """An offset in a body, and in the module if the module is known -
+        which is what wasm-objdump -d prints."""
+        absolute = (
+            self.module.absolute_offset(func_index, wasm_offset)
+            if self.module
+            else None
+        )
+        if absolute is None:
+            return f"+0x{wasm_offset:x}"
+        return f"+0x{wasm_offset:x} (0x{absolute:x})"
 
     def describe_value(self, type_id, word):
         if type_id in REF_TYPES:
@@ -302,12 +292,10 @@ class Snapshot:
             return f"extern {word}"
         return str(_as_signed(word, type_id))
 
-    def slots(self, cont):
-        """A continuation's saved value stack as integers. Slots are untyped;
-        the relocations say which ones hold references."""
-        fmt = "I" if self.slot_size == 4 else "Q"
-        count = len(cont.stack) // self.slot_size
-        return list(struct.unpack(f"{self.endian}{count}{fmt}", cont.stack))
+    def num_locals(self, func_index):
+        """How many of a function's values are its locals, arguments included,
+        if the module is known."""
+        return self.module.num_locals(func_index) if self.module else None
 
     def to_dict(self):
         return {
@@ -316,11 +304,8 @@ class Snapshot:
                 "version": self.version,
                 "flags": self.flags,
                 "postmortem": self.is_postmortem,
-                "endian": self.endian_name,
-                "pointer_size": self.pointer_size,
-                "slot_size": self.slot_size,
-                "build_fingerprint": f"{self.build_fingerprint:016x}",
-                "gas_metered": self.gas_metered,
+                "timestamp_ms": self.timestamp_ms,
+                "wasm3_hash": f"{self.wasm3_hash:016x}",
                 "module_hash": f"{self.module_hash:016x}",
             },
             "exceptions": [e.to_dict() for e in self.exceptions],
@@ -349,7 +334,30 @@ class Snapshot:
             "data_dropped": self.data_dropped,
             "elem_dropped": self.elem_dropped,
             "continuations": [_cont_to_dict(self, c) for c in self.continuations],
+            "host_state_bytes": len(self.host_state),
         }
+
+
+def _activation_to_dict(snap, a):
+    d = {
+        "func_index": a.func_index,
+        "func_name": snap.func_name(a.func_index),
+        "blocks": [b.to_dict() for b in a.blocks],
+        "site": a.site_name,
+        "site_id": a.site,
+        "wasm_offset": a.wasm_offset,
+        "ordinal": a.ordinal,
+        "values": [
+            {"type": TYPE_NAMES.get(t, f"type{t}"), "type_id": t, "word": w}
+            for t, w in a.values
+        ],
+    }
+    num_locals = snap.num_locals(a.func_index)
+    if num_locals is not None:
+        d["num_locals"] = num_locals
+    if a.site == SITE_RESUME:
+        d["cont_id"] = a.cont_id
+    return d
 
 
 def _cont_to_dict(snap, c):
@@ -366,36 +374,8 @@ def _cont_to_dict(snap, c):
     }
     if c.args is not None:
         d["args"] = c.args
-    if c.stack is not None:
-        d.update(
-            {
-                "saved_slots": len(c.stack) // snap.slot_size,
-                "relocations": [
-                    {
-                        "slot": s,
-                        "type_id": t,
-                        "type": TYPE_NAMES.get(t, f"type{t}"),
-                        "word": w,
-                    }
-                    for s, t, w in c.relocations
-                ],
-                "has_own_pc": c.has_own_pc,
-                "suspend_point": c.suspend_point,
-                "pc_func_index": c.pc_func_index,
-                "pc_offset_words": c.pc_offset,
-                "sp_slot": c.sp_slot,
-                "r0_type": c.r0_type,
-                "r0": c.r0,
-                "fp0": c.fp0,
-                "suspend_results": [
-                    {"offset": o, "is64": w} for o, w in c.suspend_results
-                ],
-                "frames": [
-                    dict(f.to_dict(), func_name=snap.func_name(f.func_index))
-                    for f in c.frames
-                ],
-            }
-        )
+    if c.activations is not None:
+        d["activations"] = [_activation_to_dict(snap, a) for a in c.activations]
     return d
 
 
@@ -416,10 +396,9 @@ def _as_signed(value, type_id):
 
 
 class _Cursor:
-    def __init__(self, data, endian):
+    def __init__(self, data):
         self.data = data
         self.pos = 0
-        self.endian = endian
 
     def take(self, n):
         if n < 0 or self.pos + n > len(self.data):
@@ -432,25 +411,16 @@ class _Cursor:
         return out
 
     def _unpack(self, fmt, size):
-        return struct.unpack(f"{self.endian}{fmt}", self.take(size))[0]
+        return struct.unpack(f"<{fmt}", self.take(size))[0]
 
     def u8(self):
         return self.take(1)[0]
 
-    def u16(self):
-        return self._unpack("H", 2)
-
     def u32(self):
         return self._unpack("I", 4)
 
-    def i32(self):
-        return self._unpack("i", 4)
-
     def u64(self):
         return self._unpack("Q", 8)
-
-    def f64(self):
-        return self._unpack("d", 8)
 
     @property
     def remaining(self):
@@ -463,32 +433,24 @@ def _sane(count, what, limit=1 << 24):
     return count
 
 
-def _read_frame(c):
-    f = Frame(kind=c.u8(), sp_slot=c.u32(), memory_index=c.u32(), func_index=c.u32())
-    if f.kind == FRAME_CALL:
-        f.pc_offset = c.u32()
-        f.callee_index = c.u32()
-        f.r0_type = c.u8()
-        f.r0 = c.u64()
-        f.fp0 = c.f64()
-    elif f.kind == FRAME_LOOP:
-        f.pc_offset = c.u32()
-    elif f.kind == FRAME_TRY:
-        f.pc_offset = c.u32()
-        f.num_clauses = c.u32()
-        f.handlers_live = c.u8()
-    elif f.kind == FRAME_ENTRY:
-        f.entry_func_index = c.u32()
-    elif f.kind == FRAME_RESUME:
-        f.pc_offset = c.u32()
-        f.cont_id = c.u64()
-        f.handlers_offset = c.u32()
-        f.num_handlers = c.u32()
-        f.results_offset = c.u32()
-        f.num_results = c.u32()
-    else:
-        raise FormatError(f"unknown frame kind {f.kind} at offset {c.pos}")
-    return f
+def _read_activation(c):
+    a = Activation(func_index=c.u32(), blocks=[])
+    for _ in range(_sane(c.u32(), "blocks", 1 << 16)):
+        b = Block(kind=c.u8(), wasm_offset=c.u32())
+        if b.kind == BLOCK_TRY:
+            b.handlers_live = c.u8()
+        elif b.kind != BLOCK_LOOP:
+            raise FormatError(f"unknown block kind {b.kind} at offset {c.pos - 5}")
+        a.blocks.append(b)
+    a.site = c.u8()
+    a.wasm_offset = c.u32()
+    a.ordinal = c.u32()
+    a.values = [(c.u8(), c.u64()) for _ in range(_sane(c.u32(), "values", 1 << 20))]
+    if a.site == SITE_RESUME:
+        a.cont_id = c.u64()
+    elif a.site not in SITE_KINDS:
+        raise FormatError(f"unknown safepoint kind {a.site} at offset {c.pos}")
+    return a
 
 
 def _read_continuation(c, snap, cont_id):
@@ -510,30 +472,24 @@ def _read_continuation(c, snap, cont_id):
             for _ in range(_sane(k.bound_args_count, "bound arguments", 1 << 16))
         ]
     elif k.state == CONT_SUSPENDED:
-        k.stack = c.take(_sane(c.u32(), "stack slots") * snap.slot_size)
-        k.relocations = [
-            (c.u32(), c.u8(), c.u64()) for _ in range(_sane(c.u32(), "relocations"))
-        ]
-        k.has_own_pc = bool(c.u8())
-        if k.has_own_pc:
-            k.suspend_point = c.u8()
-            k.pc_func_index = c.u32()
-            k.pc_offset = c.u32()
-            k.sp_slot = c.u32()
-            k.r0_type = c.u8()
-            k.r0 = c.u64()
-        k.fp0 = c.f64()
-        k.suspend_results = [
-            (c.i32(), c.u8()) for _ in range(_sane(c.u32(), "suspend results", 1 << 16))
-        ]
-        k.frames = [_read_frame(c) for _ in range(_sane(c.u32(), "frames", 1 << 16))]
+        count = _sane(c.u32(), "activations", 1 << 16)
+        k.activations = []
+        for _ in range(count):
+            a = _read_activation(c)
+            k.activations.append(a)
+            # a resume ends the list: the rest is the continuation it runs
+            if a.site in INNERMOST_SITES and len(k.activations) != count:
+                raise FormatError(
+                    f"continuation {cont_id}: a function stopped at a {a.site_name} "
+                    f"is not the innermost"
+                )
     elif k.state != CONT_FINISHED:
         raise FormatError(f"continuation {cont_id}: unknown state {k.state}")
     return k
 
 
 def _parse(data):
-    if len(data) < 12:
+    if len(data) < HEADER_SIZE:
         raise FormatError("too short to be a snapshot")
     if data[:3] != MAGIC:
         raise FormatError(f"not a W3S snapshot (magic is {data[:3].hex()})")
@@ -543,27 +499,11 @@ def _parse(data):
     if s.version not in SUPPORTED_VERSIONS:
         raise FormatError(f"unsupported version {s.version}")
 
-    # the byte order marker follows the flags, and says how to read both
-    marker = data[8:10]
-    if marker == b"\x02\x01":
-        s.endian = "<"
-    elif marker == b"\x01\x02":
-        s.endian = ">"
-    else:
-        raise FormatError(f"unrecognized byte order marker {marker.hex()}")
-
-    c = _Cursor(data, s.endian)
+    c = _Cursor(data)
     c.take(4)
     s.flags = c.u32()
-    c.u16()
-    s.pointer_size = c.u8()
-    s.slot_size = c.u8()
-    if s.slot_size not in (4, 8) or s.pointer_size not in (4, 8):
-        raise FormatError(
-            f"implausible widths: pointer {s.pointer_size}, slot {s.slot_size}"
-        )
-    s.build_fingerprint = c.u64()
-    s.gas_metered = bool(c.u8())
+    s.timestamp_ms = c.u64()
+    s.wasm3_hash = c.u64()
     s.module_hash = c.u64()
 
     num_continuations = _sane(c.u32(), "continuations")
@@ -610,6 +550,8 @@ def _parse(data):
     for i in range(num_continuations):
         s.continuations.append(_read_continuation(c, s, i))
 
+    s.host_state = c.take(_sane(c.u64(), "host state bytes", 1 << 40))
+
     if c.remaining:
         raise FormatError(f"{c.remaining} trailing bytes")
 
@@ -619,8 +561,9 @@ def _parse(data):
 def load(source, *, module=None):
     """Read a snapshot from a path, a file object or bytes.
 
-    module is a path to the .wasm the snapshot belongs to, used only to put
-    names to function indices.
+    module is a path to the .wasm the snapshot belongs to, used to put names to
+    function indices, to tell a function's locals from its operand stack, and
+    to turn offsets in a body into offsets in the module.
     """
     if isinstance(source, (bytes, bytearray)):
         data = bytes(source)
@@ -632,7 +575,7 @@ def load(source, *, module=None):
 
     snap = _parse(data)
     if module:
-        snap.names = read_function_names(module)
+        snap.module = ModuleInfo.read(module)
     return snap
 
 
@@ -640,77 +583,53 @@ def load(source, *, module=None):
 
 
 class _Writer:
-    def __init__(self, endian):
+    def __init__(self):
         self.out = bytearray()
-        self.endian = endian
 
     def _pack(self, fmt, v):
-        self.out.extend(struct.pack(f"{self.endian}{fmt}", v))
+        self.out.extend(struct.pack(f"<{fmt}", v))
 
     def u8(self, v):
         self.out.append(int(v) & 0xFF)
 
-    def u16(self, v):
-        self._pack("H", v & 0xFFFF)
-
     def u32(self, v):
         self._pack("I", v & 0xFFFFFFFF)
 
-    def i32(self, v):
-        self._pack("i", v)
-
     def u64(self, v):
         self._pack("Q", v & 0xFFFFFFFFFFFFFFFF)
-
-    def f64(self, v):
-        self._pack("d", v)
 
     def raw(self, b):
         self.out.extend(b)
 
 
-def _write_frame(w, f):
-    w.u8(f.kind)
-    w.u32(f.sp_slot)
-    w.u32(f.memory_index)
-    w.u32(f.func_index)
-    if f.kind == FRAME_CALL:
-        w.u32(f.pc_offset)
-        w.u32(f.callee_index)
-        w.u8(f.r0_type)
-        w.u64(f.r0)
-        w.f64(f.fp0)
-    elif f.kind == FRAME_LOOP:
-        w.u32(f.pc_offset)
-    elif f.kind == FRAME_TRY:
-        w.u32(f.pc_offset)
-        w.u32(f.num_clauses)
-        w.u8(f.handlers_live)
-    elif f.kind == FRAME_ENTRY:
-        w.u32(f.entry_func_index)
-    elif f.kind == FRAME_RESUME:
-        w.u32(f.pc_offset)
-        w.u64(f.cont_id)
-        w.u32(f.handlers_offset)
-        w.u32(f.num_handlers)
-        w.u32(f.results_offset)
-        w.u32(f.num_results)
-    else:
-        raise FormatError(f"unknown frame kind {f.kind}")
+def _write_activation(w, a):
+    w.u32(a.func_index)
+    w.u32(len(a.blocks))
+    for b in a.blocks:
+        w.u8(b.kind)
+        w.u32(b.wasm_offset)
+        if b.kind == BLOCK_TRY:
+            w.u8(b.handlers_live)
+    w.u8(a.site)
+    w.u32(a.wasm_offset)
+    w.u32(a.ordinal)
+    w.u32(len(a.values))
+    for type_id, word in a.values:
+        w.u8(type_id)
+        w.u64(word)
+    if a.site == SITE_RESUME:
+        w.u64(a.cont_id)
 
 
 def pack(snap):
     """Serialize a Snapshot back to bytes, byte-for-byte with what wasm3 wrote."""
-    w = _Writer(snap.endian)
+    w = _Writer()
 
     w.raw(MAGIC)
     w.u8(snap.version)
     w.u32(snap.flags)
-    w.u16(0x0102)
-    w.u8(snap.pointer_size)
-    w.u8(snap.slot_size)
-    w.u64(snap.build_fingerprint)
-    w.u8(snap.gas_metered)
+    w.u64(snap.timestamp_ms)
+    w.u64(snap.wasm3_hash)
     w.u64(snap.module_hash)
 
     w.u32(len(snap.continuations))
@@ -775,29 +694,12 @@ def pack(snap):
             for a in k.args:
                 w.u64(a)
         elif k.state == CONT_SUSPENDED:
-            w.u32(len(k.stack) // snap.slot_size)
-            w.raw(k.stack)
-            w.u32(len(k.relocations))
-            for slot, type_id, word in k.relocations:
-                w.u32(slot)
-                w.u8(type_id)
-                w.u64(word)
-            w.u8(k.has_own_pc)
-            if k.has_own_pc:
-                w.u8(k.suspend_point)
-                w.u32(k.pc_func_index)
-                w.u32(k.pc_offset)
-                w.u32(k.sp_slot)
-                w.u8(k.r0_type)
-                w.u64(k.r0)
-            w.f64(k.fp0)
-            w.u32(len(k.suspend_results))
-            for offset, is64 in k.suspend_results:
-                w.i32(offset)
-                w.u8(is64)
-            w.u32(len(k.frames))
-            for f in k.frames:
-                _write_frame(w, f)
+            w.u32(len(k.activations))
+            for a in k.activations:
+                _write_activation(w, a)
+
+    w.u64(len(snap.host_state))
+    w.raw(snap.host_state)
 
     return bytes(w.out)
 
@@ -834,87 +736,209 @@ def encode_memory(data, run_threshold=128):
     return chunks
 
 
-# --------------------------------------------------------------------------- wasm names
+# --------------------------------------------------------------------------- the module
+
+
+class ModuleInfo:
+    """What a snapshot needs from its module to be read in Wasm's terms:
+    function names, how many locals each function has, and where each body
+    starts in the module.
+
+    Function indices count imports first, as wasm3 and the binary format both
+    do. An imported function has no body.
+    """
+
+    def __init__(self):
+        self.names = {}
+        self.num_imported = 0
+        self.func_types = []  # type index per function, imports first
+        self.type_params = {}  # type index -> param count, for function types
+        self.bodies = (
+            []
+        )  # (start of the body after its size, declared locals), per defined function
+
+    def num_locals(self, func_index):
+        defined = func_index - self.num_imported
+        if func_index < self.num_imported or defined >= len(self.bodies):
+            return None
+        params = self.type_params.get(self.func_types[func_index])
+        if params is None:
+            return None
+        return params + self.bodies[defined][1]
+
+    def absolute_offset(self, func_index, wasm_offset):
+        defined = func_index - self.num_imported
+        if func_index < self.num_imported or defined >= len(self.bodies):
+            return None
+        return self.bodies[defined][0] + wasm_offset
+
+    @classmethod
+    def read(cls, path):
+        """Whatever the module says, or as much of it as reads cleanly."""
+        info = cls()
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except OSError:
+            return info
+        if len(data) < 8 or data[:4] != b"\x00asm":
+            return info
+        try:
+            info._parse(data)
+        except (FormatError, IndexError):
+            pass
+        return info
+
+    def _parse(self, data):
+        def leb(p):
+            val = shift = 0
+            while p < len(data):
+                byte = data[p]
+                p += 1
+                val |= (byte & 0x7F) << shift
+                if not byte & 0x80:
+                    return val, p
+                shift += 7
+            raise FormatError("truncated LEB128")
+
+        def value_type(p):
+            # a reference type spelled out is a prefix and then its heap type
+            if data[p] in (0x63, 0x64):
+                return leb(p + 1)[1]
+            return p + 1
+
+        def limits(p):
+            flags = data[p]
+            _, p = leb(p + 1)
+            if flags & 0x01:
+                _, p = leb(p)
+            if flags & 0x08:  # a custom page size
+                _, p = leb(p)
+            return p
+
+        def comp_type(p, type_index):
+            form = data[p]
+            if form == 0x60:  # func
+                count, p = leb(p + 1)
+                self.type_params[type_index] = count
+                for _ in range(count):
+                    p = value_type(p)
+                count, p = leb(p)
+                for _ in range(count):
+                    p = value_type(p)
+                return p
+            if form == 0x5D:  # cont
+                return leb(p + 1)[1]
+            raise FormatError(f"type form 0x{form:02x} is not one this reads")
+
+        exported = {}
+        pos = 8
+        while pos < len(data):
+            section_id = data[pos]
+            size, pos = leb(pos + 1)
+            end = pos + size
+            if end > len(data):
+                break
+
+            if section_id == 0:  # custom
+                nlen, p = leb(pos)
+                if data[p : p + nlen] == b"name":
+                    p += nlen
+                    while p < end:
+                        sub_id = data[p]
+                        sub_size, p = leb(p + 1)
+                        sub_end = p + sub_size
+                        if sub_id == 1:  # function names
+                            count, q = leb(p)
+                            for _ in range(count):
+                                idx, q = leb(q)
+                                slen, q = leb(q)
+                                self.names[idx] = data[q : q + slen].decode(
+                                    "utf-8", "replace"
+                                )
+                                q += slen
+                        p = sub_end
+
+            elif section_id == 1:  # types
+                count, p = leb(pos)
+                index = 0
+                for _ in range(count):
+                    if data[p] == 0x4E:  # a recursive group
+                        members, p = leb(p + 1)
+                    else:
+                        members = 1
+                    for _ in range(members):
+                        if data[p] in (0x50, 0x4F):  # sub, sub final
+                            supers, p = leb(p + 1)
+                            for _ in range(supers):
+                                _, p = leb(p)
+                        p = comp_type(p, index)
+                        index += 1
+
+            elif section_id == 2:  # imports
+                count, p = leb(pos)
+                for _ in range(count):
+                    for _ in range(2):
+                        slen, p = leb(p)
+                        p += slen
+                    kind = data[p]
+                    p += 1
+                    if kind == 0x00:  # function
+                        type_index, p = leb(p)
+                        self.func_types.append(type_index)
+                        self.num_imported += 1
+                    elif kind == 0x01:  # table
+                        p = limits(value_type(p))
+                    elif kind == 0x02:  # memory
+                        p = limits(p)
+                    elif kind == 0x03:  # global
+                        p = value_type(p) + 1
+                    elif kind == 0x04:  # tag
+                        p = leb(p + 1)[1]
+                    else:
+                        raise FormatError(f"import kind 0x{kind:02x}")
+
+            elif section_id == 3:  # functions
+                count, p = leb(pos)
+                for _ in range(count):
+                    type_index, p = leb(p)
+                    self.func_types.append(type_index)
+
+            elif section_id == 7:  # exports
+                count, p = leb(pos)
+                for _ in range(count):
+                    nlen, p = leb(p)
+                    name = data[p : p + nlen].decode("utf-8", "replace")
+                    p += nlen
+                    kind = data[p]
+                    idx, p = leb(p + 1)
+                    if kind == 0x00:
+                        exported.setdefault(idx, name)
+
+            elif section_id == 10:  # code
+                count, p = leb(pos)
+                for _ in range(count):
+                    body_size, p = leb(p)
+                    body_end = p + body_size
+                    groups, q = leb(p)
+                    declared = 0
+                    for _ in range(groups):
+                        n, q = leb(q)
+                        declared += n
+                        q = value_type(q)
+                    self.bodies.append((p, declared))
+                    p = body_end
+
+            pos = end
+
+        # an exported function may be named nowhere else
+        for idx, name in exported.items():
+            self.names.setdefault(idx, name)
 
 
 def read_function_names(path):
-    """Function index -> name, from a module's name section and its exports.
-
-    The name section is the better source but only covers functions the author
-    gave a symbolic name; an exported function may be named nowhere else, so an
-    export name stands in where nothing else does. {} if the module cannot be
-    read or says nothing.
-    """
-    try:
-        with open(path, "rb") as f:
-            data = f.read()
-    except OSError:
-        return {}
-
-    if len(data) < 8 or data[:4] != b"\x00asm":
-        return {}
-
-    pos = 8
-    names = {}
-    exported = {}
-
-    def leb(p):
-        val = shift = 0
-        while p < len(data):
-            byte = data[p]
-            p += 1
-            val |= (byte & 0x7F) << shift
-            if not byte & 0x80:
-                return val, p
-            shift += 7
-        raise FormatError("truncated LEB128")
-
-    while pos < len(data):
-        section_id = data[pos]
-        pos += 1
-        size, pos = leb(pos)
-        end = pos + size
-        if end > len(data):
-            break
-
-        if section_id == 0:  # custom
-            nlen, p = leb(pos)
-            if data[p : p + nlen] == b"name":
-                p += nlen
-                while p < end:
-                    sub_id = data[p]
-                    p += 1
-                    sub_size, p = leb(p)
-                    sub_end = p + sub_size
-                    if sub_id == 1:  # function names
-                        count, q = leb(p)
-                        for _ in range(count):
-                            idx, q = leb(q)
-                            slen, q = leb(q)
-                            names[idx] = data[q : q + slen].decode("utf-8", "replace")
-                            q += slen
-                    p = sub_end
-
-        elif section_id == 7:  # exports
-            count, p = leb(pos)
-            for _ in range(count):
-                nlen, p = leb(p)
-                name = data[p : p + nlen].decode("utf-8", "replace")
-                p += nlen
-                kind = data[p]
-                p += 1
-                idx, p = leb(p)
-                if kind == 0x00:
-                    exported.setdefault(idx, name)
-
-        pos = end
-
-    # wasm3 indexes M3Module.functions with imports first, which is the same
-    # index space the name and export sections use
-    for idx, name in exported.items():
-        names.setdefault(idx, name)
-
-    return names
+    """Function index -> name, from a module's name section and its exports."""
+    return ModuleInfo.read(path).names
 
 
 # --------------------------------------------------------------------------- checks
@@ -929,12 +953,12 @@ def verify(snap):
     def check_ref(where, type_id, word):
         if type_id not in REF_TYPES or word == NULL_REF:
             return
-        if type_id == 7:
-            problems.append(f"{where}: an externref, which wasm3 never writes")
-        elif type_id == 8 and word >= num_exns:
+        if type_id == 8 and word >= num_exns:
             problems.append(f"{where}: exception #{word} is not in the snapshot")
         elif type_id == 9 and word >= num_conts:
             problems.append(f"{where}: continuation #{word} is not in the snapshot")
+        elif type_id == 6 and snap.module and word >= len(snap.module.func_types):
+            problems.append(f"{where}: function {word} is not in the module")
 
     for i, m in enumerate(snap.memories):
         if m.max_pages and m.num_pages > m.max_pages:
@@ -949,7 +973,7 @@ def verify(snap):
                 )
 
     for i, (type_id, word) in enumerate(snap.globals):
-        if type_id not in TYPE_NAMES:
+        if type_id not in VALUE_TYPES:
             problems.append(f"global {i}: unknown type id {type_id}")
         check_ref(f"global {i}", type_id, word)
 
@@ -963,6 +987,8 @@ def verify(snap):
     if snap.is_postmortem:
         if roots:
             problems.append("a postmortem snapshot has a root continuation")
+        if snap.host_state:
+            problems.append("a postmortem snapshot carries host state")
     else:
         if len(roots) != 1 or snap.continuations[0] is not roots[0]:
             problems.append(
@@ -977,49 +1003,46 @@ def verify(snap):
             problems.append(
                 f"{where}: resume_throw names exception #{k.resume_throw}, not in the snapshot"
             )
-        if k.stack is None:
+        if k.activations is None:
             continue
-        num_slots = len(k.stack) // snap.slot_size
-        pointer_slots = -(-snap.pointer_size // snap.slot_size)
-        for slot, type_id, word in k.relocations:
-            if slot + pointer_slots > num_slots:
-                problems.append(
-                    f"{where}: a reference at slot {slot} is past the {num_slots} saved"
-                )
-            if type_id not in REF_TYPES:
-                problems.append(
-                    f"{where}: relocation at slot {slot} has non-reference type {type_id}"
-                )
-            check_ref(f"{where} slot {slot}", type_id, word)
-        if k.has_own_pc:
-            if k.sp_slot > num_slots:
-                problems.append(
-                    f"{where}: sp is slot {k.sp_slot} but only {num_slots} were saved"
-                )
-            if k.suspend_point not in SUSPEND_POINTS:
-                problems.append(f"{where}: unknown suspend point {k.suspend_point}")
-        elif not k.frames or k.frames[-1].kind != FRAME_RESUME:
+        if not k.activations:
+            problems.append(f"{where}: suspended, but in no function")
+            continue
+        if k.activations[0].func_index != k.entry_func_index:
             problems.append(
-                f"{where}: has no pc of its own, but its innermost frame is not a resume"
+                f"{where}: the outermost function is not the one it was entered with"
             )
-        for i, f in enumerate(k.frames):
-            if f.kind not in FRAME_KINDS:
-                problems.append(f"{where} frame {i}: unknown kind {f.kind}")
-            if f.sp_slot > num_slots:
+        for i, a in enumerate(k.activations):
+            at = f"{where} function {i}"
+            innermost = i == len(k.activations) - 1
+            if innermost and a.site not in INNERMOST_SITES:
                 problems.append(
-                    f"{where} frame {i}: sp is slot {f.sp_slot} but only {num_slots} were saved"
+                    f"{at}: the innermost function waits at a {a.site_name}"
                 )
-            if f.kind == FRAME_RESUME:
-                if i != len(k.frames) - 1:
+            if not innermost and a.site != SITE_CALL:
+                problems.append(
+                    f"{at}: stopped at a {a.site_name}, but is not the innermost"
+                )
+            if a.site == SITE_RESUME and a.cont_id >= num_conts:
+                problems.append(
+                    f"{at}: resumes continuation #{a.cont_id}, not in the snapshot"
+                )
+            for b in a.blocks:
+                if b.kind not in BLOCK_KINDS:
+                    problems.append(f"{at}: unknown block kind {b.kind}")
+            num_locals = snap.num_locals(a.func_index)
+            if num_locals is not None and len(a.values) < num_locals:
+                problems.append(
+                    f"{at}: {len(a.values)} values, fewer than its {num_locals} locals"
+                )
+            for j, (type_id, word) in enumerate(a.values):
+                if type_id not in VALUE_TYPES:
+                    problems.append(f"{at} value {j}: unknown type id {type_id}")
+                elif type_id in (1, 3) and word >> 32:
                     problems.append(
-                        f"{where} frame {i}: a resume that is not the innermost frame"
+                        f"{at} value {j}: a 32-bit value with high bits set"
                     )
-                if f.cont_id >= num_conts:
-                    problems.append(
-                        f"{where} frame {i}: resumes continuation #{f.cont_id}, not in the snapshot"
-                    )
-            if f.kind == FRAME_CALL and f.r0_type in REF_TYPES:
-                check_ref(f"{where} frame {i} register", f.r0_type, f.r0)
+                check_ref(f"{at} value {j}", type_id, word)
 
     return problems
 
@@ -1058,18 +1081,31 @@ def diff(a, b):
         if ga[1] != gb[1]
     ]
 
+    def where(snap):
+        root = snap.root
+        if not root or not root.activations:
+            return None
+        inner = root.activations[-1]
+        return {
+            "func_index": inner.func_index,
+            "site": inner.site_name,
+            "wasm_offset": inner.wasm_offset,
+        }
+
     ra, rb = a.root, b.root
     out["execution"] = {
         "continuations": [len(a.continuations), len(b.continuations)],
         "exceptions": [len(a.exceptions), len(b.exceptions)],
-        "root_pc": [
-            (ra.pc_func_index, ra.pc_offset) if ra else None,
-            (rb.pc_func_index, rb.pc_offset) if rb else None,
+        "root_stopped_at": [where(a), where(b)],
+        "root_call_depth": [
+            len(ra.activations) if ra and ra.activations else None,
+            len(rb.activations) if rb and rb.activations else None,
         ],
-        "root_frame_depth": [
-            len(ra.frames) if ra else None,
-            len(rb.frames) if rb else None,
-        ],
+        "elapsed_ms": (
+            b.timestamp_ms - a.timestamp_ms
+            if a.timestamp_ms and b.timestamp_ms
+            else None
+        ),
     }
     return out
 
@@ -1091,12 +1127,10 @@ def unpack(snap, directory):
                 f.write(m.data)
             manifest["files"][f"memory{i}"] = name
 
-    for k in snap.continuations:
-        if k.stack is not None:
-            name = f"stack{k.id}.bin"
-            with open(os.path.join(directory, name), "wb") as f:
-                f.write(k.stack)
-            manifest["files"][f"stack{k.id}"] = name
+    if snap.host_state:
+        with open(os.path.join(directory, "host.bin"), "wb") as f:
+            f.write(snap.host_state)
+        manifest["files"]["host"] = "host.bin"
 
     with open(os.path.join(directory, "snapshot.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, sort_keys=False)
@@ -1114,11 +1148,8 @@ def pack_directory(directory, run_threshold=128):
     fmt = manifest["format"]
     snap.version = fmt["version"]
     snap.flags = fmt["flags"]
-    snap.endian = "<" if fmt["endian"] == "little" else ">"
-    snap.pointer_size = fmt["pointer_size"]
-    snap.slot_size = fmt["slot_size"]
-    snap.build_fingerprint = int(fmt["build_fingerprint"], 16)
-    snap.gas_metered = fmt["gas_metered"]
+    snap.timestamp_ms = fmt["timestamp_ms"]
+    snap.wasm3_hash = int(fmt["wasm3_hash"], 16)
     snap.module_hash = int(fmt["module_hash"], 16)
 
     files = manifest.get("files", {})
@@ -1156,25 +1187,29 @@ def pack_directory(directory, run_threshold=128):
             resume_throw=d["resume_throw"],
             args=d.get("args"),
         )
-        if "relocations" in d:
-            k.stack = blob(f"stack{k.id}")
-            k.relocations = [
-                (r["slot"], r["type_id"], r["word"]) for r in d["relocations"]
+        if "activations" in d:
+            k.activations = [
+                Activation(
+                    func_index=ad["func_index"],
+                    blocks=[
+                        Block(
+                            kind=bd["kind_id"],
+                            wasm_offset=bd["wasm_offset"],
+                            handlers_live=bd.get("handlers_live"),
+                        )
+                        for bd in ad["blocks"]
+                    ],
+                    site=ad["site_id"],
+                    wasm_offset=ad["wasm_offset"],
+                    ordinal=ad["ordinal"],
+                    values=[(v["type_id"], v["word"]) for v in ad["values"]],
+                    cont_id=ad.get("cont_id"),
+                )
+                for ad in d["activations"]
             ]
-            k.has_own_pc = d["has_own_pc"]
-            k.suspend_point = d["suspend_point"]
-            k.pc_func_index = d["pc_func_index"]
-            k.pc_offset = d["pc_offset_words"]
-            k.sp_slot = d["sp_slot"]
-            k.r0_type = d["r0_type"]
-            k.r0 = d["r0"]
-            k.fp0 = d["fp0"]
-            k.suspend_results = [(r["offset"], r["is64"]) for r in d["suspend_results"]]
-            k.frames = []
-            for fd in d["frames"]:
-                fr = Frame(**{key: fd.get(key) for key in Frame.__slots__})
-                k.frames.append(fr)
         snap.continuations.append(k)
+
+    snap.host_state = blob("host") if "host" in files else b""
 
     return snap
 
@@ -1189,7 +1224,22 @@ def _human(n):
         n /= 1024.0
 
 
-def _print_continuation(snap, k):
+def _print_values(snap, a, indent):
+    num_locals = snap.num_locals(a.func_index)
+    for j, (type_id, word) in enumerate(a.values):
+        if num_locals is None:
+            label = f"[{j}]"
+        elif j < num_locals:
+            label = f"local {j}"
+        else:
+            label = f"stack {j - num_locals}"
+        print(
+            f"{indent}{label:<10} {TYPE_NAMES.get(type_id, f'type{type_id}'):<10}"
+            f"{snap.describe_value(type_id, word)}"
+        )
+
+
+def _print_continuation(snap, k, verbose):
     kind = "root" if k.is_root else f"type {k.type_index}"
     print(
         f"  #{k.id:<3} {k.state_name:<10} {kind:<9} entry {snap.describe_func(k.entry_func_index)}"
@@ -1198,31 +1248,24 @@ def _print_continuation(snap, k):
         print(f"         resumes by raising exception #{k.resume_throw}")
     if k.args:
         print(f"         {len(k.args)} bound arguments")
-    if k.stack is None:
+    if not k.activations:
         return
-    print(
-        f"         {len(k.stack) // snap.slot_size} slots saved, "
-        f"{len(k.relocations)} of them references"
-    )
-    if k.has_own_pc:
-        point = SUSPEND_POINTS.get(k.suspend_point, f"point{k.suspend_point}")
-        print(
-            f"         stopped ({point}) in {snap.describe_func(k.pc_func_index)} "
-            f"at metacode word {k.pc_offset}, sp slot {k.sp_slot}"
+    for i, a in enumerate(k.activations):
+        where = snap.describe_offset(a.func_index, a.wasm_offset)
+        blocks = " ".join(
+            f"{b.kind_name}@{snap.describe_offset(a.func_index, b.wasm_offset)}"
+            + ("" if b.kind != BLOCK_TRY or b.handlers_live else " (retired)")
+            for b in a.blocks
         )
-    for i, f in enumerate(k.frames):
-        extra = ""
-        if f.kind == FRAME_CALL:
-            extra = f" -> calls {snap.describe_func(f.callee_index)}"
-        elif f.kind == FRAME_TRY:
-            extra = f" {f.num_clauses} clauses, handlers {'live' if f.handlers_live else 'retired'}"
-        elif f.kind == FRAME_RESUME:
-            extra = f" -> runs continuation #{f.cont_id}"
-        where = f"word {f.pc_offset}" if f.pc_offset is not None else ""
+        extra = f" -> runs continuation #{a.cont_id}" if a.site == SITE_RESUME else ""
         print(
-            f"         {i:2d}  {f.kind_name:<6} in {snap.describe_func(f.func_index):<20} "
-            f"{where:<11} sp slot {f.sp_slot}{extra}"
+            f"         {i:2d}  {snap.describe_func(a.func_index):<20} "
+            f"at {a.site_name} {where}{extra}, {len(a.values)} values"
         )
+        if blocks:
+            print(f"             inside {blocks}")
+        if verbose:
+            _print_values(snap, a, "             ")
 
 
 def cmd_info(args):
@@ -1232,20 +1275,21 @@ def cmd_info(args):
     print(f"{args.file}  {_human(size)}")
     kind = "postmortem" if snap.is_postmortem else "resumable"
     print(f"  format      W3S version {snap.version}, flags 0x{snap.flags:x} ({kind})")
-    print(
-        f"  encoding    {snap.endian_name}-endian, {snap.pointer_size}-byte pointers, "
-        f"{snap.slot_size}-byte slots"
-    )
-    print(
-        f"  build       {snap.build_fingerprint:016x}, gas metering {'on' if snap.gas_metered else 'off'}"
-    )
+    if snap.timestamp_ms:
+        import datetime
+
+        when = datetime.datetime.fromtimestamp(
+            snap.timestamp_ms / 1000.0, tz=datetime.timezone.utc
+        )
+        print(f"  taken       {when.isoformat(timespec='milliseconds')}")
+    print(f"  wasm3       {snap.wasm3_hash:016x}")
     print(f"  module      {snap.module_hash:016x}")
 
     if snap.continuations:
         print()
         print(f"  continuations ({len(snap.continuations)}):")
         for k in snap.continuations:
-            _print_continuation(snap, k)
+            _print_continuation(snap, k, args.values)
 
     if snap.exceptions:
         print()
@@ -1283,6 +1327,9 @@ def cmd_info(args):
             f"{dropped} dropped"
         )
 
+    if snap.host_state:
+        print(f"  host state  {_human(len(snap.host_state))}")
+
     problems = verify(snap)
     if problems:
         print()
@@ -1314,8 +1361,12 @@ def cmd_pack(args):
 
 
 def cmd_verify(args):
-    snap = load(args.file, module=args.wasm)
+    with open(args.file, "rb") as f:
+        data = f.read()
+    snap = load(data, module=args.wasm)
     problems = verify(snap)
+    if pack(snap) != data:
+        problems.append("does not pack back into the same bytes")
     if not problems:
         print(f"{args.file}: ok")
         return 0
@@ -1332,19 +1383,31 @@ def cmd_diff(args):
 
 
 def main(argv=None):
+    wasm_help = (
+        "the module the snapshot belongs to: function names, locals, module offsets"
+    )
+
     parser = argparse.ArgumentParser(
         description="Read, inspect and rebuild wasm3 snapshots (.w3s)"
     )
-    parser.add_argument(
-        "--wasm", help="the module the snapshot belongs to, for function names"
-    )
+    parser.add_argument("--wasm", help=wasm_help)
+
+    # also taken after the command, where it does not overwrite one given before it
+    module = argparse.ArgumentParser(add_help=False)
+    module.add_argument("--wasm", default=argparse.SUPPRESS, help=wasm_help)
+
     sub = parser.add_subparsers(dest="command")
 
-    p = sub.add_parser("info", help="summarize a snapshot")
+    p = sub.add_parser("info", parents=[module], help="summarize a snapshot")
     p.add_argument("file")
+    p.add_argument(
+        "-v", "--values", action="store_true", help="list every value each frame holds"
+    )
     p.set_defaults(func=cmd_info)
 
-    p = sub.add_parser("unpack", help="write JSON plus one binary per blob")
+    p = sub.add_parser(
+        "unpack", parents=[module], help="write JSON plus one binary per blob"
+    )
     p.add_argument("file")
     p.add_argument("-o", "--output", required=True, help="directory to write to")
     p.set_defaults(func=cmd_unpack)
@@ -1360,11 +1423,15 @@ def main(argv=None):
     )
     p.set_defaults(func=cmd_pack)
 
-    p = sub.add_parser("verify", help="check a snapshot for structural damage")
+    p = sub.add_parser(
+        "verify", parents=[module], help="check a snapshot for structural damage"
+    )
     p.add_argument("file")
     p.set_defaults(func=cmd_verify)
 
-    p = sub.add_parser("diff", help="compare two snapshots of the same program")
+    p = sub.add_parser(
+        "diff", parents=[module], help="compare two snapshots of the same program"
+    )
     p.add_argument("before")
     p.add_argument("after")
     p.set_defaults(func=cmd_diff)

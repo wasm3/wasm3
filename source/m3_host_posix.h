@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 
 // Whether pthread_getattr_np - or Darwin's pair of calls - can be reached without
 // asking the build to link a threading library it may not be linking. glibc moved
@@ -222,6 +223,17 @@ void m3_HostRemoveInterruptHandler (void)
     s_posixSuspendRuntime = NULL;
 }
 
+u64 m3_HostTimeMs (void)
+{
+    struct timespec now;
+
+    if (clock_gettime(CLOCK_REALTIME, &now) != 0 || now.tv_sec < 0) {
+        return 0;
+    }
+
+    return (u64)now.tv_sec * 1000 + (u64)now.tv_nsec / 1000000;
+}
+
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 {
     int fd = open(i_path, O_RDONLY);
@@ -236,7 +248,7 @@ bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
     // Anything this turns down is read instead, which is what makes a module out of
     // a process substitution work.
     if (fstat(fd, &info) != 0 or not S_ISREG(info.st_mode) or info.st_size <= 0 or
-        (uint64_t) info.st_size > (uint64_t)SIZE_MAX or
+        (off_t)(size_t) info.st_size != info.st_size or
         (i_maxBytes and (uint64_t) info.st_size > (uint64_t)i_maxBytes)) {
         close(fd);
         return m3_HostReadFile(i_path, i_maxBytes, o_file);

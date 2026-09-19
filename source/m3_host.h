@@ -48,6 +48,11 @@ void* m3_HostStackBase (void);
 void  m3_HostInstallInterruptHandler (IM3Runtime io_runtime);
 void  m3_HostRemoveInterruptHandler (void);
 
+// The wall clock, in milliseconds since the Unix epoch, UTC. 0 when there is no
+// clock to ask. Only ever written down - a snapshot says when it was taken - so
+// nothing depends on it being right.
+u64   m3_HostTimeMs (void);
+
 
 // A file's bytes and how they were come by.
 //

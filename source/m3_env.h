@@ -628,6 +628,10 @@ typedef struct M3Runtime {
     u32             numSuspendPayload;
 #endif
 
+#if d_m3HasSnapshots
+    M3SnapshotHooks snapshotHooks;
+#endif
+
     M3ErrorInfo error;
 #if d_m3VerboseErrorMessages
     char error_message[256]; // the actual buffer. M3ErrorInfo can point to this

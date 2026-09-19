@@ -468,15 +468,38 @@ IM3Module      m3_GetFunctionModule (IM3Function i_function);
 typedef M3Result (*M3SnapshotWriter)(const void* i_data, size_t i_size, void* i_userdata);
 typedef M3Result (*M3SnapshotReader)(void* o_buffer, size_t i_size, void* i_userdata);
 
-void             m3_SetSuspendable (IM3Runtime io_runtime, bool i_suspendable);
-void             m3_RequestSuspend (IM3Runtime io_runtime);
-bool             m3_IsSuspended (IM3Runtime i_runtime);
+void     m3_SetSuspendable (IM3Runtime io_runtime, bool i_suspendable);
+void     m3_RequestSuspend (IM3Runtime io_runtime);
+bool     m3_IsSuspended (IM3Runtime i_runtime);
 
-M3Result         m3_SaveSnapshot (IM3Runtime io_runtime, M3SnapshotWriter i_writer, void* i_userdata);
-M3Result         m3_LoadSnapshot (IM3Runtime io_runtime, IM3Module i_module, M3SnapshotReader i_reader, void* i_userdata);
+M3Result m3_SaveSnapshot (IM3Runtime io_runtime, M3SnapshotWriter i_writer, void* i_userdata);
+M3Result m3_LoadSnapshot (IM3Runtime io_runtime, IM3Module i_module, M3SnapshotReader i_reader, void* i_userdata);
 
-M3Result         m3_SaveSnapshotToBuffer (IM3Runtime io_runtime, void** o_bytes, size_t* o_size);
-M3Result         m3_LoadSnapshotFromBuffer (IM3Runtime io_runtime, IM3Module i_module, const void* i_bytes, size_t i_size);
+M3Result m3_SaveSnapshotToBuffer (IM3Runtime io_runtime, void** o_bytes, size_t* o_size);
+M3Result m3_LoadSnapshotFromBuffer (IM3Runtime io_runtime, IM3Module i_module, const void* i_bytes, size_t i_size);
+
+// What a snapshot cannot name on its own belongs to the embedder: an externref,
+// and whatever the program depends on outside its Wasm state - open files,
+// clocks, anything its imports keep. Any of these may be left NULL.
+typedef struct M3SnapshotHooks {
+    // An externref as a number the embedder can turn back into the same
+    // reference in another process. Without nameExternRef a non-null externref
+    // refuses the save; without bindExternRef a snapshot holding one is refused.
+    // UINT64_MAX is not a name: it is what a null reference is written as.
+    M3Result (*nameExternRef)(void* i_userdata, void* i_reference, uint64_t* o_name);
+    M3Result (*bindExternRef)(void* i_userdata, uint64_t i_name, void** o_reference);
+
+    // The embedder's own state, carried after the program's. saveHostState
+    // writes it through i_writer; loadHostState reads exactly those i_size bytes
+    // back through i_reader. A snapshot that carries some is refused by a
+    // runtime with no loadHostState.
+    M3Result (*saveHostState)(void* i_userdata, M3SnapshotWriter i_writer, void* i_writerData);
+    M3Result (*loadHostState)(void* i_userdata, M3SnapshotReader i_reader, void* i_readerData, size_t i_size);
+
+    void* userdata;
+} M3SnapshotHooks;
+
+void             m3_SetSnapshotHooks (IM3Runtime io_runtime, const M3SnapshotHooks* i_hooks);
 
 M3Result         m3_ResumeRuntime (IM3Runtime io_runtime);
 

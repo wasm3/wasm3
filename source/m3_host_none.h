@@ -35,6 +35,12 @@ void m3_HostRemoveInterruptHandler (void)
 {
 }
 
+// Plenty of these systems have no idea what time it is
+u64 m3_HostTimeMs (void)
+{
+    return 0;
+}
+
 // No mmap here, so the module's bytes are read directly onto the heap
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 {

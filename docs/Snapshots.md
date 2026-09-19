@@ -71,10 +71,31 @@ $ wasm3 --gas-limit 10000 --resume fib.w3s test/lang/fib32.wasm
 
 With `--snapshot <fn>`, exhausting gas suspends execution instead of trapping.
 Each resume gets a fresh budget from `--gas-limit`; the snapshot does not store
-the gas counter. Gas metering has to be on for the restore exactly when it was on
-for the save, because its instrumentation changes the compiled code; a snapshot
-records which it was and is refused otherwise. The resumed CLI run does not print
-the function's return value.
+the gas counter, and does not care whether the run that resumes it is metered at
+all - leave `--gas-limit` off and the rest runs to the end. The resumed CLI run does
+not print the function's return value.
+
+## Move it to another machine
+
+A snapshot is written in WebAssembly's terms rather than the interpreter's: where each
+function stands is an offset into its Wasm body, and what it holds is its locals and
+operand stack as typed values. The build that resumes it compiles the same module and
+puts each value wherever *its* code keeps it. So a snapshot saved on one machine
+resumes on another, with a different architecture, byte order, pointer or slot width
+(`d_m3Use32BitSlots`), compiler or operating system:
+
+```sh
+$ build/wasm3 --gas-limit 100 --snapshot fib.w3s --func fib test/lang/fib32.wasm 24
+$ qemu-s390x-static build-cross/wasm3-linux-s390x --resume fib.w3s test/lang/fib32.wasm
+```
+
+What has to match is the module, byte for byte, and the Wasm3 release and the
+WebAssembly features it was built with. The snapshot names all three and is refused by
+a build that differs.
+
+A `--resume` run does not pass the program its arguments again. A program reads them
+from WASI once, at startup, and keeps them in its own memory, so that only matters for
+a snapshot taken before it got that far.
 
 ## Suspend and resume from C
 
@@ -112,8 +133,9 @@ A resume that runs to the end leaves the results where the call would have, so
 To persist a paused invocation, call
 `m3_SaveSnapshotToBuffer(runtime, &bytes, &size)`, with `void *bytes = NULL` and
 `size_t size = 0`, and check the result. Restore into a fresh runtime: enable
-suspension and the same metering mode, parse and load the original module, link its
-host imports, then call `m3_LoadSnapshotFromBuffer(runtime, module, bytes, size)`.
+suspension, parse and load the original module, link its host imports, set a gas limit
+if this runtime should have one, then call
+`m3_LoadSnapshotFromBuffer(runtime, module, bytes, size)`.
 After a successful load, call `m3_ResumeRuntime`. Release the allocated snapshot
 buffer with `free(bytes)` when finished with it. Every function the snapshot names
 has to be compiled after suspension is enabled; one compiled before it is refused.
@@ -128,8 +150,20 @@ that save a loop's progress and restore it into a new runtime.
 
 A snapshot records the entry module's linear memories, globals, tables and dropped
 segments, together with the paused call and every continuation and exception it can
-still reach. Host state is not part of it. [W3S file format](W3S.md) specifies the
-binary layout, which references can be saved and which are refused, etc.
+still reach. [W3S file format](W3S.md) specifies the binary layout, which references
+can be saved and which are refused, etc.
+
+Host state is not part of it unless the embedder puts it there. `m3_SetSnapshotHooks`
+hands the runtime an `M3SnapshotHooks` with up to four callbacks: `nameExternRef` and
+`bindExternRef` turn an `externref` into a number the embedder can resolve again in
+another process, and back; `saveHostState` and `loadHostState` carry the embedder's own
+bytes - open files, clocks, whatever its imports keep - along with the program's. A
+runtime without `nameExternRef` refuses to save a non-null `externref`, and one without
+the loading half refuses a snapshot that needs it. Which host state can come across is
+the embedder's call: reopening a file by path and offset is reasonable for a regular
+file and wrong for a socket or a pipe. The CLI sets no hooks, so a program it resumes
+must not depend on anything it opened beyond standard input and output and the preopened
+directories.
 
 [`extra/w3s-tool.py`](../extra/w3s-tool.py) reads that
 format independently of Wasm3: `info` summarizes a snapshot, `verify` checks its

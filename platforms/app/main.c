@@ -928,13 +928,14 @@ void print_version ()
            (wasm3_arch) ? wasm3_arch : M3_ARCH);
 
     // clang-format off
-    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s%s%s%s%s%s\n",
+    printf("Build: " __DATE__ " " __TIME__ ", " M3_COMPILER_VER "%s%s%s%s%s%s%s%s\n",
             d_m3CanTailCall    ? ", tail-call"     : "",
             d_m3HasTypedRefs   ? ", typed-refs"    : "",
             d_m3HasMultiMemory ? ", multi-memory"  : "",
             d_m3DeterministicProfile ? ", deterministic" : "",
             d_m3CanonicalNaN   ? ", canonical-nan" : "",
             d_m3GuardedMemory  ? ", guarded-mem"   : "",
+            d_m3HasSnapshots   ? ", snapshots"     : "",
             wasi_impl          ? wasi_impl     : ""
     );
     // clang-format on

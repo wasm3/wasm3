@@ -116,9 +116,10 @@ void FreeImportInfo (M3ImportInfo* i_info)
 void SnapshotMap_Free (M3SnapshotMap* i_map)
 {
     if (i_map) {
-        m3_Free(i_map->runs);
+        m3_Free(i_map->locals);
         m3_Free(i_map->safePoints);
-        m3_Free(i_map->refs);
+        m3_Free(i_map->values);
+        m3_Free(i_map->blocks);
         m3_Free(i_map);
     }
 }

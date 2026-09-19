@@ -1,14 +1,16 @@
 # W3S snapshot file format
 
 A `.w3s` file stores the execution state of a suspended Wasm3 runtime: linear
-memories, globals, tables, dropped segment states, and the paused call stack with
-all reachable continuations and exceptions.
+memories, globals, tables, dropped segment states, the paused call stack with all
+reachable continuations and exceptions, and whatever state the embedder chose to
+carry along.
 
-The format is self-describing and expressed in the host build's terms (byte
-order, pointer and slot widths, compiled metacode word counts). It never writes
-host memory addresses: references are represented as symbolic IDs or table
-indices, and values on the runtime stack are decoupled from memory pointers via
-relocation records.
+The file is written in WebAssembly's terms, not in those of the build that wrote it.
+Every number is little endian. A place in a function is a byte offset into its Wasm
+body. A suspended function is its locals and live operand stack, as typed values in
+Wasm order. Nothing in it is an address, an interpreter slot or a metacode word, so a
+snapshot resumes in a build of another architecture, byte order, pointer or slot
+width, compiler or operating system, with gas metering on or off.
 
 The reference implementation for parsing and manipulating `.w3s` files outside the
 engine is [`extra/w3s-tool.py`](../extra/w3s-tool.py).
@@ -24,82 +26,97 @@ data and element segments have been dropped.
 The paused call is saved whole, including everything it can still reach through
 stack switching:
 
-- the call's own frames, and the continuation of every `resume` it is waiting in,
-  with that continuation's frames in turn
+- the call's own functions, and the continuation of every `resume` it is waiting in,
+  with that continuation's functions in turn
 - every continuation held in a local, a global or a table, whether it has not
-  started yet, holds bound arguments, or is suspended with frames of its own
+  started yet, holds bound arguments, or is suspended with functions of its own
 - every exception held as an `exnref`, or waiting to be raised by `resume_throw`
 
-The value stack is untyped, so while a runtime is suspendable the compiler also
-records, at every point execution can pause, which slots hold references there. The
-file uses that to write each reference as the thing it names rather than as an
-address: a `funcref` as a function index, a `contref` or an `exnref` as the
-continuation or exception the file carries. Restoring rebuilds all of them.
+A reference is written as the thing it names rather than as an address: a `funcref` as
+a function index, a `contref` or an `exnref` as the continuation or exception the file
+carries, and an `externref` as a number the embedder chose (see
+[State outside the file](#state-outside-the-file)). Restoring rebuilds all of them.
 
 Saving is refused, rather than writing something that cannot be restored, when the
 program holds a reference the file cannot name:
 
-- a non-null `externref`, which belongs to the host
+- a non-null `externref`, unless the embedder has a hook to name it
 - a `funcref`, continuation or suspended frame from another module
 - an `exnref` whose exception no longer exists
+- a `v128` value, which Wasm3 does not execute
+
+### Where a function can stand
+
+A function in a suspended continuation is always stopped at a **safepoint**, one of
+the places the compiler records while a runtime is suspendable:
+
+| Kind | Name | Where |
+|---|---|---|
+| `0` | back edge | a branch back to a loop, which is where a suspend the host asked for takes effect |
+| `1` | suspend | just past a `suspend` or a `switch` |
+| `2` | call | a call waiting on its callee |
+| `3` | resume | a `resume` waiting on the continuation it runs |
+| `4` | gas charge | the start of a gas segment, where running out of gas stops a metered runtime |
+
+A safepoint is identified by its kind, the offset of the instruction it belongs to,
+and an **ordinal**: how many safepoints of the same kind that instruction has before
+it. One `br_table` can branch back to several loops, and so has several back edges.
+
+A runtime that is not metering records a gas charge safepoint wherever a metering one
+would charge, without emitting the charge. That is what lets a snapshot taken when the
+gas ran out resume in a runtime with no gas limit.
 
 ### State outside the file
 
-Host state is not saved: open files and their positions, sockets, runtime userdata,
-WASI arguments and environment, and deterministic clock and random state must be
-arranged by the embedder. The format suits single-module computations without live
-host references.
+The embedder decides what else comes across, through `m3_SetSnapshotHooks`:
+
+- `nameExternRef` / `bindExternRef` turn an `externref` into a 64-bit name and back.
+  `0xFFFFFFFFFFFFFFFF` is not a name; it is the null reference.
+- `saveHostState` / `loadHostState` carry a block of the embedder's own bytes after the
+  program's state: open files and their positions, clocks, random state, anything the
+  module's imports keep.
+
+Without hooks, nothing outside the Wasm state is saved. The Wasm3 CLI sets none.
 
 ---
 
 ## File layout overview
 
-A W3S file consists of a fixed 48-byte header followed by sequential global
-runtime sections, exception payloads, and a list of continuations. The paused
-invocation is saved as the root continuation (index 0), whose frames and
-relocations reconstruct the call tree and stack values:
+A W3S file is a fixed 40-byte header followed by sequential sections, the list of
+continuations and the host state. The paused invocation is the root continuation
+(index 0).
 
 ```mermaid
 flowchart TD
     subgraph Stream ["1. Sequential File Stream"]
         direction TB
-        Header["Header (48 bytes): Magic, Endian, Fingerprint, Counts"]
+        Header["Header (40 bytes): Magic, Flags, Timestamp, Hashes, Counts"]
         ExDecl["Exception Declarations: Tag indices and argument counts"]
         Memories["Linear Memories: Bounds and compressed chunk stream"]
-        Globals["Globals: Types and 64-bit values or reference IDs"]
+        Globals["Globals: Types and 64-bit values or reference names"]
         Tables["Tables: Element types and reference arrays"]
         Segments["Segments: Data and element dropped flags"]
-        ExPayload["Exception Payloads: Parameter values and reference IDs"]
-        Continuations["Continuations: List of all reachable continuations (#0 is root)"]
+        ExPayload["Exception Payloads: Parameter values and reference names"]
+        Continuations["Continuations: Every reachable continuation (#0 is root)"]
+        Host["Host State: The embedder's own bytes"]
 
-        Header --> ExDecl --> Memories --> Globals --> Tables --> Segments --> ExPayload --> Continuations
+        Header --> ExDecl --> Memories --> Globals --> Tables --> Segments --> ExPayload --> Continuations --> Host
     end
 
     subgraph ContKinds ["2. Continuation Variants"]
         direction TB
-        Continuations -.-> ContAlloc["Allocated Continuation: Bound argument values"]
-        Continuations -.-> ContSusp["Suspended Continuation Body"]
+        Continuations -.-> ContAlloc["Allocated: Bound argument values"]
+        Continuations -.-> ContSusp["Suspended: The functions it is in, outermost first"]
     end
 
-    subgraph SuspDetails ["3. Suspended Execution State"]
+    subgraph Activation ["3. Each Function"]
         direction TB
-        ContSusp --> VStack["Value Stack: Untyped slots with reference slots zeroed"]
-        ContSusp --> Relocs["Relocations: Slot index, ref type, symbolic target ID"]
-        ContSusp --> PCRegs["Suspension Point: Metacode PC offset, SP slot, r0, fp0"]
-        ContSusp --> Frames["Activation Frames: Outermost to innermost"]
-    end
-
-    subgraph FrameKinds ["4. Activation Frame Variants"]
-        direction TB
-        Frames -.-> FCall["Call Frame: Callee function, return PC offset, saved r0 and fp0"]
-        Frames -.-> FLoop["Loop Frame: Loop back-edge instruction PC offset"]
-        Frames -.-> FTry["Try Frame: Try block PC offset, clause count, handlers live flag"]
-        Frames -.-> FResume["Resume Frame: Resumed continuation ID, handler and result PCs"]
+        ContSusp --> Func["Function index"]
+        ContSusp --> Blocks["Loops and try_tables standing in it, by offset"]
+        ContSusp --> Site["Safepoint: kind, offset, ordinal"]
+        ContSusp --> Values["Values: locals, then the live operand stack, typed"]
     end
 ```
-
-All multi-byte integers are encoded in host byte order as specified by the
-header's byte order marker.
 
 ---
 
@@ -110,15 +127,31 @@ header's byte order marker.
 | Name | Value | Description |
 |---|---|---|
 | `c_snapshotMagic` | `0x57 0x33 0x53 0x01` | ASCII `"W3S"` followed by `0x01` (format version 1) |
-| `d_m3SnapshotByteOrder` | `0x0102` | Endianness test word |
-| `d_m3SnapshotNone` | `0xFFFFFFFF` | Represents `NULL`, unassigned, or absent index (`UINT32_MAX`) |
-| `d_m3SnapshotNullRef` | `0xFFFFFFFFFFFFFFFF` | Represents a null reference (`UINT64_MAX`) |
+| `d_m3SnapshotNone` | `0xFFFFFFFF` | An absent index (`UINT32_MAX`) |
+| `d_m3SnapshotNullRef` | `0xFFFFFFFFFFFFFFFF` | A null reference (`UINT64_MAX`) |
 
 ### Flags
 
 | Bit | Name | Description |
 |---|---|---|
 | `0x01` | `d_m3SnapshotFlagPostmortem` | Written on trap / `--dump-on-trap`. Non-resumable state dump. |
+
+### Value types
+
+| Value | Type |
+|---|---|
+| `1` | `i32` |
+| `2` | `i64` |
+| `3` | `f32` |
+| `4` | `f64` |
+| `6` | `funcref` |
+| `7` | `externref` |
+| `8` | `exnref` |
+| `9` | `contref` |
+
+A value is written as a `u64` word: a 32-bit number zero-extended, a float as its bit
+pattern, a reference as its name or `d_m3SnapshotNullRef`. Typed references are
+written as the base type above.
 
 ### Memory chunk kinds
 
@@ -128,64 +161,44 @@ header's byte order marker.
 | `0x01` | `d_m3ChunkRaw` | Followed by offset, length, and raw bytes |
 | `0x02` | `d_m3ChunkFillFF` | Followed by offset and length of repeated `0xFF` bytes |
 
-Runs of `0x00` $\ge 64$ bytes are omitted entirely; the restorer pre-zeroes the
-entire memory allocation.
+Runs of `0x00` of at least `d_m3SnapshotRunThreshold` bytes (128 by default) are
+omitted entirely; the restorer pre-zeroes the memory. Linear memory is little endian
+on every host, so its bytes are written as they are.
 
 ### Continuation states
 
 | Value | Name | Description |
 |---|---|---|
-| `0` | `snapshot_contAllocated` | Created and has bound arguments, but not yet invoked |
-| `1` | `snapshot_contSuspended` | Paused execution with saved frames and stack |
+| `0` | `snapshot_contAllocated` | Created and possibly holding bound arguments, not yet started |
+| `1` | `snapshot_contSuspended` | Paused, in the middle of the functions listed with it |
 | `2` | `snapshot_contFinished` | Returned, consumed, or terminated |
 
-### Frame kinds
+### Block kinds
 
 | Value | Name | Description |
 |---|---|---|
-| `0` | `snapshot_frameCall` | Waiting at a call site for callee to return |
-| `1` | `snapshot_frameLoop` | Standing inside a loop |
-| `2` | `snapshot_frameTry` | Standing inside an exception handling try block |
-| `3` | `snapshot_frameEntry` | Module invocation entry frame |
-| `4` | `snapshot_frameResume` | Waiting at a `resume` site for continuation to yield/return |
-
-### Safepoint kinds
-
-| Value | Name | Description |
-|---|---|---|
-| `0` | `safepoint_op` | Suspended in place: loop back edge or gas exhaustion |
-| `1` | `safepoint_suspend` | Suspended immediately following a `suspend` or `switch` |
-| `2` | `safepoint_call` | Caller frame waiting on a callee |
-| `3` | `safepoint_resume` | Caller frame waiting on a resumed continuation |
+| `1` | `snapshot_blockLoop` | A `loop` whose body is running |
+| `2` | `snapshot_blockTry` | A `try_table` whose body is running, or has run and not yet been left behind |
 
 ---
 
 ## Detailed binary structure
 
-### 1. Header (48 bytes)
+### 1. Header (40 bytes)
 
 | Offset | Field | Type | Description |
 |---|---|---|---|
-| 0 | `magic` | `u8[4]` | Must be ASCII `"W3S\x01"` |
+| 0 | `magic` | `u8[4]` | ASCII `"W3S\x01"` |
 | 4 | `flags` | `u32` | `0x1` = postmortem dump; `0x0` = resumable |
-| 8 | `byte_order` | `u16` | `0x0102` encoded in writing host's byte order. `[0x02, 0x01]` = LE; `[0x01, 0x02]` = BE |
-| 10 | `pointer_size` | `u8` | `sizeof(void*)`: `4` or `8` |
-| 11 | `slot_size` | `u8` | `sizeof(m3slot_t)`: `4` or `8` |
-| 12 | `build_fingerprint` | `u64` | FNV-1a hash of version string and feature configuration |
-| 20 | `gas_metered` | `u8` | `1` if gas metering was enabled on runtime, else `0` |
-| 21 | _reserved_ | `u8[3]` | Reserved padding / alignment (0) |
+| 8 | `timestamp_ms` | `u64` | When the snapshot was taken, in milliseconds since the Unix epoch, UTC. `0` on a system with no clock |
+| 16 | `wasm3_hash` | `u64` | FNV-1a hash of the Wasm3 version string and the WebAssembly features the build implements |
 | 24 | `module_hash` | `u64` | FNV-1a hash of the module's raw WebAssembly bytecode |
-| 32 | `num_continuations` | `u32` | Total number of continuations stored. Index 0 is always root |
+| 32 | `num_continuations` | `u32` | Total number of continuations stored. Index 0 is the root |
 | 36 | `num_exceptions` | `u32` | Total number of exceptions stored |
-| 40 | _reserved_ | `u8[8]` | Header alignment padding (0) |
-
-The engine validates that `byte_order`, `pointer_size`, `slot_size`,
-`build_fingerprint`, `gas_metered`, and `module_hash` match the target runtime
-configuration before attempting restoration.
 
 ### 2. Exception declarations
 
-If `num_exceptions > 0`, contains declarations for each exception ($0 \le i < \text{num\_exceptions}$):
+For each exception ($0 \le i < \text{num\_exceptions}$):
 
 | Field | Type | Description |
 |---|---|---|
@@ -202,22 +215,16 @@ For each memory:
 
 | Field | Type | Description |
 |---|---|---|
-| `num_pages` | `u64` | Current allocated size in pages |
+| `num_pages` | `u64` | Current size in pages |
 | `max_pages` | `u64` | Maximum allowable pages |
 | `page_size` | `u32` | Page size in bytes (typically 65,536) |
-| `has_data` | `u8` | `1` if memory buffer is allocated, `0` if empty |
+| `has_data` | `u8` | `1` if the memory is allocated, `0` if empty |
 
-If `has_data == 1`, chunk records follow until `d_m3ChunkEnd` (`0x00`):
+If `has_data == 1`, chunk records follow until `d_m3ChunkEnd`:
 
-- **Raw Chunk (`0x01`)**:
-  - `offset`: `u32` byte offset in linear memory
-  - `length`: `u32` byte length
-  - `data`: `u8[length]` raw bytes
-- **Fill-FF Chunk (`0x02`)**:
-  - `offset`: `u32` byte offset in linear memory
-  - `length`: `u32` byte length of repeated `0xFF`
-- **End Chunk (`0x00`)**:
-  - Marks end of chunks for this memory.
+- **Raw chunk (`0x01`)**: `offset` `u32`, `length` `u32`, then `length` bytes
+- **Fill-FF chunk (`0x02`)**: `offset` `u32`, `length` `u32`
+- **End chunk (`0x00`)**
 
 ### 4. Globals section
 
@@ -225,12 +232,7 @@ If `has_data == 1`, chunk records follow until `d_m3ChunkEnd` (`0x00`):
 |---|---|---|
 | `num_globals` | `u32` | Number of module globals |
 
-For each global:
-
-| Field | Type | Description |
-|---|---|---|
-| `type` | `u8` | Wasm3 base type (`i32`, `i64`, `f32`, `f64`, `funcref`, `externref`, `exnref`, `contref`) |
-| `value` | `u64` | 64-bit value representation: numbers raw/zero-extended; references encoded as symbolic ID or `0xFFFFFFFFFFFFFFFF` |
+For each global: `type` `u8`, then `value` `u64` (see [Value types](#value-types)).
 
 ### 5. Tables section
 
@@ -238,30 +240,22 @@ For each global:
 |---|---|---|
 | `num_tables` | `u32` | Number of tables in module |
 
-For each table:
-
-| Field | Type | Description |
-|---|---|---|
-| `type` | `u8` | Base element type |
-| `size` | `u32` | Current number of elements |
-| `elements` | `u64[size]` | Array of reference words: function index, continuation ID, or null (`0xFFFFFFFFFFFFFFFF`) |
+For each table: `type` `u8` (the element type), `size` `u32`, then `size` reference
+words `u64`.
 
 ### 6. Segments section
 
 | Field | Type | Description |
 |---|---|---|
 | `num_data_segments` | `u32` | Number of data segments |
-| `data_dropped` | `u8[num_data_segments]` | `1` if dropped via `data.drop`, `0` if active |
+| `data_dropped` | `u8[num_data_segments]` | `1` if dropped via `data.drop` |
 | `num_element_segments` | `u32` | Number of element segments |
-| `elem_dropped` | `u8[num_element_segments]` | `1` if dropped via `elem.drop`, `0` if active |
+| `elem_dropped` | `u8[num_element_segments]` | `1` if dropped via `elem.drop` |
 
 ### 7. Exception payloads
 
-For each declared exception ($0 \le i < \text{num\_exceptions}$):
-
-| Field | Type | Description |
-|---|---|---|
-| `args` | `u64[num_args]` | Array of parameter values (numbers or reference IDs) |
+For each declared exception: `num_args` value words `u64`, typed by the tag's
+parameters.
 
 ### 8. Continuations section
 
@@ -272,146 +266,116 @@ For each continuation ($0 \le i < \text{num\_continuations}$):
 | Field | Type | Description |
 |---|---|---|
 | `state` | `u8` | `0` = allocated, `1` = suspended, `2` = finished |
-| `is_root` | `u8` | `1` if root invocation continuation (runs on runtime stack), `0` otherwise |
-| `type_index` | `u32` | Module function type index, or `0xFFFFFFFF` for root |
-| `entry_func_index` | `u32` | Entry function index, or `0xFFFFFFFF` |
-| `bound_args_count` | `u32` | Number of pre-bound arguments |
-| `resume_throw` | `u64` | Pending exception ID if suspended via `resume_throw`, else `0xFFFFFFFFFFFFFFFF` |
+| `is_root` | `u8` | `1` for the root invocation, which runs on the runtime's own stack |
+| `type_index` | `u32` | Module type index of the continuation type, or `0xFFFFFFFF` for the root |
+| `entry_func_index` | `u32` | Function the continuation was started with, or `0xFFFFFFFF` |
+| `bound_args_count` | `u32` | Number of arguments bound by `cont.bind` |
+| `resume_throw` | `u64` | Exception to raise when resumed, from `resume_throw`, or `0xFFFFFFFFFFFFFFFF` |
 
-If postmortem dump (`flags & 0x1`), continuation serialization ends here.
+In a postmortem, the continuation ends here.
 
-#### Bound arguments (if state is `snapshot_contAllocated`)
+#### Bound arguments (state `0`)
 
-| Field | Type | Description |
-|---|---|---|
-| `bound_args` | `u64[bound_args_count]` | Value words for each bound argument |
+`bound_args_count` value words `u64`, typed by the continuation type's parameters.
 
-#### Suspended body (if state is `snapshot_contSuspended`)
-
-##### Stack and relocations
+#### Suspended body (state `1`)
 
 | Field | Type | Description |
 |---|---|---|
-| `num_slots` | `u32` | Number of stack slots saved |
-| `stack_bytes` | `u8[num_slots * slot_size]` | Value stack contents. Reference slots are pre-zeroed |
-| `num_relocations` | `u32` | Number of reference relocations on stack |
+| `num_functions` | `u32` | How many functions the continuation is in the middle of |
 
-For each relocation ($0 \le r < \text{num\_relocations}$):
-
-| Field | Type | Description |
-|---|---|---|
-| `slot` | `u32` | Slot index from stack base |
-| `type` | `u8` | Storage type (`funcref`, `contref`, `exnref`) |
-| `target_id` | `u64` | Function index or object ID (`0xFFFFFFFFFFFFFFFF` if null) |
-
-##### Program counter and registers
+Each function follows, outermost first. Every one but the innermost is waiting at a
+call, on the function after it. The innermost is stopped at a back edge, a gas charge
+or a suspend - or waiting at a resume, in which case the rest of the suspension belongs
+to the continuation that resume runs.
 
 | Field | Type | Description |
 |---|---|---|
-| `has_own_pc` | `u8` | `1` if suspended in own function; `0` if suspended inside a resumed continuation |
+| `func_index` | `u32` | The function. The outermost is always `entry_func_index` |
+| `num_blocks` | `u32` | Loops and try_tables standing in it |
 
-If `has_own_pc == 1`:
-
-| Field | Type | Description |
-|---|---|---|
-| `suspend_point` | `u8` | `safepoint_op` (0) or `safepoint_suspend` (1) |
-| `function_index` | `u32` | Function index of suspended activation |
-| `pc_offset` | `u32` | Count of metacode words emitted in function before suspension |
-| `sp_slot` | `u32` | Slot offset of continuation's stack pointer |
-| `r0_type` | `u8` | Reference type held in `r0`, or `c_m3Type_none` |
-| `r0_word` | `u64` | Raw accumulator or reference ID |
-
-Followed by floating point and suspension results:
+For each block, outermost first:
 
 | Field | Type | Description |
 |---|---|---|
-| `fp0` | `f64` | Floating-point accumulator register |
-| `num_suspend_results` | `u32` | Number of result slots waiting for resume |
+| `kind` | `u8` | `1` = loop, `2` = try_table |
+| `wasm_offset` | `u32` | Offset of the `loop` or `try_table` instruction in the function's body |
+| `handlers_live` | `u8` | try_table only: `0` once its handlers were retired by leaving the block |
 
-For each suspend result ($0 \le k < \text{num\_suspend\_results}$):
+A block is listed while its body runs, and - since Wasm3 keeps a native frame for each
+until the function returns - after control has left it too, so the list is dynamic,
+not the static nesting at the safepoint.
 
-| Field | Type | Description |
-|---|---|---|
-| `offset` | `u32` | Slot offset where result will land |
-| `is_64` | `u8` | `1` if 64-bit slot, `0` if 32-bit |
-
-##### Activation frames
-
-Written outermost first (reconstructed innermost first on restore):
+Then the safepoint and the function's values:
 
 | Field | Type | Description |
 |---|---|---|
-| `num_frames` | `u32` | Number of call / control frames |
+| `site` | `u8` | Safepoint kind (see [Where a function can stand](#where-a-function-can-stand)) |
+| `wasm_offset` | `u32` | Offset of the instruction in the function's body |
+| `ordinal` | `u32` | Safepoints of the same kind at the same instruction before this one |
+| `num_values` | `u32` | Number of values that follow |
+| `values` | `(u8 type, u64 word)[num_values]` | The function's locals, arguments first, then its live operand stack from the bottom up |
+| `cont_id` | `u64` | Resume only: the continuation the resume is running |
 
-For each frame:
+The operand stack is what the function holds at that point in Wasm's own terms:
+
+- at a call or a resume, it leaves out the results the operation has not written yet
+- at a suspend, it includes the values the suspend is waiting for at the top, which
+  `cont.bind` can already have filled in
+- at a back edge, it is what was live before the loop, followed by the loop's
+  parameters as the branch has just passed them
+
+Offsets are counted from the first byte of the function's body in the code section:
+the byte after the body's size, where its local declarations begin. Add the body's
+position in the module to compare with `wasm-objdump -d`.
+
+### 9. Host state
 
 | Field | Type | Description |
 |---|---|---|
-| `kind` | `u8` | Frame kind: `0`=Call, `1`=Loop, `2`=Try, `3`=Entry, `4`=Resume |
-| `sp_slot` | `u32` | Stack slot index of frame base |
-| `memory_index` | `u32` | Associated memory index, or `0xFFFFFFFF` |
-| `func_index` | `u32` | Function the frame executes |
-
-Additional kind-specific payload:
-
-- **`snapshot_frameCall` (0)**:
-  - `pc_offset`: `u32` return address offset in caller
-  - `callee_func_index`: `u32` function called
-  - `r0_type`: `u8` type in saved call register
-  - `r0_word`: `u64` saved register value or reference ID
-  - `fp0`: `f64` saved floating point register
-- **`snapshot_frameLoop` (1)**:
-  - `pc_offset`: `u32` loop instruction offset
-- **`snapshot_frameTry` (2)**:
-  - `pc_offset`: `u32` try block instruction offset
-  - `num_clauses`: `u32` number of catch clauses
-  - `handlers_live`: `u8` whether handlers are active
-- **`snapshot_frameEntry` (3)**:
-  - `entry_func_index`: `u32` entry function
-- **`snapshot_frameResume` (4)**:
-  - `pc_offset`: `u32` resume instruction offset
-  - `cont_id`: `u64` continuation ID being resumed
-  - `handlers_pc_offset`: `u32` offset to handler metacode
-  - `num_handlers`: `u32` count of resume handlers
-  - `results_pc_offset`: `u32` offset to result handler metacode
-  - `num_results`: `u32` count of expected continuation results
+| `host_state_size` | `u64` | Size of what the embedder's `saveHostState` wrote, `0` if nothing |
+| `host_state` | `u8[host_state_size]` | Opaque to Wasm3 |
 
 ---
 
 ## Loading a snapshot
 
-A snapshot is restored into the same module, run by the same Wasm3 build with the
-same compilation settings, on a runtime whose stack is at least as large as the
-original. It counts every program counter in the compiled code's own instructions
-and keeps the value stack in the build's slot layout, so it is not a compatibility
-format across versions and architectures.
+A snapshot is restored into the same module, run by a Wasm3 build of the same release
+with the same WebAssembly features. `wasm3_hash` and `module_hash` say which, and a
+mismatch is refused. Nothing else about the build has to agree.
 
-`build_fingerprint` covers the Wasm3 version, the slot and pointer widths, and the
-feature flags that change compiled code; `gas_metered` is checked alongside it
-because gas instrumentation changes the compiled code too. A modified build that
-keeps all of those is not detected.
+Restoring compiles every function the snapshot names, finds each safepoint in the new
+code by its kind, offset and ordinal, and checks that it holds the same number of
+values of the same types. Each value then goes into whatever slot or register the new
+build keeps it in there, and the native frames the interpreter needs - call, loop,
+try_table, resume, and the entry frame some builds keep - are rebuilt from the new
+build's own code. A snapshot that does not match what the build compiles is refused.
 
-Loading also refuses a postmortem file, and any function the snapshot names that
-was compiled before the runtime was made suspendable.
+Loading also refuses a postmortem file, a stack that does not fit the runtime's, any
+function the snapshot names that was compiled before the runtime was made suspendable,
+an `externref` without a `bindExternRef` hook, and host state without a
+`loadHostState` hook.
 
 ## Postmortem dumps
 
-A file carrying `d_m3SnapshotFlagPostmortem` records memories, globals and tables
-for inspection, and which continuations and exceptions they reference, but it stops
-each continuation after its header and cannot be resumed. Wasm3 writes one when a
-trap is dumped, or when a snapshot is taken of a runtime with no paused invocation.
+A file carrying `d_m3SnapshotFlagPostmortem` records memories, globals and tables for
+inspection, and which continuations and exceptions they reference, but it stops each
+continuation after its header and cannot be resumed. Wasm3 writes one when a trap is
+dumped, or when a snapshot is taken of a runtime with no paused invocation.
 
 ---
 
 ## Diagnostic and tool interaction
 
-[`extra/w3s-tool.py`](../extra/w3s-tool.py) interacts with the file format:
+[`extra/w3s-tool.py`](../extra/w3s-tool.py) reads and writes the format without Wasm3:
 
 ```sh
-# Display header, continuations, memory chunks, and globals summary
-extra/w3s-tool.py info state.w3s
+# Header, continuations and where each function stands, memories and globals.
+# --wasm names functions, tells locals from the operand stack and gives module
+# offsets; -v lists every value
+extra/w3s-tool.py --wasm state.wasm info -v state.w3s
 
-# Validate structural integrity, bounds, and chunk encodings
+# Validate structural integrity, and that it packs back into the same bytes
 extra/w3s-tool.py verify state.w3s
 
 # Unpack snapshot into a human-readable manifest (JSON) and raw binary streams

@@ -14,6 +14,11 @@
 
 d_m3BeginExternC
 
+// Whether the compiler cuts function bodies into gas segments: to meter them,
+// or - in a build that can take snapshots - to know where a snapshot taken by a
+// metering runtime can have stopped
+#define d_m3CompilesGasSegments     (d_m3HasGasMetering || d_m3HasSnapshots)
+
 enum {
     c_waOp_block              = 0x02,
     c_waOp_loop               = 0x03,
@@ -192,25 +197,27 @@ typedef struct
 
     bool isInitExpr;                 // walking a constant expression, not a function body
 
-#if d_m3HasGasMetering
-    // The metering segment being compiled: where its op_UseGas left an immediate
-    // for the cost to be written back into once the segment's extent is known,
-    // and the cost accumulated so far. NULL when no segment is open, which is
-    // also how a build that isn't metering this function says so.
+#if d_m3CompilesGasSegments
+    // The metering segment being compiled, and the cost accumulated so far. A
+    // compilation that is metering also keeps where its op_UseGas left an
+    // immediate for the cost to be written back into once the segment's extent
+    // is known; one that is only tracking the segments has no op_UseGas.
+#  if d_m3HasGasMetering
     void* gasPatch;
-    u32   gasCost;
+#  endif
+    u32  gasCost;
+    bool isGasSegmentOpen;
 #endif
 
 #if d_m3HasSnapshots
     // The function's snapshot map as it is being built, or NULL when this
-    // compilation records none. The run being emitted starts at runStart, and
-    // runOffset is how many of the function's words came before it.
+    // compilation records none, and where the body the offsets in it count
+    // from begins.
     M3SnapshotMap* snapshotMap;
-    u32            runsCapacity;
     u32            safePointsCapacity;
-    u32            refsCapacity;
-    pc_t           runStart;
-    u32            runOffset;
+    u32            valuesCapacity;
+    u32            blocksCapacity;
+    bytes_t        bodyStart;
 #endif
 
 #if d_m3FoldSetLocal

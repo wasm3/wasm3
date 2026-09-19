@@ -41,41 +41,12 @@ pc_t GetPC (IM3Compilation o)
         (CAPACITY) = newCapacity;                                                \
     }
 
-// Closes the run of words emitted onto the current page since it was opened.
-// Called before anything that is not part of the function's own code - a
-// bridge - and whenever emission moves to another page.
-static
-M3Result EndCodeRun (IM3Compilation o)
-{
-    M3SnapshotMap* map = o->snapshotMap;
-
-    if (map and o->page) {
-        pc_t end      = GetPagePC(o->page);
-        u32  numWords = (u32)(end - o->runStart);
-
-        if (numWords) {
-            d_m3GrowSnapshotArray(M3CodeRun, map->runs, map->numRuns, o->runsCapacity);
-
-            M3CodeRun* run = &map->runs[map->numRuns++];
-            run->start     = o->runStart;
-            run->numWords  = numWords;
-            run->offset    = o->runOffset;
-
-            o->runOffset += numWords;
-        }
-
-        o->runStart = end;
-    }
-
-    return m3Err_none;
-}
-
+// Where the instruction being compiled starts, counted from the start of the
+// function's body: the one position every build of every revision agrees on
 static inline
-void BeginCodeRun (IM3Compilation o)
+u32 GetWasmOffset (IM3Compilation o)
 {
-    if (o->snapshotMap and o->page) {
-        o->runStart = GetPagePC(o->page);
-    }
+    return (u32)(o->lastOpcodeStart - o->bodyStart);
 }
 
 // Whether the operand stack entry at i_index is a value the frame holds. Every
@@ -97,48 +68,35 @@ bool IsLiveStackEntry (IM3Compilation o, u16 i_index)
 }
 
 static
-M3Result AddSafePointRef (IM3Compilation o, M3SafePoint* io_point, u16 i_index)
+M3Result AddSafePointValue (IM3Compilation o, M3SafePoint* io_point, u16 i_index)
 {
-    M3SnapshotMap* map  = o->snapshotMap;
-    m3type_t       type = o->typeStack[i_index];
-    u16            slot = o->wasmStack[i_index];
+    M3SnapshotMap* map = o->snapshotMap;
 
-    if (not IsRefType(type)) {
-        return m3Err_none;
-    }
+    d_m3GrowSnapshotArray(M3SlotValue, map->values, map->numValues, o->valuesCapacity);
 
-    if (IsRegisterSlotAlias(slot)) {
-        io_point->registerType = BaseTypeOf(type);
-        return m3Err_none;
-    }
-
-    // a local read onto the stack names the local's own slot, so the same slot
-    // can turn up more than once
-    for (u32 r = io_point->firstRef; r < map->numRefs; ++r) {
-        if (map->refs[r].slot == slot) {
-            return m3Err_none;
-        }
-    }
-
-    d_m3GrowSnapshotArray(M3SlotRef, map->refs, map->numRefs, o->refsCapacity);
-
-    map->refs[map->numRefs].slot = slot;
-    map->refs[map->numRefs].type = BaseTypeOf(type);
-    map->numRefs++;
-    io_point->numRefs++;
+    map->values[map->numValues].slot = o->wasmStack[i_index];
+    map->values[map->numValues].type = BaseTypeOf(o->typeStack[i_index]);
+    map->numValues++;
+    io_point->numValues++;
 
     return m3Err_none;
 }
 
-// Records the pc i_wordsBack words before the current one as a safepoint, along
-// with every reference the frame holds there: the live entries of the operand
-// stack - arguments and locals included - bar the top i_numExcluded, which are
-// results the operation has not written. A back edge to i_loop has also just
-// written the loop's parameters into its landing pads, which the loop reads
-// them back out of when it goes round.
+// Records the pc i_wordsBack words before the current one as a safepoint, with
+// where every value on the live operand stack is kept there.
+//
+// i_numResults are the operation's results, on top of the stack. A call's or a
+// resume's are not written until it returns, so they are no part of the frame;
+// a suspend's are, since whatever resumes it writes them - and cont.bind can
+// write them while it waits. i_aux is what the kind keeps there (see
+// M3SafePoint).
+//
+// A back edge to i_loop leaves the rest of the loop's body behind: what the
+// frame holds is what was live before the loop, and the loop's parameters,
+// which the branch has just written into its landing pads for the next lap.
 static
-M3Result RecordSafePoint (IM3Compilation o, M3SafePointKind i_kind, u32 i_wordsBack, u16 i_numExcluded,
-                          IM3CompilationScope i_loop)
+M3Result RecordSafePoint (IM3Compilation o, M3SafePointKind i_kind, u32 i_wordsBack, u16 i_numResults,
+                          u16 i_aux, IM3CompilationScope i_loop)
 {
 _try {
     M3SnapshotMap* map = o->snapshotMap;
@@ -149,19 +107,29 @@ _try {
 
     d_m3GrowSnapshotArray(M3SafePoint, map->safePoints, map->numSafePoints, o->safePointsCapacity);
 
-    // grown before it is pointed at: adding refs never moves the safepoints
-    M3SafePoint* point  = &map->safePoints[map->numSafePoints];
-    point->pc           = GetPC(o) - i_wordsBack;
-    point->firstRef     = map->numRefs;
-    point->numRefs      = 0;
-    point->kind         = (u8)i_kind;
-    point->registerType = c_m3Type_none;
+    // grown before it is pointed at: adding values never moves the safepoints
+    M3SafePoint* point = &map->safePoints[map->numSafePoints];
+    point->pc          = GetPC(o) - i_wordsBack;
+    point->wasmOffset  = GetWasmOffset(o);
+    point->firstValue  = map->numValues;
+    point->numValues   = 0;
+    point->numResults  = i_numResults;
+    point->aux         = i_aux;
+    point->kind        = (u8)i_kind;
+    point->flags       = 0;
 
-    u16 top = (o->stackIndex > i_numExcluded) ? (u16)(o->stackIndex - i_numExcluded) : 0;
+    u16 top = o->stackIndex;
 
-    for (u16 i = 0; i < top; ++i) {
+    if (i_kind != safepoint_suspend) {
+        top = (top > i_numResults) ? (u16)(top - i_numResults) : 0;
+    }
+    if (i_loop) {
+        top = M3_MIN(top, i_loop->exitStackIndex);
+    }
+
+    for (u16 i = o->stackFirstDynamicIndex; i < top; ++i) {
         if (IsLiveStackEntry(o, i)) {
-_           (AddSafePointRef(o, point, i));
+_           (AddSafePointValue(o, point, i));
         }
     }
 
@@ -169,7 +137,7 @@ _           (AddSafePointRef(o, point, i));
         u16 numParams = GetFuncTypeNumParams(i_loop->type);
 
         for (u16 i = 0; i < numParams; ++i) {
-_           (AddSafePointRef(o, point, (u16)(i_loop->exitStackIndex + i)));
+_           (AddSafePointValue(o, point, (u16)(i_loop->exitStackIndex + i)));
         }
     }
 
@@ -178,48 +146,94 @@ _           (AddSafePointRef(o, point, (u16)(i_loop->exitStackIndex + i)));
 } _catch: return result;
 }
 
+// A back edge: op_ContinueLoop, or op_ContinueLoopIf when i_isConditional, and
+// the loop it goes back to. The conditional one suspends before it has taken
+// the branch, so it has to be resumed with the condition that took it.
+static
+M3Result RecordBackEdge (IM3Compilation o, IM3CompilationScope i_loop, bool i_isConditional)
+{
+    M3Result result = RecordSafePoint(o, safepoint_op, 2, 0, 0, i_loop);
+
+    if (not result and i_isConditional and o->snapshotMap and o->page) {
+        o->snapshotMap->safePoints[o->snapshotMap->numSafePoints - 1].flags |= d_m3SafePointTakenBranch;
+    }
+
+    return result;
+}
+
+// Where the function's arguments and locals are kept. Unlike the operand
+// stack, that never changes, so it is recorded once rather than at every
+// safepoint.
+static
+M3Result RecordLocals (IM3Compilation o)
+{
+    M3SnapshotMap* map = o->snapshotMap;
+
+    if (map and o->stackIndex) {
+        map->locals = m3_AllocArray(M3SlotValue, o->stackIndex);
+
+        if (not map->locals) {
+            return m3Err_mallocFailed;
+        }
+
+        for (u16 i = 0; i < o->stackIndex; ++i) {
+            map->locals[i].slot = o->wasmStack[i];
+            map->locals[i].type = BaseTypeOf(o->typeStack[i]);
+        }
+
+        map->numLocals = o->stackIndex;
+    }
+
+    return m3Err_none;
+}
+
+// A loop or a try_table, whose native frame a snapshot names by the
+// instruction's offset. i_pc is what that frame records.
+static
+M3Result RecordBlockStart (IM3Compilation o, m3opcode_t i_opcode, pc_t i_pc, u32 i_numClauses)
+{
+    M3SnapshotMap* map = o->snapshotMap;
+
+    if (map and o->page) {
+        d_m3GrowSnapshotArray(M3BlockStart, map->blocks, map->numBlocks, o->blocksCapacity);
+
+        M3BlockStart* block = &map->blocks[map->numBlocks++];
+        block->pc           = i_pc;
+        block->wasmOffset   = GetWasmOffset(o);
+        block->numClauses   = (u16)i_numClauses;
+        block->opcode       = (u8)i_opcode;
+    }
+
+    return m3Err_none;
+}
+
 #  undef d_m3GrowSnapshotArray
 
 #else
 
 static inline
-M3Result EndCodeRun (IM3Compilation o)
+M3Result RecordSafePoint (IM3Compilation o, M3SafePointKind i_kind, u32 i_wordsBack, u16 i_numResults,
+                          u16 i_aux, IM3CompilationScope i_loop)
 {
     (void)o;
+    (void)i_kind;
+    (void)i_wordsBack;
+    (void)i_numResults;
+    (void)i_aux;
+    (void)i_loop;
     return m3Err_none;
 }
 
 static inline
-void BeginCodeRun (IM3Compilation o)
-{
-    (void)o;
-}
-
-static inline
-M3Result RecordSafePoint (IM3Compilation o, M3SafePointKind i_kind, u32 i_wordsBack, u16 i_numExcluded,
-                          IM3CompilationScope i_loop)
+M3Result RecordBackEdge (IM3Compilation o, IM3CompilationScope i_loop, bool i_isConditional)
 {
     (void)o;
     (void)i_loop;
-    (void)i_kind;
-    (void)i_wordsBack;
-    (void)i_numExcluded;
+    (void)i_isConditional;
     return m3Err_none;
 }
 
 #endif // d_m3HasSnapshots
-
-// Moves emission to another page, closing the run on the one it leaves
-static
-M3Result SetCompilationPage (IM3Compilation o, IM3CodePage i_page)
-{
-    M3Result result = EndCodeRun(o);
-
-    o->page = i_page;
-    BeginCodeRun(o);
-
-    return result;
-}
 
 static M3_NOINLINE
 M3Result EnsureCodePageNumLines (IM3Compilation o, u32 i_numLines)
@@ -235,16 +249,12 @@ M3Result EnsureCodePageNumLines (IM3Compilation o, u32 i_numLines)
             m3log(emit, "bridging new code page from: %d %p (free slots: %d) to: %d", o->page->info.sequence, GetPC(o), NumFreeLines(o->page), page->info.sequence);
             d_m3Assert(NumFreeLines(o->page) >= 2);
 
-            // the bridge is where this page ran out, not part of the function
-            result = EndCodeRun(o);
-
             EmitWord(o->page, op_Branch);
             EmitWord(o->page, GetPagePC(page));
 
             ReleaseCodePage(o->runtime, o->page);
 
             o->page = page;
-            BeginCodeRun(o);
         } else {
             result = m3Err_mallocFailedCodePage;
         }
@@ -2184,7 +2194,7 @@ _                   (ResolveBlockResults(o, scope, /* isBranch: */ true));
 
 _               (EmitOp(o, Op_ContinueLoop(o)));
                 EmitPointer(o, scope->pc);
-_               (RecordSafePoint(o, safepoint_op, 2, 0, scope));
+_               (RecordBackEdge(o, scope, false));
 
                 *jumpTo = GetPC(o);
             } else {
@@ -2194,7 +2204,7 @@ _               (PopType(o, c_m3Type_i32));
 
 _               (EmitOp(o, Op_ContinueLoopIf(o)));
                 EmitPointer(o, scope->pc);
-_               (RecordSafePoint(o, safepoint_op, 2, 0, scope));
+_               (RecordBackEdge(o, scope, true));
             }
 
             //          dump_type_stack(o);
@@ -2209,7 +2219,7 @@ _               (ResolveBlockResults(o, scope, /* isBranch: */ true));
 
 _           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
-_           (RecordSafePoint(o, safepoint_op, 2, 0, scope));
+_           (RecordBackEdge(o, scope, false));
             o->block.isPolymorphic = true;
         }
     } else // forward branch
@@ -2365,7 +2375,7 @@ _       (AcquireCompilationCodePage(o, &continueOpPage));
 
         pc_t startPC  = GetPagePC(continueOpPage);
         displacedPage = o->page;
-_       (SetCompilationPage(o, continueOpPage));
+        o->page       = continueOpPage;
 
         if (scope->opcode == c_waOp_loop) {
 _           (EmitPopTryFrames(o, numTryFrames));
@@ -2376,7 +2386,7 @@ _               (ResolveBlockResults(o, scope, true));
 
 _           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
-_           (RecordSafePoint(o, safepoint_op, 2, 0, scope));
+_           (RecordBackEdge(o, scope, false));
         } else {
             if (not IsStackPolymorphic(o)) {
                 if (scope->depth == 0) {
@@ -2396,7 +2406,7 @@ _                   (EmitPatchingBranch(o, scope));
         displacedPage        = NULL;
 
         ReleaseCompilationCodePage(o);
-_       (SetCompilationPage(o, returnTo));
+        o->page = returnTo;
 
         EmitPointer(o, startPC);
         targetStubs[target] = startPC;
@@ -2567,7 +2577,7 @@ _   (EmitOp(o, useTailCall ? op_ReturnCallRef : op_CallRef));
     EmitSlotOffset(o, execTop);
 
     if (not useTailCall) {
-_       (RecordSafePoint(o, safepoint_call, 0, GetFuncTypeNumResults(type), NULL));
+_       (RecordSafePoint(o, safepoint_call, 0, GetFuncTypeNumResults(type), execTop, NULL));
     }
 
     if (useTailCall) {
@@ -2725,7 +2735,7 @@ _           (EmitOp(o, op));
             if (not useTailCall) {
                 // a suspend inside the callee leaves this frame waiting here, its
                 // results not yet written
-_               (RecordSafePoint(o, safepoint_call, 0, GetFuncTypeNumResults(target->funcType), NULL));
+_               (RecordSafePoint(o, safepoint_call, 0, GetFuncTypeNumResults(target->funcType), slotTop, NULL));
             }
 
             if (useTailCall) {
@@ -2801,7 +2811,7 @@ _   (EmitOp(o, useTailCall ? op_ReturnCallIndirect : op_CallIndirect));
     EmitSlotOffset(o, execTop);
 
     if (not useTailCall) {
-_       (RecordSafePoint(o, safepoint_call, 0, GetFuncTypeNumResults(type), NULL));
+_       (RecordSafePoint(o, safepoint_call, 0, GetFuncTypeNumResults(type), execTop, NULL));
     }
 
     if (useTailCall) {
@@ -3520,7 +3530,7 @@ _       (AcquireCompilationCodePage(o, &stubPage));
 
         pc_t startPC  = GetPagePC(stubPage);
         displacedPage = o->page;
-_       (SetCompilationPage(o, stubPage));
+        o->page       = stubPage;
 
         u16 firstIndex = o->stackIndex;
 
@@ -3554,7 +3564,7 @@ _           (ResolveBlockResults(o, scope, /* isBranch: */ true));
 
 _           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
-_           (RecordSafePoint(o, safepoint_op, 2, 0, scope));
+_           (RecordBackEdge(o, scope, false));
         } else if (scope->depth == 0) {
 _           (ReturnValues(o, scope, /* isBranch: */ true));
 _           (EmitOp(o, op_Return));
@@ -3567,7 +3577,7 @@ _           (EmitPatchingBranch(o, scope));
         displacedPage        = NULL;
 
         ReleaseCompilationCodePage(o);
-_       (SetCompilationPage(o, returnTo));
+        o->page = returnTo;
 
         *(pc_t*)clause->stubSlot = startPC;
 
@@ -3905,7 +3915,7 @@ _   (EmitOp(o, op_Suspend));
 
     // the results are part of the frame here: op_Suspend clears them, and
     // whatever resumes this writes them before anything reads them
-_   (RecordSafePoint(o, safepoint_suspend, 0, 0, NULL));
+_   (RecordSafePoint(o, safepoint_suspend, 0, numResults, 0, NULL));
 
 } _catch: return result;
 }
@@ -4043,7 +4053,7 @@ _       (GetBlockScope(o, &scope, clauseLabelDepths[i]));
 _       (AcquireCompilationCodePage(o, &stubPage));
         pc_t startPC  = GetPagePC(stubPage);
         displacedPage = o->page;
-_       (SetCompilationPage(o, stubPage));
+        o->page       = stubPage;
 
         u16 firstIndex = o->stackIndex;
         for (u16 a = 0; a < numPayload; ++a) {
@@ -4067,7 +4077,7 @@ _       (EmitOp(o, op_ResumePayload));
 _           (ResolveBlockResults(o, scope, true));
 _           (EmitOp(o, Op_ContinueLoop(o)));
             EmitPointer(o, scope->pc);
-_           (RecordSafePoint(o, safepoint_op, 2, 0, scope));
+_           (RecordBackEdge(o, scope, false));
         } else if (scope->depth == 0) {
 _           (ReturnValues(o, scope, true));
 _           (EmitOp(o, op_Return));
@@ -4080,7 +4090,7 @@ _           (EmitPatchingBranch(o, scope));
         displacedPage        = NULL;
 
         ReleaseCompilationCodePage(o);
-_       (SetCompilationPage(o, returnTo));
+        o->page = returnTo;
 
         handlers[i].stubPC = startPC;
 
@@ -4134,7 +4144,7 @@ _   (EmitOp(o, op_Resume));
 
     // a suspend passing through the resumed continuation leaves this frame
     // waiting here, with the continuation's results not yet taken
-_   (RecordSafePoint(o, safepoint_resume, 0, numContResults, NULL));
+_   (RecordSafePoint(o, safepoint_resume, 0, numContResults, (u16)numClauses, NULL));
 
 } _catch:
     if (displacedPage) {
@@ -4235,7 +4245,7 @@ _   (EmitOp(o, op_Switch));
     }
 
     // as with suspend: op_Switch clears the results before it leaves
-_   (RecordSafePoint(o, safepoint_suspend, 0, 0, NULL));
+_   (RecordSafePoint(o, safepoint_suspend, 0, numResults, 0, NULL));
 
 } _catch: return result;
 }
@@ -4254,7 +4264,7 @@ _   (AcquireCompilationCodePage(o, &elsePage));
 
     *o_startPC = GetPagePC(elsePage);
 
-_   (SetCompilationPage(o, elsePage));
+    o->page = elsePage;
 
 _   (CompileBlock(o, i_blockType, c_waOp_else));
 
@@ -4266,11 +4276,7 @@ _   (EmitOp(o, op_Branch));
         ReleaseCompilationCodePage(o);
     }
 
-    M3Result pageResult = SetCompilationPage(o, savedPage);
-
-    if (not result) {
-        result = pageResult;
-    }
+    o->page = savedPage;
 
     return result;
 }
@@ -5389,13 +5395,19 @@ IM3OpInfo GetOpInfo (m3opcode_t opcode)
     return (info and IsImplementedOp(info)) ? info : NULL;
 }
 
-#if d_m3HasGasMetering
+#if d_m3CompilesGasSegments
 
 //----- GAS METERING ------------------------------------------------------------------------------------------------------
 //
 // Instrumentation the engine applies to a function body as it compiles it,
 // following ewasm's metering design, which does the same thing to the Wasm ahead
 // of time: https://github.com/ewasm/design/blob/master/metering.md
+//
+// A suspendable runtime that is not metering still cuts the body into the same
+// segments, and records a safepoint wherever a segment would be charged, without
+// emitting the charge. A runtime that was metering can stop at any of those when
+// its gas runs out, and a snapshot taken there has to be able to go on in one that
+// is not metering, or in a build that cannot meter at all.
 //
 // The body is cut into segments at the instructions that can transfer control,
 // and each segment is charged in full, before any of it runs, by an op_UseGas
@@ -5555,13 +5567,31 @@ bool IsGasSegmentEnd (m3opcode_t i_opcode)
 static
 void CloseGasSegment (IM3Compilation o)
 {
-    if (o->gasPatch) {
-        u32 cost = o->gasCost;
-        memcpy(o->gasPatch, &cost, sizeof(cost));
+    if (o->isGasSegmentOpen) {
+#  if d_m3HasGasMetering
+        if (o->gasPatch) {
+            u32 cost = o->gasCost;
+            memcpy(o->gasPatch, &cost, sizeof(cost));
 
-        o->gasPatch = NULL;
-        o->gasCost  = 0;
+            o->gasPatch = NULL;
+        }
+#  endif
+        o->gasCost          = 0;
+        o->isGasSegmentOpen = false;
     }
+}
+
+// Whether this compilation emits the charges, rather than only keeping track of
+// where they would go
+static inline
+bool IsMetering (IM3Compilation o)
+{
+#  if d_m3HasGasMetering
+    return o->runtime->gasLimit != 0;
+#  else
+    (void)o;
+    return false;
+#  endif
 }
 
 // Charges one instruction to the segment being compiled, opening a segment at
@@ -5579,7 +5609,14 @@ M3Result MeterOpcode (IM3Compilation o, m3opcode_t i_opcode)
 
     // constant expressions are not metered: they run once at instantiation,
     // before the module is anything a gas budget was handed out for
-    if (o->function and o->page and o->runtime->gasLimit) {
+    bool isMetering = o->function and o->page and IsMetering(o);
+    bool isTracking = isMetering;
+
+#  if d_m3HasSnapshots
+    isTracking = isTracking or (o->function and o->page and o->snapshotMap);
+#  endif
+
+    if (isTracking) {
         // only the 0xFC prefix has been read so far; the instruction it names is
         // the LEB128 u32 the compiler is about to take. Peek it without consuming.
         // Anything the tables do not cover leaves the prefix priced on its own,
@@ -5595,17 +5632,30 @@ M3Result MeterOpcode (IM3Compilation o, m3opcode_t i_opcode)
 
         u32 cost = GetGasCost(i_opcode);
 
-        if (o->gasPatch and o->gasCost > d_m3MaxSegmentGas - cost) {
+        if (o->isGasSegmentOpen and o->gasCost > d_m3MaxSegmentGas - cost) {
             CloseGasSegment(o);
         }
 
-        if (not o->gasPatch) {
-_           (EmitOp(o, op_UseGas));
-            o->gasPatch = (void*)GetPagePC(o->page);
-            EmitConstant32(o, 0);
+        if (not o->isGasSegmentOpen) {
+            o->isGasSegmentOpen = true;
 
-            // running out of gas suspends a suspendable runtime right here
-_           (RecordSafePoint(o, safepoint_op, 2, 0, NULL));
+            if (isMetering) {
+#  if d_m3HasGasMetering
+_               (EmitOp(o, op_UseGas));
+                o->gasPatch = (void*)GetPagePC(o->page);
+                EmitConstant32(o, 0);
+
+                // running out of gas suspends a suspendable runtime right here
+_               (RecordSafePoint(o, safepoint_gas, 2, 0, 0, NULL));
+#  endif
+            } else {
+                // Where the charge would be, which is where the code that follows
+                // it will be. Emitting the charge would also have kept a local.set
+                // from folding into the operation before it, and so has this.
+                InvalidateFold(o);
+
+_               (RecordSafePoint(o, safepoint_gas, 0, 0, 0, NULL));
+            }
         }
 
         o->gasCost += cost;
@@ -5618,7 +5668,7 @@ _           (RecordSafePoint(o, safepoint_op, 2, 0, NULL));
     _catch: return result;
 }
 
-#endif // d_m3HasGasMetering
+#endif // d_m3CompilesGasSegments
 
 
 M3Result CompileBlockStatements (IM3Compilation o)
@@ -5670,7 +5720,7 @@ _       (Read_opcode(&opcode, &o->wasm, o->wasmEnd));
             _throw(ErrorCompile(m3Err_unknownOpcode, o, "opcode '%x' not available", opcode));
         }
 
-#if d_m3HasGasMetering
+#if d_m3CompilesGasSegments
 _       (MeterOpcode(o, opcode));
 #endif
 
@@ -5755,6 +5805,19 @@ M3Result CompileBlock (IM3Compilation o, IM3FuncType i_blockType, m3opcode_t i_b
     */
 
 _try {
+#if d_m3HasSnapshots
+    // op_Loop's frame records the body, which is also the loop's identity;
+    // op_TryTable's records its clause table, two words a clause back from it
+    if (i_blockOpcode == c_waOp_loop) {
+_       (RecordBlockStart(o, i_blockOpcode, block->pc, 0));
+    }
+#  if d_m3HasExceptionHandling
+    else if (i_blockOpcode == c_waOp_tryTable) {
+_       (RecordBlockStart(o, i_blockOpcode, block->pc - 2 * o->numTryClauses, o->numTryClauses));
+    }
+#  endif
+#endif
+
     // validate and dealloc params ----------------------------
 
     u16 stackIndex = o->stackIndex;
@@ -6004,6 +6067,10 @@ _try {
 _   (ReadLEB_u32(&size, &o->wasm, o->wasmEnd));                     d_m3Assert (size == (o->wasmEnd - o->wasm))
 
 #if d_m3HasSnapshots
+    o->bodyStart = o->wasm;
+#endif
+
+#if d_m3HasSnapshots
     // only code that can be suspended can end up in a snapshot
     if (runtime->isSuspendable) {
         o->snapshotMap = m3_AllocStruct(M3SnapshotMap);
@@ -6012,7 +6079,6 @@ _   (ReadLEB_u32(&size, &o->wasm, o->wasmEnd));                     d_m3Assert (
 #endif
 
 _   (AcquireCompilationCodePage(o, &o->page));
-    BeginCodeRun(o);
 
     pc_t pc = GetPagePC(o->page);
 
@@ -6039,7 +6105,11 @@ _       (PushAllocatedSlot(o, type));
 
 _   (CompileLocals(o));
 
-#if d_m3HasGasMetering
+#if d_m3HasSnapshots
+_   (RecordLocals(o));
+#endif
+
+#if d_m3CompilesGasSegments
     // the table charges for a function's locals as well as for its instructions.
     // op_Entry is what sets them up, so the charge rides on the body's first
     // segment, which is emitted right after it
@@ -6078,8 +6148,6 @@ _   (CompileBlockStatements(o));
         io_function->constants = m3_CopyMem((cbytes_t)o->constants, io_function->numConstantBytes);
         _throwifnull(io_function->constants);
     }
-
-_   (EndCodeRun(o));
 
 #if d_m3HasSnapshots
     io_function->snapshotMap = o->snapshotMap;

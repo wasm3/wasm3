@@ -78,6 +78,36 @@ Nothing has to be assembled by hand: the runner does it before the run, with the
 under test. Pass `--host ../build/wasm3` if the interpreter
 under test is not capable of running WABT.
 
+## Running snapshot tests
+
+```sh
+# In test directory:
+python3 run-snapshot-test.py --exec ../build/wasm3 --exec-other ../build-slot64/wasm3 --verify
+```
+
+Runs WASI programs in legs of a fixed gas budget: each leg that runs out saves a
+[snapshot](./Snapshots.md), and the next resumes it, alternately in `--exec` and
+`--exec-other`. A few of the snapshots are also taken to the end by the other build
+with no gas limit at all. Whatever the builds are, the output has to match an
+uninterrupted run. `--verify` checks every snapshot with
+[`extra/w3s-tool.py`](../extra/w3s-tool.py) as well. `--legs` is exact: `--legs 3
+--forks 0` suspends each program twice, in `--exec` and then in `--exec-other`, and
+finishes it in `--exec`. Both builds have to say `snapshots` in their `--version`
+banner.
+
+The point is two builds that lay their state out differently. A 64-bit-slot build is
+one cmake option away:
+
+```sh
+cmake -S . -B build-slot64 -DCMAKE_C_FLAGS="-Dd_m3Use32BitSlots=0"
+cmake --build build-slot64
+```
+
+`--exec-other` takes a runner prefix as `--exec` does, so the other build can be a
+big-endian one under qemu (`"qemu-s390x-static ../build-cross/wasm3-linux-s390x"`) or,
+from WSL, a Windows `wasm3.exe`. Without `--exec-other` the run still covers saving,
+restoring and switching gas metering off within one build.
+
 ## Running strace tests
 
 ```sh

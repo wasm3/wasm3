@@ -1705,8 +1705,8 @@ d_m3Op(CompileReturnCall)
 // would stop a suspend from inside a resumed one at that resume, with no stub
 // to run. Naming none sends it through every resume up to the host.
 static
-void SuspendWithoutTag (IM3Runtime io_runtime, IM3Continuation io_cont, pc_t i_pc, m3stack_t i_sp,
-                        m3reg_t i_r0
+void SuspendWithoutTag (IM3Runtime io_runtime, IM3Continuation io_cont, M3SafePointKind i_kind,
+                        pc_t i_pc, m3stack_t i_sp, m3reg_t i_r0
 #  if d_m3HasFloat
                         ,
                         f64 i_fp0
@@ -1722,7 +1722,7 @@ void SuspendWithoutTag (IM3Runtime io_runtime, IM3Continuation io_cont, pc_t i_p
     io_runtime->numSuspendPayload = 0;
 
     io_cont->pc = i_pc;
-    io_cont->suspendPoint = safepoint_op;
+    io_cont->suspendPoint = (u8)i_kind;
     io_cont->sp = i_sp;
     io_cont->r0 = i_r0;
 #  if d_m3HasFloat
@@ -1756,7 +1756,8 @@ d_m3Op(UseGas)
             // the operation has not run, so it has not spent anything either
             runtime->gasRemaining += (i64)cost;
 
-            SuspendWithoutTag(runtime, runtime->activeContinuation, _pc - 2, _sp, d_m3ExpRegArgs(_r0, _fp0));
+            SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_gas, _pc - 2, _sp,
+                              d_m3ExpRegArgs(_r0, _fp0));
 
             return m3Err_continuationSuspended;
         }
@@ -3421,7 +3422,8 @@ d_m3Op(ContinueLoop_Suspendable)
 
     IM3Runtime runtime = m3MemRuntime(_mem);
     if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
-        SuspendWithoutTag(runtime, runtime->activeContinuation, _pc - 1, _sp, d_m3ExpRegArgs(_r0, _fp0));
+        SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_op, _pc - 1, _sp,
+                          d_m3ExpRegArgs(_r0, _fp0));
 
         return m3Err_continuationSuspended;
     }
@@ -3439,7 +3441,8 @@ d_m3Op(ContinueLoopIf_Suspendable)
     if (condition) {
         IM3Runtime runtime = m3MemRuntime(_mem);
         if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
-            SuspendWithoutTag(runtime, runtime->activeContinuation, _pc - 2, _sp, d_m3ExpRegArgs(_r0, _fp0));
+            SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_op, _pc - 2, _sp,
+                              d_m3ExpRegArgs(_r0, _fp0));
 
             return m3Err_continuationSuspended;
         }
