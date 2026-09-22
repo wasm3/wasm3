@@ -297,8 +297,56 @@
 // references proposal. Off by default: it is not finished, and it widens the
 // value type from one byte to two wherever the compiler carries one.
 #ifndef d_m3HasTypedRefs
-#  define d_m3HasTypedRefs                     0
+#  define d_m3HasTypedRefs                     1
 #endif
+
+// The stack switching proposal: typed first-class continuations, control tags,
+// suspend and resume. Built on the typed reference types, which is where a
+// continuation type gets the identity that switch needs to name its peer, so
+// it follows d_m3HasTypedRefs unless asked for explicitly.
+#ifndef d_m3HasStackSwitching
+#  define d_m3HasStackSwitching                d_m3HasTypedRefs
+#endif
+
+#if d_m3HasStackSwitching && !d_m3HasTypedRefs
+#  error "d_m3HasStackSwitching requires d_m3HasTypedRefs"
+#endif
+
+// The Wasm value stack a continuation runs on. It has to be its own buffer
+// rather than a window onto the runtime stack, because it outlives the resume
+// that started it.
+#ifndef d_m3ContinuationStackSlots
+#  define d_m3ContinuationStackSlots           1024
+#endif
+
+// How many values a control tag may carry, and how many a suspended
+// continuation may be handed when it is resumed or switched into. Bounds the
+// fixed arrays a continuation keeps for them, so a module that asks for more
+// is rejected at compile time.
+#ifndef d_m3MaxContinuationPayload
+#  define d_m3MaxContinuationPayload           16
+#endif
+
+// How deep the interpreter may be in native frames when a continuation
+// suspends. Only reached frames are recorded and the array grows to fit, so
+// this is a ceiling rather than an allocation; past it, the suspend traps.
+#ifndef d_m3ContinuationMaxFrames
+#  define d_m3ContinuationMaxFrames            256
+#endif
+
+// Snapshot serialization & deserialization. Allows saving suspended execution
+// state (linear memory, globals, tables, value stack, and virtual frames) and
+// restoring it to resume execution.
+#ifndef d_m3HasSnapshots
+#  define d_m3HasSnapshots                     d_m3HasStackSwitching
+#endif
+
+// Minimum run length of consecutive 0x00 or 0xFF bytes to trigger sparse
+// compression during snapshot linear memory encoding.
+#ifndef d_m3SnapshotRunThreshold
+#  define d_m3SnapshotRunThreshold             128
+#endif
+
 
 // Gas metering. Once m3_SetGasLimit has armed a runtime, the compiler
 // instruments the function bodies it compiles from then on: each straight-line

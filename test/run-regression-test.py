@@ -300,6 +300,14 @@ tests = [
     "args":           ["--func", "to_test"],
     "expect_trap":    "uncaught exception",
   }, {
+    # stack switching comes with typed references unless a build asks otherwise,
+    # and the banner names only the latter
+    "name":           "throw after a resume's on clause left a try region",
+    "module":         "./regression/exceptions-stale-try-on-clause.wast",
+    "args":           ["--func", "to_test"],
+    "expect_trap":    "uncaught exception",
+    "requires":       "typed-refs",
+  }, {
     # the catch handler runs on op_TryTable's frame, whose memory pointer is
     # stale if the body grew linear memory
     "name":           "memory.grow inside a try body",

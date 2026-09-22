@@ -66,6 +66,14 @@ enum {
     c_waOp_brOnNull           = 0xd5,
     c_waOp_brOnNonNull        = 0xd6,
 
+    c_waOp_contNew            = 0xe0,
+    c_waOp_contBind           = 0xe1,
+    c_waOp_suspend            = 0xe2,
+    c_waOp_resume             = 0xe3,
+    c_waOp_resumeThrow        = 0xe4,
+    c_waOp_resumeThrowRef     = 0xe5,
+    c_waOp_switch             = 0xe6,
+
     c_waOp_extended           = 0xfc,
 
     c_waOp_memoryInit         = 0xfc08,
@@ -104,6 +112,7 @@ typedef struct M3CompilationScope {
     IM3FuncType                type;
     m3opcode_t                 opcode;
     bool                       isPolymorphic;
+    u32                        snapshotBlock;      // its M3BlockStart in the snapshot map, plus one; 0 for none
 } M3CompilationScope;
 
 typedef M3CompilationScope* IM3CompilationScope;
@@ -185,12 +194,24 @@ typedef struct
     bool isInitExpr;                 // walking a constant expression, not a function body
 
 #if d_m3HasGasMetering
-    // The metering segment being compiled: where its op_UseGas left an immediate
-    // for the cost to be written back into once the segment's extent is known,
-    // and the cost accumulated so far. NULL when no segment is open, which is
-    // also how a build that isn't metering this function says so.
+    // The metering segment being compiled, the cost accumulated so far, and
+    // where its op_UseGas left an immediate for the cost to be written back
+    // into once the segment's extent is known
     void* gasPatch;
     u32   gasCost;
+    bool  isGasSegmentOpen;
+#endif
+
+#if d_m3HasSnapshots
+    // The function's snapshot map as it is being built, or NULL when this
+    // compilation records none, and where the body the offsets in it count
+    // from begins.
+    M3SnapshotMap* snapshotMap;
+    u32*           localInitDepth; // lexical scope that initialized each non-defaultable local
+    u32            safePointsCapacity;
+    u32            valuesCapacity;
+    u32            blocksCapacity;
+    bytes_t        bodyStart;
 #endif
 
 #if d_m3FoldSetLocal
@@ -303,6 +324,12 @@ M3Result CompileExpression (IM3Compilation io, IM3FuncType i_resultType);
 M3Result CompileFunction (IM3Function io_function);
 
 M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const void* i_function, const void* i_userdata);
+
+struct M3Continuation;
+
+#if d_m3HasStackSwitching
+m3ret_t ResumeContinuation (IM3Runtime i_runtime, struct M3Continuation* i_cont);
+#endif
 
 d_m3EndExternC
 

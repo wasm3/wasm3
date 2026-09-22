@@ -99,11 +99,6 @@ WORKLOADS = [
         "wasm":     "./wasi/mal/mal.wasm",
         "args":     ["./wasi/mal/test-fib.mal", "22"],
         "metrics":  [("mal-fib", "wall", None)],
-    }, {
-        "name":     "selfhost-fib",
-        "wasm":     "./self-hosting/wasm3-fib.wasm",
-        "expect":   "Result: 832040",
-        "metrics":  [("selfhost-fib", "re_inv", r"Elapsed:\s*([0-9]+) ms", 1000)],
     },
 ]
 # fmt: on

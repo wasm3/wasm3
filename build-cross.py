@@ -205,7 +205,7 @@ def build_musl(target, cc, toolchain_src=None, tar_name=None):
             mkdir -p {build_dir}
             cd {build_dir}
             export CC="{f"../../{cc}" if toolchain_src else cc}"
-            export CFLAGS="-Dd_m3HasTypedRefs=1 {target["cflags"]}"
+            export CFLAGS="{target["cflags"]}"
             export LDFLAGS="-static -s"
             cmake -GNinja -DBUILD_NATIVE=OFF ../..
             cmake --build .

@@ -126,6 +126,123 @@ d_m3RetSig profileJumpOp (d_m3OpSig, cstr_t i_operationName);
 #endif
 
 
+#if d_m3HasStackSwitching
+
+// Calling into compiled code with an explicit register pair, which the replay
+// needs and the d_m3OpDefaultArgs spelling cannot express.
+#  if d_m3HasFloat
+#    define d_m3ExpRegArgs(R0, FP0)        (R0), (FP0)
+#  else
+#    define d_m3ExpRegArgs(R0, FP0)        (R0)
+#  endif
+
+#  if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+#    define d_m3CallWithRegs(PC, SP, MEM, R0, FP0)                             \
+         Call ((PC), (SP), (MEM), d_m3ExpRegArgs (R0, FP0), d_m3BaseCstr)
+#  else
+#    define d_m3CallWithRegs(PC, SP, MEM, R0, FP0)                             \
+         Call ((PC), (SP), (MEM), d_m3ExpRegArgs (R0, FP0))
+#  endif
+
+// A suspend is on its way up the native stack and this call was holding a
+// frame: record what it takes to stand that frame back up, then keep unwinding
+// with whatever the recording says. The registers go in because op_Call
+// resumes the caller with the ones its own frame was holding.
+//
+// Out of line, and deliberately so: op_Call and its two siblings are the
+// deepest-recursing functions in the interpreter, and a whole M3Frame of
+// locals on every call is stack the recursion cannot spare - least of all in a
+// sanitizer build, where each local carries a redzone.
+//
+// Called ahead of pushBacktraceFrame: a suspend is not a trap and has no
+// business writing a backtrace.
+static M3_NOINLINE
+m3ret_t RecordCallFrame (IM3Runtime i_runtime, pc_t i_pc, m3stack_t i_sp, IM3Memory i_memory,
+                         IM3Function i_function, m3reg_t i_r0
+#  if d_m3HasFloat
+                         ,
+                         f64 i_fp0
+#  endif
+)
+{
+    M3Frame frame;
+
+    frame.kind = frame_call;
+    frame.pc = i_pc;
+    frame.sp = i_sp;
+    frame.memory = i_memory;
+    frame.call.function = i_function;
+    frame.call.r0 = i_r0;
+#  if d_m3HasFloat
+    frame.call.fp0 = i_fp0;
+#  endif
+
+    return Continuation_RecordFrame(i_runtime, &frame);
+}
+
+#  define d_m3RecordCallFrame(MEMORY, FUNCTION)                                \
+       if (M3_UNLIKELY (r == m3Err_continuationSuspended)) {                   \
+           return RecordCallFrame (m3MemRuntime (_mem), _pc, _sp, (MEMORY),    \
+                                   (FUNCTION), d_m3ExpRegArgs (_r0, _fp0));    \
+       }
+
+
+// op_Loop and op_TryTable hold native frames across their bodies and nest as
+// deeply as the Wasm does, so they keep their frames out of this too.
+static M3_NOINLINE
+m3ret_t RecordLoopFrame (IM3Runtime i_runtime, pc_t i_pc, m3stack_t i_sp, IM3Memory i_memory)
+{
+    M3Frame frame;
+
+    frame.kind = frame_loop;
+    frame.pc = i_pc;
+    frame.sp = i_sp;
+    frame.memory = i_memory;
+
+    return Continuation_RecordFrame(i_runtime, &frame);
+}
+
+
+#  if d_m3HasExceptionHandling
+static M3_NOINLINE
+m3ret_t RecordTryFrame (IM3Runtime i_runtime, pc_t i_clauses, m3stack_t i_sp, IM3Memory i_memory,
+                        u32 i_numClauses, bool i_handlersLive)
+{
+    M3Frame frame;
+
+    frame.kind = frame_try;
+    frame.pc = i_clauses;
+    frame.sp = i_sp;
+    frame.memory = i_memory;
+    frame.try_.numClauses = i_numClauses;
+    frame.try_.handlersLive = i_handlersLive;
+
+    return Continuation_RecordFrame(i_runtime, &frame);
+}
+#  endif
+
+
+#  if d_m3EntryKeepsFrame
+static M3_NOINLINE
+m3ret_t RecordEntryFrame (IM3Runtime i_runtime, pc_t i_pc, m3stack_t i_sp, IM3Memory i_memory,
+                          IM3Function i_function)
+{
+    M3Frame frame;
+
+    frame.kind = frame_entry;
+    frame.pc = i_pc;
+    frame.sp = i_sp;
+    frame.memory = i_memory;
+    frame.entry.function = i_function;
+
+    return Continuation_RecordFrame(i_runtime, &frame);
+}
+#  endif
+#else
+#  define d_m3RecordCallFrame(MEMORY, FUNCTION)
+#endif
+
+
 #if d_m3EnableStrace == 1
 // Flat trace
 #  define d_m3TracePrepare
@@ -722,6 +839,40 @@ d_m3Op(SetGlobal_i64)
 }
 
 
+#if d_m3HasStackSwitching
+
+d_m3Op(Branch);
+d_m3Op(Entry);
+#  if !d_m3EntryKeepsFrame
+d_m3Op(Entry_Suspendable);
+#  endif
+
+// The function a body of compiled code belongs to. op_Call is handed the code
+// rather than the function, but every body opens with op_Entry and the function
+// it enters - past a bridge, where the page ran out before the first op.
+static M3_NOINLINE
+IM3Function FunctionOfCompiledCode (pc_t i_pc)
+{
+    if (not i_pc) {
+        return NULL;
+    }
+
+    while ((IM3Operation)i_pc[0] == op_Branch) {
+        i_pc = (pc_t)i_pc[1];
+    }
+
+    IM3Operation entry = (IM3Operation)i_pc[0];
+
+#  if !d_m3EntryKeepsFrame
+    if (entry == op_Entry_Suspendable) {
+        return (IM3Function)i_pc[1];
+    }
+#  endif
+    return (entry == op_Entry) ? (IM3Function)i_pc[1] : NULL;
+}
+
+#endif
+
 d_m3Op(Call)
 {
     d_m3CheckNativeStack();
@@ -743,6 +894,7 @@ d_m3Op(Call)
     if (M3_LIKELY(not r)) {
         nextOp();
     } else {
+        d_m3RecordCallFrame(memory, FunctionOfCompiledCode(callPC));
         pushBacktraceFrame();
         forwardTrap(r);
     }
@@ -782,6 +934,7 @@ d_m3Op(CallRef)
                 if (M3_LIKELY(not r)) {
                     nextOpDirect();
                 } else {
+                    d_m3RecordCallFrame(memory, function);
                     pushBacktraceFrame();
                     forwardTrap(r);
                 }
@@ -854,6 +1007,7 @@ d_m3Op(CallIndirect)
                     if (M3_LIKELY(not r)) {
                         nextOpDirect();
                     } else {
+                        d_m3RecordCallFrame(memory, function);
                         pushBacktraceFrame();
                         forwardTrap(r);
                     }
@@ -990,9 +1144,9 @@ d_m3Op(CallRawFunction)
 {
     d_m3TracePrepare
 
-      M3ImportContext ctx;
+    M3ImportContext ctx;
 
-    M3RawCall         call = (M3RawCall)(*_pc++);
+    M3RawCall       call = (M3RawCall)(*_pc++);
     ctx.function = immediate(IM3Function);
     ctx.userdata = immediate(void*);
     u64* const sp = ((u64*)_sp);
@@ -1548,6 +1702,48 @@ d_m3Op(CompileReturnCall)
 }
 
 
+#if d_m3HasStackSwitching
+// Suspending for a reason that is not a control tag - the host asked, or the
+// gas ran out. There is no handler to look for and no payload to carry, and
+// clearing the routing a previous suspend left behind is what keeps this from
+// being mistaken for one: a resume reads those fields to decide where to send
+// the marker, and would otherwise send this one into whatever stub was last
+// used, with whatever payload last went with it.
+//
+// No continuation handles it either. A resume that finds itself named as the
+// handler takes the suspend as its own, so naming the suspending continuation
+// would stop a suspend from inside a resumed one at that resume, with no stub
+// to run. Naming none sends it through every resume up to the host.
+static
+void SuspendWithoutTag (IM3Runtime io_runtime, IM3Continuation io_cont, M3SafePointKind i_kind,
+                        pc_t i_pc, m3stack_t i_sp, m3reg_t i_r0
+#  if d_m3HasFloat
+                        ,
+                        f64 i_fp0
+#  endif
+)
+{
+    io_runtime->suspendRequested = false;
+
+    io_runtime->suspendTag = NULL;
+    io_runtime->suspendHandlerCont = NULL;
+    io_runtime->suspendStubPC = NULL;
+    io_runtime->switchTarget = NULL;
+    io_runtime->numSuspendPayload = 0;
+
+    io_cont->pc = i_pc;
+    io_cont->suspendPoint = (u8)i_kind;
+    io_cont->sp = i_sp;
+    io_cont->r0 = i_r0;
+#  if d_m3HasFloat
+    io_cont->fp0 = i_fp0;
+#  endif
+
+    io_cont->numSuspendResults = 0;
+}
+#endif // d_m3HasStackSwitching
+
+
 #if d_m3HasGasMetering
 
 // Pays for the straight-line segment of the function body that follows, before
@@ -1565,6 +1761,15 @@ d_m3Op(UseGas)
     runtime->gasRemaining -= (i64)cost;
 
     if (M3_UNLIKELY(runtime->gasRemaining < 0)) {
+#  if d_m3HasStackSwitching
+        // A runtime that can pause does, at the next pause point: running out
+        // is a request to stop, like the host's, and the segment runs on to
+        // it. The counter goes below zero by what it takes to get there.
+        if (runtime->isSuspendable and runtime->activeContinuation) {
+            runtime->suspendRequested = true;
+            nextOp();
+        }
+#  endif
         newTrap(m3Err_trapOutOfGas);
     }
 
@@ -1574,34 +1779,57 @@ d_m3Op(UseGas)
 #endif // d_m3HasGasMetering
 
 
+// Whether a function's frame fits the stack it is about to be entered on
+static inline
+bool EntryFits (IM3Function i_function, m3stack_t _sp, M3MemoryHeader* _mem)
+{
+#if d_m3SkipStackCheck
+    (void)i_function;
+    (void)_sp;
+    (void)_mem;
+    return true;
+#elif d_m3HasStackSwitching
+    IM3Continuation _act = (_mem ? m3MemRuntime(_mem)->activeContinuation : NULL);
+    void*           maxStack = (_act && _act->valStack)
+                                 ? (void*)(_act->valStack + _act->numStackSlots)
+                                 : (_mem ? _mem->maxStack : (void*)~(uintptr_t)0);
+    return M3_LIKELY((void*)(_sp + i_function->maxStackSlots) < maxStack);
+#else
+    return M3_LIKELY((void*)(_sp + i_function->maxStackSlots) < _mem->maxStack);
+#endif
+}
+
+// Sets up a function's frame: its locals zeroed, and its constants copied in
+static inline
+void EnterFrame (IM3Function i_function, m3stack_t _sp)
+{
+#if defined(DEBUG)
+    i_function->hits++;
+#endif
+    u8* stack = (u8*)((m3slot_t*)_sp + i_function->numRetAndArgSlots);
+
+    memset(stack, 0x0, i_function->numLocalBytes);
+    stack += i_function->numLocalBytes;
+
+    if (i_function->constants) {
+        memcpy(stack, i_function->constants, i_function->numConstantBytes);
+    }
+}
+
+
 d_m3Op(Entry)
 {
     d_m3ClearRegisters
 
-      d_m3TracePrepare
+    d_m3TracePrepare
 
-        IM3Function function = immediate(IM3Function);
+    IM3Function function = immediate(IM3Function);
 #if d_m3EntryKeepsFrame
     IM3Memory memory = m3MemInfo(_mem);
 #endif
 
-#if d_m3SkipStackCheck
-    if (true)
-#else
-    if (M3_LIKELY((void*)(_sp + function->maxStackSlots) < _mem->maxStack))
-#endif
-    {
-#if defined(DEBUG)
-        function->hits++;
-#endif
-        u8* stack = (u8*)((m3slot_t*)_sp + function->numRetAndArgSlots);
-
-        memset(stack, 0x0, function->numLocalBytes);
-        stack += function->numLocalBytes;
-
-        if (function->constants) {
-            memcpy(stack, function->constants, function->numConstantBytes);
-        }
+    if (EntryFits(function, _sp, _mem)) {
+        EnterFrame(function, _sp);
 
 #if !d_m3EntryKeepsFrame
         // there's nothing left to do once the body returns, so hand this native frame
@@ -1630,6 +1858,11 @@ d_m3Op(Entry)
 
         if (M3_UNLIKELY(r)) {
             _mem = memory->mallocated;
+#  if d_m3HasStackSwitching
+            if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+                return RecordEntryFrame(m3MemRuntime(_mem), _pc, _sp, memory, function);
+            }
+#  endif
             fillBacktraceFrame();
         }
         forwardTrap(r);
@@ -1646,13 +1879,13 @@ d_m3Op(Loop)
 
     d_m3TracePrepare
 
-      // regs are unused coming into a loop anyway
-      // this reduces code size & stack usage
-      d_m3ClearRegisters
+    // regs are unused coming into a loop anyway
+    // this reduces code size & stack usage
+    d_m3ClearRegisters
 
-        m3ret_t r;
+    m3ret_t   r;
 
-    IM3Memory   memory = m3MemInfo(_mem);
+    IM3Memory memory = m3MemInfo(_mem);
 
     do {
 #if d_m3EnableStrace >= 3
@@ -1669,6 +1902,15 @@ d_m3Op(Loop)
         // can potentially invoke the grow operation.
         _mem = memory->mallocated;
     } while (r == _pc);
+
+#if d_m3HasStackSwitching
+    // The loop's identity is its own pc, which is also where its body starts,
+    // so replaying it needs nothing else. Without this the continue sentinel
+    // has no frame left to land in after a resume and gets mistaken for a trap.
+    if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+        return RecordLoopFrame(m3MemRuntime(_mem), _pc, _sp, memory);
+    }
+#endif
 
     forwardTrap(r);
 }
@@ -1714,6 +1956,12 @@ d_m3Op(TryTable)
     bool isInnermost = (runtime->tryDepth == depth);
     runtime->tryDepth = depth - 1;
 
+#  if d_m3HasStackSwitching
+    if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+        return RecordTryFrame(runtime, clauses, _sp, memory, numClauses, isInnermost);
+    }
+#  endif
+
     if (M3_UNLIKELY(r == m3Err_pendingException) and isInnermost) {
         const M3Exception* exception = runtime->pendingException;
 
@@ -1726,7 +1974,7 @@ d_m3Op(TryTable)
                 // an unwind leaves nothing meaningful in the registers
                 d_m3ClearRegisters
 
-                  jumpOpDirect(handler);
+                jumpOpDirect(handler);
             }
         }
 
@@ -1832,6 +2080,935 @@ d_m3Op(PopHandlers)
 }
 
 #endif // d_m3HasExceptionHandling
+
+#if d_m3HasStackSwitching
+
+d_m3Op(ContNew)
+{
+    IM3Runtime  runtime = m3MemRuntime(_mem);
+    IM3FuncType funcType = immediate(IM3FuncType);
+    i32         dstSlot = immediate(i32);
+    i32         funcSlot = immediate(i32);
+
+    IM3Function func = *(IM3Function*)(_sp + funcSlot);
+    if (M3_UNLIKELY(not func)) {
+        newTrap(m3Err_trapNullFunctionRef);
+    }
+
+    IM3Continuation cont = Continuation_New(runtime, funcType, func);
+    if (M3_UNLIKELY(not cont)) {
+        newTrap(m3Err_mallocFailed);
+    }
+
+    *(IM3Continuation*)(_sp + dstSlot) = cont;
+    nextOp();
+}
+
+
+static
+IM3Continuation InnermostSuspended (IM3Continuation i_cont);
+
+d_m3Op(ContBind)
+{
+    IM3Runtime      runtime = m3MemRuntime(_mem);
+    IM3FuncType     ct1 = immediate(IM3FuncType);
+    IM3FuncType     ct2 = immediate(IM3FuncType);
+    i32             dstSlot = immediate(i32);
+    i32             contSlot = immediate(i32);
+    u32             numBound = immediate(u32);
+
+    IM3Continuation srcCont = *(IM3Continuation*)(_sp + contSlot);
+    if (M3_UNLIKELY(not srcCont)) {
+        newTrap(m3Err_trapNullContinuationRef);
+    }
+    if (M3_UNLIKELY(srcCont->state == cont_consumed || srcCont->state == cont_running)) {
+        newTrap(m3Err_trapContinuationConsumed);
+    }
+
+    IM3Continuation dstCont = Continuation_New(runtime, ct2, srcCont->entryFunction);
+    if (M3_UNLIKELY(not dstCont)) {
+        newTrap(m3Err_mallocFailed);
+    }
+
+    // the bound continuation takes over the original's execution state whole,
+    // recorded native frames included: binding a suspended continuation must
+    // not cost it the frames it has to be resumed through
+    m3_Free(dstCont->valStack);
+    m3_Free(dstCont->frames);
+    dstCont->entryFunction = srcCont->entryFunction;
+    dstCont->valStack = srcCont->valStack;
+    dstCont->numStackSlots = srcCont->numStackSlots;
+    dstCont->frames = srcCont->frames;
+    dstCont->framesCap = srcCont->framesCap;
+    dstCont->numFrames = srcCont->numFrames;
+    dstCont->sp = srcCont->sp;
+    dstCont->pc = srcCont->pc;
+    dstCont->suspendPoint = srcCont->suspendPoint;
+    dstCont->r0 = srcCont->r0;
+#  if d_m3HasFloat
+    dstCont->fp0 = srcCont->fp0;
+#  endif
+    dstCont->boundArgsCount = srcCont->boundArgsCount;
+    dstCont->state = srcCont->state;
+#  if d_m3HasExceptionHandling
+    dstCont->resumeThrow = srcCont->resumeThrow;
+    srcCont->resumeThrow = NULL;
+#  endif
+
+    dstCont->numSuspendResults = srcCont->numSuspendResults;
+    for (u32 j = 0; j < srcCont->numSuspendResults; ++j) {
+        dstCont->suspendResultOffsets[j] = srcCont->suspendResultOffsets[j];
+        dstCont->suspendResultIs64[j] = srcCont->suspendResultIs64[j];
+    }
+
+    if (dstCont->state == cont_allocated) {
+        u16 numRets = ct1->contFuncType ? GetFuncTypeNumResults(ct1->contFuncType) : 0;
+        for (u32 i = 0; i < numBound; ++i) {
+            i32 argSlot = immediate(i32);
+            u32 is64 = immediate(u32);
+            u32 targetIdx = (numRets + dstCont->boundArgsCount) * c_ioSlotCount;
+            if (is64) {
+                *(u64*)(dstCont->valStack + targetIdx) = *(u64*)(_sp + argSlot);
+            } else {
+                *(u32*)(dstCont->valStack + targetIdx) = *(u32*)(_sp + argSlot);
+            }
+            dstCont->boundArgsCount++;
+        }
+    } else {
+        IM3Continuation inner = InnermostSuspended(dstCont);
+        for (u32 i = 0; i < numBound; ++i) {
+            i32 argSlot = immediate(i32);
+            u32 is64 = immediate(u32);
+            u32 dstIdx = dstCont->boundArgsCount;
+            if (dstIdx < inner->numSuspendResults) {
+                i32 dstOffset = inner->suspendResultOffsets[dstIdx];
+                if (is64) {
+                    *(u64*)(inner->sp + dstOffset) = *(u64*)(_sp + argSlot);
+                } else {
+                    *(u32*)(inner->sp + dstOffset) = *(u32*)(_sp + argSlot);
+                }
+            }
+            dstCont->boundArgsCount++;
+        }
+    }
+
+    srcCont->valStack = NULL;
+    srcCont->frames = NULL;
+    srcCont->framesCap = 0;
+    srcCont->numFrames = 0;
+    srcCont->state = cont_consumed;
+
+    *(IM3Continuation*)(_sp + dstSlot) = dstCont;
+    nextOp();
+}
+
+
+// Finds the resume whose handler answers this tag, walking out through the
+// continuations that resumed us. i_kind picks which sort of handler counts -
+// 0 for (on $e $l), 1 for (on $e switch). The spec is explicit that the search
+// walks past a handler of the wrong sort even when the tag matches, so the
+// kind is part of the match rather than something checked afterwards.
+static
+IM3Continuation FindHandler (IM3Continuation i_cont, IM3Tag i_tag, u8 i_kind, pc_t* o_stubPC)
+{
+    IM3Tag queryTag = (i_tag and i_tag->resolved) ? i_tag->resolved : i_tag;
+
+    for (IM3Continuation cont = i_cont; cont; cont = cont->parent) {
+        for (u32 h = 0; h < cont->numHandlers; ++h) {
+            pc_t   entry = cont->handlersPC + (h * 3);
+            IM3Tag handlerTag = (IM3Tag)(*(entry + 1));
+            if (handlerTag and handlerTag->resolved) {
+                handlerTag = handlerTag->resolved;
+            }
+
+            if ((u32)(uintptr_t)(*entry) == i_kind and handlerTag == queryTag) {
+                if (o_stubPC) {
+                    *o_stubPC = (pc_t)(*(entry + 2));
+                }
+                return cont;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+
+// Nulls the slots a suspend or switch leaves waiting for whatever resumes it.
+// Until something writes them they are part of the suspended frame holding
+// nothing, and a snapshot taken meanwhile reads each one as the type it will
+// have: a reference there has to be null rather than whatever the slot held.
+static
+void ClearSuspendResults (IM3Continuation io_cont, m3stack_t i_sp)
+{
+    for (u32 i = 0; i < io_cont->numSuspendResults; ++i) {
+        if (io_cont->suspendResultIs64[i]) {
+            *(u64*)(i_sp + io_cont->suspendResultOffsets[i]) = 0;
+        } else {
+            *(m3slot_t*)(i_sp + io_cont->suspendResultOffsets[i]) = 0;
+        }
+    }
+}
+
+
+d_m3Op(Suspend)
+{
+    IM3Runtime      runtime = m3MemRuntime(_mem);
+    IM3Continuation cont = runtime->activeContinuation;
+    if (M3_UNLIKELY(not cont)) {
+        newTrap(m3Err_trapUnhandledControlTag);
+    }
+
+    IM3Tag tag = immediate(IM3Tag);
+    u32    numParams = immediate(u32);
+
+    runtime->numSuspendPayload = numParams;
+    for (u32 i = 0; i < numParams; ++i) {
+        i32 paramSlot = immediate(i32);
+        u32 is64 = immediate(u32);
+        if (is64) {
+            runtime->suspendPayload[i] = *(u64*)(_sp + paramSlot);
+        } else {
+            runtime->suspendPayload[i] = (u64) * (u32*)(_sp + paramSlot);
+        }
+        runtime->suspendPayloadIs64[i] = is64;
+    }
+
+    u32 numResults = immediate(u32);
+    cont->numSuspendResults = numResults;
+    for (u32 i = 0; i < numResults; ++i) {
+        cont->suspendResultOffsets[i] = immediate(i32);
+        cont->suspendResultIs64[i] = immediate(u32);
+    }
+
+    ClearSuspendResults(cont, _sp);
+
+    pc_t            matchedStubPC = NULL;
+    IM3Continuation searchCont = FindHandler(cont, tag, 0, &matchedStubPC);
+
+    if (M3_UNLIKELY(not searchCont)) {
+        newTrap(m3Err_trapUnhandledControlTag);
+    }
+
+    runtime->suspendStubPC = matchedStubPC;
+    runtime->suspendHandlerCont = searchCont;
+    runtime->switchTarget = NULL;
+    runtime->suspendTag = tag;
+
+    cont->pc = _pc;
+    cont->suspendPoint = safepoint_suspend;
+    cont->sp = _sp;
+    cont->r0 = _r0;
+#  if d_m3HasFloat
+    cont->fp0 = _fp0;
+#  endif
+    cont->boundArgsCount = 0;
+
+    return m3Err_continuationSuspended;
+}
+
+
+// ReplayFrames and RunUnderHandlers call each other: a captured resume is a
+// frame like any other, and what it stands back up is a continuation with
+// frames of its own.
+static
+m3ret_t RunUnderHandlers (IM3Runtime i_runtime, IM3Continuation* io_cont,
+                          pc_t i_handlersPC, u32 i_numHandlers, M3MemoryHeader** io_mem);
+static
+void TakeContinuationResults (IM3Continuation i_cont, m3stack_t i_sp,
+                              pc_t i_resultsPC, u32 i_numResults);
+static
+m3ret_t ResumePastCheck (IM3Continuation i_cont, M3MemoryHeader* _mem);
+
+// Whether the suspension point a replay has come down to is resumed past its
+// check. Only the first one reached answers to m3_ResumeRuntime's request: that
+// is the one the runtime paused at, and whatever it is, the request is spent.
+static inline
+bool ResumesPastCheck (IM3Runtime io_runtime, IM3Continuation i_cont)
+{
+    bool pass = io_runtime->resumePastCheck;
+
+    io_runtime->resumePastCheck = false;
+
+    return pass and (i_cont->suspendPoint == safepoint_op or i_cont->suspendPoint == safepoint_entry);
+}
+
+
+// Rebuilds the native frames the suspend unwound through and lands on the
+// suspension point at the bottom of them.
+//
+// Frames were recorded innermost first, which is the order the unwind met
+// them, so this walks down from the outermost and recurses toward the
+// suspension point: by the time anything runs again, the native stack looks
+// the way it did when the suspend left.
+//
+// Each case has to stand in for one operation completely - claim the frame it
+// claimed, and answer the return value the way it would - including recording
+// itself again, because the continuation is free to suspend a second time from
+// inside the chain being rebuilt here. That second suspend refills frames[]
+// from index 0 while this walk is still in it, which is why every level takes
+// its own copy of the frame on the way down, before anything can run.
+static
+m3ret_t ReplayFrames (IM3Continuation i_cont, i32 i_depth, M3MemoryHeader* _mem)
+{
+    IM3Runtime runtime = m3MemRuntime(_mem);
+    m3ret_t    r = m3Err_none;
+
+#  if d_m3MaxNativeStack > 0
+    {
+        void* limit = runtime->stackLimit;
+
+        if (M3_UNLIKELY(limit and m3_NativeStackPtr() < limit)) {
+            return m3Err_trapStackOverflow;
+        }
+    }
+#  endif
+
+    if (i_depth < 0) {
+        bool pastCheck = ResumesPastCheck(runtime, i_cont);
+
+#  if d_m3HasExceptionHandling
+        // resume_throw stops here: rather than carrying on from the suspension
+        // point, the exception is raised at it and travels back out through the
+        // try regions this walk has just rebuilt above
+        if (M3_UNLIKELY(i_cont->resumeThrow)) {
+            runtime->pendingException = i_cont->resumeThrow;
+            i_cont->resumeThrow = NULL;
+
+            return m3Err_pendingException;
+        }
+#  endif
+        if (pastCheck) {
+            return ResumePastCheck(i_cont, _mem);
+        }
+
+        return d_m3CallWithRegs(i_cont->pc, i_cont->sp, _mem, i_cont->r0, i_cont->fp0);
+    }
+
+    M3Frame frame = i_cont->frames[i_depth];
+
+    // frame_try brackets the recursion with its own bookkeeping, and
+    // frame_resume descends into another continuation entirely, so neither
+    // shares this one
+    bool    ownDescent = ((M3FrameKind)frame.kind == frame_resume);
+
+#  if d_m3HasExceptionHandling
+    ownDescent = ownDescent or ((M3FrameKind)frame.kind == frame_try);
+#  endif
+
+    if (not ownDescent) {
+        r = ReplayFrames(i_cont, i_depth - 1, _mem);
+        _mem = frame.memory->mallocated;
+    }
+
+    switch ((M3FrameKind)frame.kind) {
+    case frame_call:
+        if (M3_LIKELY(not r)) {
+            // the callee returned: carry on in the caller, with the registers
+            // op_Call's own frame had been holding across the call
+            return d_m3CallWithRegs(frame.pc, frame.sp, _mem, frame.call.r0, frame.call.fp0);
+        }
+
+        if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+            return Continuation_RecordFrame(runtime, &frame);
+        }
+#  if d_m3RecordBacktraces
+        PushBacktraceFrame(runtime, frame.pc - 1);
+#  endif
+        return r;
+
+    case frame_loop: {
+        m3stack_t _sp = frame.sp;
+        m3reg_t   _r0 = 0;
+#  if d_m3HasFloat
+        f64 _fp0 = 0.;
+#  endif
+        // op_Loop's protocol: the body hands its own pc back to ask for
+        // another lap. Dispatched the way op_Loop dispatches it, so a yield
+        // hook sees the same back edges it always did.
+        while (r == (m3ret_t)frame.pc) {
+            r = jumpOpImpl(frame.pc);
+            _mem = frame.memory->mallocated;
+        }
+
+        if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+            return Continuation_RecordFrame(runtime, &frame);
+        }
+        return r;
+    }
+
+#  if d_m3HasExceptionHandling
+    case frame_try: {
+        m3stack_t _sp = frame.sp;
+        m3reg_t   _r0 = 0;
+#    if d_m3HasFloat
+        f64 _fp0 = 0.;
+#    endif
+        (void)_sp;
+        (void)_r0;
+#    if d_m3HasFloat
+        (void)_fp0;
+#    endif
+
+        // this try region is standing again, so it counts towards the depth
+        // once more - unless op_PopHandlers had already retired it before the
+        // suspend, in which case it is only here to be walked past
+        u32 depth = ++runtime->tryDepth;
+
+        if (not frame.try_.handlersLive) {
+            runtime->tryDepth = depth - 1;
+        }
+
+        r = ReplayFrames(i_cont, i_depth - 1, _mem);
+        _mem = frame.memory->mallocated;
+
+        bool isInnermost = (runtime->tryDepth == depth);
+        runtime->tryDepth = depth - 1;
+
+        if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+            frame.try_.handlersLive = isInnermost;
+            return Continuation_RecordFrame(runtime, &frame);
+        }
+
+        if (M3_UNLIKELY(r == m3Err_pendingException) and isInnermost) {
+            const M3Exception* exception = runtime->pendingException;
+
+            for (u32 i = 0; i < frame.try_.numClauses; ++i) {
+                IM3Tag tag = (IM3Tag)frame.pc[2 * i];
+
+                if (tag == NULL or tag == exception->tag) {
+                    pc_t handler = (pc_t)frame.pc[2 * i + 1];
+
+                    d_m3ClearRegisters
+
+                    // op_TryTable hands its frame to the handler, but this is
+                    // not an operation and cannot: the replay stands in for
+                    // that frame, so it keeps it and passes the answer on.
+                    return jumpOpImpl(handler);
+                }
+            }
+        }
+        return r;
+    }
+#  endif
+
+    case frame_resume: {
+        // A resume that the suspend passed straight through. Standing it up
+        // again means running the continuation it had under it, under the same
+        // handlers - and that continuation carries the suspension point, so it
+        // is where the rest of the replay happens.
+        IM3Continuation inner = frame.resume.cont;
+
+        r = RunUnderHandlers(runtime, &inner, frame.resume.handlersPC,
+                             frame.resume.numHandlers, &_mem);
+
+        if (r == m3Err_none) {
+            inner->state = cont_consumed;
+
+            TakeContinuationResults(inner, frame.sp, frame.resume.resultsPC,
+                                    frame.resume.numResults);
+
+            return d_m3CallWithRegs(frame.pc, frame.sp, _mem, 0, 0.);
+        }
+
+        if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+            if (runtime->suspendHandlerCont != inner) {
+                frame.resume.cont = inner;
+                return Continuation_RecordFrame(runtime, &frame);
+            }
+
+            IM3Continuation suspended = Continuation_ForkSuspended(runtime, inner);
+            if (M3_UNLIKELY(not suspended)) {
+                return m3Err_mallocFailed;
+            }
+            runtime->suspendedContinuation = suspended;
+            if (runtime->suspendStubPC) {
+                return d_m3CallWithRegs(runtime->suspendStubPC, frame.sp, _mem, 0, 0.);
+            } else {
+                return m3Err_trapUnhandledControlTag;
+            }
+        } else {
+            inner->state = cont_consumed;
+        }
+
+        return r;
+    }
+
+#  if d_m3EntryKeepsFrame
+    case frame_entry:
+        if (M3_UNLIKELY(r)) {
+            if (M3_UNLIKELY(r == m3Err_continuationSuspended)) {
+                return Continuation_RecordFrame(runtime, &frame);
+            }
+#    if d_m3RecordBacktraces
+            FillBacktraceFunctionInfo(runtime, frame.entry.function);
+#    else
+            (void)frame.entry.function;
+#    endif
+        }
+        return r;
+#  endif
+    }
+
+    return r;
+}
+
+
+// Where a continuation's i-th incoming value goes. A continuation that has not
+// started yet takes them as the arguments of its entry frame, laid out above
+// its return slots; one that is suspended takes them in the slots its own
+// suspend or switch left waiting.
+static
+void* ContinuationArgDest (IM3Continuation i_cont, u32 i_index)
+{
+    if (i_cont->state == cont_allocated) {
+        IM3FuncType inner = i_cont->type ? i_cont->type->contFuncType : NULL;
+        u16         numRets = inner ? GetFuncTypeNumResults(inner) : 0;
+
+        return i_cont->valStack + (numRets + i_index) * c_ioSlotCount;
+    }
+
+    if (i_index < i_cont->numSuspendResults) {
+        return i_cont->sp + i_cont->suspendResultOffsets[i_index];
+    }
+
+    return NULL;
+}
+
+
+// Hands a switch's payload to the peer, and after it the continuation that
+// switched away - the reference that lets the peer come back this way.
+static
+void HandOverToPeer (IM3Runtime i_runtime, IM3Continuation io_peer, IM3Continuation i_from)
+{
+    u32 numArgs = i_runtime->numSuspendPayload;
+    u32 base = (io_peer->state == cont_allocated) ? io_peer->boundArgsCount : 0;
+
+    for (u32 i = 0; i < numArgs; ++i) {
+        void* dest = ContinuationArgDest(io_peer, base + i);
+
+        if (dest) {
+            if (i_runtime->suspendPayloadIs64[i]) {
+                *(u64*)dest = i_runtime->suspendPayload[i];
+            } else {
+                *(u32*)dest = (u32)i_runtime->suspendPayload[i];
+            }
+        }
+    }
+
+    void* refDest = ContinuationArgDest(io_peer, base + numArgs);
+
+    if (refDest) {
+        *(IM3Continuation*)refDest = i_from;
+    }
+
+    if (io_peer->state == cont_allocated) {
+        io_peer->boundArgsCount += numArgs + 1;
+    }
+}
+
+
+// resume, resume_throw and resume_throw_ref. The three differ only in what the
+// continuation is handed to start with, which is what the mode immediate says,
+// so everything after that - the handler table, the switch loop, the results -
+// is written once.
+// The innermost continuation of a capture: the one whose suspension point is
+// at the bottom of it, and so the one whose waiting slots any values handed to
+// the capture belong in. A resume the suspend travelled through leaves its
+// record at the foot of the frame list, which is the link to follow.
+static
+IM3Continuation InnermostSuspended (IM3Continuation i_cont)
+{
+    while (i_cont->numFrames and (M3FrameKind) i_cont->frames[0].kind == frame_resume) {
+        i_cont = i_cont->frames[0].resume.cont;
+    }
+
+    return i_cont;
+}
+
+
+// Runs a continuation under one handler table until something comes back that
+// is not a switch, and reports which continuation was running when it did: a
+// switch under this table takes the place of the one that switched away, and
+// whatever is running is what the handler table belongs to.
+static
+m3ret_t RunUnderHandlers (IM3Runtime i_runtime, IM3Continuation* io_cont,
+                          pc_t i_handlersPC, u32 i_numHandlers, M3MemoryHeader** io_mem)
+{
+    IM3Continuation cont = *io_cont;
+    IM3Continuation parent = i_runtime->activeContinuation;
+    IM3Memory       memory = m3MemInfo(*io_mem);
+    m3ret_t         r;
+
+    for (;;) {
+#  if d_m3HasExceptionHandling
+        // aborting a continuation that never started: there is no suspension
+        // point to raise at, so the exception simply comes straight back out
+        if (M3_UNLIKELY(cont->resumeThrow and cont->numFrames == 0)) {
+            i_runtime->pendingException = cont->resumeThrow;
+            cont->resumeThrow = NULL;
+            cont->state = cont_consumed;
+            r = m3Err_pendingException;
+            break;
+        }
+#  endif
+        bool isStarting = (cont->state == cont_allocated);
+
+        if (isStarting) {
+            if (M3_UNLIKELY(not cont->entryFunction->compiled)) {
+                r = CompileFunction(cont->entryFunction);
+
+                if (M3_UNLIKELY(r)) {
+                    break;
+                }
+            }
+            cont->pc = cont->entryFunction->compiled;
+            cont->sp = cont->valStack;
+            cont->numFrames = 0;
+        }
+
+        cont->handlersPC = i_handlersPC;
+        cont->numHandlers = i_numHandlers;
+        cont->parent = parent;
+        cont->state = cont_running;
+        cont->boundArgsCount = 0;
+
+        i_runtime->activeContinuation = cont;
+
+        if (cont->numFrames) {
+            // a suspended continuation: put back the native frames it unwound
+            // through before landing on the suspension point. The count is
+            // cleared first because a second suspend records into the same
+            // array, starting over at index 0.
+            i32 outermost = (i32)cont->numFrames - 1;
+            cont->numFrames = 0;
+
+            r = ReplayFrames(cont, outermost, *io_mem);
+        } else if (not isStarting and ResumesPastCheck(i_runtime, cont)) {
+            r = ResumePastCheck(cont, *io_mem);
+        } else {
+            r = d_m3CallWithRegs(cont->pc, cont->sp, *io_mem, 0, 0.);
+        }
+
+        *io_mem = memory->mallocated;
+        i_runtime->activeContinuation = parent;
+
+        if (r != m3Err_continuationSuspended) {
+            break;
+        }
+
+        cont->state = cont_suspended;
+
+        // not a switch, so it is a suspend and this is as far as we take it
+        if (not i_runtime->switchTarget or i_runtime->suspendHandlerCont != cont) {
+            break;
+        }
+
+        IM3Continuation peer = i_runtime->switchTarget;
+        i_runtime->switchTarget = NULL;
+
+        IM3Continuation suspended = Continuation_ForkSuspended(i_runtime, cont);
+        if (M3_UNLIKELY(not suspended)) {
+            r = m3Err_mallocFailed;
+            break;
+        }
+        IM3FuncType peerType = peer->type->contFuncType;
+        suspended->type = Module_ContTypeOfRef(peer->entryFunction->module,
+                                               GetFuncTypeParamType(peerType, (u16)(GetFuncTypeNumParams(peerType) - 1)));
+        HandOverToPeer(i_runtime, peer, suspended);
+
+        cont = peer;
+    }
+
+    *io_cont = cont;
+
+    return r;
+}
+
+
+// Copies what a finished continuation left in its return slots into the slots
+// the resume site set aside for them.
+static
+void TakeContinuationResults (IM3Continuation i_cont, m3stack_t i_sp, pc_t i_resultsPC, u32 i_numResults)
+{
+    for (u32 i = 0; i < i_numResults; ++i) {
+        i32 resSlot = *(i32*)(i_resultsPC + 2 * i);
+        u32 is64 = *(u32*)(i_resultsPC + 2 * i + 1);
+        u32 srcIdx = i * c_ioSlotCount;
+
+        if (is64) {
+            *(u64*)(i_sp + resSlot) = *(u64*)(i_cont->valStack + srcIdx);
+        } else {
+            *(u32*)(i_sp + resSlot) = *(u32*)(i_cont->valStack + srcIdx);
+        }
+    }
+}
+
+
+// resume, resume_throw and resume_throw_ref. The three differ only in what the
+// continuation is handed to start with, which is what the mode immediate says,
+// so everything after that - the handler table, the switch loop, the results -
+// is written once.
+d_m3Op(Resume)
+{
+    IM3Runtime      runtime = m3MemRuntime(_mem);
+    IM3FuncType     contFuncType = immediate(IM3FuncType);
+    i32             contSlot = immediate(i32);
+    u32             mode = immediate(u32);
+
+    IM3Continuation cont = *(IM3Continuation*)(_sp + contSlot);
+    if (M3_UNLIKELY(not cont)) {
+        newTrap(m3Err_trapNullContinuationRef);
+    }
+    if (M3_UNLIKELY(cont->state == cont_consumed or cont->state == cont_running)) {
+        newTrap(m3Err_trapContinuationConsumed);
+    }
+
+    IM3FuncType innerType = contFuncType->contFuncType ? contFuncType->contFuncType : contFuncType;
+    u16         numRets = GetFuncTypeNumResults(innerType);
+
+    if (mode == d_m3ResumeThrowRef) {
+        i32 exnSlot = immediate(i32);
+
+#  if d_m3HasExceptionHandling
+        M3Exception* exception = *(M3Exception**)(_sp + exnSlot);
+
+        if (M3_UNLIKELY(not exception)) {
+            newTrap(m3Err_trapNullReference);
+        }
+
+        InnermostSuspended(cont)->resumeThrow = exception;
+#  else
+        (void)exnSlot;
+        newTrap(m3Err_trapUnsupportedInstruction);
+#  endif
+    } else if (mode == d_m3ResumeThrow) {
+        IM3Tag exnTag = immediate(IM3Tag);
+        u32    numArgs = immediate(u32);
+
+#  if d_m3HasExceptionHandling
+        M3Exception* exception = NewException(runtime, exnTag, numArgs);
+
+        if (M3_UNLIKELY(not exception)) {
+            newTrap(m3Err_mallocFailed);
+        }
+
+        for (u32 i = 0; i < numArgs; ++i) {
+            i32 offset = immediate(i32);
+            u32 is64 = immediate(u32);
+
+            exception->args[i] = is64 ? *(u64*)(_sp + offset) : *(u32*)(_sp + offset);
+        }
+
+        InnermostSuspended(cont)->resumeThrow = exception;
+#  else
+        (void)exnTag;
+        (void)numArgs;
+        newTrap(m3Err_trapUnsupportedInstruction);
+#  endif
+    } else {
+        u32 numArgs = immediate(u32);
+
+        if (cont->state == cont_allocated) {
+            for (u32 i = 0; i < numArgs; ++i) {
+                i32 argSlot = immediate(i32);
+                u32 is64 = immediate(u32);
+                u32 targetIdx = (numRets + cont->boundArgsCount + i) * c_ioSlotCount;
+                if (is64) {
+                    *(u64*)(cont->valStack + targetIdx) = *(u64*)(_sp + argSlot);
+                } else {
+                    *(u32*)(cont->valStack + targetIdx) = *(u32*)(_sp + argSlot);
+                }
+            }
+            cont->boundArgsCount = 0;
+        } else {
+            // the waiting slots belong to whichever continuation holds the
+            // suspension point, which is not this one if a resume was captured
+            // along with it
+            IM3Continuation inner = InnermostSuspended(cont);
+
+            for (u32 i = 0; i < numArgs; ++i) {
+                i32 argSlot = immediate(i32);
+                u32 is64 = immediate(u32);
+                u32 dstIdx = cont->boundArgsCount + i;
+                if (dstIdx < inner->numSuspendResults) {
+                    i32 dstOffset = inner->suspendResultOffsets[dstIdx];
+                    if (is64) {
+                        *(u64*)(inner->sp + dstOffset) = *(u64*)(_sp + argSlot);
+                    } else {
+                        *(u32*)(inner->sp + dstOffset) = *(u32*)(_sp + argSlot);
+                    }
+                }
+            }
+        }
+    }
+
+    u32  numHandlers = immediate(u32);
+    pc_t handlersPC = _pc;
+    _pc += numHandlers * 3;
+
+    u32       numResults = immediate(u32);
+    pc_t      resultsPC = _pc;
+
+    IM3Memory memory = m3MemInfo(_mem);
+
+    m3ret_t   r = RunUnderHandlers(runtime, &cont, handlersPC, numHandlers, &_mem);
+
+    if (r == m3Err_none) {
+        cont->state = cont_consumed;
+
+        TakeContinuationResults(cont, _sp, resultsPC, numResults);
+
+        _pc += numResults * 2;
+        nextOp();
+    } else if (r == m3Err_continuationSuspended) {
+        if (M3_UNLIKELY(runtime->suspendHandlerCont != cont)) {
+            if (M3_UNLIKELY(not runtime->activeContinuation)) {
+                newTrap(m3Err_trapUnhandledControlTag);
+            }
+            M3Frame frame;
+            frame.kind = frame_resume;
+            frame.pc = resultsPC + numResults * 2;
+            frame.sp = _sp;
+            frame.memory = memory;
+            frame.resume.cont = cont;
+            frame.resume.handlersPC = handlersPC;
+            frame.resume.numHandlers = numHandlers;
+            frame.resume.resultsPC = resultsPC;
+            frame.resume.numResults = numResults;
+
+            return Continuation_RecordFrame(runtime, &frame);
+        }
+
+        IM3Continuation suspended = Continuation_ForkSuspended(runtime, cont);
+        if (M3_UNLIKELY(not suspended)) {
+            newTrap(m3Err_mallocFailed);
+        }
+        runtime->suspendedContinuation = suspended;
+
+        if (runtime->suspendStubPC) {
+            jumpOpDirect(runtime->suspendStubPC);
+        } else {
+            newTrap(m3Err_trapUnhandledControlTag);
+        }
+    } else {
+        cont->state = cont_consumed;
+        pushBacktraceFrame();
+        forwardTrap(r);
+    }
+}
+
+
+d_m3Op(ResumePayload)
+{
+    IM3Runtime      runtime = m3MemRuntime(_mem);
+
+    // The payload comes from the suspend; the reference is to the whole of what
+    // was captured, which is not the same continuation once the suspend has
+    // travelled out through a resume that had nothing to say about its tag.
+    IM3Continuation cont = runtime->suspendedContinuation;
+    cont->type = immediate(IM3FuncType);
+
+    u32 numArgs = immediate(u32);
+    for (u32 i = 0; i < numArgs; ++i) {
+        i32 offset = immediate(i32);
+        u32 is64 = immediate(u32);
+        u64 val = (i < runtime->numSuspendPayload) ? runtime->suspendPayload[i] : 0;
+        if (is64) {
+            *(u64*)(_sp + offset) = val;
+        } else {
+            *(u32*)(_sp + offset) = (u32)val;
+        }
+    }
+
+    i32 contOffset = immediate(i32);
+    if (contOffset >= 0) {
+        *(IM3Continuation*)(_sp + contOffset) = cont;
+    }
+
+    nextOp();
+}
+
+
+// switch is a suspend that names its own replacement. Rather than run the
+// peer here - which would leave this native frame owning a continuation it is
+// no longer running - it suspends the current continuation the ordinary way and
+// hands the peer to the resume that installed the matching (on $e switch)
+// handler. That resume is the delimiter the proposal asks for, and it is the
+// frame that should be tracking whatever is running under it.
+d_m3Op(Switch)
+{
+    IM3Runtime      runtime = m3MemRuntime(_mem);
+    IM3Continuation cont = runtime->activeContinuation;
+
+    if (M3_UNLIKELY(not cont)) {
+        newTrap(m3Err_trapUnhandledControlTag);
+    }
+
+    skip_immediate(IM3FuncType);
+
+    IM3Tag          tag = immediate(IM3Tag);
+    i32             targetSlot = immediate(i32);
+
+    IM3Continuation target = *(IM3Continuation*)(_sp + targetSlot);
+
+    if (M3_UNLIKELY(not target)) {
+        newTrap(m3Err_trapNullContinuationRef);
+    }
+    if (M3_UNLIKELY(target->state == cont_consumed or target->state == cont_running)) {
+        newTrap(m3Err_trapContinuationConsumed);
+    }
+
+    IM3Continuation handlerCont = FindHandler(cont, tag, 1, NULL);
+
+    if (M3_UNLIKELY(not handlerCont)) {
+        newTrap(m3Err_trapUnhandledControlTag);
+    }
+
+    // the peer's arguments, and after them the room for the continuation
+    // reference the resume will write once this one is safely suspended
+    u32 numArgs = immediate(u32);
+
+    runtime->numSuspendPayload = numArgs;
+
+    for (u32 i = 0; i < numArgs; ++i) {
+        i32 argSlot = immediate(i32);
+        u32 is64 = immediate(u32);
+
+        runtime->suspendPayload[i] = is64 ? *(u64*)(_sp + argSlot) : (u64) * (u32*)(_sp + argSlot);
+        runtime->suspendPayloadIs64[i] = is64;
+    }
+
+    // where the values come back to, when something switches into this one
+    u32 numResults = immediate(u32);
+
+    cont->numSuspendResults = numResults;
+
+    for (u32 i = 0; i < numResults; ++i) {
+        cont->suspendResultOffsets[i] = immediate(i32);
+        cont->suspendResultIs64[i] = immediate(u32);
+    }
+
+    ClearSuspendResults(cont, _sp);
+
+    runtime->suspendStubPC = NULL;
+    runtime->suspendHandlerCont = handlerCont;
+    runtime->switchTarget = target;
+    runtime->suspendTag = tag;
+
+    cont->pc = _pc;
+    cont->suspendPoint = safepoint_suspend;
+    cont->sp = _sp;
+    cont->r0 = _r0;
+#  if d_m3HasFloat
+    cont->fp0 = _fp0;
+#  endif
+
+    return m3Err_continuationSuspended;
+}
+
+
+#endif // d_m3HasStackSwitching
 
 
 d_m3Op(Branch)
@@ -2279,10 +3456,6 @@ d_m3Op(ContinueLoop)
 {
     m3StackCheck();
 
-    // TODO: this is where execution can "escape" the M3 code and callback to the client / fiber switch
-    // OR it can go in the Loop operation. I think it's best to do here. adding code to the loop operation
-    // has the potential to increase its native-stack usage. (don't forget ContinueLoopIf too.)
-
     void* loopId = immediate(void*);
     return loopId;
 }
@@ -2299,6 +3472,132 @@ d_m3Op(ContinueLoopIf)
         nextOp();
     }
 }
+
+
+#if d_m3HasStackSwitching
+
+// This is where execution can "escape" the M3 code and callback to the client / fiber switch
+// OR it can go in the Loop operation. I think it's best to do here. adding code to the loop operation
+// has the potential to increase its native-stack usage.
+
+d_m3Op(ContinueLoop_Suspendable)
+{
+    m3StackCheck();
+
+    IM3Runtime runtime = m3MemRuntime(_mem);
+    if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+        SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_op, _pc - 1, _sp,
+                          d_m3ExpRegArgs(_r0, _fp0));
+
+        return m3Err_continuationSuspended;
+    }
+
+    void* loopId = immediate(void*);
+    return loopId;
+}
+
+
+#  if !d_m3EntryKeepsFrame
+// op_Entry, in code compiled while the runtime is suspendable: once the frame is
+// set up, it checks for a pause request. Recursion passes one of these on every
+// lap, as a loop passes its back edge, so a pause the host requests reaches code
+// that has no loop. A pause here stops at the body's first operation, so going
+// on from it is going on past the check.
+d_m3Op(Entry_Suspendable)
+{
+    d_m3ClearRegisters
+
+    IM3Function function = immediate(IM3Function);
+
+    if (EntryFits(function, _sp, _mem)) {
+        EnterFrame(function, _sp);
+
+        IM3Runtime runtime = m3MemRuntime(_mem);
+        if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+            SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_entry, _pc, _sp,
+                              d_m3ExpRegArgs(_r0, _fp0));
+
+            return m3Err_continuationSuspended;
+        }
+
+        nextOpDirect();
+    } else {
+        newTrap(m3Err_trapStackOverflow);
+    }
+}
+#  endif
+
+
+// The check op_Entry_Suspendable makes, as an operation of its own for the
+// builds whose op_Entry keeps a frame and so cannot make it: the start of a
+// function's body, in code compiled while the runtime is suspendable
+d_m3Op(EntryCheck)
+{
+    IM3Runtime runtime = m3MemRuntime(_mem);
+    if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+        SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_entry, _pc - 1, _sp,
+                          d_m3ExpRegArgs(_r0, _fp0));
+
+        return m3Err_continuationSuspended;
+    }
+
+    nextOp();
+}
+
+
+d_m3Op(ContinueLoopIf_Suspendable)
+{
+    i32   condition = (i32)_r0;
+    void* loopId = immediate(void*);
+
+    if (condition) {
+        IM3Runtime runtime = m3MemRuntime(_mem);
+        if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+            SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_op, _pc - 2, _sp,
+                              d_m3ExpRegArgs(_r0, _fp0));
+
+            return m3Err_continuationSuspended;
+        }
+        return loopId;
+    } else {
+        nextOp();
+    }
+}
+
+
+// Carries a resumed back edge or function entry on past the check it paused in
+// (see M3Runtime.resumePastCheck), by running the operation the check stands
+// in front of: the plain back edge on the same immediates, or whatever follows
+// the entry check.
+static
+m3ret_t ResumePastCheck (IM3Continuation i_cont, M3MemoryHeader* _mem)
+{
+    pc_t         check = i_cont->pc;
+    IM3Operation op = (IM3Operation)(*check);
+    pc_t         _pc = check + 1;
+    m3stack_t    _sp = i_cont->sp;
+    m3reg_t      _r0 = i_cont->r0;
+#  if d_m3HasFloat
+    f64 _fp0 = i_cont->fp0;
+#  endif
+
+    if (op == op_ContinueLoop_Suspendable) {
+        op = op_ContinueLoop;
+    } else if (op == op_ContinueLoopIf_Suspendable) {
+        op = op_ContinueLoopIf;
+    } else if (op == op_EntryCheck) {
+        return nextOpImpl();
+    } else {
+        return d_m3CallWithRegs(check, _sp, _mem, _r0, _fp0);
+    }
+
+#  if (d_m3EnableOpProfiling || d_m3EnableOpTracing)
+    return op(_pc, d_m3OpArgs, d_m3BaseCstr);
+#  else
+    return op(_pc, d_m3OpArgs);
+#  endif
+}
+#endif // d_m3HasStackSwitching
 
 
 d_m3Op(Const32)

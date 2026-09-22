@@ -658,10 +658,17 @@ if args.spec == "wg-3.0":
             "type-rec.wast:* type-rec.19.wasm *",
             "type-equivalence.wast:* type-equivalence.8.wasm *",
             "type-equivalence.wast:* type-equivalence.9.wasm *",
+            # a function import is linked against a host function, not against
+            # another module's export, so nothing compares the two signatures
+            "type-rec.wast:* type-rec.16.wasm assert_unlinkable (incompatible import type)",
             # a tag import is a fresh tag rather than an alias (see the exception
             # handling entries above). LinkImports has no tag loop at all, so a tag
             # import is neither resolved nor type-checked
+            "tag.wast:* tag.6.wasm assert_unlinkable (incompatible import)",
             "tag.wast:* tag.7.wasm assert_unlinkable (incompatible import)",
+            # stack switching: control tags may have non-empty result types
+            "tag.wast:* tag.2.wasm assert_invalid (non-empty tag result type)",
+            "tag.wast:* tag.3.wasm assert_invalid (non-empty tag result type)",
             "imports.wast:* imports.41.wasm assert_unlinkable (unknown import)",
             "imports.wast:* imports.42.wasm assert_unlinkable (incompatible import type)",
             "imports.wast:* imports.43.wasm assert_unlinkable (incompatible import type)",

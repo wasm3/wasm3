@@ -197,23 +197,24 @@ typedef struct M3Global {
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
 
-// An exception tag, as the tag section declares it. Tags are compared by
-// identity, and this struct's address is that identity: a thrown exception
-// carries the M3Tag * it was created from, and a catch clause matches when the
-// pointers are equal. Tags are per-module and never merged, so a tag imported
-// from another module is a fresh tag rather than an alias of the one exported
-// there - wasm3 links imports against host functions, not against modules.
+// An exception / control tag, as the tag section declares it. Tags are compared by
+// identity, and this struct's address is that identity.
 typedef struct M3Tag {
-    M3ImportInfo import;
-    IM3FuncType  type;           // results must be empty; params are the payload
-    cstr_t       name;           // export name, if any
-    bool         imported;
+    M3ImportInfo  import;
+    IM3FuncType   type;           // params are the payload; results are empty for EH, can be non-empty for stack switching
+    cstr_t        name;           // export name, if any
+    struct M3Tag* resolved;
+    bool          imported;
 } M3Tag;
 
 typedef M3Tag* IM3Tag;
 
+#endif // d_m3HasExceptionHandling || d_m3HasStackSwitching
+
+
+#if d_m3HasExceptionHandling
 
 // A thrown exception: the tag that identifies it plus the payload the throw
 // site popped off the stack, one u64 per value (32-bit values are stored
@@ -242,6 +243,170 @@ void         FreeException (IM3Runtime io_runtime, M3Exception* i_exception);
 void         FreeExceptions (IM3Runtime io_runtime);
 
 #endif // d_m3HasExceptionHandling
+
+
+#if d_m3HasStackSwitching
+
+// A native frame the interpreter had claimed at the moment a continuation
+// suspended, recorded so that resuming can build the same frame again.
+//
+// Nothing pushes these during ordinary execution. They are written on the way
+// out: a suspend travels up the native stack as m3Err_continuationSuspended,
+// and each operation that was holding a frame recognises the marker on its way
+// past and appends the record describing itself - innermost first, which is
+// simply the order the unwind visits them in. Resuming walks the array back
+// down, rebuilding one native frame per entry, and lands on the suspension
+// point at the bottom.
+//
+// Every operation that keeps a native frame needs an entry here, because each
+// one owns a return protocol that only exists while its frame is standing:
+// op_Call and friends resume the caller, op_Loop reads the continue sentinel,
+// op_TryTable catches a pending exception.
+typedef enum M3FrameKind {
+    frame_call,          // op_Call / op_CallRef / op_CallIndirect
+    frame_loop,          // op_Loop
+#  if d_m3HasExceptionHandling
+    frame_try,           // op_TryTable
+#  endif
+#  if d_m3EntryKeepsFrame
+    frame_entry,         // op_Entry, in builds where it keeps a frame
+#  endif
+    frame_resume,        // op_Resume, when the suspend is not its to answer
+} M3FrameKind;
+
+typedef struct M3Frame {
+    u8        kind;      // M3FrameKind
+    pc_t      pc;        // call: the return address | loop: the loop id, which is
+                         // also its body | try: the clause table | entry: unused
+    m3stack_t sp;
+    IM3Memory memory;    // _mem is re-derived from this rather than stored:
+                         // growing linear memory moves the header, so only the
+                         // M3Memory stays valid across a suspend
+
+    union {
+        // op_Call resumes the caller with the registers its own native frame was
+        // holding, so those belong to the frame, not to the suspension point
+        struct {
+            IM3Function function;
+            m3reg_t     r0;
+#  if d_m3HasFloat
+            f64 fp0;
+#  endif
+        } call;
+#  if d_m3HasExceptionHandling
+        struct {
+            u32  numClauses;
+            bool handlersLive;   // false once op_PopHandlers has retired the region
+        } try_;
+#  endif
+#  if d_m3EntryKeepsFrame
+        struct {
+            IM3Function function;
+        } entry;
+#  endif
+        // A resume that the suspend travelled straight through, because the
+        // tag was not one its handlers named. The continuation it was running
+        // is part of what got captured, so everything needed to set it going
+        // again under the same handlers is kept here.
+        struct {
+            struct M3Continuation* cont;
+            pc_t                   handlersPC;
+            u32                    numHandlers;
+            pc_t                   resultsPC;
+            u32                    numResults;
+        } resume;
+    };
+} M3Frame;
+
+// Which of the three resume forms an op_Resume was emitted for
+enum {
+    d_m3ResumeNormal = 0,
+    d_m3ResumeThrow,
+    d_m3ResumeThrowRef,
+};
+
+typedef enum M3ContinuationState {
+    cont_allocated = 0,
+    cont_running,
+    cont_suspended,
+    cont_returned,
+    cont_consumed
+} M3ContinuationState;
+
+typedef struct M3ResumeHandler {
+    u8     kind;        // 0: (on $t $h), 1: (on $t switch)
+    IM3Tag tag;
+    pc_t   stubPC;
+} M3ResumeHandler;
+
+typedef struct M3Continuation {
+    struct M3Continuation* next;           // linked list in runtime for cleanup
+    IM3FuncType            type;            // continuation type (cont $ft)
+    IM3Function            entryFunction;   // target function
+    M3ContinuationState    state;
+
+    m3slot_t*              valStack;        // allocated value stack buffer
+    u32                    numStackSlots;
+    m3stack_t              sp;              // current value stack pointer
+
+    M3Frame*               frames;          // native frames recorded by the last suspend
+    u32                    framesCap;       // entries allocated
+    u32                    numFrames;       // entries in use, innermost first
+
+    pc_t                   pc;              // resume instruction pointer
+    u8                     suspendPoint;    // M3SafePointKind: what left pc where it is
+    m3reg_t                r0;              // saved accumulator
+#  if d_m3HasFloat
+    f64 fp0;
+#  endif
+
+    // Bound args count (for cont.bind)
+    u32 boundArgsCount;
+
+#  if d_m3HasExceptionHandling
+    // resume_throw: raised at the suspension point instead of carrying on from
+    // it, so the try regions inside the continuation get their turn first
+    M3Exception* resumeThrow;
+#  endif
+
+    // Where the values go when this continuation is next given some: the slots
+    // its own suspend or switch is waiting on.
+    u32                    numSuspendResults;
+    i32                    suspendResultOffsets[d_m3MaxContinuationPayload];
+    u32                    suspendResultIs64[d_m3MaxContinuationPayload];
+
+    // Active handler table from enclosing resume:
+    u32                    numHandlers;
+    pc_t                   handlersPC;
+    struct M3Continuation* parent;         // resumer continuation
+} M3Continuation, *IM3Continuation;
+
+IM3Continuation Continuation_New (IM3Runtime i_runtime, IM3FuncType i_type, IM3Function i_function);
+IM3Continuation Continuation_ForkSuspended (IM3Runtime i_runtime, IM3Continuation i_cont);
+void            Continuation_ReleaseAll (IM3Runtime io_runtime);
+
+// Appends one frame to the suspending continuation. Returns the marker the
+// caller should keep unwinding with: the suspend marker when the frame was
+// recorded, or a trap when it could not be - a continuation that cannot record
+// its frames cannot be resumed, so the suspend has to become a trap instead.
+m3ret_t         Continuation_RecordFrame (IM3Runtime i_runtime, const M3Frame* i_frame);
+
+// Points runtime->stack, where the host's next call puts its arguments, above
+// whatever a suspended root continuation holds - or back at the bottom when
+// there is none.
+void            Runtime_PlaceCallStack (IM3Runtime io_runtime);
+
+#endif // d_m3HasStackSwitching
+
+
+#if d_m3HasSnapshots
+typedef struct M3EmbeddedSnapshot {
+    cstr_t                     name;
+    bytes_t                    data;
+    u32                        size;
+    struct M3EmbeddedSnapshot* next;
+} M3EmbeddedSnapshot;
+#endif
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -278,7 +443,7 @@ typedef struct M3Module {
     u32                   numGlobals;
     M3Global*             globals;
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
     u32    numTags;
     M3Tag* tags;
 #endif
@@ -312,9 +477,17 @@ typedef struct M3Module {
     // instead of branching. NULL until the module is loaded.
     IM3Memory         memory0;
 
-    //bool                    hasWasmCodeCopy;
+#if d_m3HasSnapshots
+    struct M3EmbeddedSnapshot* snapshots;
 
-    struct M3Module*  next;
+    // A snapshot restores into a module none of whose code has run - start
+    // function included - and a restore that fails part way leaves one that
+    // can no longer run at all: its store is neither the snapshot's nor its own.
+    bool                       hasRun;
+    bool                       isUnusable;
+#endif
+
+    struct M3Module* next;
 } M3Module;
 
 M3Result Module_AddMemory (IM3Module io_module, IM3Memory* o_memory, const M3MemoryInfo* i_info, bool i_isImported);
@@ -335,8 +508,11 @@ M3MemoryHeader* Module_MemoryHeader (IM3Module i_module)
 
 M3Result Module_AddGlobal (IM3Module io_module, IM3Global* o_global, m3type_t i_type, bool i_mutable, bool i_isImported);
 M3Result Module_AddTable (IM3Module io_module, IM3Table* o_table, const M3TableInfo* i_info, bool i_isImported);
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
 M3Result Module_AddTag (IM3Module io_module, IM3Tag* o_tag, IM3FuncType i_type, bool i_isImported);
+#endif
+#if d_m3HasStackSwitching
+IM3FuncType Module_ContTypeOfRef (IM3Module i_module, m3type_t i_refType);
 #endif
 M3Result    Module_DeclareFunction (IM3Module io_module, u32 i_index);
 bool        Module_IsFunctionDeclared (IM3Module i_module, u32 i_index);
@@ -369,6 +545,8 @@ void     Environment_Release (IM3Environment i_environment);
 
 // takes ownership of io_funcType and returns a pointer to the persistent version (could be same or different)
 M3Result Environment_AddFuncType (IM3Environment i_environment, IM3FuncType* io_funcType);
+M3Result Environment_ReserveFuncTypes (IM3Environment i_environment, u32 i_count, u16* o_firstIndex);
+void     Environment_AdoptFuncType (IM3Environment i_environment, IM3FuncType i_funcType, u16 i_canonicalIndex);
 
 #if d_m3HasTypedRefs
 M3Result ParseHeapType (IM3Module i_module, m3type_t* o_heapBits, bytes_t* io_bytes, cbytes_t i_end);
@@ -403,6 +581,8 @@ typedef struct M3Runtime {
     u32            numStackSlots;
     void*          stackLimit;     // native C-stack low-water mark; Wasm calls trap past it (NULL = unset)
     IM3Function    lastCalled;     // last function that successfully executed
+    IM3Function    entered;        // entry point of the outermost call in flight, or of the last one, trapped or not
+    u32            callNesting;    // RunCodeChecked() recursion depth
 
     void*          userdata;
 
@@ -439,7 +619,40 @@ typedef struct M3Runtime {
     u32          tryDepth;           // number of try regions whose body is executing
     M3Exception* pendingException;   // the exception currently unwinding, if any
     M3Exception* exceptions;         // the ones it still holds
-    u32          exceptionNesting;   // RunCodeChecked() recursion depth
+#endif
+
+    // Set by the embedder and by the host's interrupt handler, so they are here
+    // whether or not the interpreter was built able to act on them. Only the
+    // suspendable operations read suspendRequested, and those exist only with
+    // stack switching, so without it m3_RequestSuspend is simply never answered.
+    bool          isSuspendable;
+    volatile bool suspendRequested;
+
+#if d_m3HasStackSwitching
+    // Set while m3_ResumeRuntime replays a paused invocation: a back edge or a
+    // function entry it paused at goes on past its check, so a pause already
+    // requested takes effect at the next one instead of on the spot again
+    bool            resumePastCheck;
+
+    IM3Continuation activeContinuation;
+    IM3Continuation suspendedContinuation;
+    IM3Continuation continuations;
+    IM3Continuation rootContinuation;
+
+    // The suspend on its way out, if there is one. Only ever one at a time -
+    // it travels up the native stack and is answered before anything else can
+    // start - so this belongs to the runtime rather than to any continuation.
+    IM3Tag          suspendTag;
+    IM3Continuation suspendHandlerCont;     // whose resume named the tag
+    pc_t            suspendStubPC;          // the handler it is headed for
+    IM3Continuation switchTarget;           // the peer to run instead, for a switch
+    u64             suspendPayload[d_m3MaxContinuationPayload];
+    u32             suspendPayloadIs64[d_m3MaxContinuationPayload];
+    u32             numSuspendPayload;
+#endif
+
+#if d_m3HasSnapshots
+    M3SnapshotHooks snapshotHooks;
 #endif
 
     M3ErrorInfo error;

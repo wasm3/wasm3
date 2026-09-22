@@ -26,6 +26,14 @@ typedef struct M3FuncType {
     // structural equivalence the spec asks for.
     u16                canonicalIndex;
 
+    bool               isContinuation;
+    struct M3FuncType* contFuncType;
+
+    // A member of a recursive group. The group is its identity, so it never
+    // shares an entry with a type that merely matches it field for field -
+    // not one outside any group, and not one in a group spelled the same way.
+    bool               inRecGroup;
+
     m3type_t           types[];        // returns, then args
 } M3FuncType;
 
@@ -47,6 +55,97 @@ m3type_t RefTypeOfFuncType (const IM3FuncType i_funcType, bool i_nonNull);
 #endif
 
 //---------------------------------------------------------------------------------------------------------------------------------
+
+// The ways a function's frame can be left standing while it waits to go on.
+// Two of them can share a pc - a call's return address can be the very next
+// operation, which is itself one that suspends - and they do not agree on
+// what the frame holds there, so a pc alone does not name one.
+//
+// A snapshot writes these down, so the numbering is part of the DMP format.
+typedef enum M3SafePointKind {
+    safepoint_op,           // at a loop back edge, which suspends in place
+    safepoint_suspend,      // just past a suspend or a switch
+    safepoint_call,         // a call waiting on its callee
+    safepoint_resume,       // a resume waiting on the continuation it runs
+    safepoint_entry,        // at the start of a function's body, its locals set
+} M3SafePointKind;
+
+#if d_m3HasSnapshots
+
+// What a snapshot needs to know about a function's compiled code, recorded by
+// the compiler when the runtime is suspendable and nowhere else.
+//
+// A snapshot is written in Wasm's terms, not this build's: a place in a
+// function is the offset of a Wasm instruction, and the frame is the Wasm
+// locals and operand stack as typed values. The map is what translates. It
+// says, at every place a frame can be left standing, which slot or register
+// this build keeps each of those values in - so the values can be read out of
+// one build's frame and scattered into another's, whatever layout each chose.
+
+// A value the frame holds: where this build keeps it, and its type
+typedef struct M3SlotValue {
+    u16      slot;            // relative to the frame, or a register alias (d_m3Reg0SlotAlias, d_m3Fp0SlotAlias)
+    m3type_t type;       // full Wasm type, including reference heap type and nullability
+} M3SlotValue;
+
+// Values that go with a safepoint
+#  define d_m3SafePointTakenBranch    0x1     // resumes a br_if that was taken: _r0 has to hold its condition
+#  define d_m3SafePointTailCall       0x2     // a return_call compiled as a call: saving walks past it, and it names no frame
+
+// A place a function can be suspended at, or be waiting on something that was:
+// a loop back edge, a function's entry, a call, a suspend, a switch or a resume.
+//
+// Its identity in a snapshot is the instruction's offset and its kind, and for
+// a back edge - since one br_table can branch back to several loops - the loop
+// it goes to. Safepoints are recorded in the order the body is read, so they
+// are sorted by that offset.
+typedef struct M3SafePoint {
+    pc_t     pc;
+    u32      wasmOffset;     // the instruction's, from the start of the function's body
+    u32      firstValue;     // into M3SnapshotMap.values
+    u32      firstLocalValue; // local types at this point, or UINT32_MAX for the map's shared locals
+    u16      numValues;      // the live operand stack, bottom up; the locals are the map's own
+    u16      numResults;     // suspend: the top values are the slots it waits in | call, resume: results not yet written
+    u16      aux;            // call: where the callee's frame starts, in slots above this one | resume: its handler count
+                             // | back edge: the loop it goes to, in M3SnapshotMap.blocks
+    m3type_t resumeType; // resume: expected continuation type, including the result contract
+    u8       kind;           // M3SafePointKind
+    u8       flags;
+} M3SafePoint;
+
+// A loop or a try_table, which the interpreter keeps a native frame for while
+// its body runs, and which a snapshot names by the instruction's offset.
+//
+// The region runs from the opening instruction to its end, and the ones that
+// enclose a safepoint are those whose region holds its offset, both ends
+// excluded - so a catch clause, which records its safepoints at its try_table,
+// is outside that try_table. Recorded in the order they open, so enclosing
+// regions come outermost first.
+typedef struct M3BlockStart {
+    pc_t pc;             // what the frame records: a loop's body, a try_table's clause table
+    u32  wasmOffset;
+    u32  wasmEnd;        // the offset of its end
+    u16  numClauses;     // try_table
+    u8   opcode;         // c_waOp_loop or c_waOp_tryTable
+} M3BlockStart;
+
+typedef struct M3SnapshotMap {
+    M3SlotValue*  locals;            // the arguments, then the declared locals
+    u32           numLocals;
+
+    M3SafePoint*  safePoints;
+    u32           numSafePoints;
+
+    M3SlotValue*  values;
+    u32           numValues;
+
+    M3BlockStart* blocks;
+    u32           numBlocks;
+} M3SnapshotMap;
+
+void SnapshotMap_Free (M3SnapshotMap* i_map);
+
+#endif // d_m3HasSnapshots
 
 typedef struct M3Function {
     struct M3Module*   module;
@@ -103,6 +202,10 @@ typedef struct M3Function {
 
     u16   numConstantBytes;
     void* constants;
+
+#if d_m3HasSnapshots
+    M3SnapshotMap* snapshotMap;                   // NULL unless compiled suspendable
+#endif
 } M3Function;
 
 

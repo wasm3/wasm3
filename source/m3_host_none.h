@@ -26,6 +26,21 @@ void* m3_HostStackBase (void)
     return NULL;
 }
 
+void m3_HostInstallInterruptHandler (IM3Runtime io_runtime)
+{
+    (void)io_runtime;
+}
+
+void m3_HostRemoveInterruptHandler (void)
+{
+}
+
+// Plenty of these systems have no idea what time it is
+u64 m3_HostTimeMs (void)
+{
+    return 0;
+}
+
 // No mmap here, so the module's bytes are read directly onto the heap
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 {
@@ -39,6 +54,14 @@ void m3_HostUnmapFile (M3HostFile* io_file)
     io_file->size = 0;
     io_file->handle = d_m3HostNoHandle;
     io_file->mapped = false;
+}
+
+// Standard C leaves it to the system whether rename replaces a file that
+// exists, so the target goes first. Two steps: in between, there is no i_to.
+bool m3_HostReplaceFile (const char* i_from, const char* i_to)
+{
+    remove(i_to);
+    return rename(i_from, i_to) == 0;
 }
 
 #if d_m3GuardedMemory

@@ -398,6 +398,11 @@ M3Result NormalizeType (u8* o_type, i8 i_convolutedWasmType)
         type = c_m3Type_exnref;
     }
 #endif
+#if d_m3HasStackSwitching
+    else if (type == d_waType_heap_cont or type == d_waType_heap_nocont) {
+        type = c_m3Type_contref;
+    }
+#endif
     // Accept v128 (wasm-encoded as 0x7b → -i_convolutedWasmType == 5)
     // as an opaque slot so modules with v128 in signatures or local
     // declarations parse. Actual v128 opcodes still hit
@@ -418,6 +423,9 @@ M3Result NormalizeType (u8* o_type, i8 i_convolutedWasmType)
 u8 BaseTypeOf (m3type_t i_type)
 {
     if (IsSpelledRefType(i_type)) {
+        if (i_type & d_m3Type_refCont) {
+            return c_m3Type_contref;
+        }
         return (i_type & d_m3Type_refExtern) ? c_m3Type_externref : c_m3Type_funcref;
     }
 
@@ -443,6 +451,13 @@ bool IsSubTypeOf (m3type_t i_sub, m3type_t i_super)
         return false;
     }
 
+#  if d_m3HasStackSwitching
+    // nocont sits under every continuation type
+    if (HeapTypeOf(i_sub) == d_m3Type_heapNone) {
+        return true;
+    }
+#  endif
+
     // $t <: func, and function types are invariant among themselves, so a
     // concrete heap type matches only itself or the abstract one. Indices are
     // canonical, so structurally equal types compare equal here.
@@ -466,6 +481,9 @@ bool IsRefType (m3type_t i_type)
     return (i_m3Type == c_m3Type_funcref or i_m3Type == c_m3Type_externref
 #if d_m3HasExceptionHandling
             or i_m3Type == c_m3Type_exnref
+#endif
+#if d_m3HasStackSwitching
+            or i_m3Type == c_m3Type_contref
 #endif
     );
 }
@@ -627,7 +645,6 @@ M3Result ReadLebUnsigned (u64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cby
         if (M3_LIKELY((byte & 0x80) == 0)) {
             result = m3Err_none;
 
-#if d_m3EnableValidation
             // The last byte must not carry bits past i_maxNumBits
             if (M3_UNLIKELY(shift > i_maxNumBits)) {
                 u32 numUsedBits = i_maxNumBits + 7 - shift;
@@ -636,7 +653,6 @@ M3Result ReadLebUnsigned (u64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cby
                     result = m3Err_lebOverflow;
                 }
             }
-#endif
             break;
         }
 
@@ -671,7 +687,6 @@ M3Result ReadLebSigned (i64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cbyte
         if (M3_LIKELY((byte & 0x80) == 0)) {
             result = m3Err_none;
 
-#if d_m3EnableValidation
             // The bits of the last byte past i_maxNumBits must all repeat the
             // sign bit, otherwise the value doesn't fit
             if (M3_UNLIKELY(shift > i_maxNumBits)) {
@@ -683,7 +698,6 @@ M3Result ReadLebSigned (i64* o_value, u32 i_maxNumBits, bytes_t* io_bytes, cbyte
                     result = m3Err_lebOverflow;
                 }
             }
-#endif
             if ((byte & 0x40) and (shift < 64))    // do sign extension
             {
                 u64 extend = 0;
@@ -795,7 +809,6 @@ M3Result ReadLEB_i64 (i64* o_value, bytes_t* io_bytes, cbytes_t i_end)
     return result;
 }
 
-#if d_m3EnableValidation
 // Validate that a byte sequence is well-formed UTF-8 per the Unicode spec.
 // Returns true if valid, false otherwise.
 static
@@ -879,7 +892,6 @@ bool IsValidUtf8 (const u8* i_data, u32 i_length)
 
     return true;
 }
-#endif // d_m3EnableValidation
 
 
 M3Result Read_utf8 (cstr_t* o_utf8, bytes_t* io_bytes, cbytes_t i_end)
@@ -892,15 +904,12 @@ M3Result Read_utf8 (cstr_t* o_utf8, bytes_t* io_bytes, cbytes_t i_end)
     if (not result) {
         if (utf8Length <= d_m3MaxSaneUtf8Length) {
             const u8* ptr = *io_bytes;
-            const u8* end = ptr + utf8Length;
-
-            if (end <= i_end) {
-#if d_m3EnableValidation
+            if (utf8Length <= (size_t)(i_end - ptr)) {
+                const u8* end = ptr + utf8Length;
                 if (not IsValidUtf8(ptr, utf8Length)) {
                     *io_bytes = end;
                     return m3Err_wasmMalformed;
                 }
-#endif // d_m3EnableValidation
 
                 char* utf8 = (char*)m3_Malloc("UTF8", utf8Length + 1);
 
@@ -956,7 +965,7 @@ u32 FindModuleOffset (IM3Runtime i_runtime, pc_t i_pc)
         u32 result = 0;
 
         bool pcFound = MapPCToOffset(curr, i_pc, &result);
-                                                                                d_m3Assert (pcFound);
+        (void)pcFound;                                                          d_m3Assert (pcFound);
 
         return result;
     } else {

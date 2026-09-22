@@ -24,6 +24,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <signal.h>
+#include <time.h>
 
 // Whether pthread_getattr_np - or Darwin's pair of calls - can be reached without
 // asking the build to link a threading library it may not be linking. glibc moved
@@ -181,6 +183,57 @@ void* m3_HostStackBase (void)
 #endif
 }
 
+static IM3Runtime       s_posixSuspendRuntime = NULL;
+static struct sigaction s_oldSigTstp;
+static struct sigaction s_oldSigInt;
+static bool             s_suspendHandlersInstalled = false;
+
+static
+void m3_PosixSignalHandler (int sig)
+{
+    (void)sig;
+    if (s_posixSuspendRuntime) {
+        s_posixSuspendRuntime->suspendRequested = true;
+    }
+}
+
+void m3_HostInstallInterruptHandler (IM3Runtime io_runtime)
+{
+    s_posixSuspendRuntime = io_runtime;
+    if (!s_suspendHandlersInstalled) {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = m3_PosixSignalHandler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+
+        sigaction(SIGTSTP, &sa, &s_oldSigTstp);
+        sigaction(SIGINT, &sa, &s_oldSigInt);
+        s_suspendHandlersInstalled = true;
+    }
+}
+
+void m3_HostRemoveInterruptHandler (void)
+{
+    if (s_suspendHandlersInstalled) {
+        sigaction(SIGTSTP, &s_oldSigTstp, NULL);
+        sigaction(SIGINT, &s_oldSigInt, NULL);
+        s_suspendHandlersInstalled = false;
+    }
+    s_posixSuspendRuntime = NULL;
+}
+
+u64 m3_HostTimeMs (void)
+{
+    struct timespec now;
+
+    if (clock_gettime(CLOCK_REALTIME, &now) != 0 || now.tv_sec < 0) {
+        return 0;
+    }
+
+    return (u64)now.tv_sec * 1000 + (u64)now.tv_nsec / 1000000;
+}
+
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 {
     int fd = open(i_path, O_RDONLY);
@@ -195,7 +248,7 @@ bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
     // Anything this turns down is read instead, which is what makes a module out of
     // a process substitution work.
     if (fstat(fd, &info) != 0 or not S_ISREG(info.st_mode) or info.st_size <= 0 or
-        (uint64_t) info.st_size > (uint64_t)SIZE_MAX or
+        (off_t)(size_t) info.st_size != info.st_size or
         (i_maxBytes and (uint64_t) info.st_size > (uint64_t)i_maxBytes)) {
         close(fd);
         return m3_HostReadFile(i_path, i_maxBytes, o_file);
@@ -243,6 +296,12 @@ void m3_HostUnmapFile (M3HostFile* io_file)
     io_file->size = 0;
     io_file->handle = d_m3HostNoHandle;
     io_file->mapped = false;
+}
+
+// rename is atomic within a filesystem, which a file and its neighbour share
+bool m3_HostReplaceFile (const char* i_from, const char* i_to)
+{
+    return rename(i_from, i_to) == 0;
 }
 
 #if d_m3GuardedMemory

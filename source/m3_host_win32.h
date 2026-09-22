@@ -43,6 +43,45 @@ void* m3_HostStackBase (void)
     return mbi.AllocationBase;
 }
 
+static IM3Runtime s_win32SuspendRuntime = NULL;
+
+static
+BOOL WINAPI m3_ConsoleCtrlHandler (DWORD dwCtrlType)
+{
+    if (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT) {
+        if (s_win32SuspendRuntime && !s_win32SuspendRuntime->suspendRequested) {
+            s_win32SuspendRuntime->suspendRequested = true;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+void m3_HostInstallInterruptHandler (IM3Runtime io_runtime)
+{
+    s_win32SuspendRuntime = io_runtime;
+    SetConsoleCtrlHandler(m3_ConsoleCtrlHandler, TRUE);
+}
+
+void m3_HostRemoveInterruptHandler (void)
+{
+    SetConsoleCtrlHandler(m3_ConsoleCtrlHandler, FALSE);
+    s_win32SuspendRuntime = NULL;
+}
+
+// FILETIME counts 100ns intervals from 1601
+u64 m3_HostTimeMs (void)
+{
+    static const u64 c_unixEpoch = 116444736000000000ULL;
+
+    FILETIME         now;
+    GetSystemTimeAsFileTime(&now);
+
+    u64 ticks = ((u64)now.dwHighDateTime << 32) | now.dwLowDateTime;
+
+    return (ticks > c_unixEpoch) ? (ticks - c_unixEpoch) / 10000 : 0;
+}
+
 // FILE_SHARE_READ and nothing else: another process may read the file, and one
 // trying to write or delete it is refused for as long as the mapping lives. The
 // kernel enforces that, so it is the real thing rather than the advisory lock POSIX
@@ -101,6 +140,13 @@ void m3_HostUnmapFile (M3HostFile* io_file)
     io_file->size = 0;
     io_file->handle = d_m3HostNoHandle;
     io_file->mapped = false;
+}
+
+// rename refuses a target that exists; MoveFileEx replaces it, and within a
+// volume does so by renaming, in one step
+bool m3_HostReplaceFile (const char* i_from, const char* i_to)
+{
+    return MoveFileExA(i_from, i_to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
 }
 
 

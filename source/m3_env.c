@@ -96,7 +96,7 @@ M3Result Environment_AddFuncType (IM3Environment i_environment, IM3FuncType* io_
     IM3FuncType newType = i_environment->funcTypes;
 
     while (newType) {
-        if (AreFuncTypesEqual(newType, addType)) {
+        if (not newType->inRecGroup and AreFuncTypesEqual(newType, addType)) {
             m3_Free(addType);
             break;
         }
@@ -121,6 +121,36 @@ M3Result Environment_AddFuncType (IM3Environment i_environment, IM3FuncType* io_
     *io_funcType = newType;
 
     return m3Err_none;
+}
+
+
+// Adds a type without looking for an equal one first, and hands back the index
+// it was given.
+//
+// Members of a recursive group do not get to share an entry with a type that
+// merely looks like them: the group is their identity, so two groups spelled
+// the same way are still two groups, and a type inside one is never the type
+// outside it that matches field for field. Reserving the indices up front is
+// also what lets the members refer to each other while they are being read.
+M3Result Environment_ReserveFuncTypes (IM3Environment i_environment, u32 i_count, u16* o_firstIndex)
+{
+    if ((u64)i_environment->numFuncTypes + i_count > d_m3MaxSaneTypesCount) {
+        return "too many distinct function types";
+    }
+
+    *o_firstIndex = i_environment->numFuncTypes;
+    i_environment->numFuncTypes += (u16)i_count;
+
+    return m3Err_none;
+}
+
+
+void Environment_AdoptFuncType (IM3Environment i_environment, IM3FuncType i_funcType, u16 i_canonicalIndex)
+{
+    i_funcType->inRecGroup     = true;
+    i_funcType->canonicalIndex = i_canonicalIndex;
+    i_funcType->next           = i_environment->funcTypes;
+    i_environment->funcTypes   = i_funcType;
 }
 
 
@@ -343,6 +373,14 @@ void Runtime_Release (IM3Runtime i_runtime)
 #if d_m3EnableValidation
     m3_Free(i_runtime->validator);
 #endif
+
+#if d_m3HasExceptionHandling
+    // a runtime let go of while suspended still holds its exceptions
+    FreeExceptions(i_runtime);
+#endif
+#if d_m3HasStackSwitching
+    Continuation_ReleaseAll(i_runtime);
+#endif
 }
 
 
@@ -355,6 +393,158 @@ void m3_FreeRuntime (IM3Runtime i_runtime)
         m3_Free(i_runtime);
     }
 }
+
+
+#if d_m3HasStackSwitching
+
+IM3Continuation Continuation_New (IM3Runtime i_runtime, IM3FuncType i_type, IM3Function i_function)
+{
+    IM3Continuation cont = m3_AllocStruct(M3Continuation);
+    if (!cont) {
+        return NULL;
+    }
+
+    cont->type          = i_type;
+    cont->entryFunction = i_function;
+    cont->state         = cont_allocated;
+
+    cont->numStackSlots = d_m3ContinuationStackSlots;
+    cont->valStack      = m3_AllocArray(m3slot_t, cont->numStackSlots + 4);
+    if (!cont->valStack) {
+        m3_Free(cont);
+        return NULL;
+    }
+
+    // frames are recorded only when this continuation actually suspends, and
+    // only as deep as it got, so the array starts out unallocated
+    cont->frames    = NULL;
+    cont->framesCap = 0;
+    cont->numFrames = 0;
+
+    cont->sp = cont->valStack;
+    cont->pc = i_function ? i_function->compiled : NULL;
+    cont->r0 = 0;
+#  if d_m3HasFloat
+    cont->fp0 = 0;
+#  endif
+    cont->boundArgsCount    = 0;
+    cont->numSuspendResults = 0;
+    cont->numHandlers       = 0;
+    cont->handlersPC        = NULL;
+    cont->parent            = NULL;
+
+    cont->next               = i_runtime->continuations;
+    i_runtime->continuations = cont;
+
+    return cont;
+}
+
+IM3Continuation Continuation_ForkSuspended (IM3Runtime i_runtime, IM3Continuation i_cont)
+{
+    IM3Continuation newCont = Continuation_New(i_runtime, i_cont->type, i_cont->entryFunction);
+    if (M3_UNLIKELY(not newCont)) {
+        return NULL;
+    }
+
+    m3_Free(newCont->valStack);
+    m3_Free(newCont->frames);
+
+    newCont->valStack      = i_cont->valStack;
+    newCont->numStackSlots = i_cont->numStackSlots;
+    newCont->sp            = i_cont->sp;
+    newCont->pc            = i_cont->pc;
+    newCont->suspendPoint  = i_cont->suspendPoint;
+    newCont->r0            = i_cont->r0;
+#  if d_m3HasFloat
+    newCont->fp0 = i_cont->fp0;
+#  endif
+    newCont->frames    = i_cont->frames;
+    newCont->framesCap = i_cont->framesCap;
+    newCont->numFrames = i_cont->numFrames;
+
+    newCont->boundArgsCount = 0;
+#  if d_m3HasExceptionHandling
+    newCont->resumeThrow = i_cont->resumeThrow;
+    i_cont->resumeThrow  = NULL;
+#  endif
+    newCont->numSuspendResults = i_cont->numSuspendResults;
+    for (u32 i = 0; i < i_cont->numSuspendResults; ++i) {
+        newCont->suspendResultOffsets[i] = i_cont->suspendResultOffsets[i];
+        newCont->suspendResultIs64[i]    = i_cont->suspendResultIs64[i];
+    }
+
+    newCont->numHandlers = i_cont->numHandlers;
+    newCont->handlersPC  = i_cont->handlersPC;
+    newCont->parent      = i_cont->parent;
+    newCont->state       = cont_suspended;
+
+    i_cont->valStack  = NULL;
+    i_cont->frames    = NULL;
+    i_cont->framesCap = 0;
+    i_cont->numFrames = 0;
+    i_cont->state     = cont_consumed;
+
+    return newCont;
+}
+
+// Continuations live until the runtime does. They are one-shot, but a resumed
+// one is still reachable from the Wasm stack that holds its reference, and the
+// engine has no way to know when the last copy is gone.
+void Continuation_ReleaseAll (IM3Runtime io_runtime)
+{
+    IM3Continuation cont = io_runtime->continuations;
+
+    while (cont) {
+        IM3Continuation next = cont->next;
+
+        m3_Free(cont->valStack);
+        m3_Free(cont->frames);
+        m3_Free(cont);
+
+        cont = next;
+    }
+
+    io_runtime->continuations      = NULL;
+    io_runtime->activeContinuation = NULL;
+    io_runtime->rootContinuation   = NULL;
+}
+
+
+m3ret_t Continuation_RecordFrame (IM3Runtime i_runtime, const M3Frame* i_frame)
+{
+    IM3Continuation cont = i_runtime->activeContinuation;
+
+    // the marker only travels between a suspend and the resume that runs it,
+    // and that whole stretch has an active continuation
+    d_m3Assert(cont);
+
+    if (cont->numFrames == cont->framesCap) {
+        u32 newCap = cont->framesCap ? cont->framesCap * 2 : 8;
+
+        if (newCap > d_m3ContinuationMaxFrames) {
+            newCap = d_m3ContinuationMaxFrames;
+        }
+
+        if (newCap == cont->framesCap) {
+            return m3Err_trapStackOverflow;
+        }
+
+        M3Frame* frames = m3_ReallocArray(M3Frame, cont->frames, newCap, cont->framesCap);
+
+        if (not frames) {
+            return m3Err_mallocFailed;
+        }
+
+        cont->frames    = frames;
+        cont->framesCap = newCap;
+    }
+
+    cont->frames[cont->numFrames++] = *i_frame;
+
+    return m3Err_continuationSuspended;
+}
+
+#endif // d_m3HasStackSwitching
 
 M3Result EvaluateExpression (IM3Module i_module, void* o_expressed, m3type_t i_type, bytes_t* io_bytes, cbytes_t i_end)
 {
@@ -392,10 +582,32 @@ M3Result EvaluateExpression (IM3Module i_module, void* o_expressed, m3type_t i_t
     o->page = AcquireCodePage(&runtime);
 
     if (o->page) {
-        IM3FuncType ftype = runtime.environment->retFuncTypes[BaseTypeOf(i_type)];
+        IM3FuncType ftype = NULL;
+
+#if d_m3HasTypedRefs
+        // A reference type has to be checked as the type it is: the shared
+        // return types are one per storage class, so borrowing one of those
+        // would let any reference at all satisfy a particular one.
+        if (IsSpelledRefType(i_type)) {
+            result = AllocFuncType(&ftype, 1);
+
+            if (not result) {
+                ftype->numRets  = 1;
+                ftype->types[0] = i_type;
+
+                result = Environment_AddFuncType(runtime.environment, &ftype);
+            }
+        } else
+#endif
+        {
+            ftype = runtime.environment->retFuncTypes[BaseTypeOf(i_type)];
+        }
 
         pc_t m3code = GetPagePC(o->page);
-        result      = CompileExpression(o, ftype);
+
+        if (not result) {
+            result = CompileExpression(o, ftype);
+        }
 
         if (not result && o->maxStackSlots >= runtime.numStackSlots) {
             result = m3Err_trapStackOverflow;
@@ -525,6 +737,23 @@ IM3Global Module_FindExportedGlobal (IM3Module i_module, cstr_t i_name)
 }
 
 
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
+static
+IM3Tag Module_FindExportedTag (IM3Module i_module, cstr_t i_name)
+{
+    for (u32 i = 0; i < i_module->numTags; ++i) {
+        IM3Tag tag = &i_module->tags[i];
+
+        if (tag->name and strcmp(tag->name, i_name) == 0) {
+            return tag->resolved ? tag->resolved : tag;
+        }
+    }
+
+    return NULL;
+}
+#endif
+
+
 // Whether the module exports anything at all under this name. Export names are
 // unique within a module, so a name one of the lookups above missed but this
 // one finds is exported as something else - a kind the import cannot be
@@ -564,7 +793,7 @@ bool Module_HasExport (IM3Module i_module, cstr_t i_name)
         }
     }
 
-#if d_m3HasExceptionHandling
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
     for (u32 i = 0; i < i_module->numTags; ++i) {
         IM3Tag tag = &i_module->tags[i];
 
@@ -711,6 +940,31 @@ M3Result LinkImports (IM3Runtime io_runtime, IM3Module io_module)
 
         g->resolved = exported->resolved ? exported->resolved : exported;
     }
+
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
+    for (u32 i = 0; i < io_module->numTags; ++i) {
+        IM3Tag tag = &io_module->tags[i];
+
+        if (not tag->imported or not (tag->import.moduleUtf8 and tag->import.fieldUtf8)) {
+            continue;
+        }
+
+        IM3Module from = m3_FindModule(io_runtime, tag->import.moduleUtf8);
+        if (not from) {
+            continue;
+        }
+
+        IM3Tag exported = Module_FindExportedTag(from, tag->import.fieldUtf8);
+        if (not exported) {
+            _throwif(m3Err_incompatibleImportType, Module_HasExport(from, tag->import.fieldUtf8));
+            _throw(m3Err_unknownImport);
+        }
+
+        _throwif(m3Err_incompatibleImportType, exported->type != tag->type);
+
+        tag->resolved = exported->resolved ? exported->resolved : exported;
+    }
+#endif
 
     _catch: return result;
 }
@@ -860,7 +1114,7 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
         memory->mallocated->runtime = io_runtime;
         memory->mallocated->memory  = memory;
 
-        memory->mallocated->maxStack = (m3slot_t*)io_runtime->stack + io_runtime->numStackSlots;
+        memory->mallocated->maxStack = (m3slot_t*)io_runtime->originStack + io_runtime->numStackSlots;
 
         m3log(runtime, "resized old: %p; mem: %p; length: %zu; pages: %llu", oldMallocated, memory->mallocated, memory->mallocated->length, (unsigned long long)memory->numPages);
     } else {
@@ -1256,6 +1510,61 @@ M3Result RunCodeProtected (IM3Runtime i_runtime, pc_t i_pc, M3MemoryHeader* i_me
 #endif // d_m3GuardedMemory
 
 
+#if d_m3HasStackSwitching
+
+// The function a suspended continuation stopped in: the callee of its innermost
+// call frame, or the function it was entered with if it made no call. Frames are
+// recorded innermost first, so that is the lowest-numbered call frame.
+static
+IM3Function Continuation_InnermostFunction (IM3Continuation i_cont)
+{
+    for (u32 i = 0; i < i_cont->numFrames; ++i) {
+        if (i_cont->frames[i].kind == frame_call && i_cont->frames[i].call.function) {
+            return i_cont->frames[i].call.function;
+        }
+    }
+
+    return i_cont->entryFunction;
+}
+
+
+// Where the host's next call puts its arguments and finds its results. A
+// suspended root keeps its frames on the bottom of the runtime's stack, so a call
+// made before it is resumed starts above the last of them rather than on top of
+// them. The top is the innermost function's frame base plus everything that
+// function can use. That base is the root's own sp, unless it stopped inside a
+// resume: then the suspension point belongs to the resumed continuation, and the
+// root's innermost frame is that resume.
+void Runtime_PlaceCallStack (IM3Runtime io_runtime)
+{
+    IM3Continuation root = io_runtime->rootContinuation;
+
+    io_runtime->stack = io_runtime->originStack;
+
+    if (not root or root->state != cont_suspended) {
+        return;
+    }
+
+    m3stack_t   sp       = root->sp;
+    IM3Function function = Continuation_InnermostFunction(root);
+
+    if (root->numFrames and root->frames[0].kind == frame_resume) {
+        sp = root->frames[0].sp;
+    }
+
+    m3slot_t* base = (m3slot_t*)io_runtime->originStack;
+    m3slot_t* top  = (m3slot_t*)sp + (function ? function->maxStackSlots : 0);
+
+    if (top > base + io_runtime->numStackSlots) {
+        top = base + io_runtime->numStackSlots;
+    }
+
+    io_runtime->stack = top;
+}
+
+#endif // d_m3HasStackSwitching
+
+
 // Run compiled code on the runtime's stack, bounding native recursion for the
 // duration of the call. The outermost invocation establishes the stack limit;
 // nested ones (an imported function calling back into Wasm) inherit it.
@@ -1268,13 +1577,61 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
     // to, not against some runtime-wide one
     M3MemoryHeader* _mem = Module_MemoryHeader(i_function->module);
 
+#if d_m3HasSnapshots
+    if (M3_UNLIKELY(i_function->module->isUnusable)) {
+        return "a snapshot failed to restore into the module, so it cannot run";
+    }
+    i_function->module->hasRun = true;
+#endif
+
     d_m3StackLimitEnter(i_runtime);
+
+    // a host function calling back into Wasm does not change which call a trap
+    // ends: that is still the one the host made first
+    if (i_runtime->callNesting++ == 0) {
+        i_runtime->entered = i_function;
+    }
 #if d_m3HasExceptionHandling
     // handler stacks don't nest across a call boundary: a host function calling
     // back into Wasm cannot be caught by a try_table its own caller entered
     u32 savedTryDepth   = i_runtime->tryDepth;
     i_runtime->tryDepth = 0;
-    i_runtime->exceptionNesting++;
+#endif
+#if d_m3HasStackSwitching
+    // nor do continuations: the native frames on the far side of a host call
+    // are not ours to record, so a suspend in here has no handler to reach and
+    // no resume to unwind to
+    IM3Continuation savedContinuation = i_runtime->activeContinuation;
+
+    // A suspended root continuation is a paused program waiting to be resumed,
+    // not scratch space. A call the host makes before resuming it gets a
+    // context of its own, the way any other re-entry does, rather than having
+    // the frames of the suspension reset out from under it.
+    bool claimRoot = i_runtime->isSuspendable and not savedContinuation and
+                     not (i_runtime->rootContinuation and
+                          i_runtime->rootContinuation->state == cont_suspended);
+
+    if (claimRoot and not i_runtime->rootContinuation) {
+        i_runtime->rootContinuation = Continuation_New(i_runtime, i_function->funcType, i_function);
+
+        if (i_runtime->rootContinuation) {
+            // the root runs on the runtime's own stack rather than a buffer of
+            // its own, so the one it was given is handed straight back
+            m3_Free(i_runtime->rootContinuation->valStack);
+            i_runtime->rootContinuation->numStackSlots = i_runtime->numStackSlots;
+        } else {
+            claimRoot = false;
+        }
+    }
+
+    if (claimRoot) {
+        i_runtime->activeContinuation              = i_runtime->rootContinuation;
+        i_runtime->rootContinuation->entryFunction = i_function;
+        i_runtime->rootContinuation->state         = cont_running;
+        i_runtime->rootContinuation->numFrames     = 0;
+    } else {
+        i_runtime->activeContinuation = NULL;
+    }
 #endif
 #if d_m3GuardedMemory
     M3Result result = RunCodeProtected(i_runtime, i_pc, _mem);
@@ -1282,6 +1639,15 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
     M3Result result = (M3Result)RunCode(i_pc, (m3stack_t)i_runtime->stack, _mem, d_m3OpDefaultArgs, d_m3BaseCstr);
 #else
     M3Result result = (M3Result)RunCode(i_pc, (m3stack_t)i_runtime->stack, _mem, d_m3OpDefaultArgs);
+#endif
+#if d_m3HasStackSwitching
+    if (claimRoot) {
+        i_runtime->rootContinuation->state =
+          (result == m3Err_continuationSuspended) ? cont_suspended : cont_returned;
+
+        Runtime_PlaceCallStack(i_runtime);
+    }
+    i_runtime->activeContinuation = savedContinuation;
 #endif
 #if d_m3HasExceptionHandling
     i_runtime->tryDepth = savedTryDepth;
@@ -1291,10 +1657,13 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
         result = m3Err_trapUncaughtException;
     }
 
-    if (--i_runtime->exceptionNesting == 0) {
+    // a paused invocation can still reach the exceptions it holds, so they wait
+    // for it to finish
+    if (i_runtime->callNesting == 1 and not m3_IsSuspended(i_runtime)) {
         FreeExceptions(i_runtime);
     }
 #endif
+    i_runtime->callNesting--;
     d_m3StackLimitLeave(i_runtime);
 
     return result;
@@ -1331,7 +1700,9 @@ _           (CompileFunction(function));
 
         result = RunCodeChecked(runtime, function);
 
-        if (result) {
+        // a start function that suspended is not to be started again: resuming
+        // is what finishes it
+        if (result and result != m3Err_continuationSuspended) {
             io_module->startFunction = startFunctionTmp;
             EXCEPTION_PRINT(result);
             goto _catch;
@@ -1684,8 +2055,10 @@ M3Result GetStackPointerForArgs (IM3Function i_function, u8** o_stack)
     IM3Runtime  runtime = i_function->module->runtime;
     IM3FuncType ftype   = i_function->funcType;
 
+    // the stack a paused invocation holds is not available to this one
+    size_t used      = (size_t)((u8*)runtime->stack - (u8*)runtime->originStack);
     size_t needed    = ((size_t)ftype->numRets + ftype->numArgs) * sizeof(u64);
-    size_t available = (size_t)runtime->numStackSlots * sizeof(m3slot_t);
+    size_t available = (size_t)runtime->numStackSlots * sizeof(m3slot_t) - used;
 
     if (needed > available) {
         return m3Err_trapStackOverflow;
@@ -2353,5 +2726,96 @@ M3BacktraceInfo* m3_GetBacktrace (IM3Runtime i_runtime)
     return &i_runtime->backtrace;
 #else
     return NULL;
+#endif
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//  snapshots & suspendable execution
+//-------------------------------------------------------------------------------------------------------------------------------
+
+void m3_SetSuspendable (IM3Runtime io_runtime, bool i_suspendable)
+{
+    if (io_runtime) {
+        io_runtime->isSuspendable = i_suspendable;
+    }
+}
+
+void m3_RequestSuspend (IM3Runtime io_runtime)
+{
+    if (io_runtime) {
+        io_runtime->suspendRequested = true;
+    }
+}
+
+bool m3_IsSuspended (IM3Runtime i_runtime)
+{
+    if (!i_runtime) {
+        return false;
+    }
+#if d_m3HasStackSwitching
+    if (i_runtime->rootContinuation && i_runtime->rootContinuation->state == cont_suspended) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+M3Result m3_ResumeRuntime (IM3Runtime io_runtime)
+{
+    if (!io_runtime) {
+        return m3Err_mallocFailed;
+    }
+    if (!io_runtime->isSuspendable) {
+        return m3Err_none;
+    }
+#if d_m3HasSnapshots
+    // a restore that failed leaves nothing to resume, and says so every time
+    // rather than resuming nothing successfully
+    if (io_runtime->rootContinuation and io_runtime->rootContinuation->entryFunction and
+        io_runtime->rootContinuation->entryFunction->module->isUnusable) {
+        return "a snapshot failed to restore into the module, so it cannot run";
+    }
+#endif
+#if d_m3HasStackSwitching
+    if (!io_runtime->rootContinuation || io_runtime->rootContinuation->state != cont_suspended) {
+        return m3Err_none;
+    }
+    // what finishes returns into the bottom of the stack, where it was entered
+    io_runtime->stack = io_runtime->originStack;
+
+    // this is the outermost call again, as far as a host function calling back
+    // into Wasm from inside it can tell
+    io_runtime->entered = io_runtime->rootContinuation->entryFunction;
+    io_runtime->callNesting++;
+
+    d_m3StackLimitEnter(io_runtime);
+    io_runtime->resumePastCheck = true;
+    M3Result result             = (M3Result)ResumeContinuation(io_runtime, io_runtime->rootContinuation);
+    io_runtime->resumePastCheck = false;
+    d_m3StackLimitLeave(io_runtime);
+
+#  if d_m3HasExceptionHandling
+    if (M3_UNLIKELY(result == m3Err_pendingException)) {
+        result = m3Err_trapUncaughtException;
+    }
+#  endif
+
+    io_runtime->callNesting--;
+
+#  if d_m3HasExceptionHandling
+    if (result != m3Err_continuationSuspended and io_runtime->callNesting == 0) {
+        FreeExceptions(io_runtime);
+    }
+#  endif
+
+    // the results are where the paused call left room for them, so a finished
+    // resume can be asked for them the way the call itself could have been
+    io_runtime->lastCalled = (result == m3Err_none) ? io_runtime->rootContinuation->entryFunction : NULL;
+
+    Runtime_PlaceCallStack(io_runtime);
+    return result;
+#else
+    return m3Err_none;
 #endif
 }

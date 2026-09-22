@@ -240,7 +240,16 @@ static M3Result v_read_blocktype (ValCtx * v, IM3FuncType * o_type)
         m3type_t refType;
         M3Result rr = ParseValueType(v->module, &refType, &v->wasm, v->wasmEnd);
         if (rr) return rr;
-        *o_type = v->module->environment->retFuncTypes[BaseTypeOf(refType)];
+        IM3FuncType ftype = NULL;
+        rr = AllocFuncType(&ftype, 1);
+        if (rr) return rr;
+        ftype->numRets = 1;
+        ftype->types[0] = refType;
+        // on failure this leaves ftype NULL, which would read downstream as a
+        // block that returns nothing
+        rr = Environment_AddFuncType(v->module->environment, &ftype);
+        if (rr) return rr;
+        *o_type = ftype;
         return m3Err_none;
     }
 #endif
@@ -374,6 +383,77 @@ static M3Result v_catch_clause (ValCtx * v)
 
 #endif // d_m3HasExceptionHandling
 
+#if d_m3HasStackSwitching
+
+static M3Result v_resume_clause (ValCtx * v, u8 kind, u32 tagIdx, IM3FuncType ct)
+{
+    if (kind > 0x01) return m3Err_wasmMalformed;
+    if (!v->module || tagIdx >= v->module->numTags) return m3Err_unknownTag;
+    IM3FuncType tagType = v->module->tags[tagIdx].type;
+
+    if (kind == 0x00) {
+        u32 depth;
+        M3Result r = ReadLEB_u32(&depth, &v->wasm, v->wasmEnd); if (r) return r;
+        if (depth >= v->ctrlTop) return m3Err_unknownLabel;
+
+        ValCtrlFrame * tgt = &v->ctrl[v->ctrlTop - 1 - depth];
+        u16 numPayload = tagType ? tagType->numArgs : 0;
+        u16 numLabel   = v_label_n(tgt);
+
+        if (numLabel != numPayload + 1u) return m3Err_typeCountMismatch;
+
+        for (u16 j = 0; j < numPayload; j++) {
+            if (v_label_t(tgt, j) != BaseTypeOf(tagType->types[tagType->numRets + j]))
+                return m3Err_typeMismatch;
+        }
+        if (v_label_t(tgt, numPayload) != c_m3Type_contref)
+            return m3Err_typeMismatch;
+
+#if d_m3HasTypedRefs
+        m3type_t labelContType = (tgt->opcode == 0x03)
+            ? tgt->type->types[tgt->type->numRets + numPayload]
+            : tgt->type->types[numPayload];
+
+        if (HeapTypeOf(labelContType) == d_m3Type_heapAbstract ||
+            HeapTypeOf(labelContType) == d_m3Type_heapNone) {
+            return m3Err_typeMismatch;
+        }
+
+        u32 heapType = HeapTypeOf(labelContType);
+        IM3FuncType labelCt = NULL;
+        for (u32 idx = 0; idx < v->module->numFuncTypes; ++idx) {
+            if (v->module->funcTypes[idx]->canonicalIndex == heapType &&
+                v->module->funcTypes[idx]->isContinuation) {
+                labelCt = v->module->funcTypes[idx];
+                break;
+            }
+        }
+        if (!labelCt) return m3Err_typeMismatch;
+
+        IM3FuncType labelFt = labelCt->contFuncType ? labelCt->contFuncType : labelCt;
+        IM3FuncType ft = ct->contFuncType ? ct->contFuncType : ct;
+
+        u16 expectedNumParams = tagType ? tagType->numRets : 0;
+        if (labelFt->numArgs != expectedNumParams) return m3Err_typeMismatch;
+        for (u16 p = 0; p < expectedNumParams; ++p) {
+            if (labelFt->types[labelFt->numRets + p] != tagType->types[p])
+                return m3Err_typeMismatch;
+        }
+
+        u16 expectedNumRets = ft ? ft->numRets : 0;
+        if (labelFt->numRets != expectedNumRets) return m3Err_typeMismatch;
+        for (u16 r_idx = 0; r_idx < expectedNumRets; ++r_idx) {
+            if (labelFt->types[r_idx] != ft->types[r_idx])
+                return m3Err_typeMismatch;
+        }
+#endif
+    } else {
+        if (tagType && tagType->numArgs != 0) return m3Err_typeMismatch;
+    }
+    return m3Err_none;
+}
+
+#endif // d_m3HasStackSwitching
 
 static M3Result v_validate_body (ValCtx * v)
 {
@@ -816,7 +896,11 @@ static M3Result v_validate_body (ValCtx * v)
 #if d_m3HasTypedRefs
             m3type_t heapBits;
             r = ParseHeapType(v->module, &heapBits, &v->wasm, v->wasmEnd);  if (r) return r;
-            u8 t = (heapBits & d_m3Type_refExtern) ? c_m3Type_externref : c_m3Type_funcref;
+            u8 t = (heapBits & d_m3Type_refExtern) ? c_m3Type_externref :
+# if d_m3HasStackSwitching
+                   (heapBits & d_m3Type_refCont)   ? c_m3Type_contref :
+# endif
+                   c_m3Type_funcref;
 #else
             i8 waType;
             u8 t;
@@ -1248,6 +1332,228 @@ static M3Result v_validate_body (ValCtx * v)
             }
             break;
         }
+
+#if d_m3HasStackSwitching
+        // ---- Stack Switching ----
+        case 0xe0: // cont.new
+        {
+            u32 typeIdx;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            IM3FuncType ft = v->module->funcTypes[typeIdx];
+            if (!ft || !ft->isContinuation) return m3Err_typeMismatch;
+            r = v_pop_expect(v, c_m3Type_funcref, &a); if (r) return r;
+            r = v_push(v, c_m3Type_contref); if (r) return r;
+            break;
+        }
+
+        case 0xe1: // cont.bind
+        {
+            u32 typeIdx1, typeIdx2;
+            r = ReadLEB_u32(&typeIdx1, &v->wasm, v->wasmEnd); if (r) return r;
+            r = ReadLEB_u32(&typeIdx2, &v->wasm, v->wasmEnd); if (r) return r;
+            if (typeIdx1 >= v->module->numFuncTypes || typeIdx2 >= v->module->numFuncTypes) return m3Err_unknownType;
+            IM3FuncType ct1 = v->module->funcTypes[typeIdx1];
+            IM3FuncType ct2 = v->module->funcTypes[typeIdx2];
+            if (!ct1 || !ct2 || !ct1->isContinuation || !ct2->isContinuation) return m3Err_typeMismatch;
+
+            IM3FuncType ft1 = ct1->contFuncType ? ct1->contFuncType : ct1;
+            IM3FuncType ft2 = ct2->contFuncType ? ct2->contFuncType : ct2;
+
+            u16 numParams1 = ft1->numArgs;
+            u16 numParams2 = ft2->numArgs;
+            if (numParams1 < numParams2) return m3Err_typeMismatch;
+            u32 numBound = numParams1 - numParams2;
+
+            if (ft1->numRets != ft2->numRets) return m3Err_typeMismatch;
+            for (u16 i = 0; i < ft1->numRets; ++i) {
+                if (ft1->types[i] != ft2->types[i]) return m3Err_typeMismatch;
+            }
+            for (u16 i = 0; i < numParams2; ++i) {
+                if (ft1->types[ft1->numRets + numBound + i] != ft2->types[ft2->numRets + i]) return m3Err_typeMismatch;
+            }
+
+            r = v_pop_expect(v, c_m3Type_contref, &a); if (r) return r;
+
+            for (u32 i = numBound; i > 0; i--) {
+                r = v_pop_expect(v, BaseTypeOf(ft1->types[ft1->numRets + i - 1]), &a);
+                if (r) return r;
+            }
+
+            r = v_push(v, c_m3Type_contref); if (r) return r;
+            break;
+        }
+
+        case 0xe2: // suspend
+        {
+            u32 tagIdx;
+            r = ReadLEB_u32(&tagIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            if (!v->module || tagIdx >= v->module->numTags) return m3Err_unknownTag;
+            IM3FuncType tt = v->module->tags[tagIdx].type;
+            if (tt) {
+                for (u16 i = tt->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, BaseTypeOf(tt->types[tt->numRets + i - 1]), &a);
+                    if (r) return r;
+                }
+                for (u16 i = 0; i < tt->numRets; i++) {
+                    r = v_push(v, BaseTypeOf(tt->types[i]));
+                    if (r) return r;
+                }
+            }
+            break;
+        }
+
+        case 0xe3: // resume
+        {
+            u32 typeIdx;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            IM3FuncType ct = v->module->funcTypes[typeIdx];
+            if (!ct || !ct->isContinuation) return m3Err_typeMismatch;
+
+            u32 numClauses;
+            r = ReadLEB_u32(&numClauses, &v->wasm, v->wasmEnd); if (r) return r;
+
+            for (u32 i = 0; i < numClauses; i++) {
+                u8 kind;
+                r = Read_u8(&kind, &v->wasm, v->wasmEnd); if (r) return r;
+                u32 tagIdx;
+                r = ReadLEB_u32(&tagIdx, &v->wasm, v->wasmEnd); if (r) return r;
+                r = v_resume_clause(v, kind, tagIdx, ct); if (r) return r;
+            }
+
+            r = v_pop_expect(v, c_m3Type_contref, &a); if (r) return r;
+
+            IM3FuncType ft = ct->contFuncType ? ct->contFuncType : ct;
+            if (ft) {
+                for (u16 i = ft->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
+                    if (r) return r;
+                }
+                for (u16 i = 0; i < ft->numRets; i++) {
+                    r = v_push(v, BaseTypeOf(ft->types[i]));
+                    if (r) return r;
+                }
+            }
+            break;
+        }
+
+        case 0xe4: // resume_throw
+        {
+            u32 typeIdx, tagIdx, numClauses;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            r = ReadLEB_u32(&tagIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            r = ReadLEB_u32(&numClauses, &v->wasm, v->wasmEnd); if (r) return r;
+
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            if (!v->module || tagIdx >= v->module->numTags) return m3Err_unknownTag;
+            IM3FuncType ct = v->module->funcTypes[typeIdx];
+            if (!ct || !ct->isContinuation) return m3Err_typeMismatch;
+            IM3FuncType tagType = v->module->tags[tagIdx].type;
+
+            // it is an exception that gets raised, so the tag has to be one
+            // throw could have raised: no results
+            if (tagType && tagType->numRets != 0) return m3Err_typeMismatch;
+
+            for (u32 i = 0; i < numClauses; i++) {
+                u8 kind;
+                r = Read_u8(&kind, &v->wasm, v->wasmEnd); if (r) return r;
+                u32 cTagIdx;
+                r = ReadLEB_u32(&cTagIdx, &v->wasm, v->wasmEnd); if (r) return r;
+                r = v_resume_clause(v, kind, cTagIdx, ct); if (r) return r;
+            }
+
+            r = v_pop_expect(v, c_m3Type_contref, &a); if (r) return r;
+
+            if (tagType) {
+                for (u16 i = tagType->numArgs; i > 0; i--) {
+                    r = v_pop_expect(v, BaseTypeOf(tagType->types[tagType->numRets + i - 1]), &a);
+                    if (r) return r;
+                }
+            }
+
+            IM3FuncType ft = ct->contFuncType ? ct->contFuncType : ct;
+            if (ft) {
+                for (u16 i = 0; i < ft->numRets; i++) {
+                    r = v_push(v, BaseTypeOf(ft->types[i]));
+                    if (r) return r;
+                }
+            }
+            break;
+        }
+
+        case 0xe5: // resume_throw_ref
+        {
+            u32 typeIdx, numClauses;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            r = ReadLEB_u32(&numClauses, &v->wasm, v->wasmEnd); if (r) return r;
+
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            IM3FuncType ct = v->module->funcTypes[typeIdx];
+            if (!ct || !ct->isContinuation) return m3Err_typeMismatch;
+
+            for (u32 i = 0; i < numClauses; i++) {
+                u8 kind;
+                r = Read_u8(&kind, &v->wasm, v->wasmEnd); if (r) return r;
+                u32 cTagIdx;
+                r = ReadLEB_u32(&cTagIdx, &v->wasm, v->wasmEnd); if (r) return r;
+                r = v_resume_clause(v, kind, cTagIdx, ct); if (r) return r;
+            }
+
+            r = v_pop_expect(v, c_m3Type_contref, &a); if (r) return r;
+            r = v_pop_expect(v, c_m3Type_exnref, &a); if (r) return r;
+
+            IM3FuncType ft = ct->contFuncType ? ct->contFuncType : ct;
+            if (ft) {
+                for (u16 i = 0; i < ft->numRets; i++) {
+                    r = v_push(v, BaseTypeOf(ft->types[i]));
+                    if (r) return r;
+                }
+            }
+            break;
+        }
+
+        case 0xe6: // switch
+        {
+            u32 typeIdx, tagIdx;
+            r = ReadLEB_u32(&typeIdx, &v->wasm, v->wasmEnd); if (r) return r;
+            r = ReadLEB_u32(&tagIdx, &v->wasm, v->wasmEnd); if (r) return r;
+
+            if (typeIdx >= v->module->numFuncTypes) return m3Err_unknownType;
+            if (!v->module || tagIdx >= v->module->numTags) return m3Err_unknownTag;
+            IM3FuncType ct = v->module->funcTypes[typeIdx];
+            if (!ct || !ct->isContinuation) return m3Err_typeMismatch;
+
+            // a switch tag carries no payload of its own
+            IM3FuncType tagType = v->module->tags[tagIdx].type;
+            if (tagType && tagType->numArgs != 0) return m3Err_typeMismatch;
+
+            // switch $ct1 : [t1* (ref null $ct1)] -> [t2*], where $ct1's last
+            // parameter names $ct2 - the continuation this instruction
+            // suspends - and t2* is $ct2's parameters, not $ct1's results
+            IM3FuncType ft = ct->contFuncType;
+            if (!ft || ft->numArgs == 0) return m3Err_typeMismatch;
+
+            IM3FuncType peer = Module_ContTypeOfRef(v->module, ft->types[ft->numRets + ft->numArgs - 1]);
+            if (!peer || !peer->contFuncType) return m3Err_typeMismatch;
+
+            IM3FuncType self = peer->contFuncType;
+
+            r = v_pop_expect(v, c_m3Type_contref, &a); if (r) return r;
+
+            for (u16 i = (u16)(ft->numArgs - 1); i > 0; i--) {
+                r = v_pop_expect(v, BaseTypeOf(ft->types[ft->numRets + i - 1]), &a);
+                if (r) return r;
+            }
+
+            for (u16 i = 0; i < self->numArgs; i++) {
+                r = v_push(v, BaseTypeOf(self->types[self->numRets + i]));
+                if (r) return r;
+            }
+            break;
+        }
+
+#endif // d_m3HasStackSwitching
 
         default:
             // Unknown opcode - skip rather than fail for forward compat

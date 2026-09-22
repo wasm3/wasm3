@@ -22,6 +22,7 @@ u8 ConvertTypeCharToTypeId (char i_code)
     // same letters c_waCompactTypes uses for the reference types
     case 'r': return c_m3Type_funcref;
     case 'R': return c_m3Type_externref;
+    case 'c': return c_m3Type_contref;
     }
     return c_m3Type_unknown;
 }

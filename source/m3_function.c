@@ -12,7 +12,13 @@
 M3Result AllocFuncType (IM3FuncType* o_functionType, u32 i_numTypes)
 {
     *o_functionType = (IM3FuncType)m3_Malloc("M3FuncType", sizeof(M3FuncType) + i_numTypes * sizeof(m3type_t));
-    return (*o_functionType) ? m3Err_none : m3Err_mallocFailed;
+    if (*o_functionType) {
+        (*o_functionType)->isContinuation = false;
+        (*o_functionType)->contFuncType   = NULL;
+        (*o_functionType)->inRecGroup     = false;
+        return m3Err_none;
+    }
+    return m3Err_mallocFailed;
 }
 
 
@@ -22,6 +28,10 @@ M3Result AllocFuncType (IM3FuncType* o_functionType, u32 i_numTypes)
 m3type_t RefTypeOfFuncType (const IM3FuncType i_funcType, bool i_nonNull)
 {
     m3type_t type = d_m3Type_ref | (i_funcType ? i_funcType->canonicalIndex : d_m3Type_heapAbstract);
+
+    if (i_funcType and i_funcType->isContinuation) {
+        type |= d_m3Type_refCont;
+    }
 
     if (i_nonNull) {
         type |= d_m3Type_refNonNull;
@@ -35,7 +45,15 @@ m3type_t RefTypeOfFuncType (const IM3FuncType i_funcType, bool i_nonNull)
 
 bool AreFuncTypesEqual (const IM3FuncType i_typeA, const IM3FuncType i_typeB)
 {
-    if (i_typeA->numRets == i_typeB->numRets && i_typeA->numArgs == i_typeB->numArgs) {
+    if (i_typeA->isContinuation != i_typeB->isContinuation) {
+        return false;
+    }
+    if (i_typeA->isContinuation) {
+        return (i_typeA->contFuncType == i_typeB->contFuncType) or
+               (i_typeA->contFuncType and i_typeB->contFuncType and
+                AreFuncTypesEqual(i_typeA->contFuncType, i_typeB->contFuncType));
+    }
+    if (i_typeA->numRets == i_typeB->numRets and i_typeA->numArgs == i_typeB->numArgs) {
         return (memcmp(i_typeA->types, i_typeB->types,
                        (i_typeA->numRets + i_typeA->numArgs) * sizeof(m3type_t)) == 0);
     }
@@ -93,9 +111,29 @@ void FreeImportInfo (M3ImportInfo* i_info)
 }
 
 
+#if d_m3HasSnapshots
+
+void SnapshotMap_Free (M3SnapshotMap* i_map)
+{
+    if (i_map) {
+        m3_Free(i_map->locals);
+        m3_Free(i_map->safePoints);
+        m3_Free(i_map->values);
+        m3_Free(i_map->blocks);
+        m3_Free(i_map);
+    }
+}
+
+#endif
+
 void Function_Release (IM3Function i_function)
 {
     m3_Free(i_function->constants);
+
+#if d_m3HasSnapshots
+    SnapshotMap_Free(i_function->snapshotMap);
+    i_function->snapshotMap = NULL;
+#endif
 
     for (int i = 0; i < i_function->numNames; i++) {
         // name can be an alias of fieldUtf8

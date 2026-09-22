@@ -91,7 +91,7 @@ CONFIGURATION_DEFINES += -DWM_W600
 
 DEFINES += $(CONFIGURATION_DEFINES) -Os -flto -Wfatal-errors \
 			-fomit-frame-pointer -fno-stack-check -fno-stack-protector \
-			-Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers
+			-Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers
 #			-Dd_m3FixedHeap=8192
 #			-fno-optimize-sibling-calls
 

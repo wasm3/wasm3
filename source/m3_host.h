@@ -4,7 +4,8 @@
 //  What the engine asks of the system it is hosted on.
 //
 //  Everything here is something only the operating system can answer: how much native
-//  stack this thread still has, how to get at a file's bytes, and - where the build
+//  stack this thread still has, how to get at a file's bytes and replace a file whole,
+//  and - where the build
 //  asks for guarded memories - how to reserve address space, commit part of it, and
 //  turn the fault from a read past the committed part back into a Wasm trap.
 //
@@ -44,6 +45,15 @@ d_m3BeginExternC
 // what keeps the difference.
 void* m3_HostStackBase (void);
 
+// Suspension interrupt handlers (Ctrl+Z / SIGTSTP / SIGINT / Console Ctrl)
+void  m3_HostInstallInterruptHandler (IM3Runtime io_runtime);
+void  m3_HostRemoveInterruptHandler (void);
+
+// The wall clock, in milliseconds since the Unix epoch, UTC. 0 when there is no
+// clock to ask. Only ever written down - a snapshot says when it was taken - so
+// nothing depends on it being right.
+u64   m3_HostTimeMs (void);
+
 
 // A file's bytes and how they were come by.
 //
@@ -76,6 +86,12 @@ bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file);
 
 // Give the bytes back, releasing the mapping and its lock, or the heap block
 void m3_HostUnmapFile (M3HostFile* io_file);
+
+// Move the file at i_from over i_to, replacing whatever is there. Where the system
+// can, in one step: a reader of i_to sees the old file or the new one, never one
+// half written, and a writer that dies part way leaves i_to as it was. False when
+// the move failed, with i_from left where it is.
+bool m3_HostReplaceFile (const char* i_from, const char* i_to);
 
 // The reading half on its own: what each m3_HostMapFile falls back to, and the whole
 // of what a system with no mapping does. The same on every system, so it is here

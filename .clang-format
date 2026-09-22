@@ -113,6 +113,7 @@ StatementMacros:
 - d_m3CommutativeOp_f
 - d_m3CommutativeOp_i
 - d_m3CompareOp_f
+- d_m3ClearRegisters
 - d_m3Decoder
 - d_m3ErrorConst
 - d_m3FoldCommutativeOpMacro
@@ -136,6 +137,7 @@ StatementMacros:
 - d_m3SetRegisterSetSlot
 - d_m3Store_f
 - d_m3Store_i
+- d_m3TracePrepare
 - d_m3TraceLocal
 - d_m3TraceMemory
 - d_m3TruncMacro

@@ -78,6 +78,62 @@ Nothing has to be assembled by hand: the runner does it before the run, with the
 under test. Pass `--host ../build/wasm3` if the interpreter
 under test is not capable of running WABT.
 
+## Running snapshot tests
+
+The format and CLI regressions exercise malformed section framing, integer encodings,
+embedded checkpoints, start-function suppression, module identity, full reference
+types, and repeated binding of allocated and suspended continuations:
+
+```sh
+cd test
+python3 run-snapshot-format-test.py --exec ../build/wasm3
+```
+
+They assemble the fixtures in `snapshot/` with the bundled WABT tools in a temporary
+directory. The stack-switching fixture uses literal bytes in a `.wast` because the
+bundled assembler predates those instructions. Its commented source describes the
+equivalent module. The tests resume checkpoints at each binding stage and verify
+binary and JSON round trips through `snapshot-tool.py`.
+They also pause each module in [`snapshot/frames/`](../test/snapshot/frames/README.md)
+with `--interrupt` and compare the frames written against the ones its comments list;
+a new case there is a module and those lines, with no change to the runner. And they
+check where pause points are: [`extra/pause-points.py`](../extra/pause-points.py) works
+out every one a module has from its disassembly, `m3_test --pause-points <module>` lists
+the ones Wasm3 compiled, and the two have to agree for the examples and the snapshot
+workloads. That needs the `m3_test` beside `--exec`, or `--m3-test <path>`.
+Use `--host <wasm3>` when the interpreter under test cannot run WASI tools.
+`extra/check.py` runs these before the longer snapshot workload tests.
+
+```sh
+# In test directory:
+python3 run-snapshot-test.py --exec ../build/wasm3 --exec-other ../build-slot64/wasm3 --verify
+```
+
+Runs WASI programs in legs of a fixed gas budget: each leg that runs out saves a
+[snapshot](./Snapshots.md), and the next resumes it, alternately in `--exec` and
+`--exec-other`. A few of the snapshots are also taken to the end by the other build
+with no gas limit at all. Whatever the builds are, the output has to match an
+uninterrupted run. `--verify` checks every snapshot with
+[`extra/snapshot-tool.py`](../extra/snapshot-tool.py) as well. `--legs` is exact: `--legs 3
+--forks 0` suspends each program twice, in `--exec` and then in `--exec-other`, and
+finishes it in `--exec`. `--steps 20` also steps each program, from where its first
+leg stops, through its next twenty pause points with `--interrupt`, the builds taking
+turns; every step has to stop somewhere new. Both builds have to say `snapshots` in
+their `--version` banner.
+
+The point is two builds that lay their state out differently. A 64-bit-slot build is
+one cmake option away:
+
+```sh
+cmake -S . -B build-slot64 -DCMAKE_C_FLAGS="-Dd_m3Use32BitSlots=0"
+cmake --build build-slot64
+```
+
+`--exec-other` takes a runner prefix as `--exec` does, so the other build can be a
+big-endian one under qemu (`"qemu-s390x-static ../build-cross/wasm3-linux-s390x"`) or,
+from WSL, a Windows `wasm3.exe`. Without `--exec-other` the run still covers saving,
+restoring and switching gas metering off within one build.
+
 ## Running strace tests
 
 ```sh

@@ -4,7 +4,7 @@ Wasm3 pre-push check.
 
 Runs what CI runs for a single compiler, in CI's own order, against one local build:
 
-    format -> build -> embed -> regression -> spec -> wasi
+    format -> build -> embed -> regression -> spec -> wasi -> snapshot
 
 Each stage is a gate on the next: an unformatted tree is not worth building, a build
 with a new warning is not worth testing, and the suites all need the binary the build
@@ -121,6 +121,27 @@ def stage_wasi(args):
     run([sys.executable, "run-wasi-test.py", "--exec", built(args, "wasm3")], cwd=TEST)
 
 
+def stage_snapshot(args):
+    run(
+        [sys.executable, "run-snapshot-format-test.py", "--exec", built(args, "wasm3")],
+        cwd=TEST,
+    )
+    run(
+        [
+            sys.executable,
+            "run-snapshot-test.py",
+            "--legs",
+            "12",
+            "--steps",
+            "20",
+            "--verify",
+            "--exec",
+            built(args, "wasm3"),
+        ],
+        cwd=TEST,
+    )
+
+
 # The order is the pipeline: a stage assumes every stage above it has passed. Naming
 # stages on the command line selects from this sequence, it does not reorder it.
 # fmt: off
@@ -131,6 +152,7 @@ STAGES = (
     ("regression",  "test/run-regression-test.py",                     stage_regression),
     ("spec",        "test/run-spec-test.py, wg-3.0 then wg-2.0",       stage_spec),
     ("wasi",        "test/run-wasi-test.py",                           stage_wasi),
+    ("snapshot",    "test/run-snapshot-test.py, one build",            stage_snapshot),
 )
 # fmt: on
 

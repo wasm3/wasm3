@@ -6,7 +6,7 @@ COSMOCC_URL=https://cosmo.zip/pub/cosmocc/cosmocc-$COSMOCC_VERSION.zip
 
 SOURCE_DIR=../../source
 
-EXTRA_FLAGS="-Dd_m3PreferStaticAlloc -Dd_m3HasTypedRefs=1 -Dd_m3HasWASI"
+EXTRA_FLAGS="-Dd_m3PreferStaticAlloc -Dd_m3HasWASI"
 
 # On Windows the main thread gets exactly ape_stack_memsz, which this
 # toolchain's ape.lds fixes at 4 MB. Let's use a 3.5 MB guard.
