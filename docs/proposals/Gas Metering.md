@@ -2,7 +2,6 @@
 
 **Title:** WebAssembly Deterministic Gas Metering and Execution Budgeting  
 **Status:** Working Draft / Reference Specification  
-**Location:** `docs/proposals/Gas Metering.md`  
 
 ---
 
@@ -14,7 +13,7 @@ Gas metering assigns an execution cost to each WebAssembly instruction and enfor
 
 The specification defines:
 1. An **abstract execution segmentation model** (basic block decomposition) with **prepayment semantics**, guaranteeing that runaway loops, unbounded recursions, and trapped segments are charged accurately before executing.
-2. A **canonical micro-gas cost model** based on fixed-point integer units ($10\,000$ units per gas) covering all core WebAssembly instructions and modern extensions (floating point, reference types, bulk memory, exceptions, and tail calls).
+2. A **canonical micro-gas cost model** based on fixed-point integer units (10,000 units per gas) covering all core WebAssembly instructions and modern extensions (floating point, reference types, bulk memory, exceptions, and tail calls).
 3. Semantics for **out-of-gas traps** and their integration with **stack switching, execution suspension, and process snapshots**.
 4. An engine-agnostic **host embedder interface** and CLI conventions.
 5. An **Implementation Notes** section providing concrete architectural guidance for interpreters, JIT compilers, and suspendable runtimes.
@@ -90,7 +89,7 @@ An instruction is a *segment terminator* if it can alter the control flow or bra
 ### 3. Function Entry & Local Allocation
 
 In addition to instructions, WebAssembly functions declare local variables that are initialized to default values (zeros or null references) upon activation:
-- A function's declared locals incur an upfront initialization cost proportional to the number of locals declared ($N_{\text{locals}}$).
+- A function's declared locals incur an upfront initialization cost proportional to the number of declared locals (one unit per declared local).
 - This charge is prepended to the function's initial entry segment.
 
 ### 4. Constant Expressions
@@ -111,33 +110,33 @@ To guarantee deterministic bounding and prevent resource exhaustion under abnorm
 
 ## Cost Model & Instruction Pricing
 
-Gas accounting operates on a **canonical fixed-point integer unit** ($10\,000$ units per gas) derived from the ewasm metering design. Operating in integer micro-units avoids all floating-point rounding discrepancies across different CPU architectures.
-
+Gas accounting operates on a **canonical fixed-point integer unit** (10,000 units per gas) derived from the ewasm metering design. Operating in integer micro-units avoids all floating-point rounding discrepancies across different CPU architectures.
+ 
 $$\text{Gas (fractional)} = \frac{\text{Gas Units}}{10\,000}$$
-
+ 
 ### Cost Tiers
-
+ 
 The baseline instruction pricing is divided into distinct operational tiers reflecting computational and memory access complexity:
-
-| Tier Constant | Cost (Units) | Cost (Gas) | Description & Instruction Classes |
+ 
+| Tier | Cost (Units) | Cost (Gas) | Description & Instruction Classes |
 |---|---|---|---|
-| `c_gasNominal` | $1$ | $0.0001$ | Minimum bookkeeping: `nop`, `block`, `loop`, `if`, `try_table`, `ref.null`, `ref.func`, numeric constants (`i32.const`, `i64.const`, `f32.const`, `f64.const`). |
-| `c_gasLocal` | $1$ | $0.0001$ | Per declared local variable, charged once at function entry. |
-| `c_gasArith` | $45$ | $0.0045$ | Simple arithmetic & logic: integer/float additions, subtractions, multiplications, bitwise operations (`and`, `or`, `xor`), comparisons (`eq`, `ne`, `lt`, `gt`, etc.), bit counting (`clz`, `ctz`, `popcnt`), type conversions, sign extensions, saturating conversions, reference checks (`ref.is_null`, `ref.as_non_null`). |
-| `c_gasShift` | $67$ | $0.0067$ | Bit shifts: `i32.shl`, `i32.shr_s`, `i32.shr_u`, `i64.shl`, `i64.shr_s`, `i64.shr_u`. |
-| `c_gasBranch` | $90$ | $0.0090$ | Direct control flow & calls: `br`, `br_if`, `else`, `return`, `call`, `return_call`, bit rotations (`rotl`, `rotr`), exception dispatch (`throw`, `throw_ref`). |
-| `c_gasMemSize` | $100$ | $0.0100$ | Structural resource queries: `memory.size`, `table.size`, `data.drop`, `elem.drop`. |
-| `c_gasAccess` | $120$ | $0.0120$ | Storage reads & writes: local accesses (`local.get`, `local.set`, `local.tee`), global accesses (`global.get`, `global.set`), table accesses (`table.get`, `table.set`), linear memory loads and stores (all integer/float widths), `br_table`, `drop`, `select`. |
-| `c_gasHeavy` | $10\,000$ | $1.0000$ | Dynamic dispatch & bulk operations: indirect calls (`call_indirect`, `return_call_indirect`, `call_ref`, `return_call_ref`), memory bulk operations (`memory.init`, `memory.copy`, `memory.fill`, `memory.grow`), table bulk operations (`table.init`, `table.copy`, `table.grow`, `table.fill`). |
-| `c_gasDivide` | $36\,000$ | $3.6000$ | Heavy arithmetic: integer division and remainder (`i32/i64.div_s`, `div_u`, `rem_s`, `rem_u`), floating-point division and square root (`f32/f64.div`, `sqrt`). |
-| `c_gasEnd` | $0$ | $0.0000$ | The `end` instruction is priced at zero units. |
+| **Nominal** | 1 | 0.0001 | Minimum bookkeeping: `nop`, `block`, `loop`, `if`, `try_table`, `ref.null`, `ref.func`, numeric constants (`i32.const`, `i64.const`, `f32.const`, `f64.const`). |
+| **Local** | 1 | 0.0001 | Per declared local variable, charged once at function entry. |
+| **Arith** | 45 | 0.0045 | Simple arithmetic & logic: integer/float additions, subtractions, multiplications, bitwise operations (`and`, `or`, `xor`), comparisons (`eq`, `ne`, `lt`, `gt`, etc.), bit counting (`clz`, `ctz`, `popcnt`), type conversions, sign extensions, saturating conversions, reference checks (`ref.is_null`, `ref.as_non_null`). |
+| **Shift** | 67 | 0.0067 | Bit shifts: `i32.shl`, `i32.shr_s`, `i32.shr_u`, `i64.shl`, `i64.shr_s`, `i64.shr_u`. |
+| **Branch** | 90 | 0.0090 | Direct control flow & calls: `br`, `br_if`, `else`, `return`, `call`, `return_call`, bit rotations (`rotl`, `rotr`), exception dispatch (`throw`, `throw_ref`). |
+| **Query** | 100 | 0.0100 | Structural resource queries: `memory.size`, `table.size`, `data.drop`, `elem.drop`. |
+| **Access** | 120 | 0.0120 | Storage reads & writes: local accesses (`local.get`, `local.set`, `local.tee`), global accesses (`global.get`, `global.set`), table accesses (`table.get`, `table.set`), linear memory loads and stores (all integer/float widths), `br_table`, `drop`, `select`. |
+| **Heavy** | 10,000 | 1.0000 | Dynamic dispatch & bulk operations: indirect calls (`call_indirect`, `return_call_indirect`, `call_ref`, `return_call_ref`), memory bulk operations (`memory.init`, `memory.copy`, `memory.fill`, `memory.grow`), table bulk operations (`table.init`, `table.copy`, `table.grow`, `table.fill`). |
+| **Divide** | 36,000 | 3.6000 | Heavy arithmetic: integer division and remainder (`i32/i64.div_s`, `div_u`, `rem_s`, `rem_u`), floating-point division and square root (`f32/f64.div`, `sqrt`). |
+| **End** | 0 | 0.0000 | The `end` instruction is priced at zero units. |
 
 ### Extension Guidelines for Post-MVP Instructions
 
 When engines implement additional WebAssembly proposals, instructions are categorized according to their closest behavioral analog:
-1. **Typed References & GC:** Reference casting and type testing instructions (`ref.test`, `ref.cast`) map to `c_gasArith`. Struct/array field allocations map to `c_gasHeavy`, while field loads/stores map to `c_gasAccess`.
-2. **SIMD (128-bit):** Vector arithmetic, shuffles, and lane extractions map to `c_gasArith`. Vector memory loads and stores map to `c_gasAccess`.
-3. **Stack Switching:** Continuation allocation (`cont.new`, `cont.bind`) maps to `c_gasHeavy`. Switching operations (`suspend`, `resume`, `switch`) map to `c_gasBranch`.
+1. **Typed References & GC:** Reference casting and type testing instructions (`ref.test`, `ref.cast`) map to the **Arith** tier. Struct/array field allocations map to **Heavy**, while field loads/stores map to **Access**.
+2. **SIMD (128-bit):** Vector arithmetic, shuffles, and lane extractions map to **Arith**. Vector memory loads and stores map to **Access**.
+3. **Stack Switching:** Continuation allocation (`cont.new`, `cont.bind`) maps to **Heavy**. Switching operations (`suspend`, `resume`, `switch`) map to **Branch**.
 
 ---
 
@@ -146,36 +145,41 @@ When engines implement additional WebAssembly proposals, instructions are catego
 ### 1. Store State
 
 A metered runtime maintains two integer counters in its store:
-- `gas_limit` ($s64$): The total budget allocated for the current execution invocation, expressed in gas units.
-- `gas_remaining` ($s64$): The remaining gas units available for execution.
+- `gas_limit` (`s64`): The total budget allocated for the current execution invocation, expressed in gas units.
+- `gas_remaining` (`s64`): The remaining gas units available for execution.
 
 When armed with budget $G \ge 0$:
-$$\text{gas\_limit} \leftarrow \min(G \times 10\,000, \, \text{INT64\_MAX})$$
-$$\text{gas\_remaining} \leftarrow \text{gas\_limit}$$
+```text
+gas_limit     := min(G * 10000, INT64_MAX)
+gas_remaining := gas_limit
+```
 
 ### 2. Segment Execution Rule
 
 Before executing any straight-line segment $S$ with aggregated cost $\text{Cost}(S)$:
 1. Deduct cost:
-   $$\text{gas\_remaining} \leftarrow \text{gas\_remaining} - \text{Cost}(S)$$
-2. Check boundary condition:
-   If $\text{gas\_remaining} < 0$:
-   - **Default Execution Mode:** Immediately abort execution and raise an uncatchable runtime trap:
-     $$\text{trap}(\text{"out of gas"})$$
+   ```text
+   gas_remaining := gas_remaining - Cost(S)
+   ```
+2. Check boundary condition:  
+   If `gas_remaining < 0`:
+   - **Default Execution Mode:** Immediately abort execution and raise an uncatchable *out of gas* trap.
    - **Suspendable Execution Mode:** If the runtime supports execution suspension (e.g. stack switching or snapshotting) and is currently executing an interruptible continuation:
      1. Signal a pending suspension request:
-        $$\text{suspend\_requested} \leftarrow \text{true}$$
+        ```text
+        suspend_requested := true
+        ```
      2. Allow the prepaid segment $S$ to run to completion.
-     3. At the segment's boundary / safepoint, pause the execution context and yield control to the host with a `continuation_suspended` status.
+     3. At the segment boundary / safepoint, pause the execution context and yield control to the host with a `continuation_suspended` status.
 
 ### 3. Gas Consumption Invariant
 
 Because the segment that triggers gas exhaustion is prepaid in full before executing, `gas_remaining` will become negative upon out-of-gas. The total gas consumed by an invocation is deterministically computed as:
 
-$$\text{Gas Used} = \frac{\text{gas\_limit} - \text{gas\_remaining}}{10\,000}$$
+$$\text{Gas Used} = \frac{\text{Gas Limit} - \text{Gas Remaining}}{10\,000}$$
 
 > [!NOTE]
-> When an execution traps due to running out of gas, $\text{Gas Used}$ will legitimately exceed $\text{gas\_limit}$ by the fractional cost of the final, partially executed segment. This guarantees that the caller is never under-charged for work that the engine initiated.
+> When an execution traps due to running out of gas, `Gas Used` will legitimately exceed `gas_limit` by the fractional cost of the final, partially executed segment. This guarantees that the caller is never under-charged for work that the engine initiated.
 
 ---
 
@@ -199,7 +203,7 @@ double wasm_get_gas_used  (const wasm_runtime_t* runtime);
 
 ### Trap Representation
 
-- **Trap String:** `"[trap] out of gas"` (or identifier `m3Err_trapOutOfGas`).
+- **Trap Message:** `out of gas`. Hosts that report traps as strings should use this message, so embedders can distinguish exhaustion from other traps.
 - **Uncatchable:** An out-of-gas trap represents an external resource exhaustion condition. It **MUST NOT** be caught by WebAssembly exception handling blocks (`try_table`, `catch`, or `catch_all`). Control unwinds completely through the WebAssembly stack to the host invocation boundary.
 
 ### Command-Line Interface Conventions
@@ -224,7 +228,7 @@ In a runtime supporting typed continuations or stack switching:
 ### 2. Process Snapshots and Resumption
 
 Gas metering integrates cleanly with WebAssembly snapshots:
-1. **Snapshot on Exhaustion:** A module running out of gas can pause at the boundary, capture its complete execution state into a standalone container (`.dmp`) or embedded custom section (`"snapshot"` in `.wasm`), and return control to the host.
+1. **Snapshot on Exhaustion:** A module running out of gas can pause at the boundary, capture its complete execution state, and return control to the host.
 2. **Replenishing and Resuming:** The host can inspect intermediate state, grant an additional gas budget (`wasm_set_gas_limit`), and resume execution from the exact instruction where it paused.
 3. **Resumption in Unmetered Runtimes:** A snapshot taken from a metered runtime carries pure abstract machine state (locals, operand stacks, globals, linear memory). It can be resumed without friction in an unmetered runtime or on an engine built without metering support.
 
@@ -250,13 +254,13 @@ In an interpreter or JIT compiler, checking a gas counter on every virtual instr
 
 Decomposing code into straight-line segments dramatically reduces this overhead:
 - The compiler aggregates all instruction costs within each basic block into a single integer constant during module compilation.
-- At the start of the block, the engine emits a single synthetic charge operation (`op_UseGas <cost>`).
+- At the start of the block, the engine emits a single synthetic charge operation carrying that constant.
 - At runtime, metering overhead is reduced from $O(N)$ (where $N$ is total instructions executed) to $O(B)$ (where $B$ is the number of basic blocks entered). In a direct-threaded or register-based interpreter, this translates to one subtraction and one conditional branch per block.
 
 ### 2. Lazy Compilation Lifecycles
 
 In engines featuring lazy compilation (compiling function bodies on first invocation):
-- Runtimes should be armed with a gas budget **before** compiling function bodies. If a function is compiled while metering is active, the engine embeds the segment charge operations into the generated metacode/machine code.
+- Runtimes should be armed with a gas budget **before** compiling function bodies. If a function is compiled while metering is active, the engine embeds the segment charge operations into the generated code.
 - If a function was already compiled while metering was disabled, the engine must either invalidate/recompile the code upon arming, or require the embedder to set the gas limit prior to loading and instantiating the module.
 - Re-arming an already metered runtime with a fresh budget simply updates `gas_remaining` in memory without requiring code invalidation.
 
@@ -269,28 +273,22 @@ In engines featuring lazy compilation (compiling function bodies on first invoca
 ### 4. Prepayment and Safepoint Decoupling
 
 When combining gas metering with asynchronous pause or snapshot capabilities:
-- If a segment runs out of gas, immediately unwinding the stack inside `op_UseGas` can leave the operand stack or local slots in an intermediate, partially compiled state.
+- If a segment runs out of gas, immediately unwinding the stack inside the charge operation can leave the operand stack or local slots in an intermediate, engine-internal state.
 - By allowing the prepaid segment to finish executing its instructions up to the next designated *safepoint* (e.g., loop back-edge or function call boundary), the engine guarantees that all live values on the stack conform to canonical validation types, simplifying stack capture and snapshot serialization.
 
 ---
 
-## Reference Implementation and Verification
+## Implementation Status and Conformance
 
-### Reference Engine
+### Implementations
 
-A complete reference implementation of this specification is provided by the **Wasm3** interpreter:
-- **Segmentation & Pricing Compiler:** `source/m3_compile.c` (`MeterOpcode`, `CloseGasSegment`, `IsGasSegmentEnd`, `GetGasCost`).
-- **Execution Operation:** `source/m3_exec.h` (`op_UseGas`).
-- **Store & Host Management:** `source/m3_env.c`, `source/m3_env.h`, `source/wasm3.h`.
-- **CLI Options:** `platforms/app/main.c` (`--gas-meter`, `--gas-limit`).
+- **Wasm3** (interpreter): complete implementation of this specification, including suspendable execution and snapshot resumption.
 
-### Test Suites and Verification
+### Conformance Tests
 
-Conforming implementations can be validated using the following test suites:
-1. **Bounded Tail-Call Verification:**  
-   `test/regression/return-call-gas.wat`: Asserts that an infinite tail-call loop terminates deterministically with an `out of gas` trap under a constrained gas limit.
-2. **Snapshot Pause and Resumption under Gas Limits:**  
-   `test/internal/m3_test.c` (`snapshot.gas_out_suspend_and_resume`, `snapshot.gas_pauses_recursion`, `snapshot.gas_pause_resumes_unmetered`): Validates that a computation reaching a gas limit can suspend, serialize state, replenish gas, and resume to correct completion.
-3. **Execution Round-Trip Suite:**  
-   `test/run-snapshot-test.py`: Verifies segmented execution legs across standard benchmark modules.
+A conforming implementation is expected to pass the following scenarios:
+1. **Bounded Tail Calls:** An infinite tail-call loop terminates deterministically with an *out of gas* trap under a constrained gas limit.
+2. **Suspension and Resumption under Gas Limits:** A computation that reaches its gas limit suspends, serializes its state, is granted more gas, and resumes to the same result an uninterrupted run produces - including when the limit is reached inside deep recursion.
+3. **Resumption Without Metering:** A state captured on gas exhaustion in a metered runtime resumes to correct completion in an unmetered one.
+4. **Segmented Round Trips:** Running a module to completion in many gas-bounded legs yields the same observable result as a single run.
 

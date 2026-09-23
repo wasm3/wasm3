@@ -192,7 +192,10 @@ own position that concrete reference types don't cross the embedding boundary.
 
 Set to `0` to compile out the entire type-validation layer: `ValidateFunction`
 becomes a stub returning `m3Err_none`, and `m3_validate.c` compiles to nothing.
-Structural checks in `m3_parse.c` are unaffected and still run.
+Structural checks in `m3_parse.c` are unaffected and still run, with two
+exceptions that go with the flag: names are no longer checked for well-formed
+UTF-8 (`Read_utf8` copies the bytes as they are), and export names are no longer
+checked for uniqueness.
 
 Disabling it means **trusting your input**. What stops being checked is
 everything the validator solely owns - memory access alignment and memory-op

@@ -809,6 +809,7 @@ M3Result ReadLEB_i64 (i64* o_value, bytes_t* io_bytes, cbytes_t i_end)
     return result;
 }
 
+#if d_m3EnableValidation
 // Validate that a byte sequence is well-formed UTF-8 per the Unicode spec.
 // Returns true if valid, false otherwise.
 static
@@ -892,6 +893,7 @@ bool IsValidUtf8 (const u8* i_data, u32 i_length)
 
     return true;
 }
+#endif // d_m3EnableValidation
 
 
 M3Result Read_utf8 (cstr_t* o_utf8, bytes_t* io_bytes, cbytes_t i_end)
@@ -906,10 +908,12 @@ M3Result Read_utf8 (cstr_t* o_utf8, bytes_t* io_bytes, cbytes_t i_end)
             const u8* ptr = *io_bytes;
             if (utf8Length <= (size_t)(i_end - ptr)) {
                 const u8* end = ptr + utf8Length;
+#if d_m3EnableValidation
                 if (not IsValidUtf8(ptr, utf8Length)) {
                     *io_bytes = end;
                     return m3Err_wasmMalformed;
                 }
+#endif // d_m3EnableValidation
 
                 char* utf8 = (char*)m3_Malloc("UTF8", utf8Length + 1);
 

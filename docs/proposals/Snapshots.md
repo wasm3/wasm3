@@ -1,8 +1,7 @@
 # WebAssembly Snapshot Proposal
 
 **Title:** WebAssembly Process Snapshot, Checkpoint, and Resumption  
-**Status:** Experimental / Working Draft  
-**Location:** `docs/proposals/Snapshot.md`
+**Status:** Working Draft / Reference Specification  
 
 ---
 
