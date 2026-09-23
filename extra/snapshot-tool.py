@@ -734,10 +734,14 @@ def embed_snapshot_in_wasm(wasm_data, snapshot_payload, name=None):
     key = name or ""
     if isinstance(snaps.get(key), _Duplicate):
         raise FormatError(f"duplicate embedded snapshot name: {key!r}")
-    if _parse(snapshot_payload).is_postmortem:
+    snap = _parse(snapshot_payload)
+    if snap.is_postmortem:
         raise FormatError("a postmortem cannot be embedded in a module")
     if snapshot_payload[:4] != MAGIC:
         raise FormatError("embedding requires a standalone snapshot")
+    # running the module resumes what it carries, so that has to be its own
+    if snap.module_hash != module_hash(wasm_data):
+        raise FormatError("the snapshot belongs to another module")
     sec_name = f"snapshot.{name}" if name else "snapshot"
     out = bytearray(wasm_data[:8])
     for _, start, end, custom_name, _ in _wasm_sections(wasm_data):
@@ -955,6 +959,15 @@ def load(source, *, module=None, name=None):
     else:
         with open(source, "rb") as f:
             data = f.read()
+
+    # an embedded snapshot belongs to the module that carries it, and to no other
+    if data[:4] == MAGIC_WASM and wasm_module_path is not None:
+        same = isinstance(source, str) and os.path.samefile(source, wasm_module_path)
+        if not same:
+            raise FormatError(
+                "an embedded snapshot belongs to the module that carries it; "
+                "extract it to read it against another"
+            )
 
     snap = _parse(data, snapshot_name=name)
     if wasm_module_path:

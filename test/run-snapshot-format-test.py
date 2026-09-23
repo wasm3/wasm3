@@ -229,6 +229,10 @@ class SnapshotFormatTests(unittest.TestCase):
         result = self.command("--resume", path)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         self.assertNotIn(b"snapshot-start", result.stdout + result.stderr)
+        # the .wasm on --resume is the module to run, so there is no other
+        result = self.command("--resume", path, self.module)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"is the module to run", result.stderr)
 
     def test_engine_embeds_a_section_stream(self):
         path = self.directory / "engine.wasm"
@@ -301,6 +305,19 @@ class SnapshotFormatTests(unittest.TestCase):
             tool._parse_wasm_path("dir.wasm:x/app.wasm:name"),
             ("dir.wasm:x/app.wasm", "name"),
         )
+
+    def test_embedded_snapshot_belongs_to_its_module(self):
+        other = bytearray(self.wasm)
+        other[other.index(b"snapshot-start")] = ord("S")
+        with self.assertRaises(tool.FormatError):
+            tool.embed_snapshot_in_wasm(bytes(other), self.raw)
+        embedded = self.write(
+            "carrier.wasm", tool.embed_snapshot_in_wasm(self.wasm, self.raw)
+        )
+        tool.load(str(embedded), module=str(embedded))
+        # read against another module, even an identical one, it is refused
+        with self.assertRaises(tool.FormatError):
+            tool.load(str(embedded), module=str(self.module))
 
     def test_postmortem_is_not_embedded(self):
         snapshot = tool.Snapshot()

@@ -174,7 +174,9 @@ another section name.
 An embedded snapshot is there to be resumed, so it **MUST** be resumable: a producer
 **MUST NOT** embed a postmortem, and a reader rejects one. Otherwise a module carrying
 a postmortem as `"snapshot"` could no longer be run at all, since running it resumes
-that section.
+that section. For the same reason it **MUST** belong to the module that carries it: a
+producer **MUST NOT** embed a snapshot whose `wasm_hash` differs from the enclosing
+module's.
 
 When embedded, the enclosing `.wasm` file remains a valid, standard WebAssembly module.
 
@@ -209,6 +211,12 @@ embedded snapshots:
    **SHOULD** bypass snapshot resumption and execute the targeted function. Naming the
    default entry point is not such a request: a host that cannot tell `--func _start`
    from its own default may resume in both cases.
+6. **One Module:** An embedded snapshot restores into the module that carries it and
+   into no other. Selecting one by its module (e.g. `--resume <file.wasm>`) names the
+   module to run as well, so the host **MUST NOT** accept a second module to restore it
+   into. A checkpoint wanted in another binary - one that differs only in its custom
+   sections, say - is extracted into a standalone container first, and restored from
+   there under the usual `wasm_hash` check.
 
 ---
 

@@ -117,9 +117,8 @@ $ build/wasm3 app.wasm:stage1
 ```
 
 A name on `--snapshot` or `--resume` wins over one on the file to run. The name
-starts after the last `.wasm:` in the argument. `--resume <other>.wasm` takes the
-snapshot out of that binary and restores it into the module this run loaded, which
-has to be the module it was saved from.
+starts after the last `.wasm:` in the argument. `--resume <file>.wasm` names the
+module to run as well as the snapshot, so it takes no other file.
 
 Two sections with the same name do not stop the module from loading or from running
 cold. Only selecting that name fails.

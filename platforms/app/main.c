@@ -129,7 +129,8 @@ static char        argFileBuf[1024];
 
 // Takes the <name> off a "<path>.wasm:<name>" argument. --snapshot and
 // --resume name the snapshot they act on; the file to run may name one too,
-// and an option wins over it, so `wasm3 app.wasm:a --resume app.wasm:b` resumes b.
+// and an option wins over it, so `wasm3 --snapshot out.wasm:b app.wasm:a`
+// resumes b.
 static
 void set_snapshot_name (const char* i_name, bool i_fromOption)
 {
@@ -1253,6 +1254,13 @@ int main (int i_argc, const char* i_argv[])
         }
     }
 
+    // A snapshot embedded in a .wasm is resumed into that module, so it is the
+    // file to run and there cannot be another one.
+    if (argResumeFile and ends_with(argResumeFile, ".wasm") and i_argc > 0) {
+        fprintf(stderr, "Error: --resume %s is the module to run; drop the other file\n", argResumeFile);
+        return 1;
+    }
+
     if (not argRepl and i_argc < 1 and argResumeFile) {
         argFile = argResumeFile;
     } else if ((argRepl and (i_argc > 1)) or   // repl supports 0 or 1 args
@@ -1342,32 +1350,9 @@ int main (int i_argc, const char* i_argv[])
         }
 
         if (argResumeFile || argResumeEmbedded) {
-            if (argResumeEmbedded || argResumeFile == argFile || ends_with(argResumeFile, ".wasm")) {
+            if (argResumeEmbedded || argResumeFile == argFile) {
                 if (m3_HasSnapshot(lastLoadedModule, argSnapshotName)) {
                     result = m3_LoadEmbeddedSnapshot(runtime, lastLoadedModule, argSnapshotName);
-                } else if (argResumeFile && argResumeFile != argFile) {
-                    // The snapshot rides in another .wasm. Only its bytes come
-                    // from there - it still restores into the module this run
-                    // loaded, so that is the module handed to the loader.
-                    M3HostFile bin;
-                    result = read_wasm_file(argResumeFile, &bin);
-                    if (!result) {
-                        IM3Module donor = NULL;
-                        result          = m3_ParseModule(env, &donor, (const u8*)bin.data, (u32)bin.size);
-                        if (!result) {
-                            const void* snapshot = NULL;
-                            size_t      size     = 0;
-
-                            result = m3_GetEmbeddedSnapshot(donor, argSnapshotName, &snapshot, &size);
-                            if (!result) {
-                                result = m3_LoadSnapshotFromBuffer(runtime, lastLoadedModule, snapshot, size);
-                            }
-                            // the snapshot points into bin, so the donor goes
-                            // only once it has been read
-                            m3_FreeModule(donor);
-                        }
-                        m3_HostUnmapFile(&bin);
-                    }
                 } else {
                     result = "module contains no embedded snapshot";
                 }
