@@ -634,6 +634,74 @@ d_m3UnaryOp_i(i64, Extend8_s,  OP_EXTEND8_S_I64)
 d_m3UnaryOp_i(i64, Extend16_s, OP_EXTEND16_S_I64)
 d_m3UnaryOp_i(i64, Extend32_s, OP_EXTEND32_S_I64)
 
+#if d_m3HasWideArithmetic
+
+// Wide arithmetic. Every operand is in a slot, the top of the stack first, and
+// the last immediate is the slot the low half of the result goes to; the high
+// half goes to _r0. That slot may be one an operand was just read from, so it is
+// only written once all of them are.
+d_m3Op(i64_Add128)
+{
+    u64  rhsHigh = slot (u64);
+    u64  rhsLow  = slot (u64);
+    u64  lhsHigh = slot (u64);
+    u64  lhsLow  = slot (u64);
+    u64* low     = slot_ptr (u64);
+    d_m3PreloadNext();
+
+    u64 sum = lhsLow + rhsLow;
+
+    *low = sum;
+    _r0  = (i64) (lhsHigh + rhsHigh + (sum < lhsLow));
+
+    nextOpPreloaded();
+}
+
+d_m3Op(i64_Sub128)
+{
+    u64  rhsHigh = slot (u64);
+    u64  rhsLow  = slot (u64);
+    u64  lhsHigh = slot (u64);
+    u64  lhsLow  = slot (u64);
+    u64* low     = slot_ptr (u64);
+    d_m3PreloadNext();
+
+    *low = lhsLow - rhsLow;
+    _r0  = (i64) (lhsHigh - rhsHigh - (lhsLow < rhsLow));
+
+    nextOpPreloaded();
+}
+
+d_m3Op(i64_MultiplyWide)
+{
+    i64  b   = slot (i64);
+    i64  a   = slot (i64);
+    u64* low = slot_ptr (u64);
+    d_m3PreloadNext();
+
+    u64 high;
+    *low = mul_wide_i64 (a, b, &high);
+    _r0  = (i64) high;
+
+    nextOpPreloaded();
+}
+
+d_m3Op(u64_MultiplyWide)
+{
+    u64  b   = slot (u64);
+    u64  a   = slot (u64);
+    u64* low = slot_ptr (u64);
+    d_m3PreloadNext();
+
+    u64 high;
+    *low = mul_wide_u64 (a, b, &high);
+    _r0  = (i64) high;
+
+    nextOpPreloaded();
+}
+
+#endif // d_m3HasWideArithmetic
+
 #define d_m3TruncMacro(DEST, SRC, TYPE, NAME, FROM, OP, ...)   \
 d_m3Op(TYPE##_##NAME##_##FROM##_r_r)                \
 {                                                   \

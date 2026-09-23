@@ -1141,7 +1141,8 @@ else:
     # up empty just means this suite already covers it in core/:
     #   2.0: tail call, extended const
     #   3.0: bulk memory moved to core/bulk-memory; exception handling moved to
-    #        core/exceptions; custom page sizes is still a proposal
+    #        core/exceptions; custom page sizes and wide arithmetic are still
+    #        proposals
     for stage in ("proposals", "core"):
         for subdir in (
             (
@@ -1149,6 +1150,7 @@ else:
                 "extended-const",
                 "bulk-memory",
                 "compact-import-section",
+                "wide-arithmetic",
             )
             + (("multi-memory",) if hasMultiMemory else ())
             + (() if hasGuardedMemory else ("custom-page-sizes",))

@@ -293,6 +293,59 @@ u64 rotr64 (u64 n, u64 c)
 }
 
 /*
+ * Wide multiply: the full 128-bit product of two 64-bit integers, as its low
+ * half returned and its high half written through o_high
+ */
+
+static inline
+u64 mul_wide_u64 (u64 a, u64 b, u64* o_high)
+{
+#if defined(__SIZEOF_INT128__) && (UINTPTR_MAX > UINT32_MAX || defined(__wasm_wide_arithmetic__))
+    // a 64-bit target multiplies into a register pair in one instruction. A 32-bit
+    // one that has the type anyway, wasm32 among them, would make a library call,
+    // unless the target itself provides wide arithmetic instructions.
+    unsigned __int128 product = (unsigned __int128)a * b;
+
+    *o_high = (u64)(product >> 64);
+    return (u64)product;
+#else
+    // four 32 x 32 partial products of the halves, a1:a0 times b1:b0. The middle
+    // column collects the carry out of the low one and the low halves of the two
+    // cross terms, at most 3 * (2^32 - 1).
+    u64 a0 = (u32)a, a1 = a >> 32;
+    u64 b0 = (u32)b, b1 = b >> 32;
+
+    u64 ll = a0 * b0;
+    u64 lh = a0 * b1;
+    u64 hl = a1 * b0;
+    u64 hh = a1 * b1;
+
+    u64 middle = (ll >> 32) + (u32)lh + (u32)hl;
+
+    *o_high = hh + (lh >> 32) + (hl >> 32) + (middle >> 32);
+    return (middle << 32) | (u32)ll;
+#endif
+}
+
+// A negative factor reads 2^64 too large as unsigned, which puts 2^64 times the
+// other factor too much into the product - one other factor too much in the high
+// half, which is where it is taken back out
+static inline
+u64 mul_wide_i64 (i64 a, i64 b, u64* o_high)
+{
+    u64 low = mul_wide_u64((u64)a, (u64)b, o_high);
+
+    if (a < 0) {
+        *o_high -= (u64)b;
+    }
+    if (b < 0) {
+        *o_high -= (u64)a;
+    }
+
+    return low;
+}
+
+/*
  * Integer Div, Rem
  */
 

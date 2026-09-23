@@ -1185,7 +1185,7 @@ static M3Result v_validate_body (ValCtx * v)
         case 0xc2: case 0xc3: case 0xc4: // i64.extend8/16/32_s
             r = v_unop(v, c_m3Type_i64, c_m3Type_i64); break;
 
-        // ---- 0xFC prefix (saturating truncations + bulk memory) ----
+        // ---- 0xFC prefix (saturating truncations, bulk memory, wide arithmetic) ----
         case 0xfc:
         {
             u32 sub;
@@ -1326,6 +1326,21 @@ static M3Result v_validate_body (ValCtx * v)
                 r = v_pop_expect(v, addrType, &a); if (r) return r;      // dst
                 break;
             }
+#if d_m3HasWideArithmetic
+            case 0x13: case 0x14: // i64.add128, i64.sub128
+            case 0x15: case 0x16: // i64.mul_wide_s, i64.mul_wide_u
+            {
+                // two 128-bit operands of two i64 halves each, or two i64 factors;
+                // either way a 128-bit result, the low half pushed first
+                u32 numOperands = (sub <= 0x14) ? 4 : 2;
+                for (u32 i = 0; i < numOperands; ++i) {
+                    r = v_pop_expect(v, c_m3Type_i64, &a); if (r) return r;
+                }
+                r = v_push(v, c_m3Type_i64); if (r) return r;
+                r = v_push(v, c_m3Type_i64); if (r) return r;
+                break;
+            }
+#endif
             default:
                 // Unknown FC sub-opcode: skip validation (allow forward compat)
                 break;

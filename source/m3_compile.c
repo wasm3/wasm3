@@ -4737,6 +4737,50 @@ _       (PushRegister(o, opInfo->type))
     _catch: return result;
 }
 
+#if d_m3HasWideArithmetic
+
+// The wide arithmetic proposal: i64.add128 and i64.sub128 over two 128-bit values
+// given as i64 halves, and i64.mul_wide_s/u giving the full product of two i64s.
+// Each gives back a 128-bit result the same way, low half first. The operands are
+// all read from slots, and of the two results the high half, which ends up on top,
+// goes to _r0 and the low half to a newly allocated slot - so every operation has
+// the one form, whatever shape the stack was in.
+static
+M3Result Compile_WideArithmetic (IM3Compilation o, m3opcode_t i_opcode)
+{
+    M3Result result = m3Err_none;
+
+    IM3Operation op          = op_i64_Add128;
+    u32          numOperands = 4;
+
+    switch (i_opcode)
+    // clang-format off
+    {
+    case c_waOp_i64Sub128:   op = op_i64_Sub128;                          break;
+    case c_waOp_i64MulWideS: op = op_i64_MultiplyWide; numOperands = 2;   break;
+    case c_waOp_i64MulWideU: op = op_u64_MultiplyWide; numOperands = 2;   break;
+    default: break;
+    }
+    // clang-format on
+
+_   (PreserveRegisterIfOccupied(o, c_m3Type_i64));
+
+_   (EmitOp(o, op));
+
+    // the top of the stack first: the high half of the second operand, for the
+    // 128-bit ones
+    for (u32 i = 0; i < numOperands; ++i) {
+_       (EmitSlotNumOfStackTopAndPop(o));
+    }
+
+_   (PushAllocatedSlotAndEmit(o, c_m3Type_i64));      // the low half
+_   (PushRegister(o, c_m3Type_i64));                  // the high half
+
+    _catch: return result;
+}
+
+#endif // d_m3HasWideArithmetic
+
 #if d_m3HasMemory64
 
 // Replaces the 64-bit address operand of a load or store with the checked
@@ -4942,6 +4986,7 @@ M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const
     d_m3CompilerList_refTypes( _ )      \
     d_m3CompilerList_typedRefs( _ )     \
     d_m3CompilerList_eh( _ )            \
+    d_m3CompilerList_wide( _ )          \
     d_m3CompilerList_stackSwitching( _ )
 
 #if d_m3ImplementFloat
@@ -4983,6 +5028,13 @@ M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const
     _( Compile_TryTable )
 #else
 #  define d_m3CompilerList_eh(_)
+#endif
+
+#if d_m3HasWideArithmetic
+#  define d_m3CompilerList_wide(_)      \
+    _( Compile_WideArithmetic )
+#else
+#  define d_m3CompilerList_wide(_)
 #endif
 
 #if d_m3HasStackSwitching
@@ -5367,6 +5419,15 @@ const M3OpInfo c_operationsFC[] =
     M3OP_RESERVED, M3OP_RESERVED, M3OP_RESERVED,                                                                    // 0x0f...0x11
 #endif
 
+#if d_m3HasWideArithmetic
+    M3OP_RESERVED,                                                                                                  // 0x12
+
+    M3OP( "i64.add128",            -2, i_64,  d_cc(Compile_WideArithmetic), d_logOp (i64_Add128) ),              // 0x13
+    M3OP( "i64.sub128",            -2, i_64,  d_cc(Compile_WideArithmetic), d_logOp (i64_Sub128) ),              // 0x14
+    M3OP( "i64.mul_wide_s",        0,  i_64,  d_cc(Compile_WideArithmetic), d_logOp (i64_MultiplyWide) ),        // 0x15
+    M3OP( "i64.mul_wide_u",        0,  i_64,  d_cc(Compile_WideArithmetic), d_logOp (u64_MultiplyWide) ),        // 0x16
+#endif
+
 
 # ifdef DEBUG
     M3OP( "termination", 0, c_m3Type_unknown, d_emptyOpList ) // for find_operation_info
@@ -5630,8 +5691,8 @@ u32 GetGasCost (m3opcode_t i_opcode)
     }
 
     // comparisons and clz/ctz/popcnt (0x45..0x69, 0x79..0x7b), the conversions
-    // and sign extensions (0xa7..0xc4), the saturating truncations, and anything
-    // else that reaches here: plain arithmetic
+    // and sign extensions (0xa7..0xc4), the saturating truncations, the wide
+    // arithmetic, and anything else that reaches here: plain arithmetic
     return c_gasArith;
 }
 

@@ -267,6 +267,11 @@
 #  define d_m3HasCompactImports                1       // implement the compact import section proposal
 #endif
 
+// 128-bit arithmetic over pairs of i64 halves
+#ifndef d_m3HasWideArithmetic
+#  define d_m3HasWideArithmetic                1       // implement the wide arithmetic proposal
+#endif
+
 // The exception handling proposal: a tag section, the exnref value type, and
 // the try_table / throw / throw_ref instructions. Exceptions unwind by riding
 // the same m3ret_t return path traps already use, so the cost when no module

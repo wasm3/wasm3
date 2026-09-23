@@ -86,12 +86,20 @@ enum {
     c_waOp_tableGrow          = 0xfc0f,
     c_waOp_tableSize          = 0xfc10,
     c_waOp_tableFill          = 0xfc11,
+    c_waOp_i64Add128          = 0xfc13,
+    c_waOp_i64Sub128          = 0xfc14,
+    c_waOp_i64MulWideS        = 0xfc15,
+    c_waOp_i64MulWideU        = 0xfc16,
 
     // Highest opcode each operation table actually defines below the reference
     // instructions. The tables run past these: with internal ops in DEBUG
     // builds, and with the designated 0xd0..0xd2 and 0xfc entries.
     c_waOp_lastCore           = 0xc4,     // i64.extend32_s
-    c_waOp_lastExtended       = 0x11      // table.fill
+#if d_m3HasWideArithmetic
+    c_waOp_lastExtended = 0x16      // i64.mul_wide_u
+#else
+    c_waOp_lastExtended = 0x11      // table.fill
+#endif
 };
 
 

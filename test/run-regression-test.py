@@ -377,6 +377,13 @@ tests = [
     "args":           ["--func", "to_test"],
     "expect_result":  "135",
   }, {
+    # 0 says every check held; the module sets a different bit for each
+    "name":           "wide arithmetic operands and results in every place",
+    "module":         "./regression/wide-arithmetic-operands.wat",
+    "args":           ["--func", "to_test"],
+    "expect_result":  "0",
+    "requires":       "wide-arithmetic",
+  }, {
     "name":           "memory64 failed memory.grow answers 2^64-1",
     "module":         "./regression/memory64-grow.wat",
     "args":           ["--func", "to_test"],

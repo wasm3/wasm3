@@ -46,8 +46,6 @@ def disassemble(module, host):
     if cmd and (os.path.dirname(cmd[0]) or os.path.exists(cmd[0])):
         cmd[0] = os.path.abspath(cmd[0])
     proc = subprocess.run(
-        host.split()
-        + ["--stack-size", "1048576", os.path.abspath(OBJDUMP), "-d", name],
         cmd + ["--stack-size", "1048576", os.path.abspath(OBJDUMP), "-d", name],
         cwd=directory,
         stdout=subprocess.PIPE,
