@@ -684,6 +684,187 @@ A conforming runtime performs the following steps:
 
 ---
 
+## JavaScript Host API
+
+Conforming WebAssembly host environments that implement the W3C WebAssembly JavaScript
+Interface provide native bindings for snapshot capture, inspection, and resumption
+under the `WebAssembly` namespace.
+
+### WebIDL Specification
+
+```webidl
+[Exposed=(Window,Worker,Worklet)]
+namespace WebAssembly {
+
+  [Exposed=(Window,Worker)]
+  interface Snapshot {
+    /* Construct from standalone container bytes or extracted section */
+    constructor(BufferSource bytes);
+
+    /* Metadata Inspection */
+    readonly attribute boolean resumable;
+    readonly attribute bigint wasmHash;
+    readonly attribute bigint timestamp;
+    readonly attribute unsigned long continuationsCount;
+    readonly attribute unsigned long exceptionsCount;
+    readonly attribute ArrayBuffer? hostState;
+
+    /* Export as standalone container (.dmp binary) */
+    ArrayBuffer toArrayBuffer();
+
+    /* Embedded snapshot helpers */
+    static sequence<DOMString> getNames(Module module);
+    static Snapshot? fromModule(Module module, optional DOMString name = "");
+    static ArrayBuffer embed(BufferSource wasmBytes, Snapshot snapshot, optional DOMString name = "");
+    static ArrayBuffer extract(BufferSource wasmBytes, optional DOMString name = "");
+  };
+
+  /* Callbacks for Host Boundary */
+  callback ExternRefNamer = bigint (any externref);
+  callback ExternRefBinder = any (bigint name);
+  callback HostStateLoader = void (ArrayBuffer hostState);
+
+  /* Capture options for active instances */
+  dictionary SnapshotOptions {
+    boolean postmortem = false;
+    BufferSource hostState;
+    ExternRefNamer nameExternRef;
+  };
+
+  dictionary SnapshotModuleOptions : SnapshotOptions {
+    DOMString name = "";
+  };
+
+  /* Restoration options passed to instantiate / new Instance */
+  dictionary SnapshotRestoreOptions {
+    (Snapshot or BufferSource) snapshot;
+    DOMString resumeName;
+    boolean coldStart = false;
+    ExternRefBinder bindExternRef;
+    HostStateLoader loadHostState;
+  };
+
+  /* Instance Extensions */
+  partial interface Instance {
+    Snapshot takeSnapshot(optional SnapshotOptions options = {});
+    ArrayBuffer takeSnapshotModule(BufferSource wasmBytes, optional SnapshotModuleOptions options = {});
+
+    void requestSuspend();
+    readonly attribute boolean isSuspended;
+    any resume();
+  };
+};
+```
+
+### API Semantics and Lifecycle
+
+#### 1. Snapshot Construction and Inspection (`WebAssembly.Snapshot`)
+
+- `new WebAssembly.Snapshot(bytes)` parses the provided `BufferSource`. It accepts
+  either a standalone container (beginning with `\0dmp` magic and version `1`) or an
+  extracted custom section payload (starting directly with the Meta section). The
+  constructor validates the header and Meta section; if the container is malformed or
+  uses unsupported flags, it throws a `WebAssembly.CompileError`.
+- `resumable` reflects bit `0x1` of `flags` (`true` for resumable snapshots, `false`
+  for postmortem dumps).
+- `wasmHash` is an unsigned 64-bit integer (`bigint`) representing the XXH64 hash of
+  the originating module's non-custom sections.
+- `toArrayBuffer()` serializes the snapshot into the standalone `.dmp` container
+  format, including the 8-byte magic and version header.
+- Static helper `Snapshot.getNames(module)` inspects custom sections in `module` and
+  returns an array of snapshot names present (empty string `""` for the default
+  `"snapshot"` section, and `<name>` for `"snapshot.<name>"`).
+- Static helper `Snapshot.embed(wasmBytes, snapshot, name)` embeds `snapshot` into
+  `wasmBytes` as a custom section, replacing any existing section of the same name.
+  It throws a `TypeError` if `snapshot.resumable` is `false` or if `snapshot.wasmHash`
+  does not match `wasmBytes`.
+
+#### 2. Capturing Execution State (`instance.takeSnapshot`)
+
+A snapshot can be captured whenever an instance is paused at a valid safepoint:
+- **Inside a Host Callback:** When WebAssembly invokes an imported JavaScript function,
+  the instance is stopped at a `call` safepoint. The host callback can invoke
+  `instance.takeSnapshot()`.
+- **After Cooperative Pause:** Calling `instance.requestSuspend()` requests execution to
+  yield at the next loop back-edge or function entry safepoint. Once paused,
+  `instance.isSuspended` returns `true`, and `instance.takeSnapshot()` captures the
+  exact live state.
+- **Postmortem:** If `options.postmortem: true` is set, a non-resumable store dump is
+  produced without active continuation frames.
+
+If `options.nameExternRef` is provided, it is invoked for each non-null `externref` in
+the store and stack, mapping it to a 64-bit integer (`bigint`). If a non-null
+`externref` is encountered and no namer is provided (or it returns
+`0xFFFF_FFFF_FFFF_FFFFn`), `takeSnapshot` throws a `TypeError`.
+
+#### 3. Restoration and Resumption (`WebAssembly.instantiate`)
+
+Restoration integrates directly into standard instantiation via `SnapshotRestoreOptions`:
+
+1. **Start Function:** When an instance is restored from a snapshot, the module's
+   declared `start` function **MUST NOT** be executed.
+2. **Hash Verification:** The runtime verifies that `snapshot.wasmHash` matches the
+   instantiated module. Mismatches throw a `WebAssembly.LinkError`.
+3. **`externref` Re-binding:** For every stored reference, `options.bindExternRef(id)`
+   is invoked to restore the JavaScript host object reference. If a snapshot holds
+   non-null `externref` values and `bindExternRef` is omitted, instantiation throws a
+   `WebAssembly.LinkError`.
+4. **Host State Callback:** If Section 7 is present and `options.loadHostState` is
+   supplied, it is called with an `ArrayBuffer` containing the raw host payload.
+5. **Execution Resumption:** Upon successful instantiation with a snapshot, the instance
+   is in a suspended state (`instance.isSuspended === true`). Calling `instance.resume()`
+   resumes execution from the recorded safepoint, returning the result of the original
+   invocation.
+
+### Usage Examples
+
+#### Snapshot-to-Run (Pre-initialized Serverless Fast-Start)
+
+```javascript
+// Pre-initialization phase:
+const baseBytes = await fetch("app.wasm").then(r => r.arrayBuffer());
+const module = await WebAssembly.compile(baseBytes);
+const initInstance = new WebAssembly.Instance(module, imports);
+
+// Run complex startup sequence:
+initInstance.exports.init();
+
+// Embed live state into binary as named checkpoint:
+const prewarmedWasm = initInstance.takeSnapshotModule(baseBytes, { name: "ready" });
+
+// Worker execution phase:
+const { instance } = await WebAssembly.instantiate(prewarmedWasm, imports, {
+  resumeName: "ready"
+});
+const response = instance.resume();
+```
+
+#### Cross-Host Process Migration with External References
+
+```javascript
+// On Sender (Host A):
+const snapshot = instance.takeSnapshot({
+  nameExternRef: (obj) => BigInt(obj.channelId),
+  hostState: new TextEncoder().encode(JSON.stringify({ step: "dispatch" }))
+});
+await sendOverNetwork(snapshot.toArrayBuffer());
+
+// On Receiver (Host B):
+const buffer = await receiveFromNetwork();
+const snapshot = new WebAssembly.Snapshot(buffer);
+
+const { instance } = await WebAssembly.instantiate(module, imports, {
+  snapshot,
+  bindExternRef: (id) => findActiveChannel(id),
+  loadHostState: (raw) => restoreHostState(JSON.parse(new TextDecoder().decode(raw)))
+});
+
+// Resume execution seamlessly:
+const result = instance.resume();
+```
+
+---
+
 ## Security and Soundness Considerations
 
 1. **Validation Invariants:** A runtime must validate all snapshot bounds before applying
