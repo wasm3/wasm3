@@ -2689,6 +2689,13 @@ M3Result Compile_Ref_AsNonNull (IM3Compilation o, m3opcode_t i_opcode)
         m3type_t type = GetStackTopType(o);
         _throwif(m3Err_typeMismatch, not IsRefType(type));
 
+        // op_RefAsNonNull only knows how to read its operand out of a slot; a
+        // value still sitting in the register has to be spilled first, the way
+        // every other single-op reader of the stack top does
+        if (IsStackTopInRegister(o)) {
+_           (PreserveRegisterIfOccupied(o, type));
+        }
+
         u16 slot = GetStackTopSlotNumber(o);
 
 _       (EmitOp(o, op_RefAsNonNull));
@@ -2699,8 +2706,10 @@ _       (EmitOp(o, op_RefAsNonNull));
                              : (m3type_t)(d_m3Type_ref | d_m3Type_refNonNull | d_m3Type_heapAbstract |
                                           ((BaseTypeOf(type) == c_m3Type_externref) ? d_m3Type_refExtern : 0));
 
-_       (Pop(o));
-_       (Push(o, nonNull, slot));
+        // the slot keeps the one reference it already had; a Pop()/Push() of
+        // the same slot would drop that reference's count without anything
+        // to put it back, so the type above it is corrected in place instead
+        o->typeStack[GetStackTopIndex(o)] = nonNull;
     }
 
     _catch: return result;

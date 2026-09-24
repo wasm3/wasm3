@@ -414,6 +414,17 @@ tests = [
     "module":         "./regression/table64-grow.wat",
     "args":           ["--func", "to_test"],
     "expect_result":  "1",
+  }, {
+    # table.get leaves its result in the register; ref.as_non_null read the
+    # register's stack-slot alias number as a real one and baked it into
+    # op_RefAsNonNull's immediate, which then indexed the operand stack with
+    # it. OSS-Fuzz testcase 5935181438189568. ref.as_non_null only exists
+    # under typed references.
+    "name":           "ref.as_non_null on a register-resident value",
+    "module":         "./regression/ref-as-non-null-in-register.wat",
+    "args":           ["--func", "to_test"],
+    "expect_trap":    "null reference",
+    "requires":       "typed-refs",
   },
 ]
 # fmt: on
