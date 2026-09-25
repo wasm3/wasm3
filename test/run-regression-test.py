@@ -94,6 +94,80 @@ version_banner = subprocess.run(
 # fmt: off
 tests = [
   {
+    "name": "sequential continuations recycle their stacks",
+    "module": "./regression/limit-continuation-loop.wast",
+    "args": ["--max-continuations", "1", "--func", "to_test"],
+    "expect_result": "1",
+    "requires": "typed-refs",
+  }, {
+    "name": "bind and suspend take no stack beyond the two concurrent ones",
+    "module": "./snapshot/bind.wast",
+    "args": ["--max-continuations", "2", "--func", "_start"],
+    "expect_pattern": "",
+    "requires": "typed-refs",
+  }, {
+    "name": "a second concurrent continuation exceeds a budget of one",
+    "module": "./snapshot/bind.wast",
+    "args": ["--max-continuations", "1", "--func", "_start"],
+    "expect_error": "continuation limit exceeded",
+    "requires": "typed-refs",
+  }, {
+    "name": "concurrent continuations exhaust their budget",
+    "module": "./regression/limit-continuation-tree.wast",
+    "args": ["--max-continuations", "4", "--func", "to_test"],
+    "expect_error": "continuation limit exceeded",
+    "requires": "typed-refs",
+  },
+  {
+    "name": "runtime memory grow limit",
+    "module": "./regression/limit-memory-grow.wat",
+    "args": ["--max-memory", "128K", "--func", "to_test"],
+    "expect_result": "2",
+  }, {
+    "name": "runtime memory64 grow limit",
+    "module": "./regression/limit-memory64-grow.wat",
+    "args": ["--max-memory", "128K", "--func", "to_test"],
+    "expect_result": "2",
+  }, {
+    "name": "runtime memory counts custom page bytes",
+    "module": "./regression/limit-memory-custom.wat",
+    "args": ["--max-memory", "4", "--func", "to_test"],
+    **({"expect_error": "guarded memory needs a page size the system's divides into"}
+       if "guarded-mem" in version_banner else {"expect_result": "4"}),
+  }, {
+    "name": "runtime memory initial limit",
+    "module": "./regression/limit-memory-init.wat",
+    "args": ["--max-memory", "128K"],
+    "expect_error": "runtime memory limit exceeded",
+  }, {
+    "name": "runtime memory total is shared across memories",
+    "module": "./regression/limit-memory-multi.wat",
+    "args": ["--max-memory", "192K", "--func", "to_test"],
+    "expect_result": "21",
+    "requires": "multi-memory",
+  }, {
+    "name": "runtime memory initial total across memories",
+    "module": "./regression/limit-memory-multi-init.wat",
+    "args": ["--max-memory", "128K"],
+    "expect_error": "runtime memory limit exceeded",
+    "requires": "multi-memory",
+  }, {
+    "name": "runtime table grow limit",
+    "module": "./regression/limit-table-grow.wat",
+    "args": ["--max-table-elements", "3", "--func", "to_test"],
+    "expect_result": "3",
+  }, {
+    "name": "runtime table initial limit",
+    "module": "./regression/limit-table-init.wat",
+    "args": ["--max-table-elements", "3"],
+    "expect_error": "table elements limit exceeded",
+  }, {
+    "name": "runtime table64 limit cannot wrap",
+    "module": "./regression/limit-table64-grow.wat",
+    "args": ["--max-table-elements", "3", "--func", "to_test"],
+    "expect_result": "-1",
+  },
+  {
     "name":           "f32.max NaN propagation",
     "issue":          405,
     "module":         "./regression/github-405.wat",

@@ -55,6 +55,10 @@ Nordic nRF52832               |           |  Cortex-M4F | 64MHz | 256/512KB | 32
 Nordic nRF51822               |           |  Cortex-M0 <sup>⚠️</sup>  | 16MHz | 128/256KB | 16/32KB
 Wicked Device WildFire       | ATmega1284 |  8-bit AVR <sup>⚠️</sup>  | 20MHz     | 128KB | 16KB
 
+The internal MCU `memoryLimit` clamp reduces backing bytes while allowing the
+declared page count to grow. The public `c_m3Limit_MemoryBytes` resource limit
+instead refuses instantiation or growth beyond the runtime's total byte budget.
+
 ### Legend:
  ⚠️ This architecture/compiler currently fails to perform TCO (Tail Call Optimization/Elimination), which leads to sub-optimal interpreter behaviour (intense native stack usage, lower performance).  
 There are plans to improve this in future 🦄.

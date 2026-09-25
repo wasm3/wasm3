@@ -88,11 +88,13 @@ re-materializing the running program on any conforming engine.
 A WebAssembly process snapshot captures two layers of state:
 
 ### 1. Instance Store State
-- **Linear Memories:** The current page count of each memory instance and its byte
-  contents (omitting large runs of zeroed bytes).
+- **Linear Memories:** The page size and current page count of each memory instance,
+  and its byte contents (omitting large runs of zeroed bytes).
 - **Globals:** The runtime value of every mutable and immutable global variable.
 - **Tables:** The runtime size of every table instance and the references it holds
   (`funcref`, `externref`, `exnref`, `contref`).
+- **Sharing:** Which indices name the same memory or table instance, because two
+  imports resolved to it. A shared instance's state is captured once.
 - **Segments:** The dynamic drop status of each data segment and element segment.
 
 ### 2. Execution / Activation State
@@ -271,8 +273,26 @@ meta_section ::=
     wasm_hash:         u64            (hash of the module, as defined below)
     num_continuations: u32            (Total continuations stored; index 0 is root in resumable snapshots)
     num_exceptions:    u32            (Total exceptions stored)
+    total_memory_bytes: u64           (Sum of current_pages × page size over the Memory section's first-index records)
+    total_table_elements: u64         (Sum of element counts over the Table section's first-index records)
+    total_continuation_stacks: u32    (Active non-root stacks; excludes finished records)
     exception_tags:    u32[num_exceptions] (Tag index for each exception)
 ```
+
+Resource ceilings belong to the host and are not serialized. During Meta parsing,
+the restoring engine checks these requirements against its configured limits,
+including other modules' usage and subtracting the target's existing allocations.
+An insufficient limit refuses before store state is applied; the module is not
+marked unusable and the host can raise the limit and retry. The active-stack count
+is separate from the continuation record count because finished references remain
+valid records without occupying stacks.
+
+Each total is exactly what the sections it counts hold, and a reader **MUST** reject a
+snapshot where they disagree. The totals repeat what those sections say so that a
+reader taking the file as a stream can refuse on a limit before it applies any of it.
+A shared memory or table (see [Shared memories and tables](#shared-memories-and-tables))
+counts once, as it occupies the host once. Everything a total depends on is in the
+file, so a tool can check or recompute the totals without the module.
 
 A snapshot carries no name of its own. An embedded one is named by its custom section
 and selected by that name; a standalone `.dmp` is named by its file. A label repeated
@@ -307,8 +327,10 @@ memory_section ::= vec(memory_instance)
 
 memory_instance ::= 
     mem_index:     u32           (Index of the memory in the module)
-    current_pages: u32           (Current allocation size, in the pages the memory declares)
-    chunks:        chunk*        (Sparse stream of non-zero regions, terminated)
+    first_index:   u32           (First index this memory stands at; mem_index unless it is shared)
+    page_bits:     u32           (Only when first_index == mem_index: log2 of the page size)
+    current_pages: u32           (Only when first_index == mem_index: current size, in those pages)
+    chunks:        chunk*        (Only when first_index == mem_index: sparse stream of non-zero regions, terminated)
 
 chunk ::= 
     kind:          u8            (0x00 = end, 0x01 = raw bytes, 0x02 = fill 0xFF)
@@ -317,12 +339,14 @@ chunk ::=
     data:          bytes[length] (Only present when kind == 0x01)
 ```
 The chunk stream is terminated rather than counted: a chunk of kind `0x00` ends it and
-carries neither offset nor length. Every memory listed carries a stream, and a memory the
-restoring engine does not hold carries an empty one, so a reader can always walk past it.
+carries neither offset nor length. Every record at its memory's first index carries a
+stream, and a memory the restoring engine does not hold carries an empty one, so a
+reader can always walk past it.
 
-Memories are listed once each, in index order, so `mem_index` is a check on the stream
-rather than a selector: record *i* **MUST** carry `mem_index == i`, and a reader
-**MUST** reject a stream that repeats or skips one. The same holds for `table_index`
+Every memory index is listed once, in index order - a shared memory's later indices
+included - so `mem_index` is a check on the stream rather than a selector: record *i*
+**MUST** carry `mem_index == i`, and a reader **MUST** reject a stream that repeats or
+skips one. The same holds for `table_index`
 and `global_index` in the two sections that follow.
 
 A memory may not shrink across a snapshot: `current_pages` must be at least the page
@@ -339,12 +363,32 @@ chunking of the same bytes. The reference implementation drops runs of `0x00` an
 a fill chunk for runs of `0xFF` once they reach a build-time threshold, 128 bytes by
 default.*
 
-A page is whatever size the memory declares, not always 64 KiB, and the file does not
-repeat it: both ends read it from the same module. What the file does fix is the width -
-`current_pages`, `offset` and `length` are `u32` - so this version describes memories
-below 4 GiB, however that is divided into pages. A producer whose memory is larger
-**MUST** refuse to write the snapshot rather than truncate; carrying one needs a later
-version.
+A page is whatever size the memory declares, not always 64 KiB. `page_bits` repeats it
+the way the custom page sizes proposal encodes it: 16 for 64 KiB pages, 0 for pages of
+one byte. The module already says it, but a reader without the module - a tool
+inspecting a dump - would otherwise not know how many bytes `current_pages` is, and could
+not check `total_memory_bytes`. A reader that holds the module **MUST** reject a
+`page_bits` other than the memory's declared page size.
+
+The file fixes the width - `current_pages`, `offset` and `length` are `u32` - so this
+version describes memories below 4 GiB, however that is divided into pages. A producer
+whose memory is larger **MUST** refuse to write the snapshot rather than truncate;
+carrying one needs a later version.
+
+#### Shared memories and tables
+
+Two imports can resolve to the same memory, so one memory instance can stand at several
+indices; the same holds for tables. Its state is stored once, in the record at the first
+of those indices, whose `first_index` is its own index. The record at each later index
+carries its index and `first_index` naming that first record, and nothing else.
+A reader **MUST** reject a record whose `first_index` is greater than its index, or
+names a record whose own `first_index` is not its own index.
+
+Which imports share an instance is settled when the module is linked, not by the module,
+so it is part of what the snapshot describes. A reader **MUST** refuse a snapshot whose
+sharing differs from that of the instance it restores into: restoring it would write one
+memory's state into two, or two memories' state into one. The refusal comes before any
+state is applied.
 
 ### Section 2: Table Section
 
@@ -355,8 +399,9 @@ table_section ::= vec(table_instance)
 
 table_instance ::= 
     table_index:  u32            (Index of the table in the module)
-    elem_type:    valtype        (funcref: 0x70, externref: 0x6F, exnref: 0x69, contref: 0x68)
-    elements:     vec(ref_value) (Current element reference IDs)
+    first_index:  u32            (First index this table stands at; table_index unless it is shared)
+    elem_type:    valtype        (Only when first_index == table_index: funcref: 0x70, externref: 0x6F, exnref: 0x69, contref: 0x68)
+    elements:     vec(ref_value) (Only when first_index == table_index: current element reference IDs)
 
 ref_value ::= 
     kind:         u8             (0x00 = null, 0x01 = func_idx, 0x02 = extern_id, 0x03 = exn_id, 0x04 = cont_id)
@@ -881,8 +926,12 @@ const result = instance.resume();
      that the instruction branches to.
    - The outermost activation's function must return what its continuation returns,
      and each function below a `call` safepoint what that call expects.
-   - Memories, tables and globals must be listed once each, in index order, with the
+   - Every memory, table and global index must be listed once, in index order, with the
      count the module declares.
+   - A memory's `page_bits` must be its declared page size.
+   - Each shared memory or table must be stored at its first index and named there by
+     every later one, exactly as the instance restored into shares it.
+   - The Meta totals must equal what the Memory, Table and Continuation sections hold.
    - Undefined `flags` bits, zero-length sections, sections present with nothing to
      say, repeated sections and a section whose body does not consume its declared
      length are all malformed.

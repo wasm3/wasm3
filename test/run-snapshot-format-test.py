@@ -206,15 +206,46 @@ class SnapshotFormatTests(unittest.TestCase):
 
     def test_container_and_meta(self):
         self.assertTrue(self.raw.startswith(HEADER))
+        snapshot = tool.load(self.raw)
         meta = tool._Cursor(dict(self.parts)[0])
         self.assertEqual(meta.leb_u32(), 0)  # flags; the section opens with them
         meta.leb_u64()  # timestamp
         module_hash = meta.leb_u64()
         self.assertEqual(meta.leb_u32(), 1)  # root; no engine hash between these fields
         self.assertEqual(meta.leb_u32(), 0)
+        self.assertEqual(meta.leb_u64(), sum(m.size for m in snapshot.memories))
+        self.assertEqual(meta.leb_u64(), sum(len(e) for _, e in snapshot.tables))
+        self.assertEqual(meta.leb_u32(), 0)
         self.assertEqual(meta.remaining, 0)
         self.assertEqual(module_hash, tool.module_hash(self.wasm))
         self.assertEqual(tool.pack(tool.load(self.raw)), self.raw)
+
+    def test_resource_cli_arguments(self):
+        for flag, values in (
+            ("--gas-limit", ("abc", "nan", "inf", "-1", "-0", "1tail")),
+            (
+                "--max-memory",
+                ("-1", "1MB", "1.5M", "18446744073709551616", "18446744073709551615G"),
+            ),
+            ("--max-table-elements", ("-1", "1K", "1.5", "abc")),
+            ("--max-continuations", ("-1", "1K", "abc")),
+        ):
+            for value in values:
+                with self.subTest(flag=flag, value=value):
+                    result = self.command(flag, value, self.module)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(b"--max-memory", result.stdout)
+
+        empty_module = self.write("empty.wasm", b"\x00asm\x01\x00\x00\x00")
+        for flag, value in (
+            ("--gas-limit", "1e-3"),
+            ("--gas-limit", "1e300"),
+            ("--max-memory", "64k"),
+            ("--max-table-elements", "0"),
+        ):
+            with self.subTest(flag=flag, value=value):
+                result = self.command(flag, value, "--validate-only", empty_module)
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
 
     def test_embedded_resume_skips_start(self):
         embedded = tool.embed_snapshot_in_wasm(self.wasm, self.raw)
@@ -359,13 +390,96 @@ class SnapshotFormatTests(unittest.TestCase):
         result = self.command("--resume", self.write("host.dmp", raw), self.module)
         self.assertIn(b"nothing here restores it", result.stderr)
 
-    def test_page_size_comes_from_the_module(self):
+    def test_page_size_is_in_the_file(self):
         memory = tool.load(self.raw).memories[0]
-        self.assertIsNone(memory.size)
+        self.assertEqual((memory.page_size, memory.max_pages), (65536, None))
         memory = tool.load(self.raw, module=str(self.module)).memories[0]
         self.assertEqual(
             (memory.page_size, memory.max_pages, memory.size), (65536, 1, 65536)
         )
+
+        # read without the module, a page of one byte is still one byte
+        snap = tool.load(self.raw)
+        snap.memories[0].page_size = 1
+        snap.memories[0].num_pages = 16
+        path = self.write("byte-pages.dmp", tool.pack(snap))
+        snap = tool.load(path.read_bytes())
+        self.assertEqual((snap.memories[0].size, snap.total_memory_bytes), (16, 16))
+        self.assertEqual(snap.memories[0].data[:14], b"snapshot-start")
+        self.assertEqual(tool.verify(snap), [])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = tool.main(["verify", str(path)])
+        self.assertEqual(status, 0, output.getvalue())
+        # and read with it, the module's page size is the one that counts
+        self.assertIn(
+            "memory 0: page size 1, but the module declares 65536",
+            tool.verify(tool.load(str(path), module=str(self.module))),
+        )
+
+    def test_byte_pages_round_trip(self):
+        # A guarded memory is backed a system page at a time, so a build with
+        # them refuses a memory of one-byte pages outright
+        if b"guarded-mem" in self.command("--version").stdout:
+            self.skipTest("this build refuses pages smaller than the system's")
+        module = self.assemble(ROOT / "test/snapshot/page-size.wat")
+        path = self.directory / "page-size.dmp"
+        result = self.command("--gas-limit", "1", "--snapshot", path, module)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        raw = path.read_bytes()
+        snap = tool.load(raw)
+        memory = snap.memories[0]
+        self.assertEqual((memory.page_size, memory.size), (1, 3))
+        self.assertEqual(memory.data, b"abc")
+        self.assertEqual(snap.total_memory_bytes, 3)
+        self.assertEqual(tool.verify(snap), [])
+        self.assertEqual(tool.pack(snap), raw)
+        result = self.command("--resume", path, module)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+
+        bad = copy.deepcopy(snap)
+        bad.memories[0].page_size = 65536
+        self.reject_snapshot(bad, module)
+
+    def test_shared_memory_and_table_are_stored_once(self):
+        # two imports of one memory, or one table, are one object at two
+        # indices, and the file holds each once
+        snapshot = tool.Snapshot()
+        snapshot.flags = 1
+        memory = tool.Memory(1, None, 65536, True, [(tool.CHUNK_RAW, 0, b"shared")])
+        table = (tool.VALTYPE_FUNCREF, [tool.NULL_REF])
+        snapshot.memories = [memory, memory]
+        snapshot.tables = [table, table]
+        raw = tool.pack(snapshot)
+        bodies = dict(sections(raw))
+        self.assertEqual(bodies[1][-2:], b"\x01\x00")  # memory 1 is memory 0
+        self.assertEqual(bodies[2], b"\x02\x00\x00\x70\x01\x00\x01\x00")
+
+        loaded = tool.load(raw)
+        self.assertIs(loaded.memories[1], loaded.memories[0])
+        self.assertIs(loaded.tables[1], loaded.tables[0])
+        self.assertEqual(
+            (loaded.total_memory_bytes, loaded.total_table_elements), (65536, 1)
+        )
+        self.assertEqual(tool.verify(loaded), [])
+        self.assertEqual(tool.pack(loaded), raw)
+        directory = self.directory / "unpacked-shared"
+        tool.unpack(loaded, directory)
+        self.assertEqual(tool.pack(tool.pack_directory(directory)), raw)
+
+        # a record names itself, or one before it that names itself
+        for body in (
+            b"\x02\x00\x01\x70\x01\x00\x01\x00",
+            b"\x03\x00\x00\x70\x01\x00\x01\x00\x02\x01",
+        ):
+            with self.subTest(body=body):
+                with self.assertRaises(tool.FormatError):
+                    tool.load(
+                        HEADER
+                        + b"".join(
+                            section(k, body if k == 2 else b) for k, b in sections(raw)
+                        )
+                    )
 
     def test_info_summarizes_every_store_section(self):
         module, samples = self.samples("references.wat")
@@ -444,14 +558,21 @@ class SnapshotFormatTests(unittest.TestCase):
             self.assertEqual(tool._Cursor(encoded).leb_i32(), expected)
 
     def test_memory_and_table_bounds(self):
-        # table count, index, funcref, size 1, null element; declared maximum is 0
-        self.reject(self.replace(2, b"\x01\x00\x70\x01\x00"), python=False)
+        # table count, index, first index, funcref, size 1, null element; the
+        # declared maximum is 0
+        self.reject(self.replace(2, b"\x01\x00\x00\x70\x01\x00"), python=False)
+        # memory count, index, first index, 64 KiB pages, then the page count.
         # A fill whose offset + length wraps u32 must be rejected on every host.
-        chunk = b"\x01\x00\x01\x02" + leb(0xFFFFFFF0) + leb(32) + b"\x00"
+        chunk = b"\x01\x00\x00\x10\x01\x02" + leb(0xFFFFFFF0) + leb(32) + b"\x00"
         self.reject(self.replace(1, chunk), python=False)
         self.reject(
-            self.replace(1, b"\x01\x00\x02\x00"), python=False
+            self.replace(1, b"\x01\x00\x00\x10\x02\x00"), python=False
         )  # page maximum 1
+        # a page size other than the module's
+        self.reject(self.replace(1, b"\x01\x00\x00\x00\x01\x00"), python=False)
+        # shared with a memory, or a table, the module does not share it with
+        self.reject(self.replace(1, b"\x01\x00\x01"))
+        self.reject(self.replace(2, b"\x01\x00\x01"))
 
     def test_boolean_fields(self):
         segments = dict(self.parts)[4]
@@ -643,6 +764,7 @@ class SnapshotFormatTests(unittest.TestCase):
         twin = copy.deepcopy(outer)
         twin.id = len(bad.continuations)
         bad.continuations.append(twin)
+        bad.total_continuation_stacks += 1
         self.assertTrue(any("more than one frame" in p for p in tool.verify(bad)))
         result = self.reject_snapshot(bad, module)
         self.assertIn(b"resumed by two frames", result.stderr)
@@ -702,6 +824,133 @@ class SnapshotFormatTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"failed loading snapshot", result.stderr)
+
+    def test_mismatched_resource_totals(self):
+        # 1. Raising totals (+1)
+        module, samples = self.samples("references.wat")
+        snap = samples[1]
+
+        # Mismatched memory bytes
+        bad = copy.deepcopy(snap)
+        bad.total_memory_bytes += 1
+        self.assertTrue(
+            any("memory bytes count does not match Meta" in p for p in tool.verify(bad))
+        )
+        self.reject_snapshot_bytes(tool.pack(bad, recompute_totals=False), module)
+
+        # Mismatched table elements
+        bad = copy.deepcopy(snap)
+        bad.total_table_elements += 1
+        self.assertTrue(
+            any(
+                "table element count does not match Meta" in p for p in tool.verify(bad)
+            )
+        )
+        self.reject_snapshot_bytes(tool.pack(bad, recompute_totals=False), module)
+
+        # Mismatched continuation stacks
+        bad = copy.deepcopy(snap)
+        bad.total_continuation_stacks += 1
+        self.assertTrue(
+            any(
+                "active continuation stack count does not match Meta" in p
+                for p in tool.verify(bad)
+            )
+        )
+        self.reject_snapshot_bytes(tool.pack(bad, recompute_totals=False), module)
+
+        # 2. Lowering totals under limits to test understated totals
+        grow_wat = (
+            "(module\n"
+            "  (memory 1)\n"
+            "  (table 2 funcref)\n"
+            '  (func (export "_start")\n'
+            "    i32.const 1 memory.grow drop\n"
+            "    ref.null func i32.const 2 table.grow drop\n"
+            "    loop $l br $l end))\n"
+        )
+        grow_wasm = self.write("grow-resources.wasm", b"")
+        wat_path = self.write("grow-resources.wat", grow_wat.encode())
+        res = self.command(
+            "--stack-size",
+            "1048576",
+            ROOT / "test/wasi/wabt/wat2wasm.wasm",
+            "--enable-all",
+            wat_path,
+            "-o",
+            grow_wasm,
+            executable=HOST,
+        )
+        self.assertEqual(res.returncode, 0)
+        grow_dmp = self.directory / "grow-resources.dmp"
+        res = self.command("--gas-limit", "20", "--snapshot", grow_dmp, grow_wasm)
+        self.assertTrue(grow_dmp.exists())
+        grow_snap = tool.load(grow_dmp)
+        self.assertEqual(grow_snap.total_memory_bytes, 131072)
+        self.assertEqual(grow_snap.total_table_elements, 4)
+
+        # Understate memory: claim 65536 bytes (the initial allocation) instead of 131072
+        bad_mem = copy.deepcopy(grow_snap)
+        bad_mem.total_memory_bytes = 65536
+        self.assertTrue(
+            any(
+                "memory bytes count does not match Meta" in p
+                for p in tool.verify(bad_mem)
+            )
+        )
+        raw_mem = tool.pack(bad_mem, recompute_totals=False)
+        result = self.command(
+            "--max-memory",
+            "65536",
+            "--resume",
+            self.write("understated-mem.dmp", raw_mem),
+            grow_wasm,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"failed loading snapshot", result.stderr)
+
+        # Understate table: claim 2 elements (the initial allocation) instead of 4
+        bad_tbl = copy.deepcopy(grow_snap)
+        bad_tbl.total_table_elements = 2
+        self.assertTrue(
+            any(
+                "table element count does not match Meta" in p
+                for p in tool.verify(bad_tbl)
+            )
+        )
+        raw_tbl = tool.pack(bad_tbl, recompute_totals=False)
+        result = self.command(
+            "--max-table-elements",
+            "2",
+            "--resume",
+            self.write("understated-tbl.dmp", raw_tbl),
+            grow_wasm,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"failed loading snapshot", result.stderr)
+
+        # Understate continuation stacks:
+        bind_module, bind_samples = self.samples("bind.wast")
+        cont_snap = bind_samples[1]
+        self.assertGreater(cont_snap.total_continuation_stacks, 0)
+        bad_cont = copy.deepcopy(cont_snap)
+        bad_cont.total_continuation_stacks = 0
+        self.assertTrue(
+            any(
+                "active continuation stack count does not match Meta" in p
+                for p in tool.verify(bad_cont)
+            )
+        )
+        raw_cont = tool.pack(bad_cont, recompute_totals=False)
+        result = self.command(
+            "--max-continuations",
+            "0",
+            "--resume",
+            self.write("understated-cont.dmp", raw_cont),
+            bind_module,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"failed loading snapshot", result.stderr)
 
     def step_to(self, name, module, until, what):
         """The first snapshot `run` pauses at that `until` accepts, stepping from

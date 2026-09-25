@@ -123,9 +123,22 @@ jobs:
   # twice and resumed twice: on x64 with 64-bit slots, then on 32-bit big-endian
   # PowerPC with 32-bit slots under QEMU, then back on x64 to the end - a change of
   # byte order, pointer width and slot width each way.
+  #
+  # The sanitized leg runs the same programs under ASan + UBSan on x64. It is also
+  # the only x64 build here without guarded memory, which refuses pages smaller than
+  # the system's, so it is where the format tests of one-byte pages run. The ppc32
+  # toolchain ships no sanitizer runtimes, so that side takes UBSan in trap mode.
   snapshots:
     runs-on: ubuntu-latest
+    name: snapshots-${{ matrix.config.target }}
     timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {target: default }
+        - {target: sanitize, flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined", crossflags: "-fsanitize=undefined -fsanitize-trap=undefined" }
 
     steps:
     - uses: actions/checkout@v7
@@ -135,12 +148,16 @@ jobs:
         sudo apt install -y qemu-user-static
     - name: Build x64
       run: |
-        cmake -S . -B build -DBUILD_TESTS=ON -DBUILD_WERROR=ON -DCMAKE_C_FLAGS=-Dd_m3Use32BitSlots=0
+        cmake -S . -B build -DBUILD_TESTS=ON -DBUILD_WERROR=ON ${{ matrix.config.flags }} \
+          -DCMAKE_C_FLAGS="-Dd_m3Use32BitSlots=0 ${{ matrix.config.cflags }}" \
+          -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.config.ldflags }}"
         cmake --build build
     - name: Test snapshot format
       working-directory: test
       run: python3 run-snapshot-format-test.py
     - name: Build ppc32
+      env:
+        CFLAGS: ${{ matrix.config.crossflags }}
       run: python3 build-cross.py --target linux-ppc --build
     - name: Suspend and resume across builds
       working-directory: test

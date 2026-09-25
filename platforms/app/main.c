@@ -10,6 +10,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <errno.h>
+#include <math.h>
 
 #include "wasm3.h"
 #include "m3_config.h"     // the build options the version banner reports
@@ -28,7 +29,7 @@
 #include "spectest.wasm.h"
 
 // What --gas-meter budgets when --gas-limit doesn't say.
-#define GAS_LIMIT       1000000000000000.0
+#define GAS_LIMIT       UINT64_C(10000000000000000000)
 
 #define MAX_MODULES     64
 
@@ -111,8 +112,10 @@ M3Result read_wasm_file (const char* i_path, M3HostFile* o_bin)
 // the module the most recent :load / :load-hex produced
 static IM3Module lastLoadedModule = NULL;
 
-static bool        argGasMeter     = false;
-static double      argGasLimit     = GAS_LIMIT;
+static bool        argGasMeter = false;
+static uint64_t    argMaxMemory, argMaxTableElements, argMaxContinuations;
+static bool        argLimitContinuations;
+static uint64_t    argGasLimit     = GAS_LIMIT;
 static const char* argSnapshotFile = NULL;
 static const char* argSnapshotName = NULL;
 static const char* argResumeFile   = NULL;
@@ -381,7 +384,7 @@ void print_gas_used ()
     if (argGasMeter) {
         // the last segment is charged before it runs, so a module that ran out
         // reports slightly more than the limit it was given
-        fprintf(stderr, "Gas used: %0.4f\n", m3_GetGasUsed(runtime));
+        fprintf(stderr, "Gas used: %0.4f\n", (double)m3_GetResourceUsage(runtime, c_m3Limit_GasUnits) / M3_GAS_UNITS_PER_GAS);
     }
 }
 
@@ -904,6 +907,35 @@ M3Result load_spectest (void)
     return repl_register("spectest", NULL);
 }
 
+static
+bool parse_resource_size (const char* text, bool suffix, uint64_t* out)
+{
+    char* end;
+    if (not isdigit((unsigned char)*text)) {
+        return false;
+    }
+    errno                    = 0;
+    unsigned long long value = strtoull(text, &end, 10);
+    if (errno == ERANGE) {
+        return false;
+    }
+    uint64_t multiplier = 1;
+    if (suffix and *end and not end[1]) {
+        switch (tolower((unsigned char)*end)) {
+        case 'k': multiplier = UINT64_C(1024); break;
+        case 'm': multiplier = UINT64_C(1048576); break;
+        case 'g': multiplier = UINT64_C(1073741824); break;
+        default: return false;
+        }
+        end++;
+    }
+    if (*end or value > UINT64_MAX / multiplier) {
+        return false;
+    }
+    *out = (uint64_t)value * multiplier;
+    return true;
+}
+
 M3Result repl_init (unsigned stack)
 {
     repl_free();
@@ -926,9 +958,26 @@ M3Result repl_init (unsigned stack)
     // has to be armed before anything is compiled: only the function bodies
     // compiled after this carry the metering instrumentation
     if (argGasMeter) {
-        m3_SetGasLimit(runtime, argGasLimit);
+        M3Result result = m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, argGasLimit);
+        if (result) {
+            return result;
+        }
     }
 
+    {
+        M3Result result = m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, argMaxMemory);
+        if (not result) {
+            result = m3_SetResourceLimit(runtime, c_m3Limit_TableElements, argMaxTableElements);
+        }
+#if d_m3HasStackSwitching
+        if (not result) {
+            result = m3_SetResourceLimit(runtime, c_m3Limit_Continuations, argMaxContinuations);
+        }
+#endif
+        if (result) {
+            return result;
+        }
+    }
     if (provideSpecTest) {
         M3Result result = load_spectest();
         if (result) {
@@ -1036,15 +1085,28 @@ void print_usage ()
     puts("  --func <function>              function to run       default: _start");
     puts("  --stack-size <size>            stack size in bytes   default: 512KB");
     puts("  --compile                      disable lazy compilation");
+#if d_m3EnableValidation
     puts("  --validate-only                only validate <file>");
     puts("  --no-validate                  skip validation");
+#endif
     puts("  --spec-repl                    repl for the spec tests");
+#if d_m3HasSnapshots
     puts("  --dump-on-trap                 save wasm3_dump.dmp on a trap");
+#endif
+#if d_m3HasGasMetering
     puts("  --gas-meter                    meter gas usage");
     puts("  --gas-limit <gas>              apply gas limit");
+#endif
+    puts("  --max-memory <size>            cap on all linear memory, e.g. 16M");
+    puts("  --max-table-elements <n>       cap on all table elements");
+#if d_m3HasStackSwitching
+    puts("  --max-continuations <n>        cap on concurrent continuation stacks");
+#endif
+#if d_m3HasSnapshots
     puts("  --snapshot <fn>[:<name>]       enable suspension and save to <fn>");
     puts("  --resume <fn>[:<name>]|none    resume execution from <fn> or disable auto-resume");
     puts("  --interrupt                    pause at the first pause point");
+#endif
 }
 
 static
@@ -1219,8 +1281,34 @@ int main (int i_argc, const char* i_argv[])
         } else if (!strcmp("--gas-limit", arg)) {
             const char* tmp = "0";
             ARGV_SET(tmp);
-            argGasLimit = atof(tmp);
+            char*  end;
+            double gas = strtod(tmp, &end);
+            if (tmp == end or *end or not isfinite(gas) or signbit(gas)) {
+                print_usage();
+                return 1;
+            }
+            double units = gas * M3_GAS_UNITS_PER_GAS;
+            argGasLimit  = units >= (double)UINT64_MAX ? UINT64_MAX : (uint64_t)units;
+            if (gas > 0.0 and argGasLimit == 0) {
+                argGasLimit = 1;
+            }
             argGasMeter = true;
+        } else if (!strcmp("--max-memory", arg) or !strcmp("--max-table-elements", arg) or !strcmp("--max-continuations", arg)) {
+            const char* tmp = "";
+            ARGV_SET(tmp);
+            uint64_t value;
+            if (not parse_resource_size(tmp, !strcmp("--max-memory", arg), &value)) {
+                print_usage();
+                return 1;
+            }
+            if (!strcmp("--max-memory", arg)) {
+                argMaxMemory = value;
+            } else if (!strcmp("--max-table-elements", arg)) {
+                argMaxTableElements = value;
+            } else {
+                argMaxContinuations   = value;
+                argLimitContinuations = true;
+            }
         } else if (!strcmp("--dir", arg)) {
             const char* argDir;
             ARGV_SET(argDir);
@@ -1312,6 +1400,13 @@ int main (int i_argc, const char* i_argv[])
     }
 #endif
 
+#if !d_m3HasStackSwitching
+    if (argLimitContinuations) {
+        fprintf(stderr, "Error: continuations not available in this build of Wasm3\n");
+        return 1;
+    }
+#endif
+
     result = repl_init(argStackSize);
     if (result) {
         FATAL("repl_init: %s", result);
@@ -1322,10 +1417,6 @@ int main (int i_argc, const char* i_argv[])
     if (argSnapshotFile || argResumeFile) {
         m3_SetSuspendable(runtime, true);
     }
-
-    //if (argGasMeter) {
-    //    fprintf(stderr, "Warning: Gas is limited to %0.4f\n", m3_GetGasLimit(runtime));
-    //}
 
     if (argFile) {
         argAutoResume = not argRepl and not argResumeNone and not argResumeFile and (not argFunc or !strcmp(argFunc, "_start"));

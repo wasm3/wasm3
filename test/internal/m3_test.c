@@ -687,7 +687,7 @@ M3Result RunInRoundTrips (const u8* i_wasm, u32 i_size, i32* o_result, u32* o_nu
 
         // both before anything compiles
         m3_SetSuspendable(leg.runtime, true);
-        m3_SetGasLimit(leg.runtime, budget);
+        m3_SetResourceLimit(leg.runtime, c_m3Limit_GasUnits, (uint64_t)((budget)*M3_GAS_UNITS_PER_GAS));
 
         result = m3_ParseModule(leg.env, &module, i_wasm, i_size);
         if (result) {
@@ -723,7 +723,7 @@ M3Result RunInRoundTrips (const u8* i_wasm, u32 i_size, i32* o_result, u32* o_nu
         }
 
         // the first leg starts the call, which is somewhere to have got to
-        if (saved and m3_GetGasUsed(leg.runtime) <= 0) {
+        if (saved and m3_GetResourceUsage(leg.runtime, c_m3Limit_GasUnits) <= 0) {
             result = "a leg stopped where it started";
             break;
         }
@@ -1329,6 +1329,136 @@ int main (int argc, const char* argv[])
     IM3Environment env = m3_NewEnvironment();
 
 
+    Test(resources.gas_units)
+    {
+        IM3Runtime runtime = m3_NewRuntime(env, 65536, NULL);
+        expect(runtime);
+        expect(m3_SetResourceLimit(runtime, (M3ResourceLimit)99, 1) == m3Err_unknownResourceLimit);
+        expect(m3_GetResourceLimit(runtime, (M3ResourceLimit)99) == 0);
+        expect(m3_GetResourceUsage(runtime, (M3ResourceLimit)99) == 0);
+#if d_m3HasGasMetering
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, UINT64_MAX));
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_GasUnits) == INT64_MAX);
+        runtime->gasRemaining = -1;
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_GasUnits) == (u64)INT64_MAX + 1);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, 12345));
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_GasUnits) == 12345);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_GasUnits) == 0);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, 0));
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_GasUnits) == 0);
+#else
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, 1) == m3Err_resourceLimitNotSupported);
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, 0) == m3Err_resourceLimitNotSupported);
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_GasUnits) == 0);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_GasUnits) == 0);
+#endif
+        m3_FreeRuntime(runtime);
+    }
+
+    Test(resources.memory_total)
+    {
+        IM3Runtime runtime = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  first = NULL, second = NULL;
+        expect(!m3_ParseModule(env, &first, c_memoryPage, sizeof(c_memoryPage)));
+        expect(!m3_LoadModule(runtime, first));
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == 65536);
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, 65535) == m3Err_resourceLimitBelowUsage);
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_MemoryBytes) == 0);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, 131072));
+        expect(!m3_ParseModule(env, &second, c_memoryPage, sizeof(c_memoryPage)));
+        expect(!m3_LoadModule(runtime, second));
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == 131072);
+        expect(ResizeMemory(runtime, first->memories[0], 2) == m3Err_memoryLimitExceeded);
+        expect(first->memories[0]->numPages == 1);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == 131072);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, 0));
+        expect(!ResizeMemory(runtime, first->memories[0], 2));
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == 196608);
+        m3_FreeRuntime(runtime);
+    }
+
+    Test(resources.continuation_stacks)
+    {
+        IM3Runtime runtime = m3_NewRuntime(env, 65536, NULL);
+#if d_m3HasStackSwitching
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_Continuations, UINT64_MAX));
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_Continuations) == UINT32_MAX);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_Continuations, 1));
+        m3slot_t* previous = NULL;
+        for (u32 i = 0; i < 1000; ++i) {
+            IM3Continuation cont = Continuation_New(runtime, NULL, NULL);
+            expect(cont);
+            expect(!Continuation_AcquireStack(runtime, cont));
+            expect(m3_GetResourceUsage(runtime, c_m3Limit_Continuations) == 1);
+            if (previous) {
+                expect(cont->valStack == previous);
+            }
+            previous              = cont->valStack;
+            IM3Continuation moved = Continuation_ForkSuspended(runtime, cont);
+            expect(moved and not cont->valStack);
+            expect(m3_GetResourceUsage(runtime, c_m3Limit_Continuations) == 1);
+            IM3Continuation refused = Continuation_New(runtime, NULL, NULL);
+            expect(Continuation_AcquireStack(runtime, refused) == m3Err_continuationLimitExceeded);
+            refused->state = cont_consumed;
+            moved->state   = cont_consumed;
+            Continuation_RecycleStack(runtime, moved);
+            expect(m3_GetResourceUsage(runtime, c_m3Limit_Continuations) == 0);
+        }
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_Continuations, 2));
+        IM3Continuation a = Continuation_New(runtime, NULL, NULL);
+        IM3Continuation b = Continuation_New(runtime, NULL, NULL);
+        expect(!Continuation_AcquireStack(runtime, a));
+        expect(!Continuation_AcquireStack(runtime, b));
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_Continuations, 1) == m3Err_resourceLimitBelowUsage);
+#else
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_Continuations, 1) == m3Err_resourceLimitNotSupported);
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_Continuations, 0) == m3Err_resourceLimitNotSupported);
+        expect(m3_GetResourceLimit(runtime, c_m3Limit_Continuations) == 0);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_Continuations) == 0);
+#endif
+        m3_FreeRuntime(runtime);
+    }
+
+
+    Test(resources.shared_objects_and_failed_load)
+    {
+        // Assembled from regression/limit-resource-{export,import}.wat with bundled WABT.
+        const u8 ownerBytes[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03,
+            0x01, 0x00, 0x01, 0x07, 0x12, 0x02, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x05,
+            0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00
+        };
+        const u8 importBytes[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02, 0x21, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65,
+            0x72, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65,
+            0x72, 0x05, 0x74,
+            0x61, 0x62, 0x6c, 0x65, 0x01, 0x70, 0x00, 0x02
+        };
+        // regression/limit-memory-multi-init.wat
+        const u8 multiBytes[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x05, 0x02, 0x00, 0x01, 0x00, 0x02
+        };
+        IM3Runtime runtime = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  owner = NULL, importer = NULL, partial = NULL;
+        expect(!m3_ParseModule(env, &owner, ownerBytes, sizeof(ownerBytes)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(runtime, owner));
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_TableElements) == 2);
+        expect(m3_SetResourceLimit(runtime, c_m3Limit_TableElements, 1) == m3Err_resourceLimitBelowUsage);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_TableElements, 2));
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, 65536));
+        expect(!m3_ParseModule(env, &importer, importBytes, sizeof(importBytes)));
+        expect(!m3_LoadModule(runtime, importer));
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == 65536);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_TableElements) == 2);
+        expect(!m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, 131072));
+        expect(!m3_ParseModule(env, &partial, multiBytes, sizeof(multiBytes)));
+        expect(m3_LoadModule(runtime, partial) == m3Err_memoryLimitExceeded);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == 131072);
+        expect(m3_GetResourceUsage(runtime, c_m3Limit_TableElements) == 2);
+        m3_FreeRuntime(runtime);
+    }
+
     Test(multireturn.a)
     {
         M3Result result;
@@ -1441,6 +1571,8 @@ int main (int argc, const char* argv[])
 
             size_t backed = 0;
             m3_GetMemory(module, &backed, 0);                            expect(backed == limit)
+            expect(m3_GetResourceUsage(runtime, c_m3Limit_MemoryBytes) == limit);
+            expect(!m3_SetResourceLimit(runtime, c_m3Limit_MemoryBytes, limit));
 
             IM3Function size = NULL, grow = NULL, load = NULL;
             m3_FindFunction(&size, runtime, "size");
@@ -1768,6 +1900,32 @@ int main (int argc, const char* argv[])
       m3_FreeRuntime(runtime);                                                 \
   }
 
+    Test(resources.continuation_bind_suspend_and_trap)
+    {
+        const struct {
+            const u8* wasm;
+            u32       size;
+            M3Result  result;
+        } cases[] = {
+            { c_ssBasicWasm,         sizeof(c_ssBasicWasm),         m3Err_none                     },
+            { c_ssBindWasm,          sizeof(c_ssBindWasm),          m3Err_none                     },
+            { c_ssOneShotWasm,       sizeof(c_ssOneShotWasm),       m3Err_trapContinuationConsumed },
+            { c_ssFrameOverflowWasm, sizeof(c_ssFrameOverflowWasm), m3Err_trapStackOverflow        },
+        };
+        for (u32 i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+            IM3Runtime  runtime  = m3_NewRuntime(env, 65536, NULL);
+            IM3Module   module   = NULL;
+            IM3Function function = NULL;
+            expect(!m3_SetResourceLimit(runtime, c_m3Limit_Continuations, 1));
+            expect(!m3_ParseModule(env, &module, cases[i].wasm, cases[i].size));
+            expect(!m3_LoadModule(runtime, module));
+            expect(!m3_FindFunction(&function, runtime, "main"));
+            expect(m3_CallV(function) == cases[i].result);
+            expect(m3_GetResourceUsage(runtime, c_m3Limit_Continuations) == 0);
+            m3_FreeRuntime(runtime);
+        }
+    }
+
     Test(stack_switching){
         expectStackSwitchResult(c_ssBasicWasm, 42)
     }
@@ -2018,6 +2176,186 @@ int main (int argc, const char* argv[])
     static const u8 c_nestedCallWasm[] = {
         0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x14, 0x03, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01, 0x67, 0x03, 0x00, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01, 0x0a, 0x1e, 0x02, 0x17, 0x00, 0x03, 0x40, 0x23, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x23, 0x00, 0x41, 0xa0, 0x8d, 0x06, 0x48, 0x0d, 0x00, 0x0b, 0x23, 0x00, 0x0b, 0x04, 0x00, 0x10, 0x00, 0x0b
     };
+
+    Test(snapshot.resource_refusal_can_retry)
+    {
+        // Assembled from test/snapshot/resource-limits.wat with bundled WABT.
+        const u8 wasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x03,
+            0x02, 0x00, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x11,
+            0x02, 0x07, 0x70, 0x72, 0x65, 0x70, 0x61, 0x72, 0x65, 0x00, 0x00, 0x03, 0x72, 0x75, 0x6e, 0x00,
+            0x01, 0x0a, 0x19, 0x02, 0x0f, 0x00, 0x41, 0x01, 0x40, 0x00, 0x1a, 0xd0, 0x70, 0x41, 0x02, 0xfc,
+            0x0f, 0x00, 0x1a, 0x0b, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b
+        };
+        IM3Runtime  source = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime  target = m3_NewRuntime(env, 65536, NULL);
+        IM3Module   from = NULL, to = NULL;
+        IM3Function prepare = NULL, run = NULL;
+        void*       bytes = NULL;
+        size_t      size  = 0;
+        m3_SetSuspendable(source, true);
+        expect(!m3_ParseModule(env, &from, wasm, sizeof(wasm)));
+        expect(!m3_LoadModule(source, from));
+        expect(!m3_FindFunction(&prepare, source, "prepare"));
+        expect(!m3_CallV(prepare));
+        m3_GetMemory(from, NULL, 0)[0] = 7;
+        expect(!m3_FindFunction(&run, source, "run"));
+        m3_RequestSuspend(source);
+        expect(m3_CallV(run) == m3Err_continuationSuspended);
+        expect(!m3_SaveSnapshotToBuffer(source, &bytes, &size));
+        expect(!m3_ParseModule(env, &to, wasm, sizeof(wasm)));
+        expect(!m3_LoadModule(target, to));
+        expect(!m3_SetResourceLimit(target, c_m3Limit_MemoryBytes, 65536));
+        expect(!m3_SetResourceLimit(target, c_m3Limit_TableElements, 2));
+        expect(m3_LoadSnapshotFromBuffer(target, to, bytes, size) == m3Err_memoryLimitExceeded);
+        expect(!to->isUnusable and !to->hasRun);
+        expect(m3_GetMemory(to, NULL, 0)[0] == 0);
+        expect(m3_GetResourceUsage(target, c_m3Limit_MemoryBytes) == 65536);
+        expect(!m3_SetResourceLimit(target, c_m3Limit_MemoryBytes, 131072));
+        expect(m3_LoadSnapshotFromBuffer(target, to, bytes, size) == m3Err_tableLimitExceeded);
+        expect(!to->isUnusable and !to->hasRun);
+        expect(m3_GetResourceUsage(target, c_m3Limit_MemoryBytes) == 65536);
+        expect(m3_GetResourceUsage(target, c_m3Limit_TableElements) == 2);
+        expect(!m3_SetResourceLimit(target, c_m3Limit_TableElements, 4));
+        expect(!m3_LoadSnapshotFromBuffer(target, to, bytes, size));
+        expect(m3_GetResourceUsage(target, c_m3Limit_MemoryBytes) == 131072);
+        expect(m3_GetResourceUsage(target, c_m3Limit_TableElements) == 4);
+        expect(m3_GetMemory(to, NULL, 0)[0] == 7);
+        m3_RequestSuspend(target);
+        expect(m3_ResumeRuntime(target) == m3Err_continuationSuspended);
+        free(bytes);
+        m3_FreeRuntime(target);
+        m3_FreeRuntime(source);
+    }
+
+    Test(snapshot.shared_imports_are_stored_once)
+    {
+        // An owner exporting a memory and a table, and a module importing each
+        // of them twice: memory 1 is memory 0, and table 1 is table 0.
+        const u8 ownerBytes[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03,
+            0x01, 0x00, 0x01, 0x07, 0x09, 0x02, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x74, 0x01, 0x00
+        };
+        // prepare writes a byte through memory 1 and an element through table 1;
+        // run loops until a pause
+        const u8 importer[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x2f,
+            0x04, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e,
+            0x65, 0x72, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x74, 0x01,
+            0x70, 0x00, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x74, 0x01, 0x70, 0x00, 0x02, 0x03,
+            0x04, 0x03, 0x00, 0x00, 0x00, 0x07, 0x11, 0x02, 0x07, 0x70, 0x72, 0x65, 0x70, 0x61, 0x72, 0x65,
+            0x00, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00, 0x0a,
+            0x1d, 0x03, 0x02, 0x00, 0x0b, 0x10, 0x00, 0x41, 0x00, 0x41, 0x07, 0x3a, 0x40, 0x01, 0x00, 0x41,
+            0x01, 0xd2, 0x00, 0x26, 0x01, 0x0b, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b
+        };
+        IM3Runtime  source = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime  target = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime  other  = m3_NewRuntime(env, 65536, NULL);
+        IM3Module   owner = NULL, from = NULL, to = NULL;
+        IM3Function prepare = NULL, run = NULL;
+        void*       bytes     = NULL;
+        size_t      size      = 0;
+        u8*         memoryEnd = NULL;
+        M3Result    r;
+        m3_SetSuspendable(source, true);
+        expect(!m3_ParseModule(env, &owner, ownerBytes, sizeof(ownerBytes)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(source, owner));
+        expect(!m3_ParseModule(env, &from, importer, sizeof(importer)));
+        expect(!m3_LoadModule(source, from));
+        expect(!m3_FindFunction(&prepare, source, "prepare"));
+        expect(!m3_CallV(prepare));
+        expect(m3_GetMemory(from, NULL, 0)[0] == 7);
+        expect(!m3_FindFunction(&run, source, "run"));
+        m3_RequestSuspend(source);
+        expect(m3_CallV(run) == m3Err_continuationSuspended);
+        expect(!m3_SaveSnapshotToBuffer(source, &bytes, &size));
+
+        // past the container header, the Memory section ends with memory 1's
+        // record, which is its index and the index it shares: memory 0's
+        for (u8* p = (u8*)bytes + 8; p < (u8*)bytes + size;) {
+            u8  id     = *p++;
+            u32 length = 0, shift = 0;
+            do {
+                length |= (u32)(*p & 0x7f) << shift;
+                shift += 7;
+            } while (*p++ & 0x80);
+            if (id == 1) {
+                memoryEnd = p + length;
+            }
+            p += length;
+        }
+        expect(memoryEnd and memoryEnd[-2] == 1 and memoryEnd[-1] == 0);
+
+        // linked the same way, the one memory and table come back once
+        expect(!m3_ParseModule(env, &owner, ownerBytes, sizeof(ownerBytes)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(target, owner));
+        expect(!m3_ParseModule(env, &to, importer, sizeof(importer)));
+        expect(!m3_LoadModule(target, to));
+        expect(!m3_LoadSnapshotFromBuffer(target, to, bytes, size));
+        expect(m3_GetMemory(to, NULL, 0)[0] == 7);
+        expect(m3_GetMemory(to, NULL, 1)[0] == 7);
+        expect(to->tables[0]->elements[1] != NULL);
+        expect(m3_GetResourceUsage(target, c_m3Limit_MemoryBytes) == 65536);
+        expect(m3_GetResourceUsage(target, c_m3Limit_TableElements) == 2);
+
+        // a snapshot claiming memory 1 stands alone describes another program,
+        // and is refused before anything is restored
+        memoryEnd[-1] = 1;
+        expect(!m3_ParseModule(env, &owner, ownerBytes, sizeof(ownerBytes)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(other, owner));
+        expect(!m3_ParseModule(env, &to, importer, sizeof(importer)));
+        expect(!m3_LoadModule(other, to));
+        r = m3_LoadSnapshotFromBuffer(other, to, bytes, size);
+        expect(r and !strcmp(r, "the snapshot shares memories between imports differently"));
+        expect(!to->isUnusable and !to->hasRun);
+
+        free(bytes);
+        m3_FreeRuntime(other);
+        m3_FreeRuntime(target);
+        m3_FreeRuntime(source);
+    }
+
+    Test(snapshot.continuation_refusal_can_retry)
+    {
+        IM3Runtime  source = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime  target = m3_NewRuntime(env, 65536, NULL);
+        IM3Module   from = NULL, to = NULL;
+        IM3Function run   = NULL;
+        void*       bytes = NULL;
+        size_t      size  = 0;
+        m3_SetSuspendable(source, true);
+        expect(!m3_ParseModule(env, &from, c_ssNestedPromptWasm, sizeof(c_ssNestedPromptWasm)));
+        expect(!m3_LoadModule(source, from));
+        expect(!m3_FindFunction(&run, source, "main"));
+        m3_RequestSuspend(source);
+        M3Result result = m3_CallV(run);
+        for (u32 step = 0; step < 100 and result == m3Err_continuationSuspended and
+                           m3_GetResourceUsage(source, c_m3Limit_Continuations) < 2;
+             ++step) {
+            m3_RequestSuspend(source);
+            result = m3_ResumeRuntime(source);
+        }
+        expect(result == m3Err_continuationSuspended);
+        expect(m3_GetResourceUsage(source, c_m3Limit_Continuations) >= 2);
+        expect(!m3_SaveSnapshotToBuffer(source, &bytes, &size));
+        expect(!m3_ParseModule(env, &to, c_ssNestedPromptWasm, sizeof(c_ssNestedPromptWasm)));
+        expect(!m3_LoadModule(target, to));
+        expect(!m3_SetResourceLimit(target, c_m3Limit_Continuations, 1));
+        expect(m3_LoadSnapshotFromBuffer(target, to, bytes, size) == m3Err_continuationLimitExceeded);
+        expect(!to->isUnusable and !to->hasRun);
+        expect(m3_GetResourceUsage(target, c_m3Limit_Continuations) == 0);
+        expect(!m3_SetResourceLimit(target, c_m3Limit_Continuations, 0));
+        expect(!m3_LoadSnapshotFromBuffer(target, to, bytes, size));
+        expect(m3_GetResourceUsage(target, c_m3Limit_Continuations) >= 2);
+        expect(!m3_ResumeRuntime(target));
+        expect(m3_GetResourceUsage(target, c_m3Limit_Continuations) == 0);
+        free(bytes);
+        m3_FreeRuntime(target);
+        m3_FreeRuntime(source);
+    }
 
     Test(snapshot.postmortem_without_suspension)
     {
@@ -2356,7 +2694,7 @@ int main (int argc, const char* argv[])
     {
         IM3Runtime rt1 = m3_NewRuntime(env, 64 * 1024, NULL);
         expect(rt1 != NULL);
-        m3_SetGasLimit(rt1, 100);
+        m3_SetResourceLimit(rt1, c_m3Limit_GasUnits, (uint64_t)((100) * M3_GAS_UNITS_PER_GAS));
         m3_SetSuspendable(rt1, true);
 
         IM3Module mod1 = NULL;
@@ -2394,7 +2732,7 @@ int main (int argc, const char* argv[])
         // Restore snapshot into fresh runtime with replenished gas
         IM3Runtime rt2 = m3_NewRuntime(env, 64 * 1024, NULL);
         expect(rt2 != NULL);
-        m3_SetGasLimit(rt2, 10000000);
+        m3_SetResourceLimit(rt2, c_m3Limit_GasUnits, (uint64_t)(UINT64_C(10000000) * M3_GAS_UNITS_PER_GAS));
 
         IM3Module mod2 = NULL;
         r              = m3_ParseModule(env, &mod2, c_loopCounterWasm, sizeof(c_loopCounterWasm));

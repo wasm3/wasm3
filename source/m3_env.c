@@ -248,55 +248,83 @@ void m3_SetValidation (IM3Runtime i_runtime, bool i_enable)
 #endif
 }
 
-void m3_SetGasLimit (IM3Runtime i_runtime, double i_gas)
+M3Result m3_SetResourceLimit (IM3Runtime i_runtime, M3ResourceLimit i_limit, uint64_t i_value)
 {
-#if d_m3HasGasMetering
-    if (i_runtime) {
-        // A budget bigger than the counter can hold is the same as no ceiling
-        // worth speaking of, so it saturates rather than wrapping
-        const double maxGas = (double)INT64_MAX / d_m3GasUnitsPerGas;
-
-        i64 units;
-        if (i_gas >= maxGas) {
-            units = INT64_MAX;
-        } else if (i_gas > 0) {
-            units = (i64)(i_gas * d_m3GasUnitsPerGas);
-        } else {
-            units = 0;
+    if (not i_runtime) {
+        return m3Err_mallocFailed;
+    }
+    switch (i_limit) {
+    case c_m3Limit_MemoryBytes:
+        if (i_value and i_value < i_runtime->memoryBytesUsed) {
+            return m3Err_resourceLimitBelowUsage;
         }
-
-        i_runtime->gasLimit = i_runtime->gasRemaining = units;
-    }
+        i_runtime->memoryBytesLimit = i_value;
+        return m3Err_none;
+    case c_m3Limit_TableElements:
+        if (i_value and i_value < i_runtime->tableElementsUsed) {
+            return m3Err_resourceLimitBelowUsage;
+        }
+        i_runtime->tableElementsLimit = i_value;
+        return m3Err_none;
+#if d_m3HasStackSwitching
+    case c_m3Limit_Continuations:
+        if (i_value and i_value < i_runtime->continuationsAllocated) {
+            return m3Err_resourceLimitBelowUsage;
+        }
+        i_runtime->continuationsLimit = (u32)M3_MIN(i_value, (u64)UINT32_MAX);
+        while (i_value and i_runtime->valStackPoolCount > i_value - i_runtime->continuationsAllocated) {
+            m3_Free(i_runtime->valStackPool[--i_runtime->valStackPoolCount]);
+        }
+        return m3Err_none;
 #else
-    (void)i_runtime;
-    (void)i_gas;                 // nothing to meter: the instrumentation was compiled out
+    case c_m3Limit_Continuations: return m3Err_resourceLimitNotSupported;
 #endif
-}
-
-double m3_GetGasLimit (IM3Runtime i_runtime)
-{
+    case c_m3Limit_GasUnits:
 #if d_m3HasGasMetering
-    if (i_runtime) {
-        return (double)i_runtime->gasLimit / d_m3GasUnitsPerGas;
-    }
+        i_runtime->gasLimit = i_runtime->gasRemaining = (i64)M3_MIN(i_value, (u64)INT64_MAX);
+        return m3Err_none;
 #else
-    (void)i_runtime;
+        return m3Err_resourceLimitNotSupported;
 #endif
-    return 0;
+    default: return m3Err_unknownResourceLimit;
+    }
 }
 
-double m3_GetGasUsed (IM3Runtime i_runtime)
+uint64_t m3_GetResourceLimit (IM3Runtime i_runtime, M3ResourceLimit i_limit)
 {
-#if d_m3HasGasMetering
-    if (i_runtime) {
-        return (double)(i_runtime->gasLimit - i_runtime->gasRemaining) / d_m3GasUnitsPerGas;
+    if (not i_runtime) {
+        return 0;
     }
-#else
-    (void)i_runtime;
+    switch (i_limit) {
+    case c_m3Limit_MemoryBytes: return i_runtime->memoryBytesLimit;
+    case c_m3Limit_TableElements: return i_runtime->tableElementsLimit;
+#if d_m3HasStackSwitching
+    case c_m3Limit_Continuations: return i_runtime->continuationsLimit;
 #endif
-    return 0;
+#if d_m3HasGasMetering
+    case c_m3Limit_GasUnits: return (u64)i_runtime->gasLimit;
+#endif
+    default: return 0;
+    }
 }
 
+uint64_t m3_GetResourceUsage (IM3Runtime i_runtime, M3ResourceLimit i_limit)
+{
+    if (not i_runtime) {
+        return 0;
+    }
+    switch (i_limit) {
+    case c_m3Limit_MemoryBytes: return i_runtime->memoryBytesUsed;
+    case c_m3Limit_TableElements: return i_runtime->tableElementsUsed;
+#if d_m3HasStackSwitching
+    case c_m3Limit_Continuations: return i_runtime->continuationsAllocated;
+#endif
+#if d_m3HasGasMetering
+    case c_m3Limit_GasUnits: return (u64)i_runtime->gasLimit - (u64)i_runtime->gasRemaining;
+#endif
+    default: return 0;
+    }
+}
 
 void* m3_GetUserData (IM3Runtime i_runtime)
 {
@@ -409,12 +437,6 @@ IM3Continuation Continuation_New (IM3Runtime i_runtime, IM3FuncType i_type, IM3F
     cont->state         = cont_allocated;
 
     cont->numStackSlots = d_m3ContinuationStackSlots;
-    cont->valStack      = m3_AllocArray(m3slot_t, cont->numStackSlots + 4);
-    if (!cont->valStack) {
-        m3_Free(cont);
-        return NULL;
-    }
-
     // frames are recorded only when this continuation actually suspends, and
     // only as deep as it got, so the array starts out unallocated
     cont->frames    = NULL;
@@ -445,9 +467,6 @@ IM3Continuation Continuation_ForkSuspended (IM3Runtime i_runtime, IM3Continuatio
     if (M3_UNLIKELY(not newCont)) {
         return NULL;
     }
-
-    m3_Free(newCont->valStack);
-    m3_Free(newCont->frames);
 
     newCont->valStack      = i_cont->valStack;
     newCont->numStackSlots = i_cont->numStackSlots;
@@ -487,11 +506,54 @@ IM3Continuation Continuation_ForkSuspended (IM3Runtime i_runtime, IM3Continuatio
     return newCont;
 }
 
-// Continuations live until the runtime does. They are one-shot, but a resumed
-// one is still reachable from the Wasm stack that holds its reference, and the
-// engine has no way to know when the last copy is gone.
+// Only cont.new and snapshot restoration acquire stacks. Binding and suspension
+// transfer them between records without changing the active count.
+M3Result Continuation_AcquireStack (IM3Runtime runtime, IM3Continuation cont)
+{
+    if (not Continuation_CanAcquireStack(runtime)) {
+        return m3Err_continuationLimitExceeded;
+    }
+    if (runtime->valStackPoolCount) {
+        cont->valStack = runtime->valStackPool[--runtime->valStackPoolCount];
+        memset(cont->valStack, 0, (cont->numStackSlots + 4) * sizeof(m3slot_t));
+    } else {
+        cont->valStack = m3_AllocArray(m3slot_t, cont->numStackSlots + 4);
+    }
+    if (not cont->valStack) {
+        return m3Err_mallocFailed;
+    }
+    cont->sp = cont->valStack;
+    runtime->continuationsAllocated++;
+    return m3Err_none;
+}
+
+void Continuation_RecycleStack (IM3Runtime runtime, IM3Continuation cont)
+{
+    if (not cont->valStack or cont == runtime->rootContinuation) {
+        return;
+    }
+    if (not runtime->valStackPool) {
+        runtime->valStackPool = m3_AllocArray(m3slot_t*, 16);
+        if (runtime->valStackPool) {
+            runtime->valStackPoolCap = 16;
+        }
+    }
+    if (runtime->valStackPoolCount < runtime->valStackPoolCap and
+        (not runtime->continuationsLimit or runtime->valStackPoolCount <
+                                              runtime->continuationsLimit - runtime->continuationsAllocated + 1)) {
+        runtime->valStackPool[runtime->valStackPoolCount++] = cont->valStack;
+        cont->valStack                                      = NULL;
+    } else {
+        m3_Free(cont->valStack);
+    }
+    cont->sp = NULL;
+    runtime->continuationsAllocated--;
+}
+
 void Continuation_ReleaseAll (IM3Runtime io_runtime)
 {
+    // Records live until teardown: a consumed reference can still be in a table
+    // or on a Wasm stack. Its value stack has already been recycled.
     IM3Continuation cont = io_runtime->continuations;
 
     while (cont) {
@@ -504,9 +566,15 @@ void Continuation_ReleaseAll (IM3Runtime io_runtime)
         cont = next;
     }
 
-    io_runtime->continuations      = NULL;
-    io_runtime->activeContinuation = NULL;
-    io_runtime->rootContinuation   = NULL;
+    for (u32 i = 0; i < io_runtime->valStackPoolCount; ++i) {
+        m3_Free(io_runtime->valStackPool[i]);
+    }
+    m3_Free(io_runtime->valStackPool);
+    io_runtime->valStackPoolCount = io_runtime->valStackPoolCap = 0;
+    io_runtime->continuationsAllocated                          = 0;
+    io_runtime->continuations                                   = NULL;
+    io_runtime->activeContinuation                              = NULL;
+    io_runtime->rootContinuation                                = NULL;
 }
 
 
@@ -1054,6 +1122,12 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
             numPageBytes = M3_MIN(numPageBytes, (u64)io_runtime->memoryLimit);
         }
 
+        u64 oldLength = memory->mallocated ? memory->mallocated->length : 0;
+        u64 otherUsed = io_runtime->memoryBytesUsed - oldLength;
+        _throwif(m3Err_memoryLimitExceeded, io_runtime->memoryBytesLimit and
+                                              (numPageBytes > io_runtime->memoryBytesLimit or
+                                               otherUsed > io_runtime->memoryBytesLimit - numPageBytes));
+
         _throwif("linear memory limitation exceeded", numPageBytes > (u64)SIZE_MAX - sizeof(M3MemoryHeader));
 
 #if d_m3GuardedMemory
@@ -1108,7 +1182,8 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
         M3MemoryHeader* oldMallocated = memory->mallocated;
 #endif
 
-        memory->numPages = numPagesToAlloc;
+        io_runtime->memoryBytesUsed = otherUsed + numPageBytes;
+        memory->numPages            = numPagesToAlloc;
 
         memory->mallocated->length  = (size_t)numPageBytes;
         memory->mallocated->runtime = io_runtime;
@@ -1127,6 +1202,9 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
 
 void FreeMemoryBlock (IM3Memory io_memory)
 {
+    if (io_memory->mallocated and io_memory->mallocated->runtime) {
+        io_memory->mallocated->runtime->memoryBytesUsed -= io_memory->mallocated->length;
+    }
 #if d_m3GuardedMemory
     Guard_GiveSlot(io_memory->guardSlot);
     io_memory->guardSlot = NULL;
@@ -1309,8 +1387,12 @@ M3Result InitTableAndElements (IM3Module io_module)
         }
 
         if (table->size) {
+            IM3Runtime runtime = io_module->runtime;
+            _throwif(m3Err_tableLimitExceeded, runtime->tableElementsLimit and
+                                                 table->size > runtime->tableElementsLimit - runtime->tableElementsUsed);
             table->elements = m3_AllocArray(void*, table->size);
             _throwifnull(table->elements);
+            runtime->tableElementsUsed += table->size;
 
             if (table->initExpr) {
                 void*   value = NULL;
@@ -1615,9 +1697,7 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
         i_runtime->rootContinuation = Continuation_New(i_runtime, i_function->funcType, i_function);
 
         if (i_runtime->rootContinuation) {
-            // the root runs on the runtime's own stack rather than a buffer of
-            // its own, so the one it was given is handed straight back
-            m3_Free(i_runtime->rootContinuation->valStack);
+            // The root borrows the runtime's stack and is not charged as cont.new.
             i_runtime->rootContinuation->numStackSlots = i_runtime->numStackSlots;
         } else {
             claimRoot = false;

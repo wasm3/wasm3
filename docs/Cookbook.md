@@ -478,6 +478,16 @@ Hello, world!
 
 # Gas Metering
 
+Wasm3's public API counts exact integer gas units, each a ten-thousandth of a
+gas (`M3_GAS_UNITS_PER_GAS = 10000`). The former `m3_SetGasLimit`,
+`m3_GetGasLimit`, and `m3_GetGasUsed` APIs have been removed. Migrate to
+`m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, units)`,
+`m3_GetResourceLimit`, and `m3_GetResourceUsage`; convert whole gas to units
+before setting a budget. Set it before compiling or running functions. Setting
+a gas limit re-arms the budget and resets usage. Limits above `INT64_MAX`
+saturate, and the getter reports that effective limit. Usage can exceed the
+limit by the cost of the last charged segment.
+
 Any `.wasm` module can be run under a fixed gas budget.
 `--gas-meter` reports what a run costs, and `--gas-limit` sets the budget
 it is allowed to spend:
@@ -551,10 +561,49 @@ one did, so a run is replayed by making a fresh runtime.
 
 Two limits belong alongside, and are separate because each is useful on its own:
 `--gas-limit`, so that a runaway module stops after the same amount of work
-everywhere, and a memory limit, so that `memory.grow` fails at the same point rather
+everywhere, and `--max-memory` (`c_m3Limit_MemoryBytes`), so that `memory.grow` fails at the same point rather
 than wherever the host allocator gives out. What the guest reads through the rest of
 WASI - files, arguments, the environment - is input, and reproducing a run means
 supplying it again.
+
+# Resource caps
+
+Limits apply to totals across every module in a runtime. Imported memories and
+tables count once. Usage is tracked even without a limit, and zero means unlimited for
+allocation caps.
+
+| CLI option | API key | Unit |
+|---|---|---|
+| `--max-memory 16M` | `c_m3Limit_MemoryBytes` | Allocated linear memory bytes |
+| `--max-table-elements 10000` | `c_m3Limit_TableElements` | Table elements |
+| `--max-continuations 256` | `c_m3Limit_Continuations` | Concurrent active continuation stacks |
+
+Memory sizes accept binary `K`, `M`, and `G` suffixes, case-insensitively. The
+other caps take plain integers. Add table and continuation caps alongside the
+deterministic profile when those resources need reproducible ceilings.
+
+`m3_SetResourceLimit` refuses allocation limits below current usage with
+`m3Err_resourceLimitBelowUsage`. Unsupported resources return
+`m3Err_resourceLimitNotSupported`, including gas or continuations compiled out
+of the build. Both getters return zero for unsupported or unknown keys; setting
+an unknown key returns `m3Err_unknownResourceLimit`.
+
+Over-budget `memory.grow` and `table.grow` return -1 without changing the object.
+Instantiation fails with `m3Err_memoryLimitExceeded` or `m3Err_tableLimitExceeded`;
+allocations made before a failed load remain owned and counted by the runtime.
+In `--spec-repl`, the spectest module uses 64 KiB and 10 table elements.
+
+`cont.new` traps with `m3Err_continuationLimitExceeded` when the active-stack
+cap is reached. Completion or a trap recycles the stack, so sequential
+create/resume loops fit a cap of one. Binding and suspension transfer the
+existing stack without consuming another slot. Consumed reference records stay
+allocated until runtime teardown; this cap bounds stacks, not record storage.
+Continuation limits saturate at `UINT32_MAX`.
+
+The internal MCU `memoryLimit` clamp still limits backing bytes while allowing
+the page count to grow. `c_m3Limit_MemoryBytes` instead refuses allocation or
+growth beyond a runtime total, counting the bytes left by the clamp. Guarded
+memory counts committed bytes, not reserved address space.
 
 # Other resources
 

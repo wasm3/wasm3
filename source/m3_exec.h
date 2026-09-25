@@ -1618,10 +1618,13 @@ d_m3Op(TableGrow)
         nextOp();
     }
 
-    if (newSize <= maxSize) {
+    IM3Runtime runtime = m3MemRuntime(_mem);
+    if (newSize <= maxSize and (not runtime->tableElementsLimit or
+                                delta <= runtime->tableElementsLimit - runtime->tableElementsUsed)) {
         void** elements = m3_ReallocArray(void*, table->elements, (size_t)newSize, oldSize);
 
         if (elements) {
+            runtime->tableElementsUsed += newSize - oldSize;
             table->elements = elements;
             table->size = (u32)newSize;
 
@@ -2163,11 +2166,20 @@ d_m3Op(ContNew)
         newTrap(m3Err_trapNullFunctionRef);
     }
 
+    // refused before a record exists, so a trap here leaves nothing behind
+    if (M3_UNLIKELY(not Continuation_CanAcquireStack(runtime))) {
+        newTrap(m3Err_continuationLimitExceeded);
+    }
     IM3Continuation cont = Continuation_New(runtime, funcType, func);
     if (M3_UNLIKELY(not cont)) {
         newTrap(m3Err_mallocFailed);
     }
 
+    M3Result allocation = Continuation_AcquireStack(runtime, cont);
+    if (M3_UNLIKELY(allocation)) {
+        cont->state = cont_consumed;
+        newTrap(allocation);
+    }
     *(IM3Continuation*)(_sp + dstSlot) = cont;
     nextOp();
 }
@@ -2201,8 +2213,6 @@ d_m3Op(ContBind)
     // the bound continuation takes over the original's execution state whole,
     // recorded native frames included: binding a suspended continuation must
     // not cost it the frames it has to be resumed through
-    m3_Free(dstCont->valStack);
-    m3_Free(dstCont->frames);
     dstCont->entryFunction = srcCont->entryFunction;
     dstCont->valStack = srcCont->valStack;
     dstCont->numStackSlots = srcCont->numStackSlots;
@@ -2575,6 +2585,7 @@ m3ret_t ReplayFrames (IM3Continuation i_cont, i32 i_depth, M3MemoryHeader* _mem)
 
             TakeContinuationResults(inner, frame.sp, frame.resume.resultsPC,
                                     frame.resume.numResults);
+            Continuation_RecycleStack(runtime, inner);
 
             return d_m3CallWithRegs(frame.pc, frame.sp, _mem, 0, 0.);
         }
@@ -2597,6 +2608,7 @@ m3ret_t ReplayFrames (IM3Continuation i_cont, i32 i_depth, M3MemoryHeader* _mem)
             }
         } else {
             inner->state = cont_consumed;
+            Continuation_RecycleStack(runtime, inner);
         }
 
         return r;
@@ -2926,6 +2938,7 @@ d_m3Op(Resume)
         cont->state = cont_consumed;
 
         TakeContinuationResults(cont, _sp, resultsPC, numResults);
+        Continuation_RecycleStack(runtime, cont);
 
         _pc += numResults * 2;
         nextOp();
@@ -2961,6 +2974,7 @@ d_m3Op(Resume)
         }
     } else {
         cont->state = cont_consumed;
+        Continuation_RecycleStack(runtime, cont);
         pushBacktraceFrame();
         forwardTrap(r);
     }
@@ -3678,7 +3692,9 @@ d_m3Op(Const32)
 
 d_m3Op(Const64)
 {
-    u64 value = *(u64*)_pc;
+    // where a pointer is 32 bits the two lines are only 4-byte aligned
+    u64 value;
+    memcpy(&value, _pc, sizeof(value));
     _pc += (M3_SIZEOF_PTR == 4) ? 2 : 1;
     slot(u64) = value;
     nextOp();
@@ -3758,7 +3774,8 @@ d_m3Op(CheckAddr64)
     u64  operand = slot(u64);
     u32* address = slot_ptr(u32);
 
-    u64  offset = *(u64*)_pc;
+    u64  offset;
+    memcpy(&offset, _pc, sizeof(offset));
     _pc += (M3_SIZEOF_PTR == 4) ? 2 : 1;
 
     if (M3_LIKELY(operand < d_m3AddressLimit)) {

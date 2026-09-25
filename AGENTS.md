@@ -80,6 +80,9 @@ every run. Nothing has to be assembled by hand, and no `.wasm` belongs in a comm
 
 ## House rules
 
+**Use direct patches for simple file edits.** Do not create utility scripts
+(Python or otherwise) just to apply file edits.
+
 **The build is warning-free.** Fix every warning it emits, including ones in code your
 change did not touch. The bar is the state of the tree, not the delta against `main`; a
 baseline diff is useful for *locating* what a change added, never for deciding what to

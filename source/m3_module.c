@@ -40,6 +40,9 @@ void m3_FreeModule (IM3Module i_module)
                 continue;
             }
 
+            if (table->elements and i_module->runtime) {
+                i_module->runtime->tableElementsUsed -= table->size;
+            }
             m3_Free(table->elements);
             m3_Free(table->exportName);
             FreeImportInfo(&table->import);

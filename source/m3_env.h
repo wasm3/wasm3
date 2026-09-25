@@ -381,6 +381,8 @@ typedef struct M3Continuation {
     struct M3Continuation* parent;         // resumer continuation
 } M3Continuation, *IM3Continuation;
 
+M3Result        Continuation_AcquireStack (IM3Runtime runtime, IM3Continuation cont);
+void            Continuation_RecycleStack (IM3Runtime runtime, IM3Continuation cont);
 IM3Continuation Continuation_New (IM3Runtime i_runtime, IM3FuncType i_type, IM3Function i_function);
 IM3Continuation Continuation_ForkSuspended (IM3Runtime i_runtime, IM3Continuation i_cont);
 void            Continuation_ReleaseAll (IM3Runtime io_runtime);
@@ -555,12 +557,6 @@ M3Result ParseValueType (IM3Module i_module, m3type_t* o_type, bytes_t* io_bytes
 
 //---------------------------------------------------------------------------------------------------------------------------------
 
-#if d_m3HasGasMetering
-// Gas is counted internally in the unit ewasm's cost table is written in, a
-// ten-thousandth of a gas, and only the public API divides it back out. Keeping
-// whole units inside is what lets a segment's cost be one u32 immediate.
-#  define d_m3GasUnitsPerGas   10000
-#endif
 
 typedef struct M3Runtime {
     M3Compilation  compilation;
@@ -587,6 +583,10 @@ typedef struct M3Runtime {
     void*          userdata;
 
     u32            memoryLimit;
+    u64            memoryBytesLimit;
+    u64            memoryBytesUsed;
+    u64            tableElementsLimit;
+    u64            tableElementsUsed;
 
 #if d_m3DeterministicProfile
     // What the host answers about time and entropy out of, rather than out of the
@@ -607,7 +607,7 @@ typedef struct M3Runtime {
 #endif
 
 #if d_m3HasGasMetering
-    // Both counts are in gas units (see d_m3GasUnitsPerGas). gasRemaining goes
+    // Both counts are in gas units (see M3_GAS_UNITS_PER_GAS). gasRemaining goes
     // negative by the cost of the segment that ran out, which is what makes the
     // gas used come out slightly over the limit, and is deliberate: a segment
     // is paid for in full before any of it runs.
@@ -634,6 +634,11 @@ typedef struct M3Runtime {
     // requested takes effect at the next one instead of on the spot again
     bool            resumePastCheck;
 
+    u32             continuationsLimit;
+    u32             continuationsAllocated;
+    m3slot_t**      valStackPool;
+    u32             valStackPoolCap;
+    u32             valStackPoolCount;
     IM3Continuation activeContinuation;
     IM3Continuation suspendedContinuation;
     IM3Continuation continuations;
@@ -704,6 +709,15 @@ void*       v_FindFunction (IM3Module i_module, void* i_info);
 IM3CodePage AcquireCodePage (IM3Runtime io_runtime);
 IM3CodePage AcquireCodePageWithCapacity (IM3Runtime io_runtime, u32 i_lineCount);
 void        ReleaseCodePage (IM3Runtime io_runtime, IM3CodePage i_codePage);
+
+#if d_m3HasStackSwitching
+static inline
+bool Continuation_CanAcquireStack (IM3Runtime runtime)
+{
+    return not runtime->continuationsLimit or
+           runtime->continuationsAllocated < runtime->continuationsLimit;
+}
+#endif
 
 d_m3EndExternC
 

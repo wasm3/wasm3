@@ -284,6 +284,12 @@ When combining gas metering with asynchronous pause or snapshot capabilities:
 
 - **Wasm3** (interpreter): complete implementation of this specification, including suspendable execution and snapshot resumption.
 
+Wasm3 exposes canonical integer units through
+`m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, units)` and the corresponding
+resource limit and usage getters. `M3_GAS_UNITS_PER_GAS` is 10000. Floating-point
+conversion is confined to CLI presentation and input, avoiding rounding across
+embedder language bindings.
+
 ### Conformance Tests
 
 A conforming implementation is expected to pass the following scenarios:

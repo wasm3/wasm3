@@ -186,9 +186,9 @@
 // anything real. That half is wasm3's own, not the proposal's.
 //
 // Two limits belong beside it and stay separate because each is useful alone:
-// m3_SetGasLimit, so that a runaway module stops after the same amount of work
-// everywhere, and M3Runtime.memoryLimit, so that memory.grow fails at the same point
-// rather than wherever the host allocator gives out.
+// m3_SetResourceLimit with c_m3Limit_GasUnits, so a runaway module stops after
+// the same amount of work, and c_m3Limit_MemoryBytes (--max-memory in the CLI),
+// so memory.grow fails at the same point rather than wherever the allocator gives out.
 #ifndef d_m3DeterministicProfile
 #  define d_m3DeterministicProfile             0
 #endif
@@ -353,7 +353,7 @@
 #endif
 
 
-// Gas metering. Once m3_SetGasLimit has armed a runtime, the compiler
+// Gas metering. Once m3_SetResourceLimit has armed a runtime, the compiler
 // instruments the function bodies it compiles from then on: each straight-line
 // segment of a body is charged, before any of it runs, for the instructions it
 // is about to execute, and execution traps once the budget is gone. The

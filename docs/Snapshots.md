@@ -186,7 +186,18 @@ from traps. A resume can suspend again. `m3_IsSuspended(runtime)` reports whethe
 there is a paused invocation. A paused invocation keeps its place: a call the host
 makes before `m3_ResumeRuntime` runs on a context of its own and leaves the paused
 one untouched. For gas-driven scheduling, set the first budget with
-`m3_SetGasLimit` before compilation, and replenish it before each resume.
+`m3_SetResourceLimit(runtime, c_m3Limit_GasUnits, units)` before compilation,
+and replenish it before each resume. A gas is `M3_GAS_UNITS_PER_GAS` units.
+
+Resource limits are host configuration and are not restored from snapshots.
+The Meta section records required memory bytes, table elements, and active
+continuation stacks. Restore checks these totals before applying guest state.
+Insufficient limits return `m3Err_memoryLimitExceeded`, `m3Err_tableLimitExceeded`,
+or `m3Err_continuationLimitExceeded`, leaving the module reusable: raise the
+limit and retry on the same instance. Other modules' resource usage is included
+when checking available headroom. Consumed continuation references cost no stacks.
+CLI snapshot workflows accept `--max-memory`, `--max-table-elements`, and
+`--max-continuations` alongside `--snapshot` or `--resume`.
 
 A resume that runs to the end leaves the results where the call would have, so
 `m3_GetResults` on the function that was called reads them.
@@ -226,7 +237,9 @@ that save a loop's progress and restore it into a new runtime.
 
 A snapshot records the entry module's linear memories, globals, tables and dropped
 segments, together with the paused call and every continuation and exception it can
-still reach. [Snapshot proposal](proposals/Snapshot.md) specifies the binary layout, which references
+still reach. A memory or table the module imports at two indices is recorded once, and
+restores only into an instance whose imports share it the same way.
+[Snapshot proposal](proposals/Snapshots.md) specifies the binary layout, which references
 can be saved and which are refused, etc.
 
 Host state is not part of it unless the embedder puts it there. `m3_SetSnapshotHooks`

@@ -198,6 +198,11 @@ def build_musl(target, cc, toolchain_src=None, tar_name=None):
 
     wasm3_binary = f"build-cross/wasm3-{target['name']}"
 
+    # the target's own flags, then the environment's, so that a caller can build
+    # any target a different way - sanitized, say - without a target of its own
+    cflags = f"{target['cflags']} {os.environ.get('CFLAGS', '')}".strip()
+    ldflags = f"-static -s {os.environ.get('LDFLAGS', '')}".strip()
+
     if DO_BUILD and (REBUILD or not Path(wasm3_binary).exists()):
         build_dir = f"build-cross/{target['name']}/"
         print(f"Building {target['name']} target")
@@ -205,8 +210,8 @@ def build_musl(target, cc, toolchain_src=None, tar_name=None):
             mkdir -p {build_dir}
             cd {build_dir}
             export CC="{f"../../{cc}" if toolchain_src else cc}"
-            export CFLAGS="{target["cflags"]}"
-            export LDFLAGS="-static -s"
+            export CFLAGS="{cflags}"
+            export LDFLAGS="{ldflags}"
             cmake -GNinja -DBUILD_NATIVE=OFF ../..
             cmake --build .
             cp wasm3 ../wasm3-{target["name"]}

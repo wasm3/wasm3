@@ -20,10 +20,17 @@
 // loads are bounded by the allocated length, not the declared page count.
 #define d_m3FuzzMemoryLimit  (4*1024*1024)
 
+// A table element is a pointer, so 1M of them are 8 MiB on a 64-bit host: the same
+// order as the memory budget, and far below what d_m3MaxSaneTableSize allows.
+#define d_m3FuzzTableLimit   (1024*1024)
+
 // Nothing stops a few fuzzed bytes from describing a loop that never ends.
 // Fuzzer timeout is an error => let's use gas metering to limit the number
 // of instructions that can run.
-#define d_m3FuzzGasLimit     1000.0
+#define d_m3FuzzGasLimit     (1000 * M3_GAS_UNITS_PER_GAS)
+
+// Each active continuation holds a value stack of 8 KiB, so 256 of them are 2 MiB.
+#define d_m3FuzzContinuationLimit  256
 
 int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
 {
@@ -37,10 +44,26 @@ int LLVMFuzzerTestOneInput (const uint8_t* data, size_t size)
     if (env) {
         IM3Runtime runtime = m3_NewRuntime(env, 4096, NULL);
         if (runtime) {
-            runtime->memoryLimit = d_m3FuzzMemoryLimit;
-            IM3Module module     = NULL;
+            IM3Module module = NULL;
 
-            m3_SetGasLimit(runtime, d_m3FuzzGasLimit);
+            runtime->memoryLimit = d_m3FuzzMemoryLimit;
+
+            const struct {
+                M3ResourceLimit limit;
+                uint64_t        value;
+            } limits[] = {
+                { c_m3Limit_TableElements, d_m3FuzzTableLimit        },
+                { c_m3Limit_GasUnits,      d_m3FuzzGasLimit          },
+                { c_m3Limit_Continuations, d_m3FuzzContinuationLimit },
+            };
+            for (unsigned i = 0; i < sizeof(limits) / sizeof(limits[0]); ++i) {
+                result = m3_SetResourceLimit(runtime, limits[i].limit, limits[i].value);
+                if (result && result != m3Err_resourceLimitNotSupported) {
+                    m3_FreeRuntime(runtime);
+                    m3_FreeEnvironment(env);
+                    return 0;
+                }
+            }
 
             result = m3_ParseModule(env, &module, data, size);
             if (module) {

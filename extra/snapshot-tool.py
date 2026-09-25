@@ -139,39 +139,39 @@ class FormatError(Exception):
 # --------------------------------------------------------------------------- model
 
 
+def first_index(items, i):
+    """The first index the object at index i stands at: two imports can name
+    the same memory or table."""
+    return next(j for j, item in enumerate(items) if item is items[i])
+
+
+def page_bits(page_size):
+    """A page size as the file writes it: the power of two it is."""
+    if not isinstance(page_size, int) or page_size <= 0 or page_size & (page_size - 1):
+        raise FormatError(f"page size {page_size} is not a power of two")
+    return page_size.bit_length() - 1
+
+
 class Memory:
     __slots__ = ("_data", "chunks", "has_data", "max_pages", "num_pages", "page_size")
 
     def __init__(self, num_pages, max_pages, page_size, has_data, chunks):
         self.num_pages = num_pages
         self.max_pages = max_pages  # None when the module is not known
-        self.page_size = page_size  # the module's, so None when it is not known
+        self.page_size = page_size  # bytes, a power of two
         self.has_data = has_data
         self.chunks = chunks  # list of (kind, offset, payload-or-length)
         self._data = None
 
     @property
     def size(self):
-        """Bytes, or None: the file counts pages, and the module says how big one is."""
-        if self.page_size is None:
-            return None
         return self.num_pages * self.page_size
 
     @property
-    def extent(self):
-        """How far the chunks reach, which is all there is to go on without the module."""
-        return max(
-            (off + (len(p) if k == CHUNK_RAW else p) for k, off, p in self.chunks),
-            default=0,
-        )
-
-    @property
     def data(self):
-        """The linear memory, expanded - as far as the chunks reach when the
-        page size is not known, since everything past them is zero anyway."""
+        """The linear memory, expanded."""
         if self._data is None:
-            size = self.size if self.size is not None else self.extent
-            buf = bytearray(size if self.has_data else 0)
+            buf = bytearray(self.size if self.has_data else 0)
             for kind, off, payload in self.chunks:
                 if kind == CHUNK_RAW:
                     buf[off : off + len(payload)] = payload
@@ -183,7 +183,7 @@ class Memory:
     def stats(self):
         raw = sum(len(p) for k, _, p in self.chunks if k == CHUNK_RAW)
         ff = sum(p for k, _, p in self.chunks if k == CHUNK_FILL_FF)
-        size = (self.size if self.has_data else 0) if self.size is not None else None
+        size = self.size if self.has_data else 0
         return {
             "pages": self.num_pages,
             "max_pages": self.max_pages,
@@ -192,7 +192,7 @@ class Memory:
             "bytes": size,
             "stored_bytes": raw,
             "filled_ff_bytes": ff,
-            "implicit_zero_bytes": size - raw - ff if size is not None else None,
+            "implicit_zero_bytes": size - raw - ff,
             "chunks": len(self.chunks),
         }
 
@@ -259,7 +259,12 @@ class Snapshot:
         self.flags = 0
         self.timestamp_ms = 0
         self.module_hash = 0
+        self.total_memory_bytes = 0
+        self.total_table_elements = 0
+        self.total_continuation_stacks = 0
         self.exceptions = []
+        # A memory or table two imports share is the same object at both
+        # indices, and the file stores it once, at the first of them.
         self.memories = []
         self.globals = []  # list of (type, u64 word)
         self.tables = []  # list of (element type, list of u64 words)
@@ -273,6 +278,34 @@ class Snapshot:
         self.raw = b""  # the container bytes it was read from, if any
 
     # ---- convenience
+
+    def expected_totals(self):
+        """The totals Meta has to state: memory bytes, table elements and active
+        stacks, each shared memory and table counted once."""
+        mem_bytes = sum(
+            m.size
+            for i, m in enumerate(self.memories)
+            if first_index(self.memories, i) == i
+        )
+        table_elems = sum(
+            len(t[1])
+            for i, t in enumerate(self.tables)
+            if first_index(self.tables, i) == i
+        )
+        active_stacks = sum(
+            1
+            for k in self.continuations
+            if k and not k.is_root and k.state != CONT_FINISHED
+        )
+        return mem_bytes, table_elems, active_stacks
+
+    def recompute_totals(self):
+        """Recompute resource totals stored in the Meta section from child sections."""
+        (
+            self.total_memory_bytes,
+            self.total_table_elements,
+            self.total_continuation_stacks,
+        ) = self.expected_totals()
 
     @property
     def is_postmortem(self):
@@ -333,9 +366,19 @@ class Snapshot:
                 "postmortem": self.is_postmortem,
                 "timestamp_ms": self.timestamp_ms,
                 "module_hash": f"{self.module_hash:016x}",
+                "total_memory_bytes": self.total_memory_bytes,
+                "total_table_elements": self.total_table_elements,
+                "total_continuation_stacks": self.total_continuation_stacks,
             },
             "exceptions": [e.to_dict() for e in self.exceptions],
-            "memories": [m.stats() for m in self.memories],
+            "memories": [
+                (
+                    m.stats()
+                    if first_index(self.memories, i) == i
+                    else {"same_as": first_index(self.memories, i)}
+                )
+                for i, m in enumerate(self.memories)
+            ],
             "globals": [
                 {
                     "index": i,
@@ -347,14 +390,18 @@ class Snapshot:
                 for i, (t, v) in enumerate(self.globals)
             ],
             "tables": [
-                {
-                    "index": i,
-                    "type_id": t,
-                    "type": TYPE_NAMES.get(t, f"type{t}"),
-                    "size": len(elems),
-                    "elements": elems,
-                    "non_null": sum(1 for e in elems if e != NULL_REF),
-                }
+                (
+                    {
+                        "index": i,
+                        "type_id": t,
+                        "type": TYPE_NAMES.get(t, f"type{t}"),
+                        "size": len(elems),
+                        "elements": elems,
+                        "non_null": sum(1 for e in elems if e != NULL_REF),
+                    }
+                    if first_index(self.tables, i) == i
+                    else {"index": i, "same_as": first_index(self.tables, i)}
+                )
                 for i, (t, elems) in enumerate(self.tables)
             ],
             "data_dropped": self.data_dropped,
@@ -824,6 +871,9 @@ def _parse(data, snapshot_name=None):
             # the records are in other sections, so it is the file that bounds them
             num_conts = _sane(sc.leb_u32(), "continuations", c)
             num_exns = _sane(sc.leb_u32(), "exceptions", sc)
+            s.total_memory_bytes = sc.leb_u64()
+            s.total_table_elements = sc.leb_u64()
+            s.total_continuation_stacks = sc.leb_u32()
             for _ in range(num_exns):
                 tag_idx = sc.leb_u32()
                 s.exceptions.append(Exception_(tag_index=tag_idx, args=[]))
@@ -835,6 +885,13 @@ def _parse(data, snapshot_name=None):
                 mem_idx = sc.leb_u32()
                 if mem_idx != i:
                     raise FormatError("memories are listed out of index order")
+                first = _shared_with(s.memories, i, sc.leb_u32(), "memory")
+                if first != i:
+                    s.memories.append(s.memories[first])
+                    continue
+                bits = sc.leb_u32()
+                if bits >= 32:
+                    raise FormatError(f"memory {i} has a page of 2^{bits} bytes")
                 num_pages = sc.leb_u32()
                 chunks = []
                 while True:
@@ -847,7 +904,7 @@ def _parse(data, snapshot_name=None):
                     ln = sc.leb_u32()
                     chunks.append((kind, off, sc.take(ln) if kind == CHUNK_RAW else ln))
                 has_data = len(chunks) > 0
-                s.memories.append(Memory(num_pages, None, None, has_data, chunks))
+                s.memories.append(Memory(num_pages, None, 1 << bits, has_data, chunks))
 
         elif sec_id == SECTION_TABLE:
             num_tables = _present(sc.leb_u32(), "tables")
@@ -855,6 +912,10 @@ def _parse(data, snapshot_name=None):
                 table_idx = sc.leb_u32()
                 if table_idx != i:
                     raise FormatError("tables are listed out of index order")
+                first = _shared_with(s.tables, i, sc.leb_u32(), "table")
+                if first != i:
+                    s.tables.append(s.tables[first])
+                    continue
                 valtype = sc.u8()
                 if valtype not in REF_TYPES:
                     raise FormatError("table has a non-reference type")
@@ -924,6 +985,16 @@ def _present(count, what):
     return count
 
 
+def _shared_with(read, i, first, what):
+    """Record i's first index, which names itself or an earlier record that
+    itself stands at its own first index."""
+    if first > i or (first < i and first_index(read, first) != first):
+        raise FormatError(
+            f"{what} {i} is shared with {what} {first}, which is not first"
+        )
+    return first
+
+
 def _parse_wasm_path(path):
     """Splits "<path>.wasm:<name>" at the last ".wasm:", as the CLI does, so a
     directory with one in its name does not end the path early."""
@@ -972,9 +1043,10 @@ def load(source, *, module=None, name=None):
     snap = _parse(data, snapshot_name=name)
     if wasm_module_path:
         snap.module = ModuleInfo.read(wasm_module_path)
-        for m, (page_size, max_pages) in zip(snap.memories, snap.module.memories):
-            m.page_size = page_size
-            m.max_pages = max_pages
+        # the page size is in the file, and verify() holds it to the module's
+        for i, (_, max_pages) in enumerate(snap.module.memories[: len(snap.memories)]):
+            if first_index(snap.memories, i) == i:
+                snap.memories[i].max_pages = max_pages
     return snap
 
 
@@ -1112,13 +1184,19 @@ def _write_continuation(w, snap, k):
                     _write_activation(w, a)
 
 
-def pack(snap):
+def pack(snap, recompute_totals=True):
     """Serialize a Snapshot back to bytes, matching wasm3's format.
 
     A section with nothing to say is left out. Sections go in the order the
     file they were read from had them, sections this tool does not know
     included, and any new one after those in ID order - so what was read
     comes back byte for byte."""
+    if recompute_totals:
+        mem_bytes, table_elems, active_stacks = snap.expected_totals()
+    else:
+        mem_bytes = snap.total_memory_bytes
+        table_elems = snap.total_table_elements
+        active_stacks = snap.total_continuation_stacks
     bodies = {}
 
     # Section 0: Meta
@@ -1128,6 +1206,9 @@ def pack(snap):
     sw.leb_u64(snap.module_hash)
     sw.leb_u32(len(snap.continuations))
     sw.leb_u32(len(snap.exceptions))
+    sw.leb_u64(mem_bytes)
+    sw.leb_u64(table_elems)
+    sw.leb_u32(active_stacks)
     for e in snap.exceptions:
         sw.leb_u32(e.tag_index)
     bodies[SECTION_META] = sw.out
@@ -1136,7 +1217,12 @@ def pack(snap):
     sw = _Writer()
     sw.leb_u32(len(snap.memories))
     for i, m in enumerate(snap.memories):
+        first = first_index(snap.memories, i)
         sw.leb_u32(i)
+        sw.leb_u32(first)
+        if first != i:
+            continue
+        sw.leb_u32(page_bits(m.page_size))
         sw.leb_u32(m.num_pages)
         if m.has_data:
             for kind, off, payload in m.chunks:
@@ -1155,7 +1241,11 @@ def pack(snap):
     sw = _Writer()
     sw.leb_u32(len(snap.tables))
     for i, (valtype, elems) in enumerate(snap.tables):
+        first = first_index(snap.tables, i)
         sw.leb_u32(i)
+        sw.leb_u32(first)
+        if first != i:
+            continue
         sw.u8(valtype)
         sw.leb_u32(len(elems))
         kind = (
@@ -1485,6 +1575,13 @@ def verify(snap):
     problems = []
     num_conts = len(snap.continuations)
     num_exns = len(snap.exceptions)
+    expected_mem, expected_tbl, expected_stacks = snap.expected_totals()
+    if snap.total_continuation_stacks != expected_stacks:
+        problems.append("active continuation stack count does not match Meta")
+    if snap.total_memory_bytes != expected_mem:
+        problems.append("memory bytes count does not match Meta")
+    if snap.total_table_elements != expected_tbl:
+        problems.append("table element count does not match Meta")
 
     def check_ref(where, type_id, word):
         if type_id not in REF_TYPES or word == NULL_REF:
@@ -1501,13 +1598,19 @@ def verify(snap):
             problems.append(f"{where}: function {word} is not in the module")
 
     for i, m in enumerate(snap.memories):
+        if first_index(snap.memories, i) != i:
+            continue
+        if snap.module and i < len(snap.module.memories):
+            declared = snap.module.memories[i][0]
+            if m.page_size != declared:
+                problems.append(
+                    f"memory {i}: page size {m.page_size}, "
+                    f"but the module declares {declared}"
+                )
         if m.max_pages is not None and m.num_pages > m.max_pages:
             problems.append(
                 f"memory {i}: {m.num_pages} pages exceeds its maximum of {m.max_pages}"
             )
-        # without the module there is no page size, and so no bound to check
-        if m.size is None:
-            continue
         for kind, off, payload in m.chunks:
             length = len(payload) if kind == CHUNK_RAW else payload
             if off + length > m.size:
@@ -1521,6 +1624,8 @@ def verify(snap):
         check_ref(f"global {i}", type_id, word)
 
     for i, (type_id, elems) in enumerate(snap.tables):
+        if first_index(snap.tables, i) != i:
+            continue
         if type_id not in REF_TYPES:
             problems.append(f"table {i}: element type {type_id} is not a reference")
         for j, e in enumerate(elems):
@@ -1665,7 +1770,7 @@ def unpack(snap, directory):
     manifest["files"] = {}
 
     for i, m in enumerate(snap.memories):
-        if m.has_data:
+        if m.has_data and first_index(snap.memories, i) == i:
             name = f"memory{i}.bin"
             with open(os.path.join(directory, name), "wb") as f:
                 f.write(m.data)
@@ -1701,6 +1806,9 @@ def pack_directory(directory, run_threshold=128):
     snap.flags = fmt["flags"]
     snap.timestamp_ms = fmt["timestamp_ms"]
     snap.module_hash = int(fmt["module_hash"], 16)
+    snap.total_memory_bytes = fmt["total_memory_bytes"]
+    snap.total_table_elements = fmt["total_table_elements"]
+    snap.total_continuation_stacks = fmt["total_continuation_stacks"]
 
     files = manifest.get("files", {})
 
@@ -1714,6 +1822,9 @@ def pack_directory(directory, run_threshold=128):
     ]
 
     for i, m in enumerate(manifest["memories"]):
+        if "same_as" in m:
+            snap.memories.append(snap.memories[m["same_as"]])
+            continue
         chunks = (
             encode_memory(blob(f"memory{i}"), run_threshold) if m["has_data"] else []
         )
@@ -1722,7 +1833,11 @@ def pack_directory(directory, run_threshold=128):
         )
 
     snap.globals = [(g["type_id"], g["value"]) for g in manifest["globals"]]
-    snap.tables = [(t["type_id"], t["elements"]) for t in manifest["tables"]]
+    for t in manifest["tables"]:
+        if "same_as" in t:
+            snap.tables.append(snap.tables[t["same_as"]])
+        else:
+            snap.tables.append((t["type_id"], t["elements"]))
     snap.data_dropped = manifest["data_dropped"]
     snap.elem_dropped = manifest["elem_dropped"]
 
@@ -1758,6 +1873,7 @@ def pack_directory(directory, run_threshold=128):
         if key.startswith("section"):
             snap.extra_sections[int(key[len("section") :])] = blob(key)
 
+    snap.recompute_totals()
     return snap
 
 
@@ -1798,8 +1914,7 @@ def _print_memory(m):
     fill = sum(p for kind, _, p in m.chunks if kind == CHUNK_FILL_FF)
     held = raw + fill
 
-    size = f", {_human(m.size)}" if m.size is not None else ""
-    print(f"  memory      {pages}{limit}{size}")
+    print(f"  memory      {pages}{limit}, {_human(m.size)}")
     if not m.chunks:
         print("              all zeroes")
         return
@@ -1853,6 +1968,11 @@ def cmd_info(args):
         )
         print(f"  taken       {when.isoformat(timespec='milliseconds')}")
     print(f"  module      {snap.module_hash:016x}")
+    print(
+        f"  resources   {snap.total_memory_bytes} memory bytes, "
+        f"{snap.total_table_elements} table elements, "
+        f"{snap.total_continuation_stacks} active continuation stacks"
+    )
 
     if snap.continuations:
         print()
@@ -1870,8 +1990,12 @@ def cmd_info(args):
 
     if snap.memories:
         print()
-        for m in snap.memories:
-            _print_memory(m)
+        for i, m in enumerate(snap.memories):
+            first = first_index(snap.memories, i)
+            if first == i:
+                _print_memory(m)
+            else:
+                print(f"  memory      the same as memory {first}")
 
     if snap.globals:
         print(f"  globals     {len(snap.globals)}")
@@ -1880,6 +2004,10 @@ def cmd_info(args):
             print(f"    {i:2d}  {name:<10} {snap.describe_value(gt, gv)}")
 
     for i, (type_id, elems) in enumerate(snap.tables):
+        first = first_index(snap.tables, i)
+        if first != i:
+            print(f"  table {i:<5} the same as table {first}")
+            continue
         non_null = sum(1 for e in elems if e != NULL_REF)
         print(
             f"  table {i:<5} {TYPE_NAMES.get(type_id, f'type{type_id}')}, "

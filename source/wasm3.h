@@ -25,6 +25,8 @@
 
 // Constants
 #define M3_BACKTRACE_TRUNCATED      (IM3BacktraceFrame)(SIZE_MAX)
+// Gas units are ten-thousandths of a gas in ewasm's cost table.
+#define M3_GAS_UNITS_PER_GAS        10000
 
 #if defined(__cplusplus)
 extern "C" {
@@ -68,6 +70,15 @@ typedef struct M3BacktraceInfo {
     IM3BacktraceFrame lastFrame;    // can be M3_BACKTRACE_TRUNCATED
 } M3BacktraceInfo, *IM3BacktraceInfo;
 
+typedef enum M3ResourceLimit {
+    c_m3Limit_MemoryBytes,       // Actual backing bytes across the runtime's memories.
+    c_m3Limit_TableElements,     // Elements across the runtime's tables; imports count once.
+    // Arm before compiling: only subsequently compiled bodies are instrumented.
+    // Setting gas re-arms the full budget; usage may exceed it by one segment.
+    // Exhaustion traps, or requests a pause in a suspendable runtime.
+    c_m3Limit_GasUnits,
+    c_m3Limit_Continuations,     // Concurrent active cont.new stacks, recycled on completion.
+} M3ResourceLimit;
 
 typedef enum M3ValueType {
     c_m3Type_none      = 0,
@@ -126,7 +137,6 @@ typedef struct M3ImportInfo {
     const char* moduleUtf8;
     const char* fieldUtf8;
 } M3ImportInfo, *IM3ImportInfo;
-
 
 typedef struct M3ImportContext {
     void*       userdata;
@@ -224,6 +234,14 @@ d_m3ErrorConst(globalTypeMismatch,             "global type mismatch")
 d_m3ErrorConst(globalNotMutable,               "global is not mutable")
 d_m3ErrorConst(memoryGuardsUnavailable,        "memory guards could not be installed")
 
+// resource limit errors
+d_m3ErrorConst(memoryLimitExceeded,            "runtime memory limit exceeded")
+d_m3ErrorConst(tableLimitExceeded,             "table elements limit exceeded")
+d_m3ErrorConst(continuationLimitExceeded,      "continuation limit exceeded")
+d_m3ErrorConst(resourceLimitBelowUsage,        "resource limit below current usage")
+d_m3ErrorConst(resourceLimitNotSupported,      "resource limit not supported in this build")
+d_m3ErrorConst(unknownResourceLimit,           "unknown resource limit")
+
 // traps
 d_m3ErrorConst(trapOutOfBoundsMemoryAccess,    "[trap] out of bounds memory access")
 d_m3ErrorConst(trapDivisionByZero,             "[trap] integer divide by zero")
@@ -287,28 +305,19 @@ void           m3_FreeRuntime (IM3Runtime i_runtime);
 // types before it runs. On by default (a no-op in a build without validation).
 void           m3_SetValidation (IM3Runtime i_runtime, bool i_enable);
 
-// Gas metering. Arming a runtime with a gas budget makes the compiler
-// instrument the function bodies it compiles from then on: each straight-line
-// segment of a body is charged, before any of it runs, for the instructions it
-// is about to execute. Running the budget out traps with m3Err_trapOutOfGas,
-// which no amount of Wasm can catch, so this bounds how long a module can run
-// as well as how much it can do. In a suspendable runtime it requests a pause
-// instead (see m3_RequestSuspend), and the segment runs on to it.
-//
-// Costs come from ewasm's metering design, whose unit is a ten-thousandth of a
-// gas - hence the fractional gas these speak in. Instrumentation follows lazy
-// compilation, so a body already compiled when the limit is set is not metered:
-// arm the runtime before running anything. Setting a new limit re-arms the
-// runtime with a full budget, and does not recompile what is already compiled.
-//
-// The gas used can exceed the limit by the cost of the segment that ran out -
-// it is charged in full before the trap. A build with d_m3HasGasMetering=0
-// compiles the instrumentation out: m3_SetGasLimit does nothing there, and the
-// two getters answer 0.
-void           m3_SetGasLimit (IM3Runtime i_runtime, double i_gas);
-
-double         m3_GetGasLimit (IM3Runtime i_runtime);
-double         m3_GetGasUsed (IM3Runtime i_runtime);
+// Zero means unlimited for allocation caps (memory, tables, continuations).
+// Allocation limits below current usage are refused. Unsupported limits are
+// refused even when the requested value is zero.
+// Gas configures an execution budget (zero sets an empty/unmetered budget); arm
+// a positive budget before compilation to instrument metered code. Gas saturates
+// at INT64_MAX, continuations at UINT32_MAX. Setting an allocation limit leaves
+// usage unchanged; setting gas starts a fresh execution budget.
+M3Result       m3_SetResourceLimit (IM3Runtime i_runtime, M3ResourceLimit i_limit, uint64_t i_value);
+// Returns the effective (possibly saturated) limit; unsupported/unset limits are zero.
+uint64_t       m3_GetResourceLimit (IM3Runtime i_runtime, M3ResourceLimit i_limit);
+// Usage is tracked even without a limit (for gas, requires arming before compilation).
+// Unsupported and unknown keys return zero.
+uint64_t       m3_GetResourceUsage (IM3Runtime i_runtime, M3ResourceLimit i_limit);
 
 // A memory belongs to the module that declares it, so these take the module
 // rather than the runtime - a runtime can hold several modules, each with
@@ -348,7 +357,6 @@ M3Result       m3_FindExportedMemory (IM3Module         i_module,
 M3Result       m3_BindImportMemory (IM3Module         io_module,
                                     const char* const i_importModule,
                                     uint32_t          i_memoryIndex);
-
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //  modules

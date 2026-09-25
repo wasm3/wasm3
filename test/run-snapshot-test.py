@@ -327,33 +327,95 @@ def step_program(prog, workdir, expected, budget):
     print(f"  {args.steps} steps, each one further on")
 
 
+def run_resource_limits(workdir):
+    """A snapshot needing more than the runtime allows is refused, and stays usable
+
+    The program grows its memory and table before it pauses, so the snapshot needs
+    more than a fresh instance of the same module holds.
+    """
+    source = "./snapshot/resource-cli.wat"
+    module = assemble_modules([source], args.exec)[source]
+    snapshot = os.path.join(workdir, "limits.dmp")
+    resumed = os.path.join(workdir, "limits-resumed.dmp")
+    builds = [args.exec.split(), args.exec_other.split()]
+
+    for path in (snapshot, resumed):
+        if os.path.exists(path):
+            os.remove(path)
+
+    run(builds[0] + ["--gas-limit", "1", "--snapshot", snapshot, module])
+    if not os.path.exists(snapshot):
+        fail("the program finished before it paused")
+        return
+    with open(snapshot, "rb") as f:
+        saved = f.read()
+
+    for flag, value, message in (
+        ("--max-memory", "64K", b"runtime memory limit exceeded"),
+        ("--max-table-elements", "2", b"table elements limit exceeded"),
+    ):
+        proc = subprocess.run(
+            builds[1] + [flag, value, "--resume", snapshot, module],
+            timeout=args.timeout,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if proc.returncode == 0 or message not in proc.stderr:
+            fail(f"{flag} {value} did not refuse the snapshot: {proc.stderr[-300:]!r}")
+            return
+
+    with open(snapshot, "rb") as f:
+        if f.read() != saved:
+            fail("a refused resume changed the snapshot")
+            return
+
+    # the same snapshot, once the limits fit what it holds
+    run(
+        builds[1]
+        + ["--max-memory", "128K", "--max-table-elements", "4"]
+        + ["--gas-limit", "1", "--snapshot", resumed, "--resume", snapshot, module]
+    )
+    if not os.path.exists(resumed):
+        fail("the resume under sufficient limits did not run")
+        return
+
+    print("  refused under limits that are too small, resumed under ones that fit")
+
+
 # Next to the programs, and named relative to here: one of the builds can be a
 # Windows binary started from WSL, which sees this directory but not /tmp
 check_build(args.exec)
 check_build(args.exec_other)
 
+
+def attempt(name, test, *test_args):
+    print(f"=== {name} ===")
+    stats.total_run += 1
+    try:
+        test(*test_args)
+    except subprocess.TimeoutExpired:
+        stats.timeout += 1
+        fail("Timeout")
+    except subprocess.CalledProcessError as e:
+        stats.crashed += 1
+        fail(
+            f"{' '.join(map(str, e.cmd))} exited with {e.returncode}: "
+            f"{e.stderr.decode(errors='replace').strip()[-300:]}"
+        )
+    except RuntimeError as e:
+        fail(str(e))
+
+
 with tempfile.TemporaryDirectory(dir=".", prefix="snapshot-test-") as workdir:
     workdir = os.path.relpath(workdir)
 
     for prog in programs:
-        if not fnmatch.fnmatch(prog["name"], args.filter):
-            continue
+        if fnmatch.fnmatch(prog["name"], args.filter):
+            attempt(prog["name"], run_program, prog, workdir)
 
-        print(f"=== {prog['name']} ===")
-        stats.total_run += 1
-        try:
-            run_program(prog, workdir)
-        except subprocess.TimeoutExpired:
-            stats.timeout += 1
-            fail("Timeout")
-        except subprocess.CalledProcessError as e:
-            stats.crashed += 1
-            fail(
-                f"{' '.join(map(str, e.cmd))} exited with {e.returncode}: "
-                f"{e.stderr.decode(errors='replace').strip()[-300:]}"
-            )
-        except RuntimeError as e:
-            fail(str(e))
+    if fnmatch.fnmatch("resource limits", args.filter):
+        attempt("resource limits", run_resource_limits, workdir)
 
 if stats.failed:
     print(f"{ansi.FAIL}=======================")

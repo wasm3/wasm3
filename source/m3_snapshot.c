@@ -1099,6 +1099,29 @@ _catch:
     return result;
 }
 
+// Two imports can name the same memory or table, so one can stand at several
+// indices. The file stores it once, at the first of them, and the record at
+// any other index names that first one instead.
+static
+u32 Memory_FirstIndex (IM3Module module, u32 index)
+{
+    u32 j = 0;
+    while (module->memories[j] != module->memories[index]) {
+        ++j;
+    }
+    return j;
+}
+
+static
+u32 Table_FirstIndex (IM3Module module, u32 index)
+{
+    u32 j = 0;
+    while (module->tables[j] != module->tables[index]) {
+        ++j;
+    }
+    return j;
+}
+
 static
 M3Result SaveMemories (M3SnapshotSave* s)
 {
@@ -1108,15 +1131,33 @@ M3Result SaveMemories (M3SnapshotSave* s)
 _   (PutLEB_u32(s, module->numMemories));
 
     for (u32 m = 0; m < module->numMemories; ++m) {
-        IM3Memory memory  = module->memories[m];
-        bool      hasData = memory and memory->mallocated;
-        u64       bytes   = memory ? memory->numPages * (u64)Memory_PageSize(memory) : 0;
+        IM3Memory memory   = module->memories[m];
+        u32       first    = Memory_FirstIndex(module, m);
+        bool      hasData  = memory and memory->mallocated;
+        u32       pageSize = memory ? Memory_PageSize(memory) : d_m3DefaultMemPageSize;
+        u64       bytes    = memory ? memory->numPages * (u64)pageSize : 0;
+        u32       pageBits = 0;
+
+_       (PutLEB_u32(s, m));
+_       (PutLEB_u32(s, first));
+
+        if (first != m) {
+            continue;
+        }
 
         // the file counts pages and addresses bytes in 32 bits, whatever size
         // the memory's pages are, so one this large has no encoding here
         _throwif("the memory is too large for a snapshot", bytes > UINT32_MAX);
+        _throwif("shrunken memory cannot be saved in a snapshot",
+                 memory and memory->mallocated and memory->mallocated->length < bytes);
 
-_       (PutLEB_u32(s, m));
+        // a page size is a power of two, written the way custom page sizes
+        // writes one: as that power
+        while ((1u << pageBits) < pageSize) {
+            ++pageBits;
+        }
+
+_       (PutLEB_u32(s, pageBits));
 _       (PutLEB_u32(s, memory ? (u32)memory->numPages : 0));
 
         // linear memory is little endian whatever the host is, and nothing in
@@ -1166,8 +1207,17 @@ _   (PutLEB_u32(s, module->numTables));
 
     for (u32 t = 0; t < module->numTables; ++t) {
         IM3Table table = module->tables[t];
+        u32      first = Table_FirstIndex(module, t);
 
 _       (PutLEB_u32(s, t));
+_       (PutLEB_u32(s, first));
+
+        // the first record holds the elements, and the discovery pass has
+        // followed their references there
+        if (first != t) {
+            continue;
+        }
+
 _       (PutU8(s, M3TypeToValType(table->type)));
 _       (PutLEB_u32(s, table->size));
 
@@ -1554,10 +1604,38 @@ _catch:
 }
 
 static
+void SnapshotResourceTotals (IM3Module module, u64* memoryBytes, u64* tableElements)
+{
+    *memoryBytes = *tableElements = 0;
+    for (u32 i = 0; i < module->numMemories; ++i) {
+        IM3Memory memory = module->memories[i];
+        if (Memory_FirstIndex(module, i) == i and memory) {
+            *memoryBytes += memory->numPages * (u64)Memory_PageSize(memory);
+        }
+    }
+    for (u32 i = 0; i < module->numTables; ++i) {
+        IM3Table table = module->tables[i];
+        if (Table_FirstIndex(module, i) == i and table) {
+            *tableElements += table->size;
+        }
+    }
+}
+
+static
 M3Result SaveMeta (M3SnapshotSave* s)
 {
     M3Result result = m3Err_none;
     u64      hash   = 0;
+    u64      memoryBytes, tableElements;
+    u32      activeStacks = 0;
+    for (u32 i = 0; i < s->continuations.count; ++i) {
+        IM3Continuation cont = (IM3Continuation)s->continuations.items[i];
+        if (cont != s->runtime->rootContinuation and
+            (cont->state == cont_allocated or cont->state == cont_suspended)) {
+            activeStacks++;
+        }
+    }
+    SnapshotResourceTotals(s->module, &memoryBytes, &tableElements);
 
 _   (ModuleFingerprint(s->module, &hash));
 
@@ -1566,6 +1644,9 @@ _   (PutLEB_u64(s, m3_HostTimeMs()));
 _   (PutLEB_u64(s, hash));
 _   (PutLEB_u32(s, s->continuations.count));
 _   (PutLEB_u32(s, s->exceptions.count));
+_   (PutLEB_u64(s, memoryBytes));
+_   (PutLEB_u64(s, tableElements));
+_   (PutLEB_u32(s, activeStacks));
 
 #  if d_m3HasExceptionHandling
     // each exception's tag before any of their payloads, so a reader can make
@@ -1688,11 +1769,18 @@ typedef struct M3SnapshotLoad {
     M3SnapshotReader reader;
     void*            userdata;
 
-    bool started;              // past the header, and so changing the runtime
-    bool changed;              // past Meta: a section has been applied to the module
+    bool      started;              // past the header, and so changing the runtime
+    m3slot_t* checkStack;
+    bool      changed;              // past Meta: a section has been applied to the module
 
     IM3Continuation*       continuations;
     u32                    numContinuations;
+    u64                    requiredMemoryBytes;
+    u64                    requiredTableElements;
+    u64                    loadedMemoryBytes;
+    u64                    loadedTableElements;
+    u32                    requiredStacks;
+    u32                    loadedStacks;
     M3SnapshotSuspendSite* suspendSites;
 
 #  if d_m3HasExceptionHandling
@@ -2042,32 +2130,56 @@ M3Result LoadMemories (M3SnapshotLoad* l)
     M3Result  result      = m3Err_none;
     IM3Module module      = l->module;
     u32       numMemories = 0;
+    l->loadedMemoryBytes  = 0;
 
 _   (GetLEB_u32(l, &numMemories));
     // a section is present only when it has something to say
     _throwif(m3Err_wasmMalformed, numMemories == 0 or numMemories != module->numMemories);
 
     for (u32 m = 0; m < numMemories; ++m) {
-        u32       memIndex = 0, numPages = 0;
+        u32       memIndex = 0, firstIndex = 0, pageBits = 0, numPages = 0;
         IM3Memory memory;
 
 _       (GetLEB_u32(l, &memIndex));
-_       (GetLEB_u32(l, &numPages));
+_       (GetLEB_u32(l, &firstIndex));
 
         // every memory is listed, in index order, so the index is a check
         _throwif(m3Err_wasmMalformed, memIndex != m);
+
+        // which imports share a memory is settled by linking, not by the
+        // module, so the instance restored into has to share the same ones
+        _throwif("the snapshot shares memories between imports differently",
+                 firstIndex != Memory_FirstIndex(module, m));
+        if (firstIndex != m) {
+            continue;
+        }
+
+_       (GetLEB_u32(l, &pageBits));
+_       (GetLEB_u32(l, &numPages));
+
         memory = module->memories[memIndex];
 
         size_t bytes = 0;
         u8*    data  = NULL;
 
         if (memory) {
+            _throwif(m3Err_wasmMalformed, pageBits >= 32 or (1u << pageBits) != Memory_PageSize(memory));
             _throwif(m3Err_wasmMalformed, numPages < memory->numPages or numPages > memory->maxPages);
             _throwif(m3Err_wasmMalformed, numPages > SIZE_MAX / Memory_PageSize(memory));
-            if (not l->checking and memory->numPages < numPages) {
-_               (ResizeMemory(l->runtime, memory, numPages));
-            }
             bytes = (size_t)numPages * Memory_PageSize(memory);
+
+            _throwif("shrunken memory cannot be restored from a snapshot",
+                     l->runtime->memoryLimit and bytes > (size_t)l->runtime->memoryLimit);
+
+            if (not l->checking) {
+                if (memory->numPages < numPages) {
+_                   (ResizeMemory(l->runtime, memory, numPages));
+                }
+                _throwif("shrunken memory cannot be restored from a snapshot",
+                         memory->mallocated and memory->mallocated->length < bytes);
+            }
+
+            l->loadedMemoryBytes += bytes;
 
             if (bytes and memory->mallocated) {
                 data = m3MemData(memory->mallocated);
@@ -2084,6 +2196,7 @@ _               (ResizeMemory(l->runtime, memory, numPages));
 
 _       (LoadMemoryChunks(l, data, bytes));
     }
+    _throwif(m3Err_wasmMalformed, l->loadedMemoryBytes != l->requiredMemoryBytes);
 
 _catch:
     return result;
@@ -2120,23 +2233,32 @@ _catch:
 static
 M3Result LoadTables (M3SnapshotLoad* l)
 {
-    M3Result  result    = m3Err_none;
-    IM3Module module    = l->module;
-    u32       numTables = 0;
+    M3Result  result       = m3Err_none;
+    IM3Module module       = l->module;
+    u32       numTables    = 0;
+    l->loadedTableElements = 0;
 
 _   (GetLEB_u32(l, &numTables));
     _throwif(m3Err_wasmMalformed, numTables == 0 or numTables != module->numTables);
 
     for (u32 t = 0; t < numTables; ++t) {
-        u32      tableIndex = 0, size = 0;
+        u32      tableIndex = 0, firstIndex = 0, size = 0;
         u8       valtype = 0;
         IM3Table table;
 
 _       (GetLEB_u32(l, &tableIndex));
+_       (GetLEB_u32(l, &firstIndex));
+
+        _throwif(m3Err_wasmMalformed, tableIndex != t);
+        _throwif("the snapshot shares tables between imports differently",
+                 firstIndex != Table_FirstIndex(module, t));
+        if (firstIndex != t) {
+            continue;
+        }
+
 _       (GetU8(l, &valtype));
 _       (GetLEB_u32(l, &size));
 
-        _throwif(m3Err_wasmMalformed, tableIndex != t);
         table = module->tables[tableIndex];
 
         _throwif(m3Err_wasmMalformed, valtype != M3TypeToValType(table->type));
@@ -2144,12 +2266,18 @@ _       (GetLEB_u32(l, &size));
 
         // the table can only have grown since it was instantiated
         _throwif(m3Err_wasmMalformed, size < table->size);
+
+        l->loadedTableElements += size;
+
         if (not l->checking and size != table->size) {
             void** elements;
 
+            _throwif(m3Err_tableLimitExceeded, l->runtime->tableElementsLimit and
+                                                 size - table->size > l->runtime->tableElementsLimit - l->runtime->tableElementsUsed);
             elements = m3_ReallocArray(void*, table->elements, size, table->size);
             _throwifnull(elements);
 
+            l->runtime->tableElementsUsed += size - table->size;
             table->elements = elements;
             table->size     = size;
         }
@@ -2162,6 +2290,7 @@ _           (GetRefValue(l, table->type, &reference));
             }
         }
     }
+    _throwif(m3Err_wasmMalformed, l->loadedTableElements != l->requiredTableElements);
 
 _catch:
     return result;
@@ -2542,7 +2671,8 @@ M3Result LoadContinuation (M3SnapshotLoad* l, u32 i_id)
     IM3Continuation cont   = l->continuations[i_id];
     M3Continuation  scratch;
     if (l->checking) {
-        scratch = *cont;
+        scratch          = *cont;
+        scratch.valStack = l->checkStack;
         if (i_id == 0) {
             scratch.valStack = (m3slot_t*)l->runtime->originStack;
         }
@@ -2561,11 +2691,17 @@ _   (GetLEB_u32(l, &entryIndex));
     _throwif(m3Err_wasmMalformed, contId != i_id);
     _throwif(m3Err_wasmMalformed, (bool)isRoot != (i_id == 0));
     _throwif(m3Err_wasmMalformed, isRoot and state != snapshot_contSuspended);
+    if (not isRoot and (state == snapshot_contAllocated or state == snapshot_contSuspended)) {
+        l->loadedStacks++;
+    }
     _throwif(m3Err_wasmMalformed, typeIndex != d_m3SnapshotNone and typeIndex >= module->numFuncTypes);
     // every continuation, the root included, was made with a function
     _throwif(m3Err_wasmMalformed, entryIndex >= module->numFunctions);
     _throwif(m3Err_wasmMalformed, isRoot ? typeIndex != d_m3SnapshotNone : (typeIndex == d_m3SnapshotNone or not module->funcTypes[typeIndex]->isContinuation));
 
+    if (not l->checking and not isRoot and state != snapshot_contFinished) {
+_       (Continuation_AcquireStack(l->runtime, cont));
+    }
     cont->type          = (typeIndex != d_m3SnapshotNone) ? module->funcTypes[typeIndex] : NULL;
     cont->entryFunction = &module->functions[entryIndex];
     cont->numHandlers   = 0;
@@ -2654,6 +2790,7 @@ M3Result LoadContinuations (M3SnapshotLoad* l)
 {
     M3Result result = m3Err_none;
     u32      count  = 0;
+    l->loadedStacks = 0;
 
 _   (GetLEB_u32(l, &count));
     _throwif(m3Err_wasmMalformed, count == 0 or count != l->numContinuations);
@@ -2661,6 +2798,7 @@ _   (GetLEB_u32(l, &count));
     for (u32 i = 0; i < count; ++i) {
 _       (LoadContinuation(l, i));
     }
+    _throwif(m3Err_wasmMalformed, l->loadedStacks != l->requiredStacks);
 
 _catch:
     return result;
@@ -2854,10 +2992,14 @@ _catch:
 static
 M3Result LoadMeta (M3SnapshotLoad* l, u32* o_flags)
 {
-    M3Result result     = m3Err_none;
-    u64      timestamp  = 0;
-    u64      moduleHash = 0;
-    u64      ownHash    = 0;
+    M3Result result      = m3Err_none;
+    u64      timestamp   = 0;
+    u64      moduleHash  = 0;
+    u64      ownHash     = 0;
+    u64      memoryBytes = 0, tableElements = 0;
+    u32      activeStacks = 0;
+    u64      currentMemory, currentTables;
+    SnapshotResourceTotals(l->module, &currentMemory, &currentTables);
 
 _   (GetLEB_u32(l, o_flags));
 _   (GetLEB_u64(l, &timestamp));
@@ -2873,6 +3015,15 @@ _   (ModuleFingerprint(l->module, &ownHash));
 
 _   (GetLEB_u32(l, &l->numContinuations));
 _   (GetLEB_u32(l, &l->numExceptions));
+_   (GetLEB_u64(l, &memoryBytes));
+_   (GetLEB_u64(l, &tableElements));
+_   (GetLEB_u32(l, &activeStacks));
+    l->requiredStacks        = activeStacks;
+    l->requiredMemoryBytes   = memoryBytes;
+    l->requiredTableElements = tableElements;
+    _throwif(m3Err_wasmMalformed, memoryBytes < currentMemory or tableElements < currentTables);
+    _throwif(m3Err_wasmMalformed, not l->module->numMemories and memoryBytes != 0);
+    _throwif(m3Err_wasmMalformed, not l->module->numTables and tableElements != 0);
 
     // the rest of Meta means the same thing in a postmortem, so it is read
     // whole and the refusal to resume comes after the section, not inside it
@@ -2884,7 +3035,14 @@ _           (GetLEB_u32(l, &tagIndex));
         return m3Err_none;
     }
 
-    _throwif(m3Err_wasmMalformed, l->numContinuations == 0);
+    _throwif(m3Err_memoryLimitExceeded, l->runtime->memoryBytesLimit and
+                                          memoryBytes - currentMemory > l->runtime->memoryBytesLimit - l->runtime->memoryBytesUsed);
+    _throwif(m3Err_tableLimitExceeded, l->runtime->tableElementsLimit and
+                                         tableElements - currentTables > l->runtime->tableElementsLimit - l->runtime->tableElementsUsed);
+    _throwif(m3Err_continuationLimitExceeded, l->runtime->continuationsLimit and
+                                                activeStacks > l->runtime->continuationsLimit - l->runtime->continuationsAllocated);
+
+    _throwif(m3Err_wasmMalformed, l->numContinuations == 0 or activeStacks >= l->numContinuations);
 #  if !d_m3HasExceptionHandling
     _throwif("the snapshot holds exceptions, and this build has none", l->numExceptions != 0);
 #  endif
@@ -2900,6 +3058,8 @@ _           (GetLEB_u32(l, &tagIndex));
         return m3Err_none;
     }
 
+    l->checkStack = m3_AllocArray(m3slot_t, d_m3ContinuationStackSlots + 4);
+    _throwifnull(l->checkStack);
     l->frames = m3_AllocArray(M3Frame, d_m3ContinuationMaxFrames);
     _throwifnull(l->frames);
 
@@ -2912,7 +3072,7 @@ _           (GetLEB_u32(l, &tagIndex));
         IM3Continuation root = Continuation_New(l->runtime, NULL, NULL);
         _throwifnull(root);
 
-        m3_Free(root->valStack);
+        // the root borrows the runtime's stack, so it holds none of its own
         root->numStackSlots          = l->runtime->numStackSlots;
         l->runtime->rootContinuation = root;
     }
@@ -3242,6 +3402,7 @@ M3Result LoadSnapshot (IM3Runtime io_runtime, IM3Module i_module, M3SnapshotRead
 
         Runtime_PlaceCallStack(io_runtime);
 
+        m3_Free(load.checkStack);
         m3_Free(load.frames);
         m3_Free(load.suspendSites);
         m3_Free(load.continuations);
