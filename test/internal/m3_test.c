@@ -77,6 +77,25 @@ static const u8 c_memoryPage[] = {
     0x00, 0x00, 0x0b
 };
 
+// (module
+//   (memory $m 1) (export "m1" (memory $m)) (export "m2" (memory $m))
+//   (table $t 1 funcref) (export "t1" (table $t)) (export "t2" (table $t))
+//   (global $g i32 (i32.const 42)) (export "g1" (global $g)) (export "g2" (global $g))
+//   (func $f (result i32) (i32.const 5))
+//   (export "f1" (func $f)) (export "f2" (func $f)) (export "f3" (func $f)) (export "f4" (func $f)))
+//
+// Everything it has exported under more than one name, the function under more
+// names than an M3Function keeps for itself. Loaded as "owner" by the link cases.
+static const u8 c_linkOwnerWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f,
+    0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01,
+    0x06, 0x06, 0x01, 0x7f, 0x00, 0x41, 0x2a, 0x0b, 0x07, 0x33, 0x0a, 0x02, 0x6d, 0x31, 0x02,
+    0x00, 0x02, 0x6d, 0x32, 0x02, 0x00, 0x02, 0x74, 0x31, 0x01, 0x00, 0x02, 0x74, 0x32, 0x01,
+    0x00, 0x02, 0x67, 0x31, 0x03, 0x00, 0x02, 0x67, 0x32, 0x03, 0x00, 0x02, 0x66, 0x31, 0x00,
+    0x00, 0x02, 0x66, 0x32, 0x00, 0x00, 0x02, 0x66, 0x33, 0x00, 0x00, 0x02, 0x66, 0x34, 0x00,
+    0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x05, 0x0b
+};
+
 #if d_m3HasStackSwitching
 
 // The shape the whole feature rests on: create a continuation, resume it,
@@ -1854,6 +1873,132 @@ int main (int argc, const char* argv[])
         m3_FreeRuntime(runtime);
     }
 
+    // Export names belong to the module rather than to what they name, so an
+    // entity exported under several names links under every one of them.
+    Test(link.one_entity_under_several_names)
+    {
+        // (module
+        //   (import "owner" "m1" (memory 1))
+        //   (import "owner" "m2" (memory 1))
+        //   (import "owner" "t1" (table 1 funcref))
+        //   (import "owner" "g1" (global i32))
+        //   (import "owner" "f1" (func (result i32)))
+        //   (import "owner" "f4" (func (result i32))))
+        static const u8 c_importerWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f,
+            0x02, 0x48, 0x06, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x6d, 0x31, 0x02, 0x00, 0x01,
+            0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x6d, 0x32, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77,
+            0x6e, 0x65, 0x72, 0x02, 0x74, 0x31, 0x01, 0x70, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65,
+            0x72, 0x02, 0x67, 0x31, 0x03, 0x7f, 0x00, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x66,
+            0x31, 0x00, 0x00, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x66, 0x34, 0x00, 0x00
+        };
+        IM3Runtime  runtime = m3_NewRuntime(env, 1024, NULL);
+        IM3Module   owner = NULL, importer = NULL;
+        IM3Function function    = NULL;
+        uint32_t    memoryIndex = UINT32_MAX;
+
+        expect(!m3_ParseModule(env, &owner, c_linkOwnerWasm, sizeof(c_linkOwnerWasm)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(runtime, owner));
+        expect(!m3_ParseModule(env, &importer, c_importerWasm, sizeof(c_importerWasm)));
+        expect(!m3_LoadModule(runtime, importer));
+
+        // both memory imports are the one memory
+        expect(importer->memories[0] == owner->memories[0]);
+        expect(importer->memories[1] == owner->memories[0]);
+        expect(importer->tables[0] == owner->tables[0]);
+        expect(importer->globals[0].resolved == &owner->globals[0]);
+        expect(importer->functions[0].resolved == &owner->functions[0]);
+        expect(importer->functions[1].resolved == &owner->functions[0]);
+
+        // and the host's lookups by name see every name as well
+        expect(!m3_FindExportedMemory(owner, "m1", &memoryIndex) and memoryIndex == 0);
+        expect(m3_FindGlobal(owner, "g1") and m3_FindGlobal(owner, "g1") == m3_FindGlobal(owner, "g2"));
+        expect(!m3_FindFunctionIn(&function, owner, "f4") and function == &owner->functions[0]);
+
+        m3_FreeRuntime(runtime);
+    }
+
+    // A module that imports something and exports it under a name of its own
+    // exports what the import was linked to. One that imports something without
+    // exporting it exports nothing, although its slot now holds an entity another
+    // module does export.
+    Test(link.reexport_under_a_name_of_its_own)
+    {
+        // (module
+        //   (import "owner" "m2" (memory 1))
+        //   (import "owner" "t2" (table 1 funcref))
+        //   (export "x" (memory 0)))
+        static const u8 c_relayWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02, 0x1a, 0x02, 0x05, 0x6f, 0x77, 0x6e,
+            0x65, 0x72, 0x02, 0x6d, 0x32, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02,
+            0x74, 0x32, 0x01, 0x70, 0x00, 0x01, 0x07, 0x05, 0x01, 0x01, 0x78, 0x02, 0x00
+        };
+        // (module (import "relay" "x" (memory 1)))
+        static const u8 c_viaXWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x05, 0x72, 0x65, 0x6c,
+            0x61, 0x79, 0x01, 0x78, 0x02, 0x00, 0x01
+        };
+        // (module (import "relay" "t2" (table 1 funcref)))
+        static const u8 c_viaT2Wasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02, 0x0e, 0x01, 0x05, 0x72, 0x65, 0x6c,
+            0x61, 0x79, 0x02, 0x74, 0x32, 0x01, 0x70, 0x00, 0x01
+        };
+        IM3Runtime runtime = m3_NewRuntime(env, 1024, NULL);
+        IM3Module  owner = NULL, relay = NULL, viaX = NULL, viaT2 = NULL;
+        uint32_t   memoryIndex = UINT32_MAX;
+
+        expect(!m3_ParseModule(env, &owner, c_linkOwnerWasm, sizeof(c_linkOwnerWasm)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(runtime, owner));
+        expect(!m3_ParseModule(env, &relay, c_relayWasm, sizeof(c_relayWasm)));
+        m3_SetModuleName(relay, "relay");
+        expect(!m3_LoadModule(runtime, relay));
+
+        expect(!m3_FindExportedMemory(relay, "x", &memoryIndex) and memoryIndex == 0);
+        expect(m3_FindExportedMemory(relay, "m2", &memoryIndex) == m3Err_unknownMemory);
+
+        expect(!m3_ParseModule(env, &viaX, c_viaXWasm, sizeof(c_viaXWasm)));
+        expect(!m3_LoadModule(runtime, viaX));
+        expect(viaX->memories[0] == owner->memories[0]);
+
+        expect(!m3_ParseModule(env, &viaT2, c_viaT2Wasm, sizeof(c_viaT2Wasm)));
+        expect(m3_LoadModule(runtime, viaT2) == m3Err_unknownImport);
+
+        m3_FreeRuntime(runtime);
+    }
+
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
+    Test(link.tag_under_two_names)
+    {
+        // (module (tag $e) (export "e1" (tag $e)) (export "e2" (tag $e)))
+        static const u8 c_ownerWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x0d,
+            0x03, 0x01, 0x00, 0x00, 0x07, 0x0b, 0x02, 0x02, 0x65, 0x31, 0x04, 0x00, 0x02, 0x65, 0x32,
+            0x04, 0x00
+        };
+        // (module (import "owner" "e2" (tag)) (import "owner" "e1" (tag)))
+        static const u8 c_importerWasm[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02,
+            0x19, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x65, 0x32, 0x04, 0x00, 0x00, 0x05,
+            0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x65, 0x31, 0x04, 0x00, 0x00
+        };
+        IM3Runtime runtime = m3_NewRuntime(env, 1024, NULL);
+        IM3Module  owner = NULL, importer = NULL;
+
+        expect(!m3_ParseModule(env, &owner, c_ownerWasm, sizeof(c_ownerWasm)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(runtime, owner));
+        expect(!m3_ParseModule(env, &importer, c_importerWasm, sizeof(c_importerWasm)));
+        expect(!m3_LoadModule(runtime, importer));
+
+        expect(importer->tags[0].resolved == &owner->tags[0]);
+        expect(importer->tags[1].resolved == &owner->tags[0]);
+
+        m3_FreeRuntime(runtime);
+    }
+#endif
+
 #if d_m3HasStackSwitching
     // Runs "main" from a module and checks what came back. The stack-switching
     // cases differ only in the module bytes and the expected result.
@@ -2230,19 +2375,21 @@ int main (int argc, const char* argv[])
 
     Test(snapshot.shared_imports_are_stored_once)
     {
-        // An owner exporting a memory and a table, and a module importing each
-        // of them twice: memory 1 is memory 0, and table 1 is table 0.
+        // An owner exporting a memory as "m" and "n" and a table as "t" and "u",
+        // and a module importing each under both names: memory 1 is memory 0, and
+        // table 1 is table 0.
         const u8 ownerBytes[] = {
             0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03,
-            0x01, 0x00, 0x01, 0x07, 0x09, 0x02, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x74, 0x01, 0x00
+            0x01, 0x00, 0x01, 0x07, 0x11, 0x04, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x6e, 0x02, 0x00, 0x01, 0x74,
+            0x01, 0x00, 0x01, 0x75, 0x01, 0x00
         };
         // prepare writes a byte through memory 1 and an element through table 1;
         // run loops until a pause
         const u8 importer[] = {
             0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x2f,
             0x04, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e,
-            0x65, 0x72, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x74, 0x01,
-            0x70, 0x00, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x74, 0x01, 0x70, 0x00, 0x02, 0x03,
+            0x65, 0x72, 0x01, 0x6e, 0x02, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x74, 0x01,
+            0x70, 0x00, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x75, 0x01, 0x70, 0x00, 0x02, 0x03,
             0x04, 0x03, 0x00, 0x00, 0x00, 0x07, 0x11, 0x02, 0x07, 0x70, 0x72, 0x65, 0x70, 0x61, 0x72, 0x65,
             0x00, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00, 0x0a,
             0x1d, 0x03, 0x02, 0x00, 0x0b, 0x10, 0x00, 0x41, 0x00, 0x41, 0x07, 0x3a, 0x40, 0x01, 0x00, 0x41,
@@ -2314,6 +2461,74 @@ int main (int argc, const char* argv[])
 
         free(bytes);
         m3_FreeRuntime(other);
+        m3_FreeRuntime(target);
+        m3_FreeRuntime(source);
+    }
+
+    Test(snapshot.sharing_follows_linking)
+    {
+        // Two imports from two modules, which are one memory or two depending on
+        // what "relay" is: one re-exporting the owner's memory, or one with a
+        // memory of its own. The module is the same either way.
+        //
+        // (module
+        //   (import "owner" "m1" (memory 1))
+        //   (import "relay" "m" (memory 1))
+        //   (func (export "run") (loop (br 0))))
+        const u8 pausing[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x18,
+            0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x02, 0x6d, 0x31, 0x02, 0x00, 0x01, 0x05, 0x72, 0x65,
+            0x6c, 0x61, 0x79, 0x01, 0x6d, 0x02, 0x00, 0x01, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03,
+            0x72, 0x75, 0x6e, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b
+        };
+        // (module (import "owner" "m1" (memory 1)) (export "m" (memory 0)))
+        const u8 relayShared[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02, 0x0d, 0x01, 0x05, 0x6f, 0x77, 0x6e, 0x65,
+            0x72, 0x02, 0x6d, 0x31, 0x02, 0x00, 0x01, 0x07, 0x05, 0x01, 0x01, 0x6d, 0x02, 0x00
+        };
+        // (module (memory 1) (export "m" (memory 0)))
+        const u8 relayOwn[] = {
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x05, 0x01,
+            0x01, 0x6d, 0x02, 0x00
+        };
+        IM3Runtime  source = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime  target = m3_NewRuntime(env, 65536, NULL);
+        IM3Module   owner = NULL, relay = NULL, from = NULL, to = NULL;
+        IM3Function run   = NULL;
+        void*       bytes = NULL;
+        size_t      size  = 0;
+        M3Result    r;
+        m3_SetSuspendable(source, true);
+        expect(!m3_ParseModule(env, &owner, c_linkOwnerWasm, sizeof(c_linkOwnerWasm)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(source, owner));
+        expect(!m3_ParseModule(env, &relay, relayOwn, sizeof(relayOwn)));
+        m3_SetModuleName(relay, "relay");
+        expect(!m3_LoadModule(source, relay));
+        expect(!m3_ParseModule(env, &from, pausing, sizeof(pausing)));
+        expect(!m3_LoadModule(source, from));
+        expect(from->memories[0] != from->memories[1]);
+        expect(!m3_FindFunction(&run, source, "run"));
+        m3_RequestSuspend(source);
+        expect(m3_CallV(run) == m3Err_continuationSuspended);
+        expect(!m3_SaveSnapshotToBuffer(source, &bytes, &size));
+
+        // linked together, the file describes another program, and is refused
+        // before anything is restored
+        expect(!m3_ParseModule(env, &owner, c_linkOwnerWasm, sizeof(c_linkOwnerWasm)));
+        m3_SetModuleName(owner, "owner");
+        expect(!m3_LoadModule(target, owner));
+        expect(!m3_ParseModule(env, &relay, relayShared, sizeof(relayShared)));
+        m3_SetModuleName(relay, "relay");
+        expect(!m3_LoadModule(target, relay));
+        expect(!m3_ParseModule(env, &to, pausing, sizeof(pausing)));
+        expect(!m3_LoadModule(target, to));
+        expect(to->memories[0] == to->memories[1]);
+        r = m3_LoadSnapshotFromBuffer(target, to, bytes, size);
+        expect(r and !strcmp(r, "the snapshot shares memories between imports differently"));
+        expect(!to->isUnusable and !to->hasRun);
+
+        free(bytes);
         m3_FreeRuntime(target);
         m3_FreeRuntime(source);
     }

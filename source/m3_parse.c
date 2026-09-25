@@ -907,61 +907,41 @@ M3Result ParseSection_Export (IM3Module io_module, bytes_t i_bytes, cbytes_t i_e
 {
     M3Result    result = m3Err_none;
     const char* utf8   = NULL;
-#if d_m3EnableValidation
-    // We store name pointers + lengths to handle embedded NUL bytes correctly
-    typedef struct {
-        const u8* ptr;
-        u16       len;
-    } ExportName;
-    ExportName* exportNames = NULL;
-#endif
 
     u32 numExports;
 _   (ReadLEB_u32(&numExports, &i_bytes, i_end));                                    m3log (parse, "** Export [%d]", numExports);
 
     _throwif("too many exports", numExports > d_m3MaxSaneExportsCount);
 
-#if d_m3EnableValidation
-    // Spec: all export names must be different
-    if (numExports > 1) {
-        exportNames = (ExportName*)m3_Malloc("exportNames", sizeof(ExportName) * numExports);
+    // the section order check lets this section through once, so this is
+    // every export the module has
+    if (numExports) {
+        io_module->exports = m3_AllocArray(M3Export, numExports);
+        _throwifnull(io_module->exports);
     }
-#endif
 
     for (u32 i = 0; i < numExports; ++i) {
         u8  exportKind;
         u32 index;
+        u32 nameLength;
 
-        // Read name length and remember raw position for uniqueness check
-#if d_m3EnableValidation
-        const u8* nameStart = i_bytes;
-        u32       nameLen   = 0;
+        // Read_utf8 takes the length along with the name, so read it ahead
         {
-            bytes_t  tmp = i_bytes;
-            M3Result rl  = ReadLEB_u32(&nameLen, &tmp, i_end);
-            if (rl) {
-                m3_Free(exportNames);
-                _throw(rl);
-            }
-            nameStart = tmp; // points to the raw name bytes
+            bytes_t lengthBytes = i_bytes;
+_           (ReadLEB_u32(&nameLength, &lengthBytes, i_end));
         }
-#endif
 
 _       (Read_utf8(&utf8, &i_bytes, i_end));
 _       (Read_u8(&exportKind, &i_bytes, i_end));
 _       (ReadLEB_u32(&index, &i_bytes, i_end));                                     m3log (parse, "    index: %3d; kind: %d; export: '%s'; ", index, (u32) exportKind, utf8);
 
 #if d_m3EnableValidation
-        if (exportNames) {
-            for (u32 j = 0; j < i; ++j) {
-                if (exportNames[j].len == nameLen &&
-                    memcmp(exportNames[j].ptr, nameStart, nameLen) == 0) {
-                    m3_Free(exportNames);
-                    _throw(m3Err_wasmMalformed);  // duplicate export name
-                }
-            }
-            exportNames[i].ptr = nameStart;
-            exportNames[i].len = (u16)nameLen;
+        // Spec: all export names must be different - compared by length, since
+        // a name may hold a NUL
+        for (u32 j = 0; j < i; ++j) {
+            const M3Export* other = &io_module->exports[j];
+
+            _throwif(m3Err_wasmMalformed, other->nameLength == nameLength and memcmp(other->name, utf8, nameLength) == 0);
         }
 #endif
 
@@ -969,55 +949,38 @@ _       (ReadLEB_u32(&index, &i_bytes, i_end));                                 
             _throwif(m3Err_wasmMalformed, index >= io_module->numFunctions);
             IM3Function func = &(io_module->functions[index]);
             if (func->numNames < d_m3MaxDuplicateFunctionImpl) {
-                func->names[func->numNames++] = utf8;
-                func->export_name             = utf8;
-
-                utf8 = NULL; // ownership transferred to M3Function
+                // a name of its own: names are freed with the function
+                cstr_t name = (cstr_t)m3_CopyMem(utf8, nameLength + 1);
+                _throwifnull(name);
+                func->names[func->numNames++] = name;
             }
 _           (Module_DeclareFunction(io_module, index));
         } else if (exportKind == d_externalKind_global) {
             _throwif(m3Err_wasmMalformed, index >= io_module->numGlobals);
-            IM3Global global = &(io_module->globals[index]);
-            m3_Free(global->name);
-            global->name = utf8;
-
-            utf8 = NULL; // ownership transferred to M3Global
         } else if (exportKind == d_externalKind_memory) {
             _throwif(m3Err_wasmMalformed, index >= io_module->numMemories);
-            IM3Memory memory = io_module->memories[index];
-            m3_Free(memory->exportName);
-            memory->exportName = utf8;
-
-            utf8 = NULL; // ownership transferred to M3Memory
         } else if (exportKind == d_externalKind_table) {
             _throwif(m3Err_wasmMalformed, index >= io_module->numTables);
-            IM3Table table = io_module->tables[index];
-            m3_Free(table->exportName);
-            table->exportName = utf8;
-
-            utf8 = NULL; // ownership transferred to M3Table
         }
 #if d_m3HasExceptionHandling || d_m3HasStackSwitching
         else if (exportKind == d_externalKind_tag) {
             _throwif(m3Err_wasmMalformed, index >= io_module->numTags);
-            IM3Tag tag = &(io_module->tags[index]);
-            m3_Free(tag->name);
-            tag->name = utf8;
-
-            utf8 = NULL; // ownership transferred to M3Tag
         }
 #endif
 
-        m3_Free(utf8);
+        M3Export* entry   = &io_module->exports[io_module->numExports++];
+        entry->name       = utf8;
+        entry->nameLength = nameLength;
+        entry->index      = index;
+        entry->kind       = exportKind;
+
+        utf8 = NULL; // ownership transferred to M3Module
     }
 
     _throwif(m3Err_wasmMalformed, i_bytes != i_end);      // section size mismatch
 
 _catch:
     m3_Free(utf8);
-#if d_m3EnableValidation
-    m3_Free(exportNames);
-#endif
     return result;
 }
 

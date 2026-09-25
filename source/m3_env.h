@@ -52,7 +52,6 @@ typedef struct M3Memory {
 
     struct M3Module* owner;          // the module that allocated it
     M3ImportInfo     import;         // when declared as an import
-    cstr_t           exportName;     // when exported
     bool             imported;
 
 #if d_m3GuardedMemory
@@ -116,7 +115,6 @@ typedef struct M3Table {
 
     struct M3Module* owner;          // the module that allocated it
     M3ImportInfo     import;         // when declared as an import
-    cstr_t           exportName;     // when exported
     bool             imported;
 } M3Table;
 
@@ -186,7 +184,6 @@ typedef struct M3Global {
         void* refValue;
     };
 
-    cstr_t   name;
     bytes_t  initExpr;       // wasm code
     u32      initExprSize;
     m3type_t type;
@@ -204,7 +201,6 @@ typedef struct M3Global {
 typedef struct M3Tag {
     M3ImportInfo  import;
     IM3FuncType   type;           // params are the payload; results are empty for EH, can be non-empty for stack switching
-    cstr_t        name;           // export name, if any
     struct M3Tag* resolved;
     bool          imported;
 } M3Tag;
@@ -412,6 +408,19 @@ typedef struct M3EmbeddedSnapshot {
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
+
+// One entry of the export section. Export names belong to the module rather than
+// to what they name: one entity can be exported under any number of names, and an
+// import re-exported under a name of the module's own, whose slot linking points
+// at another module's entity. Every lookup by name goes through these, and
+// resolves the index against the module's index space at the time it is asked.
+typedef struct M3Export {
+    cstr_t name;
+    u32    nameLength;   // the name may hold a NUL, which ends the C string early
+    u32    index;        // into the index space 'kind' names
+    u8     kind;         // d_externalKind_*
+} M3Export;
+
 typedef struct M3Module {
     struct M3Runtime*     runtime;
     struct M3Environment* environment;
@@ -478,6 +487,9 @@ typedef struct M3Module {
     // repointed whatever it was going to - so the call ops can read it straight
     // instead of branching. NULL until the module is loaded.
     IM3Memory         memory0;
+
+    M3Export*         exports;
+    u32               numExports;
 
 #if d_m3HasSnapshots
     struct M3EmbeddedSnapshot* snapshots;

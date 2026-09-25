@@ -742,66 +742,60 @@ bool LimitsSatisfy (u64 i_exportedSize, bool i_exportedHasMax, u64 i_exportedMax
 }
 
 
+// The export of this kind under this name, or NULL. The index it carries is
+// resolved by the caller, against the module's index space as it stands then -
+// after linking, a re-exported import's slot holds the entity it was linked to.
 static
-IM3Function Module_FindExportedFunction (IM3Module i_module, cstr_t i_name)
+const M3Export* Module_FindExport (IM3Module i_module, u8 i_kind, cstr_t i_name)
 {
-    for (u32 i = 0; i < i_module->numFunctions; ++i) {
-        IM3Function f = &i_module->functions[i];
+    for (u32 i = 0; i < i_module->numExports; ++i) {
+        const M3Export* e = &i_module->exports[i];
 
-        if (f->export_name and strcmp(f->export_name, i_name) == 0) {
-            // A module that re-exports an import names the placeholder here.
-            // Resolve to the function that actually runs, or a host-side call
-            // would run it against the importing module's memory.
-            return Function_Implementation(f);
+        if (e->kind == i_kind and strcmp(e->name, i_name) == 0) {
+            return e;
         }
     }
 
     return NULL;
+}
+
+
+static
+IM3Function Module_FindExportedFunction (IM3Module i_module, cstr_t i_name)
+{
+    const M3Export* e = Module_FindExport(i_module, d_externalKind_function, i_name);
+
+    // A module that re-exports an import names the placeholder here. Resolve to
+    // the function that actually runs, or a host-side call would run it against
+    // the importing module's memory.
+    return e ? Function_Implementation(&i_module->functions[e->index]) : NULL;
 }
 
 
 static
 IM3Memory Module_FindExportedMemory (IM3Module i_module, cstr_t i_name)
 {
-    for (u32 i = 0; i < i_module->numMemories; ++i) {
-        IM3Memory memory = i_module->memories[i];
+    const M3Export* e = Module_FindExport(i_module, d_externalKind_memory, i_name);
 
-        if (memory->exportName and strcmp(memory->exportName, i_name) == 0) {
-            return memory;
-        }
-    }
-
-    return NULL;
+    return e ? i_module->memories[e->index] : NULL;
 }
 
 
 static
 IM3Table Module_FindExportedTable (IM3Module i_module, cstr_t i_name)
 {
-    for (u32 i = 0; i < i_module->numTables; ++i) {
-        IM3Table table = i_module->tables[i];
+    const M3Export* e = Module_FindExport(i_module, d_externalKind_table, i_name);
 
-        if (table->exportName and strcmp(table->exportName, i_name) == 0) {
-            return table;
-        }
-    }
-
-    return NULL;
+    return e ? i_module->tables[e->index] : NULL;
 }
 
 
 static
 IM3Global Module_FindExportedGlobal (IM3Module i_module, cstr_t i_name)
 {
-    for (u32 i = 0; i < i_module->numGlobals; ++i) {
-        IM3Global g = &i_module->globals[i];
+    const M3Export* e = Module_FindExport(i_module, d_externalKind_global, i_name);
 
-        if (g->name and strcmp(g->name, i_name) == 0) {
-            return g;
-        }
-    }
-
-    return NULL;
+    return e ? &i_module->globals[e->index] : NULL;
 }
 
 
@@ -809,15 +803,15 @@ IM3Global Module_FindExportedGlobal (IM3Module i_module, cstr_t i_name)
 static
 IM3Tag Module_FindExportedTag (IM3Module i_module, cstr_t i_name)
 {
-    for (u32 i = 0; i < i_module->numTags; ++i) {
-        IM3Tag tag = &i_module->tags[i];
+    const M3Export* e = Module_FindExport(i_module, d_externalKind_tag, i_name);
 
-        if (tag->name and strcmp(tag->name, i_name) == 0) {
-            return tag->resolved ? tag->resolved : tag;
-        }
+    if (not e) {
+        return NULL;
     }
 
-    return NULL;
+    IM3Tag tag = &i_module->tags[e->index];
+
+    return tag->resolved ? tag->resolved : tag;
 }
 #endif
 
@@ -829,47 +823,11 @@ IM3Tag Module_FindExportedTag (IM3Module i_module, cstr_t i_name)
 static
 bool Module_HasExport (IM3Module i_module, cstr_t i_name)
 {
-    for (u32 i = 0; i < i_module->numFunctions; ++i) {
-        IM3Function f = &i_module->functions[i];
-
-        if (f->export_name and strcmp(f->export_name, i_name) == 0) {
+    for (u32 i = 0; i < i_module->numExports; ++i) {
+        if (strcmp(i_module->exports[i].name, i_name) == 0) {
             return true;
         }
     }
-
-    for (u32 i = 0; i < i_module->numMemories; ++i) {
-        IM3Memory memory = i_module->memories[i];
-
-        if (memory->exportName and strcmp(memory->exportName, i_name) == 0) {
-            return true;
-        }
-    }
-
-    for (u32 i = 0; i < i_module->numTables; ++i) {
-        IM3Table table = i_module->tables[i];
-
-        if (table->exportName and strcmp(table->exportName, i_name) == 0) {
-            return true;
-        }
-    }
-
-    for (u32 i = 0; i < i_module->numGlobals; ++i) {
-        IM3Global g = &i_module->globals[i];
-
-        if (g->name and strcmp(g->name, i_name) == 0) {
-            return true;
-        }
-    }
-
-#if d_m3HasExceptionHandling || d_m3HasStackSwitching
-    for (u32 i = 0; i < i_module->numTags; ++i) {
-        IM3Tag tag = &i_module->tags[i];
-
-        if (tag->name and strcmp(tag->name, i_name) == 0) {
-            return true;
-        }
-    }
-#endif
 
     return false;
 }
@@ -942,7 +900,6 @@ M3Result LinkImports (IM3Runtime io_runtime, IM3Module io_module)
 
         // hand the slot over to the exporter's memory, and drop the placeholder
         FreeMemoryBlock(memory);
-        m3_Free(memory->exportName);
         FreeImportInfo(&memory->import);
         m3_Free(memory);
 
@@ -978,7 +935,6 @@ M3Result LinkImports (IM3Runtime io_runtime, IM3Module io_module)
 
         // hand the slot over to the exporter's table, and drop the placeholder
         m3_Free(table->elements);
-        m3_Free(table->exportName);
         FreeImportInfo(&table->import);
         m3_Free(table);
 
@@ -1849,13 +1805,11 @@ IM3Global m3_FindGlobal (IM3Module         io_module,
                          const char* const i_globalName)
 {
     // Search exports
-    for (u32 i = 0; i < io_module->numGlobals; ++i) {
-        IM3Global g = &io_module->globals[i];
-        if (g->name and strcmp(g->name, i_globalName) == 0) {
-            // a re-exported global is the one that was imported, so reads and
-            // writes have to reach the cell that actually holds the value
-            return g->resolved ? g->resolved : g;
-        }
+    IM3Global exported = Module_FindExportedGlobal(io_module, i_globalName);
+    if (exported) {
+        // a re-exported global is the one that was imported, so reads and
+        // writes have to reach the cell that actually holds the value
+        return exported->resolved ? exported->resolved : exported;
     }
 
     // Search imports
@@ -1929,14 +1883,9 @@ void* v_FindFunction (IM3Module i_module, void* i_info)
     const char* const i_name = (const char*)i_info;
 
     // Prefer exported functions
-    for (u32 i = 0; i < i_module->numFunctions; ++i) {
-        IM3Function f = &i_module->functions[i];
-        if (f->export_name and strcmp(f->export_name, i_name) == 0) {
-            // A module that re-exports an import names the placeholder here.
-            // Resolve to the function that actually runs, or a host-side call
-            // would run it against the importing module's memory.
-            return Function_Implementation(f);
-        }
+    IM3Function exported = Module_FindExportedFunction(i_module, i_name);
+    if (exported) {
+        return exported;
     }
 
     // Search internal functions
@@ -2732,16 +2681,14 @@ M3Result m3_FindExportedMemory (IM3Module i_module, cstr_t i_name, u32* o_memory
         return m3Err_unknownMemory;
     }
 
-    for (u32 i = 0; i < i_module->numMemories; ++i) {
-        IM3Memory memory = i_module->memories[i];
+    const M3Export* e = Module_FindExport(i_module, d_externalKind_memory, i_name);
 
-        if (memory->exportName and strcmp(memory->exportName, i_name) == 0) {
-            *o_memoryIndex = i;
-            return m3Err_none;
-        }
+    if (not e) {
+        return m3Err_unknownMemory;
     }
 
-    return m3Err_unknownMemory;
+    *o_memoryIndex = e->index;
+    return m3Err_none;
 }
 
 

@@ -172,8 +172,11 @@ typedef struct M3Function {
     bytes_t            wasm;
     bytes_t            wasmEnd;
 
+    // What traces and errors call the function - its import name, or its first
+    // few export names, or else the name section's - and what m3_FindFunction
+    // falls back to once no export matches. Not a list of exports: those are
+    // M3Module.exports, which keeps every one.
     cstr_t             names[d_m3MaxDuplicateFunctionImpl];
-    cstr_t             export_name;                            // should be a part of "names"
     u16                numNames;                               // maximum of d_m3MaxDuplicateFunctionImpl
 
     IM3FuncType        funcType;

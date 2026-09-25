@@ -138,6 +138,12 @@ given `-o`. Pass `--enable-all` to the other three by default: without the flag 
 feature they answer `error: opcode not allowed` on anything post-MVP. `wasm-objdump` has
 no feature flags at all and rejects the option.
 
+Note that `--enable-all` is broken due to
+[wabt#2845](https://github.com/WebAssembly/wabt/issues/2845): it turns on compact
+imports, which this WABT encodes wrongly, so Wasm3 refuses the result with `underrun
+while parsing Wasm binary`. When that happens, enable the features the module needs one by
+one instead.
+
 Going through the tree pins the toolchain to what it carries, so a module does not
 silently depend on whichever `wabt` a machine happens to have, and it exercises the
 engine on a real program every time. They are WASI programs, so a `-DBUILD_WASI=none`

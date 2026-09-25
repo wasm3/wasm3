@@ -44,7 +44,6 @@ void m3_FreeModule (IM3Module i_module)
                 i_module->runtime->tableElementsUsed -= table->size;
             }
             m3_Free(table->elements);
-            m3_Free(table->exportName);
             FreeImportInfo(&table->import);
             m3_Free(table);
         }
@@ -57,14 +56,12 @@ void m3_FreeModule (IM3Module i_module)
         m3_Free(i_module->declaredFuncs);
 
         for (u32 i = 0; i < i_module->numGlobals; ++i) {
-            m3_Free(i_module->globals[i].name);
             FreeImportInfo(&(i_module->globals[i].import));
         }
         m3_Free(i_module->globals);
 
 #if d_m3HasExceptionHandling || d_m3HasStackSwitching
         for (u32 i = 0; i < i_module->numTags; ++i) {
-            m3_Free(i_module->tags[i].name);
             FreeImportInfo(&(i_module->tags[i].import));
         }
         m3_Free(i_module->tags);
@@ -80,12 +77,16 @@ void m3_FreeModule (IM3Module i_module)
             }
 
             FreeMemoryBlock(memory);
-            m3_Free(memory->exportName);
             FreeImportInfo(&memory->import);
             m3_Free(memory);
         }
         m3_Free(i_module->memories);
         FreeMemoryBlock(&i_module->emptyMemory);
+
+        for (u32 i = 0; i < i_module->numExports; ++i) {
+            m3_Free(i_module->exports[i].name);
+        }
+        m3_Free(i_module->exports);
 
 #if d_m3HasSnapshots
         M3EmbeddedSnapshot* snap = i_module->snapshots;
@@ -267,7 +268,6 @@ _try {
 
     tag->type     = i_type;
     tag->imported = i_isImported;
-    tag->name     = NULL;
     tag->resolved = NULL;
     memset(&tag->import, 0, sizeof(tag->import));
 
@@ -390,15 +390,6 @@ void Module_GenerateNames (IM3Module i_module)
             snprintf(buff, 16, "$func%d", i);
             func->names[0] = buff;
             func->numNames = 1;
-        }
-    }
-    for (u32 i = 0; i < i_module->numGlobals; ++i) {
-        IM3Global global = &i_module->globals[i];
-
-        if (global->name == NULL) {
-            char* buff = m3_AllocArray(char, 16);
-            snprintf(buff, 16, "$global%d", i);
-            global->name = buff;
         }
     }
 }
