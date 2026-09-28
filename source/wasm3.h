@@ -44,6 +44,8 @@ struct M3Function;
 typedef struct M3Function* IM3Function;
 struct M3Global;
 typedef struct M3Global* IM3Global;
+struct M3Tag;
+typedef struct M3Tag* IM3Tag;
 
 typedef struct M3ErrorInfo {
     M3Result    result;
@@ -189,6 +191,7 @@ d_m3ErrorConst(tooManyArgsRets,                "too many arguments or return val
 d_m3ErrorConst(moduleNotLinked,                "attempting to use module that is not loaded")
 d_m3ErrorConst(moduleAlreadyLinked,            "attempting to bind module to multiple runtimes")
 d_m3ErrorConst(functionLookupFailed,           "function lookup failed")
+d_m3ErrorConst(tagLookupFailed,                "tag lookup failed")
 d_m3ErrorConst(functionImportMissing,          "missing imported function")
 d_m3ErrorConst(unknownImport,                  "unknown import")
 d_m3ErrorConst(incompatibleImportType,         "incompatible import type")
@@ -471,6 +474,53 @@ const char*    m3_GetFunctionName (IM3Function i_function);
 IM3Module      m3_GetFunctionModule (IM3Function i_function);
 
 //-------------------------------------------------------------------------------------------------------------------------------
+//  exceptions
+//-------------------------------------------------------------------------------------------------------------------------------
+// A tag is the identity of an exception: a catch clause names one, and catches only
+// what was thrown with it. Its parameters are the types of the payload the exception
+// carries. A tag lives as long as the runtime its module was loaded into, or the
+// runtime m3_NewTag made it in.
+
+// The tag i_module exports as i_tagName, or NULL.
+IM3Tag         m3_FindTag (IM3Module         i_module,
+                           const char* const i_tagName);
+
+// A tag of the host's own, typed by a signature in m3_LinkRawFunction's notation:
+// "v(iI)" carries an i32 and an i64. No module can name it, so only catch_all and
+// catch_all_ref catch what is thrown with it - until m3_LinkTag hands it to one.
+M3Result       m3_NewTag (IM3Runtime        io_runtime,
+                          IM3Tag*           o_tag,
+                          const char* const i_signature);
+
+// Satisfies a tag import with i_tag, which must be of the same type. Code refers
+// to a tag as whatever it resolved to when it was compiled, so link before
+// calling anything that throws or catches it. "*" matches any module name.
+M3Result       m3_LinkTag (IM3Module         io_module,
+                           const char* const i_moduleName,
+                           const char* const i_tagName,
+                           IM3Tag            i_tag);
+
+uint32_t       m3_GetTagArgCount (IM3Tag i_tag);
+M3ValueType    m3_GetTagArgType (IM3Tag i_tag, uint32_t i_index);
+
+// Throws an exception from inside a raw host function, which returns what this
+// returns: the exception, on its way to the nearest try_table that catches it, or
+// a trap if it could not be thrown. i_argptrs point at the payload values, as
+// m3_Call's arguments do. Only a tag without results can be thrown.
+M3Result       m3_ThrowException (IM3Runtime  io_runtime,
+                                  IM3Tag      i_tag,
+                                  uint32_t    i_argc,
+                                  const void* i_argptrs[]);
+
+// The exception that ended the most recent call or resume on this runtime, when
+// it ended with m3Err_trapUncaughtException; NULL after any other outcome. The
+// payload is a copy, so it outlives the call, but an exnref within it does not.
+IM3Tag         m3_GetExceptionTag (IM3Runtime i_runtime);
+M3Result       m3_GetExceptionArgs (IM3Runtime  i_runtime,
+                                    uint32_t    i_argc,
+                                    const void* o_argptrs[]);
+
+//-------------------------------------------------------------------------------------------------------------------------------
 //  snapshots & suspendable execution
 //-------------------------------------------------------------------------------------------------------------------------------
 
@@ -600,6 +650,7 @@ IM3BacktraceInfo m3_GetBacktrace (IM3Runtime i_runtime);
 #define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}
 #define m3ApiMultiValueReturn(NAME, VALUE)   { *NAME = (VALUE); }
 #define m3ApiTrap(VALUE)                     { return VALUE; }
+#define m3ApiThrow(TAG, ARGC, ARGPTRS)       { return m3_ThrowException(runtime, TAG, ARGC, ARGPTRS); }
 #define m3ApiSuccess()                       { return m3Err_none; }
 
 #if defined(M3_BIG_ENDIAN)

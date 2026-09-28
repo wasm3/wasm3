@@ -205,7 +205,13 @@ typedef struct M3Tag {
     bool          imported;
 } M3Tag;
 
-typedef M3Tag* IM3Tag;
+// A tag m3_NewTag made. It belongs to the runtime rather than to a module, and
+// is linked in front of the runtime's others rather than kept in an array, which
+// would move the tags - and with them their identities - whenever it grew.
+typedef struct M3HostTag {
+    struct M3HostTag* next;
+    M3Tag             tag;
+} M3HostTag;
 
 #endif // d_m3HasExceptionHandling || d_m3HasStackSwitching
 
@@ -631,6 +637,10 @@ typedef struct M3Runtime {
     u32          tryDepth;           // number of try regions whose body is executing
     M3Exception* pendingException;   // the exception currently unwinding, if any
     M3Exception* exceptions;         // the ones it still holds
+    M3Exception* uncaughtException;  // a copy of what ended the last call, off the list
+#endif
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
+    M3HostTag* hostTags;
 #endif
 
     // Set by the embedder and by the host's interrupt handler, so they are here

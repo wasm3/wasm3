@@ -12,6 +12,7 @@
 #include <ctype.h>
 
 #include "m3_env.h"
+#include "m3_bind.h"
 #include "m3_deterministic.h"
 #include "m3_compile.h"
 #include "m3_host.h"
@@ -405,6 +406,14 @@ void Runtime_Release (IM3Runtime i_runtime)
 #if d_m3HasExceptionHandling
     // a runtime let go of while suspended still holds its exceptions
     FreeExceptions(i_runtime);
+    m3_Free(i_runtime->uncaughtException);
+#endif
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
+    while (i_runtime->hostTags) {
+        M3HostTag* next = i_runtime->hostTags->next;
+        m3_Free(i_runtime->hostTags);
+        i_runtime->hostTags = next;
+    }
 #endif
 #if d_m3HasStackSwitching
     Continuation_ReleaseAll(i_runtime);
@@ -1486,6 +1495,290 @@ void FreeExceptions (IM3Runtime io_runtime)
     }
 }
 
+
+// Keeps a copy of the exception a call just ended with, for m3_GetExceptionTag,
+// or forgets the last one when the call ended any other way. A copy, because
+// the original is freed with the rest before the outermost call returns - and
+// one a host function's nested call ended with may still be named by an
+// exnref further down the stack.
+static
+void RecordUncaughtException (IM3Runtime io_runtime, M3Result i_result)
+{
+    if (io_runtime->uncaughtException) {
+        m3_Free(io_runtime->uncaughtException);
+    }
+
+    M3Exception* exception = io_runtime->pendingException;
+
+    if (M3_UNLIKELY(i_result == m3Err_trapUncaughtException) and exception) {
+        M3Exception* copy = (M3Exception*)m3_CopyMem(exception, sizeof(M3Exception) + exception->numArgs * sizeof(u64));
+
+        if (copy) {
+            copy->next = NULL;
+            copy->prev = NULL;
+        }
+
+        io_runtime->uncaughtException = copy;
+    }
+}
+
+#endif // d_m3HasExceptionHandling
+
+
+#if d_m3HasExceptionHandling || d_m3HasStackSwitching
+
+IM3Tag m3_FindTag (IM3Module i_module, const char* const i_tagName)
+{
+    if (not i_module or not i_tagName) {
+        return NULL;
+    }
+
+    return Module_FindExportedTag(i_module, i_tagName);
+}
+
+
+M3Result m3_NewTag (IM3Runtime io_runtime, IM3Tag* o_tag, const char* const i_signature)
+{
+    IM3FuncType type    = NULL;
+    M3HostTag*  hostTag = NULL;
+
+_try {
+    _throwif("null tag", not o_tag);
+    *o_tag = NULL;
+    _throwif(m3Err_mallocFailed, not io_runtime);
+
+_   (SignatureToFuncType(&type, i_signature));
+    // tags are the same type exactly when their types are the same object
+_   (Environment_AddFuncType(io_runtime->environment, &type));
+
+    hostTag = m3_AllocStruct(M3HostTag);
+    _throwifnull(hostTag);
+
+    hostTag->tag.type    = type;
+    hostTag->next        = io_runtime->hostTags;
+    io_runtime->hostTags = hostTag;
+
+    *o_tag = &hostTag->tag;
+} _catch:
+    return result;
+}
+
+
+M3Result m3_LinkTag (IM3Module         io_module,
+                     const char* const i_moduleName,
+                     const char* const i_tagName,
+                     IM3Tag            i_tag)
+{
+    if (not io_module or not i_moduleName or not i_tagName or not i_tag) {
+        return m3Err_tagLookupFailed;
+    }
+
+    const bool wildcardModule = (strcmp(i_moduleName, "*") == 0);
+    IM3Tag     target         = i_tag->resolved ? i_tag->resolved : i_tag;
+
+    M3Result result = m3Err_tagLookupFailed;
+
+    for (u32 i = 0; i < io_module->numTags; ++i) {
+        IM3Tag tag = &io_module->tags[i];
+
+        if (tag->imported and tag->import.moduleUtf8 and tag->import.fieldUtf8 and
+            strcmp(tag->import.fieldUtf8, i_tagName) == 0 and
+            (wildcardModule or strcmp(tag->import.moduleUtf8, i_moduleName) == 0)) {
+            if (tag->type != target->type) {
+                return m3Err_incompatibleImportType;
+            }
+
+            tag->resolved = target;
+            result        = m3Err_none;
+        }
+    }
+
+    return result;
+}
+
+
+uint32_t m3_GetTagArgCount (IM3Tag i_tag)
+{
+    return i_tag ? i_tag->type->numArgs : 0;
+}
+
+
+M3ValueType m3_GetTagArgType (IM3Tag i_tag, uint32_t i_index)
+{
+    if (i_tag and i_index < i_tag->type->numArgs) {
+        return (M3ValueType)BaseTypeOf(d_FuncArgType(i_tag->type, i_index));
+    }
+
+    return c_m3Type_none;
+}
+
+#else
+
+IM3Tag m3_FindTag (IM3Module i_module, const char* const i_tagName)
+{
+    return NULL;
+}
+
+M3Result m3_NewTag (IM3Runtime io_runtime, IM3Tag* o_tag, const char* const i_signature)
+{
+    if (o_tag) {
+        *o_tag = NULL;
+    }
+    return m3Err_tagLookupFailed;
+}
+
+M3Result m3_LinkTag (IM3Module io_module, const char* const i_moduleName, const char* const i_tagName, IM3Tag i_tag)
+{
+    return m3Err_tagLookupFailed;
+}
+
+uint32_t m3_GetTagArgCount (IM3Tag i_tag)
+{
+    return 0;
+}
+
+M3ValueType m3_GetTagArgType (IM3Tag i_tag, uint32_t i_index)
+{
+    return c_m3Type_none;
+}
+
+#endif // d_m3HasExceptionHandling || d_m3HasStackSwitching
+
+
+#if d_m3HasExceptionHandling
+
+M3Result m3_ThrowException (IM3Runtime io_runtime, IM3Tag i_tag, uint32_t i_argc, const void* i_argptrs[])
+{
+    if (not io_runtime or not i_tag) {
+        return m3Err_tagLookupFailed;
+    }
+
+    IM3Tag      tag  = i_tag->resolved ? i_tag->resolved : i_tag;
+    IM3FuncType type = tag->type;
+
+    // a tag with results is a stack switching control tag, which is suspended
+    // with rather than thrown
+    if (type->numRets) {
+        return m3Err_typeMismatch;
+    }
+    if (i_argc != type->numArgs) {
+        return m3Err_argumentCountMismatch;
+    }
+    // with nothing on the stack there is nothing to unwind, and the exception
+    // would sit on the runtime's list until some later call ended
+    if (io_runtime->callNesting == 0) {
+        return "m3_ThrowException called outside a host function";
+    }
+
+    M3Exception* exception = NewException(io_runtime, tag, i_argc);
+    if (not exception) {
+        return m3Err_mallocFailed;
+    }
+
+    // the layout op_Throw gives a payload: 32-bit values zero-extended, floats
+    // as their bit pattern
+    for (u32 i = 0; i < i_argc; ++i) {
+        const void* value = i_argptrs[i];
+
+        switch (BaseTypeOf(d_FuncArgType(type, i))) {
+        case c_m3Type_i32:
+        case c_m3Type_f32: {
+            u32 bits;
+            memcpy(&bits, value, sizeof(bits));
+            exception->args[i] = bits;
+            break;
+        }
+        case c_m3Type_i64:
+        case c_m3Type_f64:
+            memcpy(&exception->args[i], value, sizeof(u64));
+            break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref:
+        case c_m3Type_exnref:
+        case c_m3Type_contref:
+            exception->args[i] = (u64)(*(const uintptr_t*)value);
+            break;
+        default:
+            FreeException(io_runtime, exception);
+            return "unknown argument type";
+        }
+    }
+
+    io_runtime->pendingException = exception;
+
+    return m3Err_pendingException;
+}
+
+
+IM3Tag m3_GetExceptionTag (IM3Runtime i_runtime)
+{
+    if (i_runtime and i_runtime->uncaughtException) {
+        return i_runtime->uncaughtException->tag;
+    }
+
+    return NULL;
+}
+
+
+M3Result m3_GetExceptionArgs (IM3Runtime i_runtime, uint32_t i_argc, const void* o_argptrs[])
+{
+    if (not i_runtime or not i_runtime->uncaughtException) {
+        return "no uncaught exception";
+    }
+
+    const M3Exception* exception = i_runtime->uncaughtException;
+    IM3FuncType        type      = exception->tag->type;
+
+    if (i_argc != exception->numArgs) {
+        return m3Err_argumentCountMismatch;
+    }
+
+    for (u32 i = 0; i < i_argc; ++i) {
+        void* value = (void*)o_argptrs[i];
+        u64   bits  = exception->args[i];
+
+        switch (BaseTypeOf(d_FuncArgType(type, i))) {
+        case c_m3Type_i32:
+        case c_m3Type_f32: {
+            u32 low = (u32)bits;
+            memcpy(value, &low, sizeof(low));
+            break;
+        }
+        case c_m3Type_i64:
+        case c_m3Type_f64:
+            memcpy(value, &bits, sizeof(bits));
+            break;
+        case c_m3Type_funcref:
+        case c_m3Type_externref:
+        case c_m3Type_exnref:
+        case c_m3Type_contref:
+            *(uintptr_t*)value = (uintptr_t)bits;
+            break;
+        default:
+            return "unknown argument type";
+        }
+    }
+
+    return m3Err_none;
+}
+
+#else
+
+M3Result m3_ThrowException (IM3Runtime io_runtime, IM3Tag i_tag, uint32_t i_argc, const void* i_argptrs[])
+{
+    return m3Err_tagLookupFailed;
+}
+
+IM3Tag m3_GetExceptionTag (IM3Runtime i_runtime)
+{
+    return NULL;
+}
+
+M3Result m3_GetExceptionArgs (IM3Runtime i_runtime, uint32_t i_argc, const void* o_argptrs[])
+{
+    return "no uncaught exception";
+}
+
 #endif // d_m3HasExceptionHandling
 
 
@@ -1692,6 +1985,7 @@ M3Result RunCodeChecked (IM3Runtime i_runtime, IM3Function i_function)
     if (M3_UNLIKELY(result == m3Err_pendingException)) {
         result = m3Err_trapUncaughtException;
     }
+    RecordUncaughtException(i_runtime, result);
 
     // a paused invocation can still reach the exceptions it holds, so they wait
     // for it to finish
@@ -2826,6 +3120,7 @@ M3Result m3_ResumeRuntime (IM3Runtime io_runtime)
     if (M3_UNLIKELY(result == m3Err_pendingException)) {
         result = m3Err_trapUncaughtException;
     }
+    RecordUncaughtException(io_runtime, result);
 #  endif
 
     io_runtime->callNesting--;

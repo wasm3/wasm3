@@ -605,6 +605,60 @@ the page count to grow. `c_m3Limit_MemoryBytes` instead refuses allocation or
 growth beyond a runtime total, counting the bytes left by the clamp. Guarded
 memory counts committed bytes, not reserved address space.
 
+# Exceptions from the host
+
+A tag is the identity of an exception: `catch $t` catches what was thrown with `$t`,
+and `catch_all` catches everything. The host reaches tags three ways:
+
+| Call | Gives |
+|---|---|
+| `m3_FindTag(module, "name")` | a tag the module exports |
+| `m3_NewTag(runtime, &tag, "v(iF)")` | a tag of the host's own, payload typed as in `m3_LinkRawFunction` signatures |
+| `m3_LinkTag(module, "env", "name", tag)` | satisfies a tag import with one of the above; the types must match |
+
+`m3_GetTagArgCount` and `m3_GetTagArgType` read a tag's payload types.
+
+A raw host function throws by returning what `m3_ThrowException` returns - or through
+`m3ApiThrow`, which does the same:
+
+```c
+m3ApiRawFunction(parse_int)
+{
+    m3ApiReturnType (int32_t)
+    m3ApiGetArg     (int32_t, value)
+
+    IM3Tag      tag    = (IM3Tag)_ctx->userdata;   // (tag $bad_input (param i32))
+    const void* args[] = { &value };
+
+    if (value < 0) {
+        m3ApiThrow(tag, 1, args);
+    }
+    m3ApiReturn(value);
+}
+```
+
+The exception unwinds through the guest like one thrown by `throw`. When nothing
+catches it, or anything else the guest threw, the call returns
+`m3Err_trapUncaughtException`, and the runtime keeps a copy of the exception until
+the next call or resume ends:
+
+```c
+if (m3_Call(f, 0, NULL) == m3Err_trapUncaughtException &&
+    m3_GetExceptionTag(runtime) == tag) {
+    int32_t     value;
+    const void* outs[] = { &value };
+    m3_GetExceptionArgs(runtime, 1, outs);
+}
+```
+
+A tag made by `m3_NewTag` and linked to no import is one no module can name, so the
+guest catches what is thrown with it through `catch_all` alone, and `throw_ref` hands
+it back out unchanged - which is how a host can carry its own errors through Wasm
+frames and recognise them on the far side. Code refers to a tag as whatever it
+resolved to when it was compiled, so link tags before calling anything that throws or
+catches them. A snapshot refuses a live exception whose tag the module cannot name,
+such as a host tag linked to none of its imports.
+
 # Other resources
 
 - [WebAssembly by examples](https://wasmbyexample.dev/home.en-us.html) by Aaron Turner

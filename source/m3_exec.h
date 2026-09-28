@@ -1278,7 +1278,11 @@ d_m3Op(CallRawFunction)
 
     if (M3_UNLIKELY(possible_trap)) {
         _mem = memory->mallocated;
-        pushBacktraceFrame();
+        // an exception the host threw (m3_ThrowException) is not a trap yet, and
+        // may well be caught: it records no frame, as a Wasm throw doesn't
+        if (possible_trap != m3Err_pendingException) {
+            pushBacktraceFrame();
+        }
     }
     forwardTrap(possible_trap);
 }

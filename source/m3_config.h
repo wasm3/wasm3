@@ -277,11 +277,12 @@
 // the same m3ret_t return path traps already use, so the cost when no module
 // throws is a handful of branches.
 //
-// Four things it does not do:
-//   - an imported tag is a fresh tag, not an alias of the exporting module's,
-//     because wasm3 links imports against host functions rather than against
-//     other modules. An exception thrown through an imported tag never matches
-//     a catch clause naming it.
+// An imported tag is the exporting module's when that module is already loaded
+// into the runtime, or the host's when m3_LinkTag supplied one; otherwise it is
+// a fresh tag of the importing module's own. The host throws with
+// m3_ThrowException and reads what escaped with m3_GetExceptionTag.
+//
+// Three things it does not do:
 //   - exception objects belong to the runtime. One caught without being reified
 //     is released at the catch; the rest are held until the outermost m3_Call
 //     returns, which is the last point an exnref can still be reached from the

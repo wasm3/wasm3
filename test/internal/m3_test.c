@@ -808,6 +808,75 @@ m3ApiRawFunction(CallBackIntoWasm)
 }
 
 
+#if d_m3HasExceptionHandling
+
+// (module
+//   (type $pay (func (result i32 f64)))
+//   (import "env" "host" (func $host (param i32)))
+//   (import "env" "err" (tag $err (param i32 f64)))
+//   (tag $e (export "e") (param i32 i64))
+//   (func (export "throw") (param i32 i64)
+//     (throw $e (local.get 0) (local.get 1)))
+//   (func (export "catch_host") (param i32) (result f64) (local f64)
+//     (block $h (type $pay)
+//       (try_table (catch $err $h) (call $host (local.get 0)))
+//       (return (f64.const -1)))
+//     (local.set 1)
+//     (f64.convert_i32_s)
+//     (f64.add (local.get 1)))
+//   (func (export "catch_all") (param i32) (result i32)
+//     (block $h
+//       (try_table (catch_all $h) (call $host (local.get 0)))
+//       (return (i32.const 0)))
+//     (i32.const 1))
+//   (func (export "rethrow") (param i32)
+//     (block $h (result exnref)
+//       (try_table (catch_all_ref $h) (call $host (local.get 0)))
+//       (return))
+//     (throw_ref)))
+//
+// Every export but "throw" has the host throw into it - see ThrowFromHost.
+static const u8 c_hostExceptionsWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1e, 0x06, 0x60,
+    0x00, 0x02, 0x7f, 0x7c, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7c,
+    0x00, 0x60, 0x02, 0x7f, 0x7e, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7c, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x02, 0x17, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x04,
+    0x68, 0x6f, 0x73, 0x74, 0x00, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x03, 0x65,
+    0x72, 0x72, 0x04, 0x00, 0x02, 0x03, 0x05, 0x04, 0x03, 0x04, 0x05, 0x01,
+    0x0d, 0x03, 0x01, 0x00, 0x03, 0x07, 0x30, 0x05, 0x01, 0x65, 0x04, 0x01,
+    0x05, 0x74, 0x68, 0x72, 0x6f, 0x77, 0x00, 0x01, 0x0a, 0x63, 0x61, 0x74,
+    0x63, 0x68, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x00, 0x02, 0x09, 0x63, 0x61,
+    0x74, 0x63, 0x68, 0x5f, 0x61, 0x6c, 0x6c, 0x00, 0x03, 0x07, 0x72, 0x65,
+    0x74, 0x68, 0x72, 0x6f, 0x77, 0x00, 0x04, 0x0a, 0x54, 0x04, 0x08, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0x08, 0x01, 0x0b, 0x22, 0x01, 0x01, 0x7c, 0x02,
+    0x00, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x10, 0x00, 0x0b,
+    0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0xbf, 0x0f, 0x0b, 0x21,
+    0x01, 0xb7, 0x20, 0x01, 0xa0, 0x0b, 0x14, 0x00, 0x02, 0x40, 0x1f, 0x40,
+    0x01, 0x02, 0x00, 0x20, 0x00, 0x10, 0x00, 0x0b, 0x41, 0x00, 0x0f, 0x0b,
+    0x41, 0x01, 0x0b, 0x11, 0x00, 0x02, 0x69, 0x1f, 0x40, 0x01, 0x03, 0x00,
+    0x20, 0x00, 0x10, 0x00, 0x0b, 0x0f, 0x0b, 0x0a, 0x0b
+};
+
+// "env" "host": throws with the tag in its userdata, carrying its argument and,
+// for a two-value tag, 0.5 after it. No tag means it returns normally.
+m3ApiRawFunction(ThrowFromHost)
+{
+    m3ApiGetArg(i32, value)
+
+    IM3Tag      tag    = *(IM3Tag*)(_ctx->userdata);
+    f64         half   = 0.5;
+    const void* args[] = { &value, &half };
+
+    if (tag) {
+        m3ApiThrow(tag, m3_GetTagArgCount(tag), args);
+    }
+
+    m3ApiSuccess();
+}
+
+#endif
+
+
 bool RunTest (int i_argc, const char* i_argv[], cstr_t i_name)
 {
     cstr_t option = (i_argc == 2) ? i_argv[1] : NULL;
@@ -1994,6 +2063,108 @@ int main (int argc, const char* argv[])
 
         expect(importer->tags[0].resolved == &owner->tags[0]);
         expect(importer->tags[1].resolved == &owner->tags[0]);
+
+        m3_FreeRuntime(runtime);
+    }
+#endif
+
+#if d_m3HasExceptionHandling
+    Test(exceptions.host_api)
+    {
+        IM3Runtime runtime = m3_NewRuntime(env, 64 * 1024, NULL);
+        IM3Module  module  = NULL;
+        IM3Tag     thrown  = NULL;     // what ThrowFromHost throws with
+        M3Result   result;
+
+        result = m3_ParseModule(env, &module, c_hostExceptionsWasm, sizeof(c_hostExceptionsWasm));
+                                                                        expect(result == m3Err_none)
+        result = m3_LoadModule(runtime, module);                        expect(result == m3Err_none)
+        result = m3_LinkRawFunctionEx(module, "env", "host", "v(i)", &ThrowFromHost, &thrown);
+                                                                        expect(result == m3Err_none)
+
+        // reflection: an exported tag, typed by its parameters
+        IM3Tag e = m3_FindTag(module, "e");                             expect(e)
+                                                                        expect(m3_FindTag(module, "throw") == NULL)
+                                                                        expect(m3_FindTag(module, "nope") == NULL)
+                                                                        expect(m3_GetTagArgCount(e) == 2)
+                                                                        expect(m3_GetTagArgType(e, 0) == c_m3Type_i32)
+                                                                        expect(m3_GetTagArgType(e, 1) == c_m3Type_i64)
+                                                                        expect(m3_GetTagArgType(e, 2) == c_m3Type_none)
+
+        // host tags, and linking them to an import: by type, by name, and only
+        // to a tag import - "host" is a function
+        IM3Tag err = NULL, hidden = NULL, wrong = NULL;
+        result = m3_NewTag(runtime, &err, "v(iF)");                     expect(result == m3Err_none)
+        result = m3_NewTag(runtime, &hidden, "v(i)");                   expect(result == m3Err_none)
+                                                                        expect(err != hidden)
+                                                                        expect(m3_GetTagArgType(err, 1) == c_m3Type_f64)
+        result = m3_NewTag(runtime, &wrong, "v(x)");                    expect(result != m3Err_none)
+                                                                        expect(wrong == NULL)
+        result = m3_NewTag(runtime, &wrong, "v(if)");                   expect(result == m3Err_none)
+        result = m3_LinkTag(module, "env", "err", wrong);               expect(result == m3Err_incompatibleImportType)
+        result = m3_LinkTag(module, "env", "host", err);                expect(result == m3Err_tagLookupFailed)
+        result = m3_LinkTag(module, "other", "err", err);               expect(result == m3Err_tagLookupFailed)
+        result = m3_LinkTag(module, "env", "err", err);                 expect(result == m3Err_none)
+                                                                        expect(module->tags[0].resolved == err)
+
+        IM3Function fThrow = NULL, fCatchHost = NULL, fCatchAll = NULL, fRethrow = NULL;
+        m3_FindFunction(&fThrow, runtime, "throw");
+        m3_FindFunction(&fCatchHost, runtime, "catch_host");
+        m3_FindFunction(&fCatchAll, runtime, "catch_all");
+        m3_FindFunction(&fRethrow, runtime, "rethrow");
+                                                                        expect(fThrow and fCatchHost and fCatchAll and fRethrow)
+
+        if (fThrow and fCatchHost and fCatchAll and fRethrow) {
+            // a Wasm exception that escapes: the tag and payload outlive the call
+            i32         a      = -7;
+            i64         b      = 0x123456789ALL;
+            i32         outA   = 0;
+            i64         outB   = 0;
+            const void* outs[] = { &outA, &outB };
+
+            result = m3_CallV(fThrow, a, b);                            expect(result == m3Err_trapUncaughtException)
+                                                                        expect(m3_GetExceptionTag(runtime) == e)
+            result = m3_GetExceptionArgs(runtime, 2, outs);             expect(result == m3Err_none)
+                                                                        expect(outA == -7 and outB == 0x123456789ALL)
+            result = m3_GetExceptionArgs(runtime, 1, outs);             expect(result == m3Err_argumentCountMismatch)
+
+            f64 sum    = 0;
+            i32 caught = -1;
+
+            // the host throws with the linked tag, and the guest's catch $err gets
+            // the payload
+            thrown = err;
+            result = m3_CallV(fCatchHost, 3);                           expect(result == m3Err_none)
+            m3_GetResultsV(fCatchHost, &sum);                           expect(sum == 3.5)
+                                                                        expect(m3_GetExceptionTag(runtime) == NULL)
+
+            // a tag no module names is caught by catch_all alone...
+            thrown = hidden;
+            result = m3_CallV(fCatchAll, 1);                            expect(result == m3Err_none)
+            m3_GetResultsV(fCatchAll, &caught);                         expect(caught == 1)
+            result = m3_CallV(fCatchHost, 3);                           expect(result == m3Err_trapUncaughtException)
+                                                                        expect(m3_GetExceptionTag(runtime) == hidden)
+            thrown = NULL;
+            result = m3_CallV(fCatchAll, 1);                            expect(result == m3Err_none)
+            m3_GetResultsV(fCatchAll, &caught);                         expect(caught == 0)
+
+            // ...and comes back out of throw_ref as itself, payload and all
+            thrown = hidden;
+            result = m3_CallV(fRethrow, 42);                            expect(result == m3Err_trapUncaughtException)
+                                                                        expect(m3_GetExceptionTag(runtime) == hidden)
+            result = m3_GetExceptionArgs(runtime, 1, outs);             expect(result == m3Err_none)
+                                                                        expect(outA == 42)
+
+            // a successful call forgets it
+            thrown = NULL;
+            result = m3_CallV(fRethrow, 0);                             expect(result == m3Err_none)
+                                                                        expect(m3_GetExceptionTag(runtime) == NULL)
+            result = m3_GetExceptionArgs(runtime, 1, outs);             expect(result != m3Err_none)
+
+            // outside a host function there is no stack to throw into
+            result = m3_ThrowException(runtime, hidden, 1, outs);       expect(result != m3Err_none and result != m3Err_pendingException)
+            result = m3_ThrowException(runtime, e, 1, outs);            expect(result == m3Err_argumentCountMismatch)
+        }
 
         m3_FreeRuntime(runtime);
     }
