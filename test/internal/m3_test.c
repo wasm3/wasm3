@@ -4371,22 +4371,38 @@ int main (int argc, const char* argv[])
         m3_FreeRuntime(a);
     }
 
-    Test(threads.a_shared_memory_is_charged_at_its_maximum)
+    Test(threads.a_shared_memory_is_reserved_as_far_as_the_limits_allow)
     {
         IM3Runtime a     = m3_NewRuntime(env, 65536, NULL);
         IM3Module  owner = NULL;
 
+        // with room for it, the whole of the declared maximum is reserved and charged
         expect(!m3_ParseModule(env, &owner, c_sharedWasm, sizeof(c_sharedWasm)));
         expect(!m3_LoadModule(a, owner));
         expect(m3_GetResourceUsage(a, c_m3Limit_MemoryBytes) == 4 * 65536);
 
-        // a limit below the reservation refuses it up front, rather than at the grow
+        // with less, it is reserved as far as the limit goes and no farther: the memory
+        // is there, and it is a memory.grow past the reservation that fails
         IM3Runtime b      = m3_NewRuntime(env, 65536, NULL);
         IM3Module  second = NULL;
         expect(!m3_SetResourceLimit(b, c_m3Limit_MemoryBytes, 2 * 65536));
         expect(!m3_ParseModule(env, &second, c_sharedWasm, sizeof(c_sharedWasm)));
-        expect(m3_LoadModule(b, second) == m3Err_memoryLimitExceeded);
+        expect(!m3_LoadModule(b, second));
+        expect(m3_GetResourceUsage(b, c_m3Limit_MemoryBytes) == 2 * 65536);
 
+        IM3Function grow = NULL;
+        expect(!m3_FindFunction(&grow, b, "grow"));
+        expect(CallShared(grow, 1) == 1);
+        expect(CallShared(grow, 1) == (u32)-1);
+
+        // the initial size is the one thing it cannot be without
+        IM3Runtime c     = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  third = NULL;
+        expect(!m3_SetResourceLimit(c, c_m3Limit_MemoryBytes, 65536 - 1));
+        expect(!m3_ParseModule(env, &third, c_sharedWasm, sizeof(c_sharedWasm)));
+        expect(m3_LoadModule(c, third) == m3Err_memoryLimitExceeded);
+
+        m3_FreeRuntime(c);
         m3_FreeRuntime(b);
         m3_FreeRuntime(a);
     }

@@ -282,7 +282,7 @@
 
 // Memory shared between runtimes that run on threads of their own, and the atomic
 // accesses and wait/notify that go with it. A shared memory never moves and is
-// reserved at its declared maximum; each runtime reaches it through a header of its
+// reserved up front, up to its declared maximum; each runtime reaches it through a header of its
 // own, and every runtime is still used by one thread at a time. On by default where
 // the host has threads to offer, and not with d_m3FixedHeap, whose allocator is not
 // safe to share.

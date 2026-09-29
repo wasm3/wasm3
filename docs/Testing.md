@@ -32,7 +32,7 @@ This includes checking that invalid modules are rejected. See
 [Validation](./Validation.md) for how those checks work and how to skip them.
 
 `--skip-features` names the features the build is expected *not* to have -
-`tail-call`, `typed-refs`, `multi-memory`, `atomics`. The default `auto` reads them off the version
+`tail-call`, `typed-refs`, `multi-memory`, `atomics`, `threads`. The default `auto` reads them off the version
 banner, which means a build that quietly loses one also drops the tests covering it and
 still reports success; naming them instead makes that case fail. CI names them.
 

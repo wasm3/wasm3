@@ -87,7 +87,7 @@ parser.add_argument(
 # banner is inference: a config regression that turns one off silently drops the
 # tests that cover it, and the run stays green. A job that names them instead
 # states what it expects of the build it just made.
-features_known = ("tail-call", "typed-refs", "multi-memory", "atomics")
+features_known = ("tail-call", "typed-refs", "multi-memory", "atomics", "threads")
 
 parser.add_argument(
     "--skip-features",

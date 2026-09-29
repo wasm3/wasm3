@@ -49,8 +49,9 @@ typedef struct M3MemoryInfo {
 // It belongs to no runtime: each keeps a reference through its own M3Memory, the 'view',
 // and the last one to let go frees the bytes.
 //
-// The bytes never move, and are reserved at the memory's declared maximum - a slot of
-// the guarded arena, or one allocation of that size - so that growing is a matter of
+// The bytes never move, and are reserved up front - a slot of the guarded arena, or one
+// allocation - as much of the memory's declared maximum as the limits and the host allow,
+// and never less than its initial size. So growing is a matter of
 // making more of them reachable and telling every view the new length. Each view has
 // a header of its own in its runtime (see M3MemoryHeader); this one sits right before
 // the bytes, as the header of a memory that is not shared does, and is what a host
@@ -82,6 +83,9 @@ typedef struct M3SharedMemory {
 typedef struct M3Memory {
     M3MemoryHeader* mallocated;
 
+    // Not kept for a shared memory, whose size is in the shared memory: another runtime
+    // can grow it at any time, and a copy here would be stale. Read the size through
+    // Memory_CurrentPages (), which asks the right place.
     u64             numPages;
     u64             maxPages;
     u64             initPages;

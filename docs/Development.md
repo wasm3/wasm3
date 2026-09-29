@@ -287,10 +287,14 @@ shared memory of the first, and a module in that runtime imports it like any oth
 
 - An `M3Environment` belongs to one thread as well, so each runtime that is parsed into on
   its own thread needs an environment of its own.
-- A shared memory never moves. It is reserved at its declared maximum - a slot of the
+- A shared memory never moves. Its declared maximum is reserved up front - a slot of the
   guarded arena, or one allocation - and growing makes more of it reachable and tells every
-  view. It is charged to the runtime that created it at that maximum, once, and it is freed
-  when the last view goes.
+  view. What is reserved is as much of the maximum as the runtime's limits, the address space
+  and the allocator allow, and never less than the initial size, which a memory cannot be
+  instantiated without; a `memory.grow` past what was reserved fails, as the spec lets any
+  grow do. Without guarded memory a refused allocation is retried at half the size. The
+  reservation is charged to the runtime that created it, once, and freed when the last view
+  goes.
 - Atomic accesses are sequentially consistent, and a read-modify-write is a compare-and-swap
   loop: on hosts of either byte order, at every width, on a 32-bit target as much as on a
   64-bit one, with `-latomic` where the compiler wants it for 64-bit cells.

@@ -1085,43 +1085,59 @@ M3Result NewViewHeader (IM3Runtime io_runtime, IM3Memory io_memory, const M3Shar
 }
 
 
-// The bytes and what goes with them, reserved once at the declared maximum. Nothing is
-// reachable yet: the caller grows the memory to its initial size next.
+// The bytes and what goes with them, reserved once. The declared maximum is what is asked
+// for, and what is had is as much of it as the runtime's limits, the address space and the
+// allocator allow - never less than the initial size, which is the one thing the memory
+// cannot be instantiated without. A memory.grow is allowed to fail at any time, and growing
+// past what was reserved is a grow that does. Nothing is reachable yet: the caller grows
+// the memory to its initial size next.
 static
 M3Result CreateSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory)
 {
     M3Result        result   = m3Err_none;
     M3SharedMemory* shared   = NULL;
-    u64             maxBytes = 0;
+    u64             pageSize = io_memory->pageSize;
+    u64             floor    = 0;       // the initial size
+    u64             reserve  = 0;       // what is asked for, and then what is had
 
-    // A shared memory has to declare a maximum, so there is always one to reserve.
-    // Multiplied here in a u64, after the check that keeps it from wrapping.
-    _throwif("linear memory limitation exceeded",
-             io_memory->maxPages > d_m3AddressLimit / io_memory->pageSize);
+    // Multiplied here in a u64, after the check that keeps the initial size from wrapping
+    _throwif("linear memory limitation exceeded", io_memory->initPages > d_m3AddressLimit / pageSize);
 
-    maxBytes = io_memory->maxPages * io_memory->pageSize;
+    floor   = io_memory->initPages * pageSize;
+    reserve = M3_MIN(io_memory->maxPages, d_m3AddressLimit / pageSize) * pageSize;
+
+    // Whatever is left of the runtime's budget for memory is all there is to have
+    if (io_runtime->memoryBytesLimit) {
+        u64 left = (io_runtime->memoryBytesUsed >= io_runtime->memoryBytesLimit)
+                     ? 0
+                     : io_runtime->memoryBytesLimit - io_runtime->memoryBytesUsed;
+
+        _throwif(m3Err_memoryLimitExceeded, left < floor);
+        reserve = M3_MIN(reserve, left);
+    }
 
 #  if d_m3MaxLinearMemoryPages > 0
-    _throwif("linear memory limitation exceeded",
-             maxBytes > (u64)d_m3MaxLinearMemoryPages * d_m3DefaultMemPageSize);
+    reserve = M3_MIN(reserve, (u64)d_m3MaxLinearMemoryPages * d_m3DefaultMemPageSize);
 #  endif
 
-    // A memory that cannot move is all reserved from the start, so the limits that
-    // would have applied to whatever it grows to apply to the maximum instead
-    _throwif("linear memory limitation exceeded",
-             io_runtime->memoryLimit and maxBytes > (u64)io_runtime->memoryLimit);
+    if (io_runtime->memoryLimit) {
+        reserve = M3_MIN(reserve, (u64)io_runtime->memoryLimit);
+    }
 
-    _throwif(m3Err_memoryLimitExceeded, io_runtime->memoryBytesLimit and
-                                          (maxBytes > io_runtime->memoryBytesLimit or
-                                           io_runtime->memoryBytesUsed > io_runtime->memoryBytesLimit - maxBytes));
-
-    _throwif("linear memory limitation exceeded", maxBytes > (u64)SIZE_MAX - sizeof(M3MemoryHeader));
+    reserve = M3_MIN(reserve, (u64)SIZE_MAX - sizeof(M3MemoryHeader));
 
 #  if d_m3GuardedMemory
-    _throwif("linear memory limitation exceeded", maxBytes > d_m3GuardedDataBytes);
+    // a slot holds every address a Wasm access can name, and nothing beyond that
+    reserve = M3_MIN(reserve, d_m3GuardedDataBytes);
+
     _throwif("guarded memory needs a page size the system's divides into",
              (io_memory->pageSize % m3_HostPageSize()) != 0);
 #  endif
+
+    // a whole number of pages, since a size is a count of them
+    reserve -= reserve % pageSize;
+
+    _throwif("linear memory limitation exceeded", reserve < floor);
 
     shared = m3_AllocStruct(M3SharedMemory);
     _throwifnull(shared);
@@ -1135,7 +1151,18 @@ M3Result CreateSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory)
 
     shared->header = Guard_SlotHeader(shared->guardSlot);
 #  else
-    shared->header = (M3MemoryHeader*)m3_Malloc("Wasm Shared Memory", (size_t)maxBytes + sizeof(M3MemoryHeader));
+    // A block this large can be refused when the numbers allow it, on a host whose address
+    // space is in pieces, so the ask is halved until it is granted or is the initial size
+    for (;;) {
+        shared->header = (M3MemoryHeader*)m3_Malloc("Wasm Shared Memory", (size_t)reserve + sizeof(M3MemoryHeader));
+
+        if (shared->header or reserve <= floor) {
+            break;
+        }
+
+        reserve = M3_MAX(floor, (reserve / 2) - (reserve / 2) % pageSize);
+    }
+
     _throwifnull(shared->header);
 #  endif
 
@@ -1146,10 +1173,11 @@ M3Result CreateSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory)
     // the atomics reach a 64-bit cell with a 64-bit access, which a 32-bit host allows
     // only where the allocator's block was aligned for one
     d_m3Assert(((uintptr_t)shared->data & 7) == 0);
-    shared->maxBytes = (size_t)maxBytes;
+    // what was got, which is what is charged and what growth is held to
+    shared->maxBytes = (size_t)reserve;
     shared->refCount = 1;
     shared->views    = io_memory;
-    shared->charged  = (size_t)maxBytes;
+    shared->charged  = (size_t)reserve;
 
     shared->header->data = shared->data;
 

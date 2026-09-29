@@ -34,7 +34,7 @@ jobs:
         # The deterministic profile, which also turns on canonical NaNs + simple WASI implementation
         - {target: clang-determ,      cc: clang,  flags: -DBUILD_WASI=simple,  cflags: -Dd_m3DeterministicProfile=1 }
         # TinyCC has no musttail, and no bswap builtins, which turns into an error under -Werror
-        - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64, werror: OFF, skipfeat: tail-call }
+        - {target: tcc,               cc: tcc,    flags: -DBUILD_WASI=simple,  install: tcc,  artifact: dev-wasm3-tcc-linux-x64, werror: OFF, skipfeat: "tail-call,atomics,threads" }
         # Debug builds under ASan + UBSan
         - {target: clang-sanitize,    cc: clang,  flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined" }
         - {target: gcc-sanitize,      cc: gcc,    flags: -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple, timeout: 15, cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer", ldflags: "-fsanitize=address,undefined", skipfeat: tail-call }
@@ -507,7 +507,7 @@ jobs:
       run: |
         export PATH="$HOME/.wasmtime/bin:$PATH"
         cd test
-        python3 run-spec-test.py --skip-features=none --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm --spec-repl"
+        python3 run-spec-test.py --skip-features=threads --exec "wasmtime run -W max-wasm-stack=4194304 --dir ./::./ wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasmtime)
       run: |
         export PATH="$HOME/.wasmtime/bin:$PATH"
@@ -527,7 +527,7 @@ jobs:
     - name: Test WebAssembly spec (in Wasm3, self-hosting)
       run: |
         cd test
-        python3 run-spec-test.py --skip-features=none --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
+        python3 run-spec-test.py --skip-features=threads --exec "../build/wasm3 --stack-size 2097152 wasm3.wasm --spec-repl"
     - name: Test WASI apps (in Wasm3, self-hosting)
       run: |
         cd test

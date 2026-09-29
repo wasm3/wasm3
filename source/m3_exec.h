@@ -3784,7 +3784,7 @@ d_m3Op(SetGlobal_f64)
 // What both of the ops below end with, once they have read their operands: the bounds check
 // and the folding. The access itself checks its own size against what is left, so an address
 // that passes here can still be the last byte of the memory. Uses the names 'operand',
-// 'offset' and 'address' of the op it sits in, which d_outOfBounds reports.
+// 'offset' and 'address' of the op it sits in; d_outOfBounds reports 'operand'.
 #  define d_m3FinishCheckAddr64                                   \
       if (M3_LIKELY(operand < d_m3AddressLimit)) {                \
           u64 effective = operand + offset;                       \
@@ -3842,6 +3842,8 @@ d_m3Op(CheckAddr64Atomic)
 
     d_m3FinishCheckAddr64;
 }
+
+#  undef d_m3FinishCheckAddr64
 
 #endif // d_m3HasMemory64
 
