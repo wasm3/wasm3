@@ -22,7 +22,7 @@
       if (M3_UNLIKELY((EA) & ((WIDTH) - 1))) {                              \
           newTrap(m3Err_trapUnalignedAtomic);                               \
       }                                                                     \
-      if (not IN_BOUNDS((EA) + (WIDTH) <= _mem->length)) {                  \
+      if (not IN_BOUNDS((EA) + (WIDTH) <= m3MemLength (_mem))) {            \
           d_outOfBoundsMemOp((size_t)(EA), (u32)(WIDTH));                   \
       }
 
@@ -97,6 +97,17 @@ d_m3Op(AtomicCmpxchg)
     nextOp();
 }
 
+
+#  if d_m3HasThreads
+
+// pause: the guest is in a spin loop, and the processor is told so
+d_m3Op(AtomicPause)
+{
+    m3_CpuRelax();
+    nextOp();
+}
+
+#  endif
 
 // memory.atomic.notify: nothing waits on a memory only one thread can reach
 d_m3Op(AtomicNotify)

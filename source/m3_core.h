@@ -141,11 +141,25 @@ typedef code_t const* /*__restrict__*/ pc_t;
 // counts, its owning runtime - through the back-pointers here. 'memory' is what
 // makes that possible without going through the runtime, which is the
 // prerequisite for a runtime holding more than one memory.
+//
+// With d_m3HasThreads the bytes are reached through a pointer instead, because the
+// runtimes that share a memory each need a header of their own - 'runtime' and
+// 'maxStack' are theirs - and all of them cannot sit right before the same bytes. A
+// memory that is not shared still has its header there, so that data is header + 1
+// and a host that holds only that pointer can find the header; a shared one keeps a
+// header there too, which only its length is read from, and is what the views are
+// kept in step with.
 typedef struct M3MemoryHeader {
     IM3Runtime       runtime;
     void*            maxStack;
     size_t           length;
     struct M3Memory* memory;         // the M3Memory this block belongs to
+#if d_m3HasThreads
+    u8* data;
+#  if M3_SIZEOF_PTR == 4
+    void* reserved;       // keeps the bytes after it aligned for 64-bit atomics
+#  endif
+#endif
 } M3MemoryHeader;
 
 struct M3CodeMappingPage;
@@ -485,6 +499,12 @@ M3Result ReadLEB_u32 (u32* o_value, bytes_t* io_bytes, cbytes_t i_end);
 // memory index sits between the two -- so the hint is returned with that bit
 // masked off and the index defaults to 0 when it is clear.
 M3Result ReadMemoryArg (u32* o_align, u32* o_memoryIdx, u64* o_offset, bytes_t* io_bytes, cbytes_t i_end);
+
+// The same for an atomic access, which may also carry an ordering (the acquire-release
+// atomics proposal): a byte after the offset, announced by bit 4 of the alignment.
+// o_ordering is that byte, or -1 when the instruction has none and so means seqcst.
+// Whether the byte says something valid is for the validator to say.
+M3Result ReadAtomicMemoryArg (u32* o_align, u32* o_memoryIdx, u64* o_offset, i32* o_ordering, bytes_t* io_bytes, cbytes_t i_end);
 M3Result ReadLEB_u7 (u8* o_value, bytes_t* io_bytes, cbytes_t i_end);
 M3Result ReadLEB_i7 (i8* o_value, bytes_t* io_bytes, cbytes_t i_end);
 M3Result ReadLEB_i32 (i32* o_value, bytes_t* io_bytes, cbytes_t i_end);

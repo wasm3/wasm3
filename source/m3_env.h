@@ -11,6 +11,8 @@
 #include "wasm3.h"
 #include "m3_code.h"
 #include "m3_compile.h"
+#include "m3_host.h"
+#include "m3_atomic.h"
 
 d_m3BeginExternC
 
@@ -41,16 +43,60 @@ typedef struct M3MemoryInfo {
 // a memory another module owns - growing one has to be visible through every
 // name it has. 'owner' says which module allocated it, and so which module
 // frees it.
-typedef struct M3Memory {
-    M3MemoryHeader*  mallocated;
+#if d_m3HasThreads
 
-    u64              numPages;
-    u64              maxPages;
-    u64              initPages;
-    u32              pageSize;
-    bool             hasMax;         // see M3MemoryInfo
-    bool             isMemory64;     // addressed by i64 rather than i32
-    bool             isShared;       // see M3MemoryInfo
+// The bytes of a shared memory, and what the runtimes that map them have in common.
+// It belongs to no runtime: each keeps a reference through its own M3Memory, the 'view',
+// and the last one to let go frees the bytes.
+//
+// The bytes never move, and are reserved at the memory's declared maximum - a slot of
+// the guarded arena, or one allocation of that size - so that growing is a matter of
+// making more of them reachable and telling every view the new length. Each view has
+// a header of its own in its runtime (see M3MemoryHeader); this one sits right before
+// the bytes, as the header of a memory that is not shared does, and is what a host
+// function holding only a pointer to them finds the length in.
+typedef struct M3SharedMemory {
+    // first, so that it is 8-byte aligned wherever the struct is: a 64-bit atomic needs
+    // it, and 32-bit x86 aligns a u64 member to 4
+    u64              numPages;       // published under the mutex, read atomically
+
+    u32              refCount;       // the views; changed atomically
+    M3HostMutex      mutex;          // guards everything below but numPages when read
+
+    u8*              data;           // never moves
+    M3MemoryHeader*  header;         // right before it: the length lives here too
+    size_t           maxBytes;       // what was reserved
+
+    struct M3Memory* views;          // linked through M3Memory.nextView
+
+    struct M3Memory* creator;        // the view that was charged; NULL once it is gone
+    size_t           charged;
+
+#  if d_m3GuardedMemory
+    void* guardSlot;
+#  endif
+} M3SharedMemory;
+
+#endif // d_m3HasThreads
+
+typedef struct M3Memory {
+    M3MemoryHeader* mallocated;
+
+    u64             numPages;
+    u64             maxPages;
+    u64             initPages;
+    u32             pageSize;
+    bool            hasMax;         // see M3MemoryInfo
+    bool            isMemory64;     // addressed by i64 rather than i32
+    bool            isShared;       // see M3MemoryInfo
+
+#if d_m3HasThreads
+    // Set once the memory is shared: this M3Memory is one runtime's view of it. The
+    // header in 'mallocated' is the view's own then, with 'data' pointing into the
+    // shared bytes.
+    struct M3SharedMemory* shared;
+    struct M3Memory*       nextView;    // the next view of the same memory
+#endif
 
     struct M3Module* owner;          // the module that allocated it
     M3ImportInfo     import;         // when declared as an import
@@ -724,6 +770,33 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPage
 // Give back whatever is behind io_memory->mallocated, which is the heap or a slot of
 // the guarded arena depending on the build. Leaves the M3Memory itself alone.
 void     FreeMemoryBlock (IM3Memory io_memory);
+
+#if d_m3HasThreads
+
+// memory.grow on a shared memory. Two runtimes growing at once each get a distinct old
+// size, so the whole of "read the size, check the maximum, make room" is one step here,
+// under the memory's lock. o_oldPages is the size before, which is what memory.grow answers.
+M3Result GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPagesToGrow, u64* o_oldPages);
+
+// Makes io_memory, a fresh memory that has no bytes yet, another view of the shared memory
+// io_source is a view of, in the runtime io_runtime: it gets a header of its own and
+// takes a reference. The bytes are not copied.
+M3Result AttachSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, const M3Memory* i_source);
+
+#endif // d_m3HasThreads
+
+// The size of a memory in pages right now, which for a shared one is what every runtime
+// sharing it has agreed on rather than what this one last saw
+static inline
+u64 Memory_CurrentPages (const M3Memory* i_memory)
+{
+#if d_m3HasThreads
+    if (i_memory->shared) {
+        return m3_SharedLoad64(&i_memory->shared->numPages);
+    }
+#endif
+    return i_memory->numPages;
+}
 
 typedef void* (*ModuleVisitor)(IM3Module i_module, void* i_info);
 void*       ForEachModule (IM3Runtime i_runtime, ModuleVisitor i_visitor, void* i_info);

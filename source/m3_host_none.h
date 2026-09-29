@@ -69,6 +69,10 @@ bool m3_HostReplaceFile (const char* i_from, const char* i_to)
     return rename(i_from, i_to) == 0;
 }
 
+#if d_m3HasThreads
+#  error "d_m3HasThreads needs a host with threads; this one has none"
+#endif
+
 #if d_m3GuardedMemory
 #  error "d_m3GuardedMemory needs a system that can reserve address space; this one has none"
 #endif

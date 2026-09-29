@@ -9,10 +9,19 @@
 #define m3_exec_defs_h
 
 #include "m3_core.h"
+#include "m3_atomic.h"
 
 d_m3BeginExternC
 
-#define m3MemData(mem)              (u8*)(((M3MemoryHeader*)(mem))+1)
+#if d_m3HasThreads
+#  define m3MemData(mem)            (((M3MemoryHeader*)(mem))->data)
+
+// Another thread can grow a shared memory while this one reads its length
+#  define m3MemLength(mem)          m3_SharedLoadSize(&((M3MemoryHeader*)(mem))->length)
+#else
+#  define m3MemData(mem)            (u8*)(((M3MemoryHeader*)(mem))+1)
+#  define m3MemLength(mem)          (((M3MemoryHeader*)(mem))->length)
+#endif
 #define m3MemRuntime(mem)           (((M3MemoryHeader*)(mem))->runtime)
 #define m3MemInfo(mem)              (((M3MemoryHeader*)(mem))->memory)
 

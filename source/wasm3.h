@@ -224,6 +224,7 @@ d_m3ErrorConst(unknownElemSegment,             "unknown elem segment")
 d_m3ErrorConst(dataCountRequired,              "data count section required")
 d_m3ErrorConst(invalidAlignment,               "alignment must not be larger than natural")
 d_m3ErrorConst(invalidAtomicAlignment,         "atomic alignment must be natural")
+d_m3ErrorConst(invalidAtomicOrdering,          "invalid atomic ordering")
 d_m3ErrorConst(undeclaredFuncRef,              "undeclared function reference")
 
 // runtime errors

@@ -1135,7 +1135,7 @@ _   (PutLEB_u32(s, module->numMemories));
         u32       first    = Memory_FirstIndex(module, m);
         bool      hasData  = memory and memory->mallocated;
         u32       pageSize = memory ? Memory_PageSize(memory) : d_m3DefaultMemPageSize;
-        u64       bytes    = memory ? memory->numPages * (u64)pageSize : 0;
+        u64       bytes    = memory ? Memory_CurrentPages(memory) * (u64)pageSize : 0;
         u32       pageBits = 0;
 
 _       (PutLEB_u32(s, m));
@@ -1614,7 +1614,7 @@ void SnapshotResourceTotals (IM3Module module, u64* memoryBytes, u64* tableEleme
     for (u32 i = 0; i < module->numMemories; ++i) {
         IM3Memory memory = module->memories[i];
         if (Memory_FirstIndex(module, i) == i and memory) {
-            *memoryBytes += memory->numPages * (u64)Memory_PageSize(memory);
+            *memoryBytes += Memory_CurrentPages(memory) * (u64)Memory_PageSize(memory);
         }
     }
     for (u32 i = 0; i < module->numTables; ++i) {

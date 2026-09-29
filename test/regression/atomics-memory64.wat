@@ -30,6 +30,14 @@
   (func (export "oob") (result i32)
     (i32.atomic.load (i64.const 65536)))
 
+  ;; a misaligned address is reported before one out of bounds, as on a 32-bit memory
+  (func (export "unaligned_oob") (result i32)
+    (i32.atomic.load offset=1 (i64.const 65536)))
+
+  ;; and so is one whose offset is too large to be added without being cut down
+  (func (export "unaligned_far_offset") (result i32)
+    (i32.atomic.load offset=18446744073709551615 (i64.const 0)))
+
   (func (export "notify_oob") (result i32)
     (memory.atomic.notify (i64.const 65536) (i32.const 0)))
 

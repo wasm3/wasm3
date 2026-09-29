@@ -162,6 +162,10 @@ bool m3_HostReadFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 //
 // So on POSIX this narrows the window rather than closing it.
 
+#if d_m3HasThreads && d_m3FixedHeap
+#  error "d_m3HasThreads needs an allocator that is safe to share, which d_m3FixedHeap is not"
+#endif
+
 #if d_m3GuardedMemory
 
 #  if M3_SIZEOF_PTR < 8
@@ -220,6 +224,38 @@ bool   m3_HostProtectedCall (void (*i_body)(void*), void* i_context,
 bool   m3_HostGuardsActive (void);
 
 #endif // d_m3GuardedMemory
+
+#if d_m3HasThreads
+
+// Threads, and what they wait on each other with. The types are opaque handles, so that
+// nothing that includes this header meets the system's own - <windows.h> above all.
+// Anything that cannot be made answers NULL, and the caller passes that on as an
+// allocation failure.
+typedef struct M3HostMutexImpl*  M3HostMutex;
+typedef struct M3HostCondImpl*   M3HostCond;
+typedef struct M3HostThreadImpl* M3HostThread;
+
+M3HostMutex                      m3_HostMutexInit (void);
+void                             m3_HostMutexLock (M3HostMutex i_mutex);
+void                             m3_HostMutexUnlock (M3HostMutex i_mutex);
+void                             m3_HostMutexFree (M3HostMutex io_mutex);
+
+M3HostCond                       m3_HostCondInit (void);
+
+// Releases i_mutex, which the caller holds, and waits for a signal; the mutex is
+// held again on return. Spurious wakeups happen, so the caller checks what it waited
+// for. A negative timeout waits without end, otherwise it is nanoseconds from now on
+// a clock that does not jump. False when the time ran out.
+bool                             m3_HostCondWait (M3HostCond i_cond, M3HostMutex i_mutex, i64 i_timeoutNs);
+void                             m3_HostCondSignal (M3HostCond i_cond);
+void                             m3_HostCondFree (M3HostCond io_cond);
+
+// Runs i_body(i_context) on a thread of its own, with a stack big enough for the
+// interpreter. Joined at most once, and only from another thread.
+M3HostThread                     m3_HostThreadStart (void (*i_body)(void*), void* i_context);
+void                             m3_HostThreadJoin (M3HostThread io_thread);
+
+#endif // d_m3HasThreads
 
 d_m3EndExternC
 

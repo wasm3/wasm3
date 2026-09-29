@@ -18,6 +18,8 @@
 #include "m3_core.h"
 #include "m3_env.h"
 
+#include "m3_atomic.h"
+
 // The one place any of the m3_host.h implementations is built - see that header
 #include "m3_host.h"
 
@@ -198,6 +200,10 @@ static size_t g_guardPageSize;
 static u32    g_guardSlotCount;
 static bool   g_guardSlotTaken[d_m3GuardedArenaSlots];
 
+// Runtimes on threads of their own take and give slots at the same time, and there is
+// only the one arena between them
+static M3SpinLock g_guardLock;
+
 // slot: [ header page ][ data: d_m3GuardedDataBytes ][ a page of slack ]
 //
 // The slack is what makes the last address an access can name still land inside the
@@ -232,12 +238,9 @@ bool Guard_Reserve (void)
     return false;
 }
 
-void* Guard_TakeSlot (void)
+static
+void* Guard_TakeFreeSlot (void)
 {
-    if (not Guard_Reserve()) {
-        return NULL;
-    }
-
     for (u32 i = 0; i < g_guardSlotCount; ++i) {
         if (g_guardSlotTaken[i]) {
             continue;
@@ -256,6 +259,21 @@ void* Guard_TakeSlot (void)
     }
 
     return NULL;
+}
+
+void* Guard_TakeSlot (void)
+{
+    void* slot = NULL;
+
+    m3_SpinLock(&g_guardLock);
+
+    if (Guard_Reserve()) {
+        slot = Guard_TakeFreeSlot();
+    }
+
+    m3_SpinUnlock(&g_guardLock);
+
+    return slot;
 }
 
 M3MemoryHeader* Guard_SlotHeader (void* i_slot)
@@ -287,7 +305,9 @@ void Guard_GiveSlot (void* i_slot)
     // handing it on still holding the last module's bytes is worse than never
     // handing it on at all.
     if (m3_HostDecommit(i_slot, g_guardSlotBytes) and index < g_guardSlotCount) {
+        m3_SpinLock(&g_guardLock);
         g_guardSlotTaken[index] = false;
+        m3_SpinUnlock(&g_guardLock);
     }
 }
 
@@ -735,7 +755,14 @@ M3Result ReadLEB_u32 (u32* o_value, bytes_t* io_bytes, cbytes_t i_end)
 // testing the decoded value for it is the same test.
 #define d_memArgHasMemoryIdx    0x40u
 
-M3Result ReadMemoryArg (u32* o_align, u32* o_memoryIdx, u64* o_offset, bytes_t* io_bytes, cbytes_t i_end)
+#define d_memArgHasOrdering     0x10u
+
+// i_atomic says the instruction may carry an ordering immediate, which bit 4 of the
+// flags announces and a byte after the offset holds. Anywhere else the bit is left
+// where it is, and the hint that comes out of it is too large for the validator.
+static
+M3Result ReadMemoryArgImpl (u32* o_align, u32* o_memoryIdx, u64* o_offset, bool i_atomic, i32* o_ordering,
+                            bytes_t* io_bytes, cbytes_t i_end)
 {
     M3Result result;
 
@@ -758,11 +785,41 @@ M3Result ReadMemoryArg (u32* o_align, u32* o_memoryIdx, u64* o_offset, bytes_t* 
     }
 #endif
 
+    bool hasOrdering = i_atomic and (align & d_memArgHasOrdering);
+    if (hasOrdering) {
+        align &= ~d_memArgHasOrdering;
+    }
+
     *o_align = align;
 
     // memory64 widens the offset to a u64. Whether it is in range is a
     // question about the memory it addresses, so the caller checks it.
-    return ReadLebUnsigned(o_offset, 64, io_bytes, i_end);
+    result = ReadLebUnsigned(o_offset, 64, io_bytes, i_end);
+    if (result) {
+        return result;
+    }
+
+    if (o_ordering) {
+        *o_ordering = -1;
+
+        if (hasOrdering) {
+            u8 ordering = 0;
+            result      = Read_u8(&ordering, io_bytes, i_end);
+            *o_ordering = ordering;
+        }
+    }
+
+    return result;
+}
+
+M3Result ReadMemoryArg (u32* o_align, u32* o_memoryIdx, u64* o_offset, bytes_t* io_bytes, cbytes_t i_end)
+{
+    return ReadMemoryArgImpl(o_align, o_memoryIdx, o_offset, false, NULL, io_bytes, i_end);
+}
+
+M3Result ReadAtomicMemoryArg (u32* o_align, u32* o_memoryIdx, u64* o_offset, i32* o_ordering, bytes_t* io_bytes, cbytes_t i_end)
+{
+    return ReadMemoryArgImpl(o_align, o_memoryIdx, o_offset, true, o_ordering, io_bytes, i_end);
 }
 
 

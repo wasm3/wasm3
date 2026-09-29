@@ -450,6 +450,30 @@ tests = [
     ("oob",                "out of bounds memory access"),
   )] + [
   {
+    "name":           f"acquire-release atomics accept an ordering ({func})",
+    "module":         "./regression/atomics-ordering.wast",
+    "args":           ["--func", func],
+    "expect_result":  result,
+    "requires":       "atomics",
+  } for func, result in (
+    ("to_test",              "8"),
+    ("rmw_seqcst_explicit",  "0"),
+  )] + [
+  {
+    "name":           f"acquire-release atomics refuse an ordering that is not one ({func})",
+    "module":         "./regression/atomics-ordering.wast",
+    "args":           ["--func", func],
+    "expect_error":   error,
+    "requires":       "atomics",
+  } for func, error in (
+    ("bad_load_ordering",       "invalid atomic ordering"),
+    ("bad_rmw_ordering",        "invalid atomic ordering"),
+    ("bad_notify_ordering",     "invalid atomic ordering"),
+    ("bad_fence",               "invalid atomic ordering"),
+    ("ordering_on_plain_load",  "alignment must not be larger than natural"),
+    ("bad_align_shift",         "atomic alignment must be natural"),
+  )] + [
+  {
     "name":           f"atomic wait and notify on one thread ({func})",
     "module":         "./regression/atomics-wait.wat",
     "args":           ["--func", func],
@@ -507,6 +531,8 @@ tests = [
     "requires":       "atomics",
   } for func, trap in (
     ("unaligned",   "unaligned atomic"),
+    ("unaligned_oob",         "unaligned atomic"),
+    ("unaligned_far_offset",  "unaligned atomic"),
     ("wrap",        "out of bounds memory access"),
     ("oob",         "out of bounds memory access"),
     ("notify_oob",  "out of bounds memory access"),

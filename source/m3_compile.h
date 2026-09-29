@@ -96,6 +96,7 @@ enum {
     c_waOp_atomicWait32       = 0xfe01,
     c_waOp_atomicWait64       = 0xfe02,
     c_waOp_atomicFence        = 0xfe03,
+    c_waOp_atomicPause        = 0xfe04,
     c_waOp_atomicFirstAccess  = 0xfe10,     // i32.atomic.load
 
     // Highest opcode each operation table actually defines below the reference

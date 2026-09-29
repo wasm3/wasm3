@@ -23,6 +23,9 @@
 #  define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#if d_m3HasThreads
+#  include <process.h>
+#endif
 
 // A thread's stack is one reservation, and any address inside it answers with the
 // base of the whole thing - guard page included. That is what makes VirtualQuery
@@ -49,8 +52,8 @@ static
 BOOL WINAPI m3_ConsoleCtrlHandler (DWORD dwCtrlType)
 {
     if (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT) {
-        if (s_win32SuspendRuntime && !s_win32SuspendRuntime->suspendRequested) {
-            s_win32SuspendRuntime->suspendRequested = true;
+        if (s_win32SuspendRuntime && !m3_SharedLoadFlag(&s_win32SuspendRuntime->suspendRequested)) {
+            m3_SharedStoreFlag(&s_win32SuspendRuntime->suspendRequested, true);
             return TRUE;
         }
     }
@@ -161,6 +164,137 @@ bool m3_HostReplaceFile (const char* i_from, const char* i_to)
     return MoveFileExA(i_from, i_to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
 }
 
+
+#if d_m3HasThreads
+
+struct M3HostMutexImpl {
+    SRWLOCK lock;
+};
+
+struct M3HostCondImpl {
+    CONDITION_VARIABLE cond;
+};
+
+struct M3HostThreadImpl {
+    HANDLE handle;
+    void (*body)(void*);
+    void* context;
+};
+
+M3HostMutex m3_HostMutexInit (void)
+{
+    M3HostMutex mutex = (M3HostMutex)malloc(sizeof(*mutex));
+
+    if (mutex) {
+        InitializeSRWLock(&mutex->lock);
+    }
+
+    return mutex;
+}
+
+void m3_HostMutexLock (M3HostMutex i_mutex)
+{
+    AcquireSRWLockExclusive(&i_mutex->lock);
+}
+
+void m3_HostMutexUnlock (M3HostMutex i_mutex)
+{
+    ReleaseSRWLockExclusive(&i_mutex->lock);
+}
+
+void m3_HostMutexFree (M3HostMutex io_mutex)
+{
+    free(io_mutex);
+}
+
+M3HostCond m3_HostCondInit (void)
+{
+    M3HostCond cond = (M3HostCond)malloc(sizeof(*cond));
+
+    if (cond) {
+        InitializeConditionVariable(&cond->cond);
+    }
+
+    return cond;
+}
+
+// SleepConditionVariableSRW counts whole milliseconds on a clock the system's time
+// setting does not move. A wait for no time at all is a poll, and one for less than a
+// millisecond is not rounded down to that: it would time out before another thread
+// could be scheduled to signal it.
+bool m3_HostCondWait (M3HostCond i_cond, M3HostMutex i_mutex, i64 i_timeoutNs)
+{
+    DWORD milliseconds;
+
+    if (i_timeoutNs < 0) {
+        milliseconds = INFINITE;
+    } else if (i_timeoutNs == 0) {
+        milliseconds = 0;
+    } else {
+        u64 rounded = ((u64)i_timeoutNs + 999999u) / 1000000u;
+
+        // INFINITE is the largest DWORD, and must not be reached by accident
+        milliseconds = (rounded >= INFINITE) ? (INFINITE - 1) : (DWORD)rounded;
+    }
+
+    if (SleepConditionVariableSRW(&i_cond->cond, &i_mutex->lock, milliseconds, 0)) {
+        return true;
+    }
+
+    return GetLastError() != ERROR_TIMEOUT;
+}
+
+void m3_HostCondSignal (M3HostCond i_cond)
+{
+    WakeConditionVariable(&i_cond->cond);
+}
+
+void m3_HostCondFree (M3HostCond io_cond)
+{
+    free(io_cond);
+}
+
+static
+unsigned __stdcall thread_main (void* i_thread)
+{
+    M3HostThread thread = (M3HostThread)i_thread;
+
+    thread->body(thread->context);
+    return 0;
+}
+
+M3HostThread m3_HostThreadStart (void (*i_body)(void*), void* i_context)
+{
+    M3HostThread thread = (M3HostThread)malloc(sizeof(*thread));
+
+    if (not thread) {
+        return NULL;
+    }
+
+    thread->body = i_body;
+    thread->context = i_context;
+
+    // the interpreter recurses on the native stack, and a thread starts with 1MB
+    thread->handle = (HANDLE)_beginthreadex(NULL, 8 * 1024 * 1024, thread_main, thread, 0, NULL);
+
+    if (not thread->handle) {
+        free(thread);
+        return NULL;
+    }
+
+    return thread;
+}
+
+void m3_HostThreadJoin (M3HostThread io_thread)
+{
+    if (io_thread) {
+        WaitForSingleObject(io_thread->handle, INFINITE);
+        CloseHandle(io_thread->handle);
+        free(io_thread);
+    }
+}
+
+#endif // d_m3HasThreads
 
 #if d_m3GuardedMemory
 

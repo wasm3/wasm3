@@ -891,6 +891,115 @@ bool RunTest (int i_argc, const char* i_argv[], cstr_t i_name)
 }
 
 
+#if d_m3HasThreads
+
+// (module
+//   (memory (export "mem") 1 4 shared)
+//   (func (export "size") (result i32) memory.size)
+//   (func (export "grow") (param i32) (result i32) local.get 0 memory.grow)
+//   (func (export "add") (param i32) (result i32) local.get 0 i32.const 1 i32.atomic.rmw.add)
+//   (func (export "load") (param i32) (result i32) local.get 0 i32.atomic.load)
+//   (func (export "store") (param i32 i32) local.get 0 local.get 1 i32.atomic.store))
+static const u8 c_sharedWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x03, 0x60,
+    0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f,
+    0x00, 0x03, 0x06, 0x05, 0x00, 0x01, 0x01, 0x01, 0x02, 0x05, 0x04, 0x01,
+    0x03, 0x01, 0x04, 0x07, 0x2a, 0x06, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00,
+    0x04, 0x73, 0x69, 0x7a, 0x65, 0x00, 0x00, 0x04, 0x67, 0x72, 0x6f, 0x77,
+    0x00, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x02, 0x04, 0x6c, 0x6f, 0x61,
+    0x64, 0x00, 0x03, 0x05, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x04, 0x0a,
+    0x2c, 0x05, 0x04, 0x00, 0x3f, 0x00, 0x0b, 0x06, 0x00, 0x20, 0x00, 0x40,
+    0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00, 0x41, 0x01, 0xfe, 0x1e, 0x02, 0x00,
+    0x0b, 0x08, 0x00, 0x20, 0x00, 0xfe, 0x10, 0x02, 0x00, 0x0b, 0x0a, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0xfe, 0x17, 0x02, 0x00, 0x0b
+};
+
+// The same functions over a memory it imports as "Mem" "mem" - which is how a second
+// runtime reaches a shared memory: a module of its own, made by m3_ShareModule, is
+// registered under that name.
+static const u8 c_sharedUserWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x03, 0x60,
+    0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f,
+    0x00, 0x02, 0x0d, 0x01, 0x03, 0x4d, 0x65, 0x6d, 0x03, 0x6d, 0x65, 0x6d,
+    0x02, 0x03, 0x01, 0x04, 0x03, 0x06, 0x05, 0x00, 0x01, 0x01, 0x01, 0x02,
+    0x07, 0x24, 0x05, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x00, 0x00, 0x04, 0x67,
+    0x72, 0x6f, 0x77, 0x00, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x02, 0x04,
+    0x6c, 0x6f, 0x61, 0x64, 0x00, 0x03, 0x05, 0x73, 0x74, 0x6f, 0x72, 0x65,
+    0x00, 0x04, 0x0a, 0x2c, 0x05, 0x04, 0x00, 0x3f, 0x00, 0x0b, 0x06, 0x00,
+    0x20, 0x00, 0x40, 0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00, 0x41, 0x01, 0xfe,
+    0x1e, 0x02, 0x00, 0x0b, 0x08, 0x00, 0x20, 0x00, 0xfe, 0x10, 0x02, 0x00,
+    0x0b, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfe, 0x17, 0x02, 0x00, 0x0b
+};
+
+typedef struct {
+    IM3Function add;
+    u32         count;
+} SharedIncrements;
+
+static
+void SharedIncrementsBody (void* io_work)
+{
+    SharedIncrements* work = (SharedIncrements*)io_work;
+
+    for (u32 i = 0; i < work->count; ++i) {
+        m3_CallV(work->add, (u32)0);
+    }
+}
+
+static
+u32 CallShared (IM3Function i_function, u32 i_a)
+{
+    u32 result = 0xDEADBEEF;
+
+    m3_CallV(i_function, i_a);
+    m3_GetResultsV(i_function, &result);
+
+    return result;
+}
+
+// (module
+//   (memory (export "mem") 1 1 shared)
+//   (func (export "burn") (param i32) (result i32) (local i32)
+//     (loop $again
+//       (local.set 1 (i32.add (local.get 1) (i32.const 1)))
+//       (br_if $again (i32.lt_u (local.get 1) (local.get 0))))
+//     (local.get 1)))
+//
+// and the same over a memory imported as "Mem" "mem". "burn" spends gas in proportion to
+// its argument.
+static const u8 c_burnWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f,
+    0x03, 0x02, 0x01, 0x00, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x0e, 0x02, 0x03, 0x6d, 0x65,
+    0x6d, 0x02, 0x00, 0x04, 0x62, 0x75, 0x72, 0x6e, 0x00, 0x00, 0x0a, 0x19, 0x01, 0x17, 0x01, 0x01,
+    0x7f, 0x03, 0x40, 0x20, 0x01, 0x41, 0x01, 0x6a, 0x21, 0x01, 0x20, 0x01, 0x20, 0x00, 0x49, 0x0d,
+    0x00, 0x0b, 0x20, 0x01, 0x0b
+};
+
+static const u8 c_burnUserWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f,
+    0x02, 0x0d, 0x01, 0x03, 0x4d, 0x65, 0x6d, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x03, 0x01, 0x01, 0x03,
+    0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x62, 0x75, 0x72, 0x6e, 0x00, 0x00, 0x0a, 0x19, 0x01,
+    0x17, 0x01, 0x01, 0x7f, 0x03, 0x40, 0x20, 0x01, 0x41, 0x01, 0x6a, 0x21, 0x01, 0x20, 0x01, 0x20,
+    0x00, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x01, 0x0b
+};
+
+typedef struct {
+    IM3Function burn;
+    u32         count;
+    M3Result    result;
+} BurnGas;
+
+static
+void BurnGasBody (void* io_work)
+{
+    BurnGas* work = (BurnGas*)io_work;
+
+    work->result = m3_CallV(work->burn, work->count);
+}
+
+#endif // d_m3HasThreads
+
+
 #if d_m3TestHasThreads
 
 // (module
@@ -4168,6 +4277,168 @@ int main (int argc, const char* argv[])
 
 
 #endif // d_m3HasSnapshots
+
+#if d_m3HasThreads
+
+    Test(threads.shared_memory_is_one_memory_in_two_runtimes)
+    {
+        // A runtime is used by one thread at a time, and so is its environment: the
+        // second runtime gets both of its own
+        IM3Environment envB  = m3_NewEnvironment();
+        IM3Runtime     a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime     b     = m3_NewRuntime(envB, 65536, NULL);
+        IM3Module      owner = NULL, proxy = NULL, user = NULL;
+
+        expect(!m3_ParseModule(env, &owner, c_sharedWasm, sizeof(c_sharedWasm)));
+        expect(!m3_LoadModule(a, owner));
+
+        expect(!m3_ShareModule(b, owner, &proxy));
+        m3_SetModuleName(proxy, "Mem");
+        expect(!m3_ParseModule(envB, &user, c_sharedUserWasm, sizeof(c_sharedUserWasm)));
+        expect(!m3_LoadModule(b, user));
+
+        IM3Function aSize, aGrow, aIncrement, aFetch, aStore, bSize, bGrow, bIncrement, bFetch;
+        expect(!m3_FindFunction(&aSize, a, "size"));
+        expect(!m3_FindFunction(&aGrow, a, "grow"));
+        expect(!m3_FindFunction(&aIncrement, a, "add"));
+        expect(!m3_FindFunction(&aFetch, a, "load"));
+        expect(!m3_FindFunction(&aStore, a, "store"));
+        expect(!m3_FindFunction(&bSize, b, "size"));
+        expect(!m3_FindFunction(&bGrow, b, "grow"));
+        expect(!m3_FindFunction(&bIncrement, b, "add"));
+        expect(!m3_FindFunction(&bFetch, b, "load"));
+
+        // the same bytes, not a copy
+        size_t   ownerSize = 0, userSize = 0;
+        uint8_t* ownerBytes = m3_GetMemory(owner, &ownerSize, 0);
+        uint8_t* userBytes  = m3_GetMemory(user, &userSize, 0);
+        expect(ownerBytes and ownerBytes == userBytes);
+        expect(ownerSize == 65536 and userSize == 65536);
+
+        // a write by one is read by the other
+        m3_CallV(aStore, (u32)8, (u32)1234);
+        expect(CallShared(bFetch, 8) == 1234);
+        expect(m3_GetMemorySizeAt(userBytes) == 65536);
+
+        // growing in either is seen in both, and the memory does not move
+        expect(CallShared(bSize, 0) == 1);
+        expect(CallShared(bGrow, 1) == 1);
+        expect(CallShared(aSize, 0) == 2);
+        expect(m3_GetMemory(owner, &ownerSize, 0) == ownerBytes and ownerSize == 131072);
+        expect(CallShared(aGrow, 1) == 2);
+        expect(CallShared(bSize, 0) == 3);
+        expect(m3_GetMemorySize(user, 0) == 3 * 65536);
+        expect(m3_GetMemory(user, &userSize, 0) == ownerBytes);
+
+        // the maximum is 4 pages, whoever asks
+        expect(CallShared(bGrow, 2) == (u32)-1);
+        expect(CallShared(aGrow, 1) == 3);
+        expect(CallShared(bGrow, 1) == (u32)-1);
+
+        // Read-modify-write is atomic across threads: nothing is lost, and every add
+        // answers with a value nobody else got
+        SharedIncrements work   = { bIncrement, 100000 };
+        M3HostThread     thread = m3_HostThreadStart(SharedIncrementsBody, &work);
+        expect(thread != NULL);
+
+        for (u32 i = 0; i < work.count; ++i) {
+            m3_CallV(aIncrement, (u32)0);
+        }
+
+        m3_HostThreadJoin(thread);
+        expect(CallShared(aFetch, 0) == 2 * work.count);
+
+        // the bytes outlive the runtime that created them
+        m3_FreeRuntime(a);
+        expect(CallShared(bFetch, 0) == 2 * work.count);
+        expect(CallShared(bFetch, 8) == 1234);
+        expect(CallShared(bGrow, 0) == 4);
+
+        m3_FreeRuntime(b);
+        m3_FreeEnvironment(envB);
+    }
+
+    Test(threads.sharing_needs_a_shared_memory)
+    {
+        IM3Runtime a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  plain = NULL, proxy = NULL;
+
+        expect(!m3_ParseModule(env, &plain, c_memoryPage, sizeof(c_memoryPage)));
+        expect(!m3_LoadModule(a, plain));
+        expect(m3_ShareModule(a, plain, &proxy) != m3Err_none);
+        expect(proxy == NULL);
+
+        m3_FreeRuntime(a);
+    }
+
+    Test(threads.a_shared_memory_is_charged_at_its_maximum)
+    {
+        IM3Runtime a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  owner = NULL;
+
+        expect(!m3_ParseModule(env, &owner, c_sharedWasm, sizeof(c_sharedWasm)));
+        expect(!m3_LoadModule(a, owner));
+        expect(m3_GetResourceUsage(a, c_m3Limit_MemoryBytes) == 4 * 65536);
+
+        // a limit below the reservation refuses it up front, rather than at the grow
+        IM3Runtime b      = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  second = NULL;
+        expect(!m3_SetResourceLimit(b, c_m3Limit_MemoryBytes, 2 * 65536));
+        expect(!m3_ParseModule(env, &second, c_sharedWasm, sizeof(c_sharedWasm)));
+        expect(m3_LoadModule(b, second) == m3Err_memoryLimitExceeded);
+
+        m3_FreeRuntime(b);
+        m3_FreeRuntime(a);
+    }
+
+#  if d_m3HasGasMetering
+
+    Test(threads.each_thread_spends_the_gas_of_its_own_runtime)
+    {
+        // The limit is set before the module is loaded: functions compile on first use,
+        // and it is the compiling that puts the charges in
+        IM3Environment envB  = m3_NewEnvironment();
+        IM3Runtime     a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime     b     = m3_NewRuntime(envB, 65536, NULL);
+        IM3Module      owner = NULL, proxy = NULL, user = NULL;
+
+        expect(!m3_SetResourceLimit(a, c_m3Limit_GasUnits, 100000000000ull));
+        expect(!m3_SetResourceLimit(b, c_m3Limit_GasUnits, 1000000ull));
+
+        expect(!m3_ParseModule(env, &owner, c_burnWasm, sizeof(c_burnWasm)));
+        expect(!m3_LoadModule(a, owner));
+        expect(!m3_ShareModule(b, owner, &proxy));
+        m3_SetModuleName(proxy, "Mem");
+        expect(!m3_ParseModule(envB, &user, c_burnUserWasm, sizeof(c_burnUserWasm)));
+        expect(!m3_LoadModule(b, user));
+
+        BurnGas first = { NULL, 10000000, NULL }, second = { NULL, 10000000, NULL };
+        expect(!m3_FindFunction(&first.burn, a, "burn"));
+        expect(!m3_FindFunction(&second.burn, b, "burn"));
+
+        // one runtime runs out while the other, on the same memory, does not
+        M3HostThread thread = m3_HostThreadStart(BurnGasBody, &second);
+        expect(thread != NULL);
+
+        BurnGasBody(&first);
+        m3_HostThreadJoin(thread);
+
+        u32 counted = 0;
+        m3_GetResultsV(first.burn, &counted);
+
+        expect(first.result == m3Err_none and counted == 10000000);
+        expect(second.result == m3Err_trapOutOfGas);
+        expect(m3_GetResourceUsage(a, c_m3Limit_GasUnits) < 100000000000ull);
+        expect(m3_GetResourceUsage(b, c_m3Limit_GasUnits) > 1000000ull);
+
+        m3_FreeRuntime(b);
+        m3_FreeRuntime(a);
+        m3_FreeEnvironment(envB);
+    }
+
+#  endif // d_m3HasGasMetering
+
+#endif // d_m3HasThreads
 
 
     m3_FreeEnvironment(env);

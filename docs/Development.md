@@ -60,14 +60,14 @@ ninja
 ## Build on Windows
 
 Prerequisites, on top of the ones above:
-- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), with the *Desktop development with C++* workload.
+- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026), with the *Desktop development with C++* workload.
 - Both `CMake` and `Ninja` also ship with the Build Tools.
 - Select optional *C++ Clang tools for Windows* component for `-T ClangCL` toolset below to work; a [standalone LLVM](https://github.com/llvm/llvm-project/releases) works too (using `-DCLANG_CL=1`).
 
 Use `vswhere` to find out where the latest Build Tools are located:
 
 ```bat
-"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
 ```
 
 MSBuild finds the toolchain by itself. A developer environment is only needed to call
@@ -75,7 +75,7 @@ the compiler directly, as in [Build using compiler directly](#build-using-compil
 or to drive Ninja:
 
 ```bat
-"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 ```
 
 ### Build with MSBuild
@@ -88,19 +88,19 @@ mkdir build
 cd build
 
 :: Configure Clang, x64
-cmake -G"Visual Studio 17 2022" -A x64 -T ClangCL ..
+cmake -G"Visual Studio 18 2026" -A x64 -T ClangCL ..
 
 :: Configure Clang, x86
-cmake -G"Visual Studio 17 2022" -A Win32 -T ClangCL ..
+cmake -G"Visual Studio 18 2026" -A Win32 -T ClangCL ..
 
 :: Configure MSVC, x64
-cmake -G"Visual Studio 17 2022" -A x64 ..
+cmake -G"Visual Studio 18 2026" -A x64 ..
 
 :: Configure MSVC, x86
-cmake -G"Visual Studio 17 2022" -A Win32 ..
+cmake -G"Visual Studio 18 2026" -A Win32 ..
 
 :: Configure MSVC, ARM64
-cmake -G"Visual Studio 17 2022" -A ARM64 ..
+cmake -G"Visual Studio 18 2026" -A ARM64 ..
 
 :: Build
 cmake --build . --config Release
@@ -117,7 +117,7 @@ runs from a developer environment - `vcvars64.bat` above - with the Build Tools'
 CMake, Ninja and LLVM on `PATH`:
 
 ```bat
-set VS=C:\Program Files\Microsoft Visual Studio\2022\BuildTools
+set VS=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools
 set PATH=%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
 set PATH=%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
 set PATH=%VS%\VC\Tools\Llvm\x64\bin;%PATH%
@@ -172,7 +172,7 @@ gcc -O3 -g0 -s -Isource -Dd_m3HasWASI source/*.c platforms/app/main.c -lm -o was
 
 ### msvc/clang-cl
 ```sh
-cl source/*.c platforms/app/main.c /Isource /MD /Ox /Oy /Gw /GS- /W0 /Dd_m3HasWASI /Fewasm3.exe /link advapi32.lib
+cl source/*.c platforms/app/main.c /Isource /std:c11 /MD /Ox /Oy /Gw /GS- /W0 /Dd_m3HasWASI /Fewasm3.exe /link advapi32.lib
 ```
 
 ### mingw-w64
@@ -276,3 +276,24 @@ a compile-time guess.
 shared flag on a memory's limits. Everything runs on one thread for now, so an atomic
 access is an ordinary one that also checks its alignment, and `memory.atomic.wait` can
 only time out.
+
+`d_m3HasThreads` lets runtimes on threads of their own share a memory. It is on wherever the
+host has threads (`m3_host_posix.h`, `m3_host_win32.h`) and needs `d_m3HasAtomics`. Wasm3
+does not start the threads: the embedder does, and gives each one a runtime of its own,
+because a runtime holds one value stack and compiles lazily, so it is used by one thread at
+a time. What they share is a memory that a module declares `shared`. `m3_ShareModule`
+(`extensions/wasm3_ext.h`) makes, in another runtime, a module that exports a view of each
+shared memory of the first, and a module in that runtime imports it like any other.
+
+- An `M3Environment` belongs to one thread as well, so each runtime that is parsed into on
+  its own thread needs an environment of its own.
+- A shared memory never moves. It is reserved at its declared maximum - a slot of the
+  guarded arena, or one allocation - and growing makes more of it reachable and tells every
+  view. It is charged to the runtime that created it at that maximum, once, and it is freed
+  when the last view goes.
+- Atomic accesses are sequentially consistent, and a read-modify-write is a compare-and-swap
+  loop: on hosts of either byte order, at every width, on a 32-bit target as much as on a
+  64-bit one, with `-latomic` where the compiler wants it for 64-bit cells.
+- Every access reads the memory's length with a relaxed atomic load, and reaches the bytes
+  through a pointer in the runtime's header for that memory instead of at a fixed offset from
+  it. Without `d_m3HasThreads` neither costs anything.

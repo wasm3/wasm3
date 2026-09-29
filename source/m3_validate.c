@@ -1405,19 +1405,31 @@ static M3Result v_validate_body (ValCtx * v)
             if (r) return r;
 
             if (sub == 0x03) { // atomic.fence
-                u8 reserved;
-                r = Read_u8(&reserved, &v->wasm, v->wasmEnd); if (r) return r;
-                if (reserved != 0) return m3Err_wasmMalformed;
+                // the byte that was reserved as zero names its ordering: seqcst, or acqrel
+                u8 ordering;
+                r = Read_u8(&ordering, &v->wasm, v->wasmEnd); if (r) return r;
+                if (ordering > 0x01) return m3Err_invalidAtomicOrdering;
                 break;
             }
+
+            if (sub == 0x04) break; // pause: no operands, no result
 
             u32 width, numOperands; m3type_t valueType, resultType;
             if (not v_atomic_shape(sub, &width, &numOperands, &valueType, &resultType)) return m3Err_unknownOpcode;
 
-            u32 align, memidx; u64 offset;
-            r = ReadMemoryArg(&align, &memidx, &offset, &v->wasm, v->wasmEnd); if (r) return r;
+            u32 align, memidx; u64 offset; i32 ordering;
+            r = ReadAtomicMemoryArg(&align, &memidx, &offset, &ordering, &v->wasm, v->wasmEnd); if (r) return r;
+            // An ordering is for the accesses and not for notify and wait; a load or a
+            // store names one for the access, and a read-modify-write one for each half
+            // of it, which have to agree
+            if (ordering >= 0) {
+                bool isRmw = (sub >= 0x1e);
+                if (sub <= 0x02 or (isRmw ? (ordering != 0x00 and ordering != 0x11) : ordering > 0x01)) {
+                    return m3Err_invalidAtomicOrdering;
+                }
+            }
             // Spec: unlike an ordinary access, an atomic one must be aligned exactly
-            if ((1u << align) != width) return m3Err_invalidAtomicAlignment;
+            if (align > 3 or (1u << align) != width) return m3Err_invalidAtomicAlignment;
             if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
             if (not v_offset_in_range(v, memidx, offset)) return m3Err_wasmMalformed;
 

@@ -120,14 +120,14 @@ The baseline instruction pricing is divided into distinct operational tiers refl
  
 | Tier | Cost (Units) | Cost (Gas) | Description & Instruction Classes |
 |---|---|---|---|
-| **Nominal** | 1 | 0.0001 | Minimum bookkeeping: `nop`, `block`, `loop`, `if`, `try_table`, `ref.null`, `ref.func`, numeric constants (`i32.const`, `i64.const`, `f32.const`, `f64.const`). |
+| **Nominal** | 1 | 0.0001 | Minimum bookkeeping: `nop`, `block`, `loop`, `if`, `try_table`, `ref.null`, `ref.func`, numeric constants (`i32.const`, `i64.const`, `f32.const`, `f64.const`), `pause`. |
 | **Local** | 1 | 0.0001 | Per declared local variable, charged once at function entry. |
 | **Arith** | 45 | 0.0045 | Simple arithmetic & logic: integer/float additions, subtractions, multiplications, bitwise operations (`and`, `or`, `xor`), comparisons (`eq`, `ne`, `lt`, `gt`, etc.), bit counting (`clz`, `ctz`, `popcnt`), type conversions, sign extensions, saturating conversions, reference checks (`ref.is_null`, `ref.as_non_null`). |
 | **Shift** | 67 | 0.0067 | Bit shifts: `i32.shl`, `i32.shr_s`, `i32.shr_u`, `i64.shl`, `i64.shr_s`, `i64.shr_u`. |
 | **Branch** | 90 | 0.0090 | Direct control flow & calls: `br`, `br_if`, `else`, `return`, `call`, `return_call`, bit rotations (`rotl`, `rotr`), exception dispatch (`throw`, `throw_ref`). |
 | **Query** | 100 | 0.0100 | Structural resource queries: `memory.size`, `table.size`, `data.drop`, `elem.drop`. |
-| **Access** | 120 | 0.0120 | Storage reads & writes: local accesses (`local.get`, `local.set`, `local.tee`), global accesses (`global.get`, `global.set`), table accesses (`table.get`, `table.set`), linear memory loads and stores (all integer/float widths), `br_table`, `drop`, `select`. |
-| **Heavy** | 10,000 | 1.0000 | Dynamic dispatch & bulk operations: indirect calls (`call_indirect`, `return_call_indirect`, `call_ref`, `return_call_ref`), memory bulk operations (`memory.init`, `memory.copy`, `memory.fill`, `memory.grow`), table bulk operations (`table.init`, `table.copy`, `table.grow`, `table.fill`). |
+| **Access** | 120 | 0.0120 | Storage reads & writes: local accesses (`local.get`, `local.set`, `local.tee`), global accesses (`global.get`, `global.set`), table accesses (`table.get`, `table.set`), linear memory loads and stores (all integer/float widths), atomic loads, stores, read-modify-write and compare-exchange (all widths, whichever ordering they name), `br_table`, `drop`, `select`. |
+| **Heavy** | 10,000 | 1.0000 | Dynamic dispatch & bulk operations: indirect calls (`call_indirect`, `return_call_indirect`, `call_ref`, `return_call_ref`), memory bulk operations (`memory.init`, `memory.copy`, `memory.fill`, `memory.grow`), table bulk operations (`table.init`, `table.copy`, `table.grow`, `table.fill`), and the instructions that wait, wake or order between threads (`memory.atomic.wait32`, `memory.atomic.wait64`, `memory.atomic.notify`, `atomic.fence`). |
 | **Divide** | 36,000 | 3.6000 | Heavy arithmetic: integer division and remainder (`i32/i64.div_s`, `div_u`, `rem_s`, `rem_u`), floating-point division and square root (`f32/f64.div`, `sqrt`). |
 | **End** | 0 | 0.0000 | The `end` instruction is priced at zero units. |
 
@@ -137,6 +137,7 @@ When engines implement additional WebAssembly proposals, instructions are catego
 1. **Typed References & GC:** Reference casting and type testing instructions (`ref.test`, `ref.cast`) map to the **Arith** tier. Struct/array field allocations map to **Heavy**, while field loads/stores map to **Access**.
 2. **SIMD (128-bit):** Vector arithmetic, shuffles, and lane extractions map to **Arith**. Vector memory loads and stores map to **Access**.
 3. **Stack Switching:** Continuation allocation (`cont.new`, `cont.bind`) maps to **Heavy**. Switching operations (`suspend`, `resume`, `switch`) map to **Branch**.
+4. **Threads:** An atomic access is priced as the memory access it is (**Access**), whatever its width or ordering. An instruction that blocks, wakes another thread or orders memory between threads (`memory.atomic.wait32`, `memory.atomic.wait64`, `memory.atomic.notify`, `atomic.fence`) maps to **Heavy**. `pause` is a hint to the processor and maps to **Nominal**.
 
 ---
 
@@ -242,6 +243,14 @@ Gas metering integrates cleanly with WebAssembly snapshots:
 - Tail calls (`return_call`, `return_call_indirect`, `return_call_ref`) terminate straight-line segments.
 - Because the tail call is priced as a branch and terminates the segment, an infinite tail-recursive loop repeatedly executes segment prepayment checks, ensuring it is strictly bounded by the gas limit.
 
+### 5. Threads and Atomics
+
+A thread is a runtime, and a runtime holds one gas counter. Threads that share a linear memory do not share gas:
+- Each thread spends from the budget of its own runtime, and runs out of it on its own. One thread running out of gas does not stop the others.
+- Gas counts the instructions a thread executes, not the time it spends. A `memory.atomic.wait32` or `wait64` costs its **Heavy** price once, however long it blocks, and a spin loop costs one prepayment per iteration, because its back-edge ends a segment. Blocking on a wait is therefore not bounded by gas: a thread blocked with an infinite timeout stays blocked until another thread wakes it, and consumes nothing.
+- Atomic instructions and `pause` do not terminate segments. They are priced into the segment they sit in like any other instruction.
+- What one thread reads from a shared memory depends on how the threads were scheduled, so the gas it uses is deterministic only for a program whose control flow does not depend on a race. A program that synchronizes through atomics alone can see a different sequence of values from one run to the next, and pays for the different path it takes.
+
 ---
 
 ## Implementation Notes and Design Considerations
@@ -297,4 +306,5 @@ A conforming implementation is expected to pass the following scenarios:
 2. **Suspension and Resumption under Gas Limits:** A computation that reaches its gas limit suspends, serializes its state, is granted more gas, and resumes to the same result an uninterrupted run produces - including when the limit is reached inside deep recursion.
 3. **Resumption Without Metering:** A state captured on gas exhaustion in a metered runtime resumes to correct completion in an unmetered one.
 4. **Segmented Round Trips:** Running a module to completion in many gas-bounded legs yields the same observable result as a single run.
+5. **Independent Budgets Across Threads:** Two runtimes sharing a memory, each with its own gas limit, run out of gas independently, and the runtime that is not out of gas continues.
 

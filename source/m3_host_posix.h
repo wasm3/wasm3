@@ -27,6 +27,9 @@
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
+#if d_m3HasThreads
+#  include <pthread.h>
+#endif
 
 // Whether pthread_getattr_np - or Darwin's pair of calls - can be reached without
 // asking the build to link a threading library it may not be linking. glibc moved
@@ -194,7 +197,7 @@ void m3_PosixSignalHandler (int sig)
 {
     (void)sig;
     if (s_posixSuspendRuntime) {
-        s_posixSuspendRuntime->suspendRequested = true;
+        m3_SharedStoreFlag(&s_posixSuspendRuntime->suspendRequested, true);
     }
 }
 
@@ -235,10 +238,20 @@ u64 m3_HostTimeMs (void)
     return (u64)now.tv_sec * 1000 + (u64)now.tv_nsec / 1000000;
 }
 
+// A time_t of 32 bits wraps negative past 2038, or after 68 years of timeout, and a
+// negative time is refused rather than waited out
+static
+time_t clamp_seconds (u64 i_seconds)
+{
+    u64 latest = (sizeof(time_t) > 4) ? (u64)INT64_MAX : (u64)INT32_MAX;
+
+    return (time_t)M3_MIN(i_seconds, latest);
+}
+
 void m3_HostSleepNs (u64 i_ns)
 {
     struct timespec left;
-    left.tv_sec = (time_t)(i_ns / 1000000000u);
+    left.tv_sec = clamp_seconds(i_ns / 1000000000u);
     left.tv_nsec = (long)(i_ns % 1000000000u);
 
     // a signal cuts the sleep short and reports what remains
@@ -315,6 +328,179 @@ bool m3_HostReplaceFile (const char* i_from, const char* i_to)
 {
     return rename(i_from, i_to) == 0;
 }
+
+#if d_m3HasThreads
+
+struct M3HostMutexImpl {
+    pthread_mutex_t mutex;
+};
+
+struct M3HostCondImpl {
+    pthread_cond_t cond;
+};
+
+struct M3HostThreadImpl {
+    pthread_t thread;
+    void (*body)(void*);
+    void* context;
+};
+
+M3HostMutex m3_HostMutexInit (void)
+{
+    M3HostMutex mutex = (M3HostMutex)malloc(sizeof(*mutex));
+
+    if (mutex and pthread_mutex_init(&mutex->mutex, NULL) != 0) {
+        free(mutex);
+        return NULL;
+    }
+
+    return mutex;
+}
+
+void m3_HostMutexLock (M3HostMutex i_mutex)
+{
+    pthread_mutex_lock(&i_mutex->mutex);
+}
+
+void m3_HostMutexUnlock (M3HostMutex i_mutex)
+{
+    pthread_mutex_unlock(&i_mutex->mutex);
+}
+
+void m3_HostMutexFree (M3HostMutex io_mutex)
+{
+    if (io_mutex) {
+        pthread_mutex_destroy(&io_mutex->mutex);
+        free(io_mutex);
+    }
+}
+
+M3HostCond m3_HostCondInit (void)
+{
+    M3HostCond cond = (M3HostCond)malloc(sizeof(*cond));
+
+    if (not cond) {
+        return NULL;
+    }
+
+    pthread_condattr_t attributes;
+    bool               made = (pthread_condattr_init(&attributes) == 0);
+
+    if (made) {
+#  if !defined(__APPLE__)
+        // a timeout counts on the monotonic clock, so that setting the wall clock
+        // cannot cut a wait short or stretch it
+        made = (pthread_condattr_setclock(&attributes, CLOCK_MONOTONIC) == 0);
+#  endif
+        made = made and (pthread_cond_init(&cond->cond, &attributes) == 0);
+        pthread_condattr_destroy(&attributes);
+    }
+
+    if (not made) {
+        free(cond);
+        return NULL;
+    }
+
+    return cond;
+}
+
+bool m3_HostCondWait (M3HostCond i_cond, M3HostMutex i_mutex, i64 i_timeoutNs)
+{
+    if (i_timeoutNs < 0) {
+        pthread_cond_wait(&i_cond->cond, &i_mutex->mutex);
+        return true;
+    }
+
+    int result;
+
+#  if defined(__APPLE__)
+    // Darwin has no condition variable clock to choose, and waits for an interval instead
+    struct timespec interval;
+    interval.tv_sec = clamp_seconds((u64)i_timeoutNs / 1000000000);
+    interval.tv_nsec = (long)(i_timeoutNs % 1000000000);
+
+    result = pthread_cond_timedwait_relative_np(&i_cond->cond, &i_mutex->mutex, &interval);
+#  else
+    struct timespec deadline;
+    clock_gettime(CLOCK_MONOTONIC, &deadline);
+
+    u64 nanoseconds = (u64)deadline.tv_nsec + (u64)(i_timeoutNs % 1000000000);
+    u64 seconds = (u64)deadline.tv_sec + (u64)(i_timeoutNs / 1000000000) + nanoseconds / 1000000000;
+
+    deadline.tv_sec = clamp_seconds(seconds);
+    deadline.tv_nsec = (long)(nanoseconds % 1000000000);
+
+    result = pthread_cond_timedwait(&i_cond->cond, &i_mutex->mutex, &deadline);
+#  endif
+
+    return result != ETIMEDOUT;
+}
+
+void m3_HostCondSignal (M3HostCond i_cond)
+{
+    pthread_cond_signal(&i_cond->cond);
+}
+
+void m3_HostCondFree (M3HostCond io_cond)
+{
+    if (io_cond) {
+        pthread_cond_destroy(&io_cond->cond);
+        free(io_cond);
+    }
+}
+
+static
+void* thread_main (void* i_thread)
+{
+    M3HostThread thread = (M3HostThread)i_thread;
+
+    thread->body(thread->context);
+    return NULL;
+}
+
+M3HostThread m3_HostThreadStart (void (*i_body)(void*), void* i_context)
+{
+    M3HostThread thread = (M3HostThread)malloc(sizeof(*thread));
+
+    if (not thread) {
+        return NULL;
+    }
+
+    thread->body = i_body;
+    thread->context = i_context;
+
+    // The interpreter recurses on the native stack, and a thread other than the first
+    // gets a much smaller one than the first on some systems
+    pthread_attr_t attributes;
+    bool           attributed = (pthread_attr_init(&attributes) == 0);
+
+    if (attributed) {
+        pthread_attr_setstacksize(&attributes, (size_t)8 * 1024 * 1024);
+    }
+
+    int started = pthread_create(&thread->thread, attributed ? &attributes : NULL, thread_main, thread);
+
+    if (attributed) {
+        pthread_attr_destroy(&attributes);
+    }
+
+    if (started != 0) {
+        free(thread);
+        return NULL;
+    }
+
+    return thread;
+}
+
+void m3_HostThreadJoin (M3HostThread io_thread)
+{
+    if (io_thread) {
+        pthread_join(io_thread->thread, NULL);
+        free(io_thread);
+    }
+}
+
+#endif // d_m3HasThreads
 
 #if d_m3GuardedMemory
 
@@ -394,7 +580,8 @@ static M3_THREAD_LOCAL M3GuardFrame* g_guardFrame;
 // it would have without any of this, so those are called rather than replaced.
 static struct sigaction              g_previousSegv;
 static struct sigaction              g_previousBus;
-static M3GuardState                  g_guards;
+static u32                           g_guards;        // an M3GuardState
+static M3SpinLock                    g_guardsLock;
 
 static
 void guard_signal (int i_signal, siginfo_t* i_info, void* i_ucontext)
@@ -448,8 +635,20 @@ bool guard_handler_took (int i_signal)
 static
 bool install_guard_handlers (void)
 {
-    if (g_guards != guards_initial) {
-        return g_guards == guards_active;
+    // Threads start Wasm at the same moment, and only one of them may do the settling
+    u32 state = m3_SharedLoad32(&g_guards);
+
+    if (state != guards_initial) {
+        return state == guards_active;
+    }
+
+    m3_SpinLock(&g_guardsLock);
+
+    state = m3_SharedLoad32(&g_guards);
+
+    if (state != guards_initial) {
+        m3_SpinUnlock(&g_guardsLock);
+        return state == guards_active;
     }
 
     struct sigaction action;
@@ -465,11 +664,14 @@ bool install_guard_handlers (void)
     // SIGSEGV, so both have to be claimed
     sigaction(SIGBUS, &action, &g_previousBus);
 
-    g_guards = (guard_handler_took(SIGSEGV) and guard_handler_took(SIGBUS))
-                 ? guards_active
-                 : guards_unavailable;
+    state = (guard_handler_took(SIGSEGV) and guard_handler_took(SIGBUS))
+              ? guards_active
+              : guards_unavailable;
 
-    return g_guards == guards_active;
+    m3_SharedStore32(&g_guards, state);
+    m3_SpinUnlock(&g_guardsLock);
+
+    return state == guards_active;
 }
 
 // A stack for the handler to run on, so that a fault which happens because the

@@ -55,7 +55,7 @@ d_m3BeginExternC
 // magnitude: the subtraction cannot wrap once the start is known to be within
 // the memory, where start + length could.
 #define d_m3MemRangeOk(START, LENGTH, MEM)  \
-   ((START) <= (MEM)->length and (LENGTH) <= (MEM)->length - (START))
+   ((START) <= m3MemLength (MEM) and (LENGTH) <= m3MemLength (MEM) - (START))
 
 
 #if d_m3EnableOpProfiling
@@ -269,11 +269,11 @@ m3ret_t RecordEntryFrame (IM3Runtime i_runtime, pc_t i_pc, m3stack_t i_sp, IM3Me
 #ifdef DEBUG
   #define d_outOfBounds newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
                         _mem->runtime, "memory size: %zu; access offset: %zu",      \
-                        _mem->length, operand))
+                        m3MemLength (_mem), operand))
 
 #  define d_outOfBoundsMemOp(OFFSET, SIZE) newTrap (ErrorRuntime (m3Err_trapOutOfBoundsMemoryAccess,   \
                      _mem->runtime, "memory size: %zu; access offset: %zu; size: %u",     \
-                     _mem->length, OFFSET, SIZE))
+                     m3MemLength (_mem), OFFSET, SIZE))
 #else
   #define d_outOfBounds newTrap (m3Err_trapOutOfBoundsMemoryAccess)
 
@@ -1294,7 +1294,7 @@ d_m3Op(MemSize)
 {
     IM3Memory memory = m3MemInfo(_mem);
 
-    _r0 = memory->numPages;
+    _r0 = Memory_CurrentPages(memory);
 
     nextOp();
 }
@@ -1307,6 +1307,15 @@ d_m3Op(MemGrow)
 
     i32        numPagesToGrow = (i32)_r0;
     if (numPagesToGrow >= 0) {
+#if d_m3HasThreads
+        if (memory->shared) {
+            u64 oldPages;
+
+            _r0 = GrowSharedMemory(runtime, memory, (u32)numPagesToGrow, &oldPages) ? (m3reg_t)-1 : (m3reg_t)oldPages;
+
+            nextOp();
+        }
+#endif
         _r0 = (m3reg_t)memory->numPages;
 
         if (M3_LIKELY(numPagesToGrow)) {
@@ -1339,7 +1348,18 @@ d_m3Op(MemGrow64)
     IM3Memory  memory = m3MemInfo(_mem);
 
     u64        numPagesToGrow = (u64)_r0;
-    u64        numPages = memory->numPages;
+
+#  if d_m3HasThreads
+    if (memory->shared) {
+        u64 oldPages;
+
+        _r0 = GrowSharedMemory(runtime, memory, numPagesToGrow, &oldPages) ? (m3reg_t)-1 : (m3reg_t)oldPages;
+
+        nextOp();
+    }
+#  endif
+
+    u64 numPages = memory->numPages;
 
     if (M3_LIKELY(numPagesToGrow)) {
         // maxPages is never below the current size, so the difference cannot
@@ -1800,7 +1820,7 @@ void SuspendWithoutTag (IM3Runtime io_runtime, IM3Continuation io_cont, M3SafePo
 #  endif
 )
 {
-    io_runtime->suspendRequested = false;
+    m3_SharedStoreFlag(&io_runtime->suspendRequested, false);
 
     io_runtime->suspendTag = NULL;
     io_runtime->suspendHandlerCont = NULL;
@@ -1843,7 +1863,7 @@ d_m3Op(UseGas)
         // is a request to stop, like the host's, and the segment runs on to
         // it. The counter goes below zero by what it takes to get there.
         if (runtime->isSuspendable and runtime->activeContinuation) {
-            runtime->suspendRequested = true;
+            m3_SharedStoreFlag(&runtime->suspendRequested, true);
             nextOp();
         }
 #  endif
@@ -3573,7 +3593,7 @@ d_m3Op(ContinueLoop_Suspendable)
     m3StackCheck();
 
     IM3Runtime runtime = m3MemRuntime(_mem);
-    if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+    if (M3_UNLIKELY(m3_SharedLoadFlag(&runtime->suspendRequested) and runtime->activeContinuation)) {
         SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_op, _pc - 1, _sp,
                           d_m3ExpRegArgs(_r0, _fp0));
 
@@ -3601,7 +3621,7 @@ d_m3Op(Entry_Suspendable)
         EnterFrame(function, _sp);
 
         IM3Runtime runtime = m3MemRuntime(_mem);
-        if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+        if (M3_UNLIKELY(m3_SharedLoadFlag(&runtime->suspendRequested) and runtime->activeContinuation)) {
             SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_entry, _pc, _sp,
                               d_m3ExpRegArgs(_r0, _fp0));
 
@@ -3622,7 +3642,7 @@ d_m3Op(Entry_Suspendable)
 d_m3Op(EntryCheck)
 {
     IM3Runtime runtime = m3MemRuntime(_mem);
-    if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+    if (M3_UNLIKELY(m3_SharedLoadFlag(&runtime->suspendRequested) and runtime->activeContinuation)) {
         SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_entry, _pc - 1, _sp,
                           d_m3ExpRegArgs(_r0, _fp0));
 
@@ -3640,7 +3660,7 @@ d_m3Op(ContinueLoopIf_Suspendable)
 
     if (condition) {
         IM3Runtime runtime = m3MemRuntime(_mem);
-        if (M3_UNLIKELY(runtime->suspendRequested and runtime->activeContinuation)) {
+        if (M3_UNLIKELY(m3_SharedLoadFlag(&runtime->suspendRequested) and runtime->activeContinuation)) {
             SuspendWithoutTag(runtime, runtime->activeContinuation, safepoint_op, _pc - 2, _sp,
                               d_m3ExpRegArgs(_r0, _fp0));
 
@@ -3764,6 +3784,22 @@ d_m3Op(SetGlobal_f64)
 
 #if d_m3HasMemory64
 
+// What both of the ops below end with, once they have read their operands: the bounds check
+// and the folding. The access itself checks its own size against what is left, so an address
+// that passes here can still be the last byte of the memory. Uses the names 'operand',
+// 'offset' and 'address' of the op it sits in, which d_outOfBounds reports.
+#  define d_m3FinishCheckAddr64                                   \
+      if (M3_LIKELY(operand < d_m3AddressLimit)) {                \
+          u64 effective = operand + offset;                       \
+                                                                  \
+          if (M3_LIKELY(effective < m3MemLength(_mem))) {         \
+              *address = (u32)effective;                          \
+              nextOp();                                           \
+          }                                                       \
+      }                                                           \
+                                                                  \
+      d_outOfBounds
+
 // Checks a 64-bit address and folds the memarg offset into it, leaving the
 // effective address in a slot the access that follows reads as an ordinary
 // 32-bit one, with an offset of zero. That keeps one op between a 64-bit
@@ -3784,17 +3820,30 @@ d_m3Op(CheckAddr64)
     memcpy(&offset, _pc, sizeof(offset));
     _pc += (M3_SIZEOF_PTR == 4) ? 2 : 1;
 
-    if (M3_LIKELY(operand < d_m3AddressLimit)) {
-        u64 effective = operand + offset;
+    d_m3FinishCheckAddr64;
+}
 
-        // the access itself checks its own size against what is left
-        if (M3_LIKELY(effective < _mem->length)) {
-            *address = (u32)effective;
-            nextOp();
-        }
+// The same for an atomic access to a cell wider than a byte, which the spec has trap for a
+// misaligned effective address before it looks at the bounds. The last immediate is the
+// width less one, and in the next byte the low bits of the offset as written: the one
+// added above may have been clamped, which keeps the sum in range and loses them. Only
+// the low bits of the sum matter here, and a sum that wraps a u64 has the same ones.
+d_m3Op(CheckAddr64Atomic)
+{
+    u64  operand = slot(u64);
+    u32* address = slot_ptr(u32);
+
+    u64  offset;
+    memcpy(&offset, _pc, sizeof(offset));
+    _pc += (M3_SIZEOF_PTR == 4) ? 2 : 1;
+
+    u32 alignment = immediate(u32);
+
+    if (M3_UNLIKELY((operand + (alignment >> 8)) & (alignment & 0xFF))) {
+        newTrap(m3Err_trapUnalignedAtomic);
     }
 
-    d_outOfBounds;
+    d_m3FinishCheckAddr64;
 }
 
 #endif // d_m3HasMemory64
@@ -3822,7 +3871,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_r)                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
-        operand + sizeof (SRC_TYPE) <= _mem->length     \
+        operand + sizeof (SRC_TYPE) <= m3MemLength (_mem)     \
     )) {                                                \
         {                                               \
             u8* src8 = m3MemData(_mem) + operand;       \
@@ -3844,7 +3893,7 @@ d_m3Op(DEST_TYPE##_Load_##SRC_TYPE##_s)                 \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
-        operand + sizeof (SRC_TYPE) <= _mem->length     \
+        operand + sizeof (SRC_TYPE) <= m3MemLength (_mem)     \
     )) {                                                \
         {                                               \
             u8* src8 = m3MemData(_mem) + operand;       \
@@ -3898,7 +3947,7 @@ d_m3Load_i(i64, i64);
       operand += offset;                                  \
                                                           \
       if (m3MemCheck(                                     \
-          operand + sizeof (SRC_TYPE) <= _mem->length     \
+          operand + sizeof (SRC_TYPE) <= m3MemLength (_mem)     \
       )) {                                                \
           u8* src8 = m3MemData(_mem) + operand;           \
           SRC_TYPE value;                                 \
@@ -3920,7 +3969,7 @@ d_m3Load_i(i64, i64);
       operand += offset;                                  \
                                                           \
       if (m3MemCheck(                                     \
-          operand + sizeof (SRC_TYPE) <= _mem->length     \
+          operand + sizeof (SRC_TYPE) <= m3MemLength (_mem)     \
       )) {                                                \
           u8* src8 = m3MemData(_mem) + operand;           \
           SRC_TYPE value;                                 \
@@ -3965,7 +4014,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_rs)             \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
-        operand + sizeof (DEST_TYPE) <= _mem->length    \
+        operand + sizeof (DEST_TYPE) <= m3MemLength (_mem)    \
     )) {                                                \
         {                                               \
             d_m3TraceStore(SRC_TYPE, operand, REG);     \
@@ -3987,7 +4036,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_sr)             \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
-        operand + sizeof (DEST_TYPE) <= _mem->length    \
+        operand + sizeof (DEST_TYPE) <= m3MemLength (_mem)    \
     )) {                                                \
         {                                               \
             d_m3TraceStore(SRC_TYPE, operand, value);   \
@@ -4009,7 +4058,7 @@ d_m3Op  (SRC_TYPE##_Store_##DEST_TYPE##_ss)             \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
-        operand + sizeof (DEST_TYPE) <= _mem->length    \
+        operand + sizeof (DEST_TYPE) <= m3MemLength (_mem)    \
     )) {                                                \
         {                                               \
             d_m3TraceStore(SRC_TYPE, operand, value);   \
@@ -4033,7 +4082,7 @@ d_m3Op  (TYPE##_Store_##TYPE##_rr)                      \
     operand += offset;                                  \
                                                         \
     if (m3MemCheck(                                     \
-        operand + sizeof (TYPE) <= _mem->length         \
+        operand + sizeof (TYPE) <= m3MemLength (_mem)         \
     )) {                                                \
         {                                               \
             d_m3TraceStore(TYPE, operand, REG);         \

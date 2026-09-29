@@ -907,7 +907,7 @@ M3Result LinkImports (IM3Runtime io_runtime, IM3Module io_module)
         _throwif(m3Err_incompatibleImportType, exported->isShared != memory->isShared);
 
         _throwif(m3Err_incompatibleImportType,
-                 not LimitsSatisfy(exported->numPages, exported->hasMax, exported->maxPages,
+                 not LimitsSatisfy(Memory_CurrentPages(exported), exported->hasMax, exported->maxPages,
                                    memory->initPages, memory->hasMax, memory->maxPages));
 
         // hand the slot over to the exporter's memory, and drop the placeholder
@@ -1062,9 +1062,302 @@ _       (ResizeMemory(io_runtime, memory, memory->initPages));
 }
 
 
+#if d_m3HasThreads
+
+// Each view has a header of its own, standing apart from the bytes
+static
+M3Result NewViewHeader (IM3Runtime io_runtime, IM3Memory io_memory, const M3SharedMemory* i_shared)
+{
+    M3MemoryHeader* header = m3_AllocStruct(M3MemoryHeader);
+
+    if (not header) {
+        return m3Err_mallocFailed;
+    }
+
+    header->runtime  = io_runtime;
+    header->memory   = io_memory;
+    header->maxStack = (m3slot_t*)io_runtime->originStack + io_runtime->numStackSlots;
+    header->data     = i_shared->data;
+    header->length   = 0;
+
+    io_memory->mallocated = header;
+    return m3Err_none;
+}
+
+
+// The bytes and what goes with them, reserved once at the declared maximum. Nothing is
+// reachable yet: the caller grows the memory to its initial size next.
+static
+M3Result CreateSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory)
+{
+    M3Result        result   = m3Err_none;
+    M3SharedMemory* shared   = NULL;
+    u64             maxBytes = 0;
+
+    // A shared memory has to declare a maximum, so there is always one to reserve.
+    // Multiplied here in a u64, after the check that keeps it from wrapping.
+    _throwif("linear memory limitation exceeded",
+             io_memory->maxPages > d_m3AddressLimit / io_memory->pageSize);
+
+    maxBytes = io_memory->maxPages * io_memory->pageSize;
+
+#  if d_m3MaxLinearMemoryPages > 0
+    _throwif("linear memory limitation exceeded",
+             maxBytes > (u64)d_m3MaxLinearMemoryPages * d_m3DefaultMemPageSize);
+#  endif
+
+    // A memory that cannot move is all reserved from the start, so the limits that
+    // would have applied to whatever it grows to apply to the maximum instead
+    _throwif("linear memory limitation exceeded",
+             io_runtime->memoryLimit and maxBytes > (u64)io_runtime->memoryLimit);
+
+    _throwif(m3Err_memoryLimitExceeded, io_runtime->memoryBytesLimit and
+                                          (maxBytes > io_runtime->memoryBytesLimit or
+                                           io_runtime->memoryBytesUsed > io_runtime->memoryBytesLimit - maxBytes));
+
+    _throwif("linear memory limitation exceeded", maxBytes > (u64)SIZE_MAX - sizeof(M3MemoryHeader));
+
+#  if d_m3GuardedMemory
+    _throwif("linear memory limitation exceeded", maxBytes > d_m3GuardedDataBytes);
+    _throwif("guarded memory needs a page size the system's divides into",
+             (io_memory->pageSize % m3_HostPageSize()) != 0);
+#  endif
+
+    shared = m3_AllocStruct(M3SharedMemory);
+    _throwifnull(shared);
+
+    shared->mutex = m3_HostMutexInit();
+    _throwifnull(shared->mutex);
+
+#  if d_m3GuardedMemory
+    shared->guardSlot = Guard_TakeSlot();
+    _throwifnull(shared->guardSlot);
+
+    shared->header = Guard_SlotHeader(shared->guardSlot);
+#  else
+    shared->header = (M3MemoryHeader*)m3_Malloc("Wasm Shared Memory", (size_t)maxBytes + sizeof(M3MemoryHeader));
+    _throwifnull(shared->header);
+#  endif
+
+    memset(shared->header, 0, sizeof(M3MemoryHeader));
+
+    shared->data = (u8*)(shared->header + 1);
+
+    // the atomics reach a 64-bit cell with a 64-bit access, which a 32-bit host allows
+    // only where the allocator's block was aligned for one
+    d_m3Assert(((uintptr_t)shared->data & 7) == 0);
+    shared->maxBytes = (size_t)maxBytes;
+    shared->refCount = 1;
+    shared->views    = io_memory;
+    shared->charged  = (size_t)maxBytes;
+
+    shared->header->data = shared->data;
+
+    io_memory->shared   = shared;
+    io_memory->nextView = NULL;
+    shared->creator     = io_memory;
+
+_   (NewViewHeader(io_runtime, io_memory, shared));
+
+    io_runtime->memoryBytesUsed += shared->charged;
+
+    return result;
+
+    _catch:
+    if (shared) {
+#  if d_m3GuardedMemory
+        Guard_GiveSlot(shared->guardSlot);
+#  else
+        m3_Free(shared->header);
+#  endif
+        m3_HostMutexFree(shared->mutex);
+        m3_Free(shared);
+    }
+    io_memory->shared = NULL;
+    return result;
+}
+
+
+// Makes the first i_numPages reachable, if they are not already, and tells every view.
+// Called with the memory's mutex held. A shared memory only grows.
+static
+M3Result GrowSharedLocked (IM3Memory io_memory, u64 i_numPages)
+{
+    M3Result        result   = m3Err_none;
+    M3SharedMemory* shared   = io_memory->shared;
+    u64             oldPages = 0;
+
+    // The declared maximum, and also what was reserved: the bytes past the reservation are
+    // some other allocation's, or an address the guard does not cover
+    _throwif(m3Err_wasmMemoryOverflow, i_numPages > io_memory->maxPages);
+    _throwif(m3Err_wasmMemoryOverflow, i_numPages > shared->maxBytes / io_memory->pageSize);
+
+    oldPages = shared->numPages;
+
+    if (i_numPages > oldPages) {
+        size_t newBytes = (size_t)(i_numPages * io_memory->pageSize);
+
+        // Both kinds of reservation read as zero until written, and nothing past the length
+        // is ever written, so growing has nothing to clear
+#  if d_m3GuardedMemory
+        _throwif(m3Err_mallocFailed, not Guard_CommitSlot(shared->guardSlot, newBytes));
+#  endif
+
+        // Everything above is done before any view can see the length that lets it in.
+        // The page count is kept once, here: a view's own copy would be a field another
+        // thread writes and this one reads.
+        m3_SharedStore64(&shared->numPages, i_numPages);
+        m3_SharedStoreSize(&shared->header->length, newBytes);
+
+        for (IM3Memory view = shared->views; view; view = view->nextView) {
+            m3_SharedStoreSize(&view->mallocated->length, newBytes);
+        }
+    }
+
+    _catch: return result;
+}
+
+
+static
+M3Result ResizeSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPages)
+{
+    M3Result result = m3Err_none;
+
+    if (not io_memory->shared) {
+_       (CreateSharedMemory(io_runtime, io_memory));
+    }
+
+    m3_HostMutexLock(io_memory->shared->mutex);
+    result = GrowSharedLocked(io_memory, i_numPages);
+    m3_HostMutexUnlock(io_memory->shared->mutex);
+
+    _catch: return result;
+}
+
+
+M3Result GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPagesToGrow, u64* o_oldPages)
+{
+    M3Result        result = m3Err_none;
+    M3SharedMemory* shared = io_memory->shared;
+
+    (void)io_runtime;
+
+    m3_HostMutexLock(shared->mutex);
+
+    u64 oldPages = shared->numPages;
+
+    // maxPages is never below the current size, so the difference cannot wrap
+    if (i_numPagesToGrow <= io_memory->maxPages - oldPages) {
+        result = GrowSharedLocked(io_memory, oldPages + i_numPagesToGrow);
+    } else {
+        result = m3Err_wasmMemoryOverflow;
+    }
+
+    m3_HostMutexUnlock(shared->mutex);
+
+    *o_oldPages = oldPages;
+    return result;
+}
+
+
+static
+void FreeSharedReference (M3SharedMemory* io_shared);
+
+M3Result AttachSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, const M3Memory* i_source)
+{
+    M3Result        result = m3Err_none;
+    M3SharedMemory* shared = i_source->shared;
+
+    _throwif(m3Err_unknownMemory, not shared);
+
+    // The reference comes first: the memory being copied from is kept alive by whoever
+    // holds it, and once this one has counted itself in, so is the memory's mutex
+    m3_SharedIncrement(&shared->refCount);
+
+    result = NewViewHeader(io_runtime, io_memory, shared);
+
+    if (result) {
+        FreeSharedReference(shared);
+        return result;
+    }
+
+    m3_HostMutexLock(shared->mutex);
+
+    io_memory->shared   = shared;
+    io_memory->nextView = shared->views;
+    shared->views       = io_memory;
+
+    io_memory->mallocated->length = shared->header->length;
+
+    m3_HostMutexUnlock(shared->mutex);
+
+    _catch: return result;
+}
+
+
+// One view less. The last takes the bytes with it.
+static
+void FreeSharedReference (M3SharedMemory* io_shared)
+{
+    if (m3_SharedDecrement(&io_shared->refCount) == 0) {
+#  if d_m3GuardedMemory
+        Guard_GiveSlot(io_shared->guardSlot);
+#  else
+        m3_Free(io_shared->header);
+#  endif
+        m3_HostMutexFree(io_shared->mutex);
+        m3_Free(io_shared);
+    }
+}
+
+
+static
+void FreeSharedView (IM3Memory io_memory)
+{
+    M3SharedMemory* shared = io_memory->shared;
+
+    m3_HostMutexLock(shared->mutex);
+
+    IM3Memory* link = &shared->views;
+    while (*link and *link != io_memory) {
+        link = &(*link)->nextView;
+    }
+    if (*link) {
+        *link = io_memory->nextView;
+    }
+
+    // whoever paid for the reservation gets it back, while there is still a runtime to
+    // give it to
+    bool refund = (shared->creator == io_memory);
+    if (refund) {
+        shared->creator = NULL;
+    }
+
+    m3_HostMutexUnlock(shared->mutex);
+
+    if (refund and io_memory->mallocated and io_memory->mallocated->runtime) {
+        io_memory->mallocated->runtime->memoryBytesUsed -= shared->charged;
+    }
+
+    m3_Free(io_memory->mallocated);
+    io_memory->mallocated = NULL;
+    io_memory->shared     = NULL;
+
+    FreeSharedReference(shared);
+}
+
+#endif // d_m3HasThreads
+
+
 M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
 {
     M3Result result = m3Err_none;
+
+#if d_m3HasThreads
+    if (memory->isShared) {
+        return ResizeSharedMemory(io_runtime, memory, i_numPages);
+    }
+#endif
 
     u64 numPagesToAlloc = i_numPages;
 
@@ -1156,6 +1449,9 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
         memory->mallocated->length  = (size_t)numPageBytes;
         memory->mallocated->runtime = io_runtime;
         memory->mallocated->memory  = memory;
+#if d_m3HasThreads
+        memory->mallocated->data = (u8*)(memory->mallocated + 1);
+#endif
 
         memory->mallocated->maxStack = (m3slot_t*)io_runtime->originStack + io_runtime->numStackSlots;
 
@@ -1170,6 +1466,13 @@ M3Result ResizeMemory (IM3Runtime io_runtime, IM3Memory memory, u64 i_numPages)
 
 void FreeMemoryBlock (IM3Memory io_memory)
 {
+#if d_m3HasThreads
+    if (io_memory->shared) {
+        FreeSharedView(io_memory);
+        return;
+    }
+#endif
+
     if (io_memory->mallocated and io_memory->mallocated->runtime) {
         io_memory->mallocated->runtime->memoryBytesUsed -= io_memory->mallocated->length;
     }
@@ -1256,8 +1559,8 @@ _           (EvaluateExpression(io_module, &offset32, c_m3Type_i32, &start, segm
 
         m3log(runtime, "loading data segment: %d; size: %d; offset: %llu", i, segment->size, (unsigned long long)segmentOffset);
 
-        if (segmentOffset <= io_memory->mallocated->length &&
-            (u64)segment->size <= io_memory->mallocated->length - segmentOffset) {
+        if (segmentOffset <= m3MemLength(io_memory->mallocated) &&
+            (u64)segment->size <= m3MemLength(io_memory->mallocated) - segmentOffset) {
             u8* dest = m3MemData(io_memory->mallocated) + segmentOffset;
             memcpy(dest, segment->data, segment->size);
         } else {
@@ -2931,7 +3234,7 @@ uint8_t* m3_GetMemory (IM3Module i_module, size_t* o_memorySizeInBytes, uint32_t
         IM3Memory mem = i_module->memories[i_memoryIndex];
 
         if (mem->mallocated) {
-            size = mem->mallocated->length;
+            size = m3_SharedLoadSize(&mem->mallocated->length);
 
             if (size) {
                 memory = m3MemData(mem->mallocated);
@@ -2955,7 +3258,7 @@ size_t m3_GetMemorySize (IM3Module i_module, uint32_t i_memoryIndex)
 
     IM3Memory mem = i_module->memories[i_memoryIndex];
 
-    return mem->mallocated ? mem->mallocated->length : 0;
+    return mem->mallocated ? m3_SharedLoadSize(&mem->mallocated->length) : 0;
 }
 
 
@@ -2968,7 +3271,7 @@ size_t m3_GetMemorySizeAt (const void* i_memory)
     // the header sits immediately before the data it describes
     const M3MemoryHeader* header = ((const M3MemoryHeader*)i_memory) - 1;
 
-    return header->length;
+    return m3_SharedLoadSize(&header->length);
 }
 
 
@@ -3068,7 +3371,7 @@ void m3_SetSuspendable (IM3Runtime io_runtime, bool i_suspendable)
 void m3_RequestSuspend (IM3Runtime io_runtime)
 {
     if (io_runtime) {
-        io_runtime->suspendRequested = true;
+        m3_SharedStoreFlag(&io_runtime->suspendRequested, true);
     }
 }
 

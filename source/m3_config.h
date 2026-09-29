@@ -49,7 +49,7 @@
 #endif
 
 #ifndef d_m3FixedHeap
-#  define d_m3FixedHeap                        false
+#  define d_m3FixedHeap                        0
 //# define d_m3FixedHeap                       (32*1024)
 #endif
 
@@ -278,6 +278,46 @@
 // time out. Sharing a memory between runtimes is d_m3HasThreads.
 #ifndef d_m3HasAtomics
 #  define d_m3HasAtomics                       1       // implement the atomic instructions of the threads proposal
+#endif
+
+// Memory shared between runtimes that run on threads of their own, and the atomic
+// accesses and wait/notify that go with it. A shared memory never moves and is
+// reserved at its declared maximum; each runtime reaches it through a header of its
+// own, and every runtime is still used by one thread at a time. On by default where
+// the host has threads to offer, and not with d_m3FixedHeap, whose allocator is not
+// safe to share.
+//
+// Threads need pthread_create and, for a 64-bit cell on a 32-bit target, the compiler's
+// atomic library - and a build that lists its own libraries, an OpenWrt Makefile or a
+// plain gcc command line, has not been asked for either. So it is on by default only where
+// they are there anyway: glibc since 2.34 has libpthread in libc, musl and the BSDs always
+// did, and a target that has an instruction for the atomic needs no library. A build that
+// links them itself says so with d_m3LinksThreadLibs, which CMake does.
+#ifndef d_m3ThreadLibsAvailable
+#  if defined(d_m3LinksThreadLibs) || d_m3HasWin32Host
+#    define d_m3ThreadLibsAvailable            1
+#  else
+#    include <limits.h>
+#    if defined(__GLIBC__) && !(__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 34))
+#      define d_m3ThreadLibsAvailable          0       // pthread_create is in libpthread
+#    elif defined(__GCC_ATOMIC_LLONG_LOCK_FREE) && __GCC_ATOMIC_LLONG_LOCK_FREE < 2
+#      define d_m3ThreadLibsAvailable          0       // an 8-byte atomic is a call into libatomic
+#    else
+#      define d_m3ThreadLibsAvailable          1
+#    endif
+#  endif
+#endif
+
+#ifndef d_m3HasThreads
+#  if d_m3HasAtomics && d_m3ThreadLibsAvailable && !d_m3FixedHeap && (d_m3HasPosixHost || d_m3HasWin32Host)
+#    define d_m3HasThreads                     1       // share memories between runtimes on different threads
+#  else
+#    define d_m3HasThreads                     0
+#  endif
+#endif
+
+#if d_m3HasThreads && !d_m3HasAtomics
+#  error "d_m3HasThreads needs d_m3HasAtomics"
 #endif
 
 // The exception handling proposal: a tag section, the exnref value type, and

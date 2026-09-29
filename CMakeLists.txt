@@ -315,7 +315,7 @@ if(BUILD_TESTS)
 
   # m3_test runs one case on a thread of its own, to give it a stack that is not
   # the process's. Win32 needs nothing for that; elsewhere it is pthreads, and a
-  # build without them just skips the case - libm3 itself never asks for threads.
+  # build without them just skips the case.
   find_package(Threads)
   if(Threads_FOUND AND NOT WIN32)
     target_link_libraries(m3_test Threads::Threads)

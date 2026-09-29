@@ -4801,8 +4801,14 @@ _   (PushRegister(o, c_m3Type_i64));                  // the high half
 // operands of an atomic - it is rewritten where it stands rather than popped:
 // its stack entry is repointed at the scratch slot and retyped, and the slot it
 // used to occupy released. i_numOperands counts the address and all above it.
+//
+// i_alignment is 0 for an ordinary access. An atomic one whose cell is wider than a byte
+// passes what op_CheckAddr64Atomic needs to trap on a misaligned address before it
+// reports one out of bounds, which is the order the spec gives: the width less one, and in
+// the next byte the low bits of the offset as the program wrote it, since the offset
+// emitted is clamped and no longer has them.
 static
-M3Result EmitCheckAddr64 (IM3Compilation o, u64 i_offset, u16 i_numOperands)
+M3Result EmitCheckAddr64 (IM3Compilation o, u64 i_offset, u16 i_numOperands, u32 i_alignment)
 {
     M3Result result = m3Err_none;
 
@@ -4837,10 +4843,13 @@ _   (PreserveRegisterIfOccupied(o, c_m3Type_i64));
         // same slot - op_CheckAddr64 reads one and writes the other
 _       (AllocateSlots(o, &dstSlot, c_m3Type_i32));
 
-_       (EmitOp(o, op_CheckAddr64));
+_       (EmitOp(o, i_alignment ? op_CheckAddr64Atomic : op_CheckAddr64));
         EmitSlotOffset(o, srcSlot);
         EmitSlotOffset(o, dstSlot);
         EmitConstant64(o, i_offset);
+        if (i_alignment) {
+            EmitConstant32(o, i_alignment);
+        }
 
         o->wasmStack[stackIndex] = dstSlot;
         o->typeStack[stackIndex] = c_m3Type_i32;
@@ -4897,7 +4906,7 @@ _       (EmitSetMemory(o, memoryIdx));
             memoryOffset = d_m3AddressLimit;
         }
 
-_       (EmitCheckAddr64(o, memoryOffset, opInfo->stackOffset < 0 ? 2 : 1));
+_       (EmitCheckAddr64(o, memoryOffset, opInfo->stackOffset < 0 ? 2 : 1, 0));
 
         // op_CheckAddr64 has folded the offset in already
         memoryOffset = 0;
@@ -4992,6 +5001,18 @@ u32 GetAtomicDesc (u32 i_sub)
 }
 
 
+// The width in bytes of the cell an instruction touches
+static
+u32 GetAtomicWidth (u32 i_sub)
+{
+    if (i_sub <= 0x02) {
+        return (i_sub == 0x02) ? 8 : 4;             // notify and wait32 are 32 bits, wait64 64
+    }
+
+    return (u32)1 << (GetAtomicDesc(i_sub) & 3);
+}
+
+
 // Every atomic access is one op, whose operands are the topmost in _r0 and the rest
 // in slots, topmost first. The address is always the deepest, so it is the last slot
 // (or, for a load, the register), followed by the memarg offset. The ops check the
@@ -5009,13 +5030,22 @@ _try {
     m3type_t resultType  = c_m3Type_none;
 
     if (i_opcode == c_waOp_atomicFence) {
-        // the reserved byte, which the validator has checked to be zero. There
-        // is nothing to order between accesses that one thread makes in sequence.
-        u8 reserved;
-_       (Read_u8(&reserved, &o->wasm, o->wasmEnd));
+        // the ordering, which the validator has checked. Every access is sequentially
+        // consistent already, and that is stronger than acquire-release, so there is
+        // nothing to order: nor between accesses that one thread makes in sequence.
+        u8 ordering;
+_       (Read_u8(&ordering, &o->wasm, o->wasmEnd));
+    } else if (i_opcode == c_waOp_atomicPause) {
+        // a hint to the processor that this is a spin loop. With another thread that
+        // could be what it is waiting on, it is passed on; with none there is nothing
+        // to wait for, and no op is emitted at all.
+#  if d_m3HasThreads
+_       (EmitOp(o, op_AtomicPause));
+#  endif
     } else {
-        // alignHint is checked by the validator
-_       (ReadMemoryArg(&alignHint, &memoryIdx, &memoryOffset, &o->wasm, o->wasmEnd));
+        // alignHint and the ordering, which is not acted on, are checked by the validator
+        i32 ordering;
+_       (ReadAtomicMemoryArg(&alignHint, &memoryIdx, &memoryOffset, &ordering, &o->wasm, o->wasmEnd));
                                                                         m3log (compile, d_indent " (memory = %d; offset = %llu)", get_indention_string (o), memoryIdx, (unsigned long long) memoryOffset);
         _throwif(m3Err_unknownMemory, memoryIdx >= o->module->numMemories);
 
@@ -5036,11 +5066,14 @@ _           (EmitSetMemory(o, memoryIdx));
 #  if d_m3HasMemory64
         if (isMemory64) {
             // see Compile_Load_Store
+            u32 width     = GetAtomicWidth(i_opcode & 0xFF);
+            u32 alignment = (width > 1) ? ((width - 1) | ((u32)(memoryOffset & 7) << 8)) : 0;
+
             if (memoryOffset > d_m3AddressLimit) {
                 memoryOffset = d_m3AddressLimit;
             }
 
-_           (EmitCheckAddr64(o, memoryOffset, numOperands));
+_           (EmitCheckAddr64(o, memoryOffset, numOperands, alignment));
             memoryOffset = 0;
         }
 #  endif
@@ -5617,6 +5650,7 @@ enum {
     c_opAtomic_wait32,
     c_opAtomic_wait64,
     c_opAtomic_fence,
+    c_opAtomic_pause,
     c_opAtomic_load,
     c_opAtomic_store,
     c_opAtomic_rmw,
@@ -5629,6 +5663,11 @@ const M3OpInfo c_operationsFE[] =
     M3OP( "memory.atomic.wait32",  -2, i_32,  d_cc(Compile_Atomic), d_logOp (AtomicWait32) ),    // c_opAtomic_wait32
     M3OP( "memory.atomic.wait64",  -2, i_32,  d_cc(Compile_Atomic), d_logOp (AtomicWait64) ),    // c_opAtomic_wait64
     M3OP( "atomic.fence",           0, none,  d_cc(Compile_Atomic), d_emptyOpList ),             // c_opAtomic_fence
+#if d_m3HasThreads
+    M3OP( "pause",                  0, none,  d_cc(Compile_Atomic), d_logOp (AtomicPause) ),     // c_opAtomic_pause
+#else
+    M3OP( "pause",                  0, none,  d_cc(Compile_Atomic), d_emptyOpList ),             // c_opAtomic_pause
+#endif
     M3OP( "atomic.load",            0, any,   d_cc(Compile_Atomic), d_logOp (AtomicLoad) ),      // c_opAtomic_load
     M3OP( "atomic.store",          -2, none,  d_cc(Compile_Atomic), d_logOp (AtomicStore) ),     // c_opAtomic_store
     M3OP( "atomic.rmw",            -1, any,   d_cc(Compile_Atomic), d_logOp (AtomicRmw) ),       // c_opAtomic_rmw
@@ -5643,7 +5682,7 @@ const u32 c_numOperationsFE = M3_COUNT_OF(c_operationsFE);
 static inline
 i32 GetAtomicInfoIndex (u32 i_sub)
 {
-    if (i_sub <= 0x03) return (i32)i_sub;
+    if (i_sub <= 0x04) return (i32)i_sub;
     if (i_sub < 0x10) return -1;
     if (i_sub <= 0x16) return c_opAtomic_load;
     if (i_sub <= 0x1d) return c_opAtomic_store;
@@ -5916,6 +5955,9 @@ u32 GetGasCost (m3opcode_t i_opcode)
     // the atomic accesses are memory accesses; what waits, wakes or orders is worth
     // as much as an operation over a whole region
     if (i_opcode >= (c_waOp_atomic << 8) and i_opcode <= ((c_waOp_atomic << 8) | c_waOp_lastAtomic)) {
+        if (i_opcode == c_waOp_atomicPause) {
+            return c_gasNominal;
+        }
         return (i_opcode <= c_waOp_atomicFence) ? c_gasHeavy : c_gasAccess;
     }
     if (i_opcode >= 0x20 and i_opcode <= 0x3e) {
