@@ -3,10 +3,8 @@
 This project uses CMake.
 General build steps look like:
 ```sh
-mkdir -p build
-cd build
-cmake ..
-make -j8
+cmake -S . -B build
+cmake --build build
 ```
 
 Wasm3 is continuously tested with Clang, GCC, TinyCC, MSVC compilers, and on multiple platforms.
@@ -62,11 +60,11 @@ ninja
 ## Build on Windows
 
 Prerequisites, on top of the ones above:
-- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026), with the *Desktop development with C++* workload.
+- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), with the *Desktop development with C++* workload.
 - Both `CMake` and `Ninja` also ship with the Build Tools.
 - Select optional *C++ Clang tools for Windows* component for `-T ClangCL` toolset below to work; a [standalone LLVM](https://github.com/llvm/llvm-project/releases) works too (using `-DCLANG_CL=1`).
 
-Use `vswhere` to find out there the latest Build Tools are located:
+Use `vswhere` to find out where the latest Build Tools are located:
 
 ```bat
 "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
@@ -77,7 +75,7 @@ the compiler directly, as in [Build using compiler directly](#build-using-compil
 or to drive Ninja:
 
 ```bat
-"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 ```
 
 ### Build with MSBuild
@@ -90,19 +88,19 @@ mkdir build
 cd build
 
 :: Configure Clang, x64
-cmake -G"Visual Studio 18 2026" -A x64 -T ClangCL ..
+cmake -G"Visual Studio 17 2022" -A x64 -T ClangCL ..
 
 :: Configure Clang, x86
-cmake -G"Visual Studio 18 2026" -A Win32 -T ClangCL ..
+cmake -G"Visual Studio 17 2022" -A Win32 -T ClangCL ..
 
 :: Configure MSVC, x64
-cmake -G"Visual Studio 18 2026" -A x64 ..
+cmake -G"Visual Studio 17 2022" -A x64 ..
 
 :: Configure MSVC, x86
-cmake -G"Visual Studio 18 2026" -A Win32 ..
+cmake -G"Visual Studio 17 2022" -A Win32 ..
 
 :: Configure MSVC, ARM64
-cmake -G"Visual Studio 18 2026" -A ARM64 ..
+cmake -G"Visual Studio 17 2022" -A ARM64 ..
 
 :: Build
 cmake --build . --config Release
@@ -119,7 +117,7 @@ runs from a developer environment - `vcvars64.bat` above - with the Build Tools'
 CMake, Ninja and LLVM on `PATH`:
 
 ```bat
-set VS=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools
+set VS=C:\Program Files\Microsoft Visual Studio\2022\BuildTools
 set PATH=%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
 set PATH=%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
 set PATH=%VS%\VC\Tools\Llvm\x64\bin;%PATH%

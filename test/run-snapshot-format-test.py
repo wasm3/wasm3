@@ -32,9 +32,22 @@ parser.add_argument("--host", help="WASI-enabled Wasm3 to run the bundled assemb
 parser.add_argument(
     "--m3-test", help="the m3_test built with --exec (default: the one beside it)"
 )
+
+
+def resolve_executable(cmd_list):
+    resolved = []
+    for arg in cmd_list:
+        p = Path(arg)
+        if p.exists():
+            resolved.append(str(p.resolve()))
+        else:
+            resolved.append(arg)
+    return resolved
+
+
 args, unittest_args = parser.parse_known_args()
-EXEC = shlex.split(args.exec)
-HOST = shlex.split(args.host) if args.host else EXEC
+EXEC = resolve_executable(shlex.split(args.exec))
+HOST = resolve_executable(shlex.split(args.host)) if args.host else EXEC
 M3_TEST = (
     Path(args.m3_test)
     if args.m3_test

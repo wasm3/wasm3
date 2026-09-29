@@ -11,7 +11,7 @@
   - **Particle Argon** │ [Particle](https://store.particle.io/collections/wifi)
   - **Adafruit Feather nRF52840** | [Adafruit](https://www.adafruit.com/product/4062)
 - Other
-  - **Raspberry Pi Pico** | [Raspberry Pi](https://www.raspberrypi.org/products/raspberry-pi-pico)
+  - **Raspberry Pi Pico** | [Raspberry Pi](https://www.raspberrypi.com/products/raspberry-pi-pico)
   - **Adafruit PyGamer/PyBadge/PyBadge LC** │ [Adafruit](https://www.adafruit.com/product/4242)
   - **SparkFun Artemis** | [SparkFun](https://www.sparkfun.com/artemis)
   - **Teensy 4.0** │ [PJRC](https://www.pjrc.com/store/teensy40.html)

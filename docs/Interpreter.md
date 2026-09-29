@@ -125,7 +125,7 @@ m3`op_u64_Or_sr:
 
 * Looking at the above assembly code, you'll notice that once an M3 operation is optimized, it doesn't need the regular stack (no mucking with the ebp/esp registers).  This is the case for 90% of the opcodes.  Branching and call operations do require stack variables.  Therefore, execution can't march forward indefinitely; the stack would eventually overflow. 
 
-   Therefore, loops unwind the stack.  When a loop is continued, the Continue operation returns, unwinding the stack.  Its return value is a pointer to the loop opcode it wants to unwind to.  The Loop operations checks for its pointer and responds appropriately, either calling back into the loop code or returning the loop pointer back down the call stack.
+   Therefore, loops unwind the stack.  When a loop is continued, the Continue operation returns, unwinding the stack.  Its return value is a pointer to the loop opcode it wants to unwind to.  The Loop operation checks for its pointer and responds appropriately, either calling back into the loop code or returning the loop pointer back down the call stack.
 
 * Traps/Exceptions work similarly. A trap pointer is returned from the trap operation which has the effect of unwinding the entire stack.
 
@@ -173,7 +173,7 @@ Likewise, a "defer" function (like in Go) becomes absolutely effortless to imple
 
 ## Prior Art
 
-After the Wasm3 project was posted to Hacker News (https://news.ycombinator.com/item?id=22024758), I finally discovered precedent for this tail-call interpreter design.  It has previously been called "threaded code". See the "Continuation-passing style" section: http://www.complang.tuwien.ac.at/forth/threaded-code.html).
+After the Wasm3 project was posted to Hacker News (https://news.ycombinator.com/item?id=22024758), I finally discovered precedent for this tail-call interpreter design.  It has previously been called "threaded code". See the "Continuation-passing style" section: http://www.complang.tuwien.ac.at/forth/threaded-code.html.
 
 If this style of interpreter was discussed back in the 70's, why hasn't it been more popular?  I suspect because there was no benefit until more recently.  Older calling conventions only used the stack to pass arguments, older CPUs didn't have branch prediction and compiler tail-call optimization maybe weren't ubiquitous.
 

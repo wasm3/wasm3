@@ -95,7 +95,7 @@ Wasm3              interp                      3.83s
 Lua 5.1            interp                     16.65s ▼ slower
 Python 2.7         interp                     34.08s
 Python 3.4         interp                     35.67s
-Micropython v1.11  interp                     85,00s
+Micropython v1.11  interp                     85.00s
 Espruino 2v04      interp                       >20m
 ```
 

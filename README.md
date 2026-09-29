@@ -2,9 +2,9 @@
 > [!NOTE]
 > I regret to inform the community that since [my house was destroyed by russians who invaded my country](https://twitter.com/vshymanskyy/status/1568657607229075456), **Wasm3 will enter a minimal maintenance phase**. At this time, I am unable to continue the development of new features. However, I am committed to keeping the project alive and will actively review and merge incoming Pull Requests. I deeply appreciate your understanding and support during this difficult period. **Your contributions to Wasm3 are now more valuable than ever.**
 
-# <img src="/extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
+# <img src="extra/wasm-symbol.svg" width="32" height="32" /> Wasm3
 
-<img align="right" width="30%" src="/extra/screenshot-ios.png">
+<img align="right" width="30%" src="extra/screenshot-ios.png">
 
 [![StandWithUkraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md) 
 [![GitHub issues](https://img.shields.io/github/issues-raw/wasm3/wasm3?style=flat-square&label=issues&color=success)](https://github.com/wasm3/wasm3/issues) 
@@ -42,7 +42,7 @@ Wasm3 can also be used as a library for:
 
 Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 
-`wasm3` runs on a wide range of architectures (`x86` `x86_64` `ARM` `RISC-V` `PowerPC` `MIPS` `Xtensa` `ARC32` ...) and [platforms](/platforms):
+`wasm3` runs on a wide range of architectures (`x86` `x86_64` `ARM` `RISC-V` `PowerPC` `MIPS` `Xtensa` `ARC32` ...) and [platforms](platforms):
 - <img src="https://cdn.simpleicons.org/linux/363636/d1d1d1" width="18" height="18" /> Linux,
 <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/Windows_logo_-_2021_%28Black%29.svg" width="18" height="18" /> Windows,
 <img src="https://cdn.simpleicons.org/apple/363636/d1d1d1" width="18" height="18" /> OS X,
@@ -78,18 +78,18 @@ Wasm3 started as a research project and remains so by any means. Evaluating the 
 
 ## Used by
 
-[<img src="/extra/logos/wasmcloud.png" height="32" />](https://wasmcloud.dev)　
-[<img src="/extra/logos/wowcube.png" height="32" />](https://wowcube.com)　
+[<img src="extra/logos/wasmcloud.png" height="32" />](https://wasmcloud.dev)　
+[<img src="extra/logos/wowcube.png" height="32" />](https://wowcube.com)　
 [<img src="https://github.com/siemens/dtasm/blob/main/docs/images/dtasm_logo.png" height="32" />](https://github.com/siemens/dtasm/tree/main/runtime/dtasm3)　
-[<img src="/extra/logos/scailable.png" height="32" />](https://scailable.net)　
-[<img src="/extra/logos/blynk.png" height="32" />](https://blynk.io)　
-[<img src="/extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
-[<img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/NuttX_logo.png" height="32" />](https://github.com/apache/incubator-nuttx-apps/tree/master/interpreters/wasm3)　
-[<img src="/extra/logos/losant.png" height="28" />](https://github.com/Losant/eea-examples)　
+[<img src="extra/logos/scailable.png" height="32" />](https://scailable.net)　
+[<img src="extra/logos/blynk.png" height="32" />](https://blynk.io)　
+[<img src="extra/logos/iden3.svg" height="32" />](https://www.iden3.io)　
+[<img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/NuttX_logo.png" height="32" />](https://github.com/apache/nuttx-apps/tree/master/interpreters/wasm3)　
+[<img src="extra/logos/losant.png" height="28" />](https://github.com/Losant/eea-examples)　
 [<img src="https://user-images.githubusercontent.com/1506708/114701856-069ce700-9d2c-11eb-9b72-9ce2dfd9f0fb.png" height="32" />](https://github.com/kateinoigakukun/wasmic-ios)　
 [<img src="https://assets-global.website-files.com/636ab6ba0e1bd250e3aaedaf/636e155e93894cd4d030c4d7_balena_logo_dark.svg" height="32" />](https://github.com/balena-io-playground/balena-wasm3)　
 [<img src="https://krustlet.dev/images/horizontal.svg" height="32" />](https://github.com/deislabs/krustlet-wasm3)　
-[<img src="/extra/logos/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup)　
+[<img src="extra/logos/shareup_app.svg" height="24" />](https://shareup.app/blog/introducing-shareup)　
 [<img src="https://wasm4.org/img/logo.png" height="32" />](https://wasm4.org)
 
 ## Further Resources

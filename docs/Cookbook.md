@@ -195,7 +195,7 @@ $ $WASI_SDK_PATH/bin/clang++ -mcpu=lime1 -O3 hello.cpp -o hello.wasm
 $ $WASI_SDK_PATH/bin/clang   -mcpu=lime1 -O3 hello.c   -o hello.wasm
 
 $ wasm3 hello.wasm
-Hello World!
+Hello, world!
 ```
 
 `-mcpu=lime1` selects the [Lime1](https://github.com/WebAssembly/tool-conventions/blob/main/Lime.md#lime1)
