@@ -320,6 +320,9 @@ typedef int8_t         i8;
 #  ifndef d_m3HasTypedRefs
 #    define d_m3HasTypedRefs                     0
 #  endif
+#  ifndef d_m3HasAtomics
+#    define d_m3HasAtomics                       0
+#  endif
 #  ifndef d_m3HasStackSwitching
 #    define d_m3HasStackSwitching                0
 #  endif

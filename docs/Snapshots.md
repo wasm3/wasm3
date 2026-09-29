@@ -238,7 +238,8 @@ that save a loop's progress and restore it into a new runtime.
 A snapshot records the entry module's linear memories, globals, tables and dropped
 segments, together with the paused call and every continuation and exception it can
 still reach. A memory or table the module imports at two indices is recorded once, and
-restores only into an instance whose imports share it the same way.
+restores only into an instance whose imports share it the same way. A shared memory
+(the threads proposal) is refused, on save and on load.
 [Snapshot proposal](proposals/Snapshots.md) specifies the binary layout, which references
 can be saved and which are refused, etc.
 

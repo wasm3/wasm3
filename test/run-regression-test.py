@@ -425,6 +425,93 @@ tests = [
     "expect_result":  "0",
   }] + [
   {
+    "name":           f"atomic access to a cell narrower than its operand ({func})",
+    "module":         "./regression/atomics.wat",
+    "args":           ["--func", func],
+    "expect_result":  result,
+    "requires":       "atomics",
+  } for func, result in (
+    ("rmw8_wrap",           "21760"),
+    ("rmw32_sub_wrap",      "1234605619298697215"),
+    ("cmpxchg8_truncates",  "65287"),
+    ("cmpxchg16_mismatch",  "4660"),
+    ("xchg8",               "33022"),
+    ("store_load",          "329224"),
+  )] + [
+  {
+    "name":           f"atomic access traps ({func})",
+    "module":         "./regression/atomics.wat",
+    "args":           ["--func", func],
+    "expect_trap":    trap,
+    "requires":       "atomics",
+  } for func, trap in (
+    ("unaligned",          "unaligned atomic"),
+    ("unaligned_oob",      "unaligned atomic"),
+    ("oob",                "out of bounds memory access"),
+  )] + [
+  {
+    "name":           f"atomic wait and notify on one thread ({func})",
+    "module":         "./regression/atomics-wait.wat",
+    "args":           ["--func", func],
+    "expect_result":  result,
+    "requires":       "atomics",
+  } for func, result in (
+    ("not_equal",        "1"),
+    ("timed_out",        "2"),
+    ("timed_out64",      "2"),
+    ("notify",           "0"),
+  )] + [
+  {
+    "name":           "atomic notify on an unshared memory",
+    "module":         "./regression/atomics-unshared.wat",
+    "args":           ["--func", "notify"],
+    "expect_result":  "0",
+    "requires":       "atomics",
+  }] + [
+  {
+    "name":           f"atomic wait on an unshared memory traps ({func})",
+    "module":         "./regression/atomics-unshared.wat",
+    "args":           ["--func", func],
+    "expect_trap":    trap,
+    "requires":       "atomics",
+  } for func, trap in (
+    ("wait",            "expected shared memory"),
+    ("wait_unaligned",  "unaligned atomic"),
+  )] + [
+  {
+    "name":           f"atomic wait that cannot return traps ({func})",
+    "module":         "./regression/atomics-wait.wat",
+    "args":           ["--func", func],
+    "expect_trap":    trap,
+    "requires":       "atomics",
+  } for func, trap in (
+    ("forever",  "wait would block forever"),
+  )] + [
+  {
+    "name":           f"atomic access to a 64-bit memory ({func})",
+    "module":         "./regression/atomics-memory64.wat",
+    "args":           ["--func", func],
+    "expect_result":  result,
+    "requires":       "atomics",
+  } for func, result in (
+    ("rmw",     "42"),
+    ("cmpxchg", "9"),
+    ("store",   "77"),
+    ("notify",  "0"),
+  )] + [
+  {
+    "name":           f"atomic access to a 64-bit memory traps ({func})",
+    "module":         "./regression/atomics-memory64.wat",
+    "args":           ["--func", func],
+    "expect_trap":    trap,
+    "requires":       "atomics",
+  } for func, trap in (
+    ("unaligned",   "unaligned atomic"),
+    ("wrap",        "out of bounds memory access"),
+    ("oob",         "out of bounds memory access"),
+    ("notify_oob",  "out of bounds memory access"),
+  )] + [
+  {
     # address + offset is added in a u64, which is only safe because an address
     # at or above d_m3AddressLimit is refused first. Each of these would land
     # back inside the memory if the sum were allowed to wrap.

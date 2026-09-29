@@ -75,6 +75,7 @@ enum {
     c_waOp_switch             = 0xe6,
 
     c_waOp_extended           = 0xfc,
+    c_waOp_atomic             = 0xfe,
 
     c_waOp_memoryInit         = 0xfc08,
     c_waOp_dataDrop           = 0xfc09,
@@ -91,15 +92,22 @@ enum {
     c_waOp_i64MulWideS        = 0xfc15,
     c_waOp_i64MulWideU        = 0xfc16,
 
+    c_waOp_atomicNotify       = 0xfe00,
+    c_waOp_atomicWait32       = 0xfe01,
+    c_waOp_atomicWait64       = 0xfe02,
+    c_waOp_atomicFence        = 0xfe03,
+    c_waOp_atomicFirstAccess  = 0xfe10,     // i32.atomic.load
+
     // Highest opcode each operation table actually defines below the reference
     // instructions. The tables run past these: with internal ops in DEBUG
     // builds, and with the designated 0xd0..0xd2 and 0xfc entries.
     c_waOp_lastCore           = 0xc4,     // i64.extend32_s
 #if d_m3HasWideArithmetic
-    c_waOp_lastExtended = 0x16      // i64.mul_wide_u
+    c_waOp_lastExtended = 0x16,     // i64.mul_wide_u
 #else
-    c_waOp_lastExtended = 0x11      // table.fill
+    c_waOp_lastExtended = 0x11,     // table.fill
 #endif
+    c_waOp_lastAtomic = 0x4e      // i64.atomic.rmw32.cmpxchg_u
 };
 
 
@@ -266,8 +274,10 @@ IM3OpInfo               GetOpInfo (m3opcode_t opcode);
 // Wasm opcode c_operations also holds internal operations, which GetOpInfo hides.
 extern const M3OpInfo   c_operations[];
 extern const M3OpInfo   c_operationsFC[];
+extern const M3OpInfo   c_operationsFE[];
 extern const u32        c_numOperations;
 extern const u32        c_numOperationsFC;
+extern const u32        c_numOperationsFE;
 
 static const u16        c_m3RegisterUnallocated = 0;
 static const u16        c_slotUnused = 0xffff;

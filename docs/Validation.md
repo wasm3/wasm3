@@ -180,6 +180,31 @@ Note that `m3_GetArgType()` and `m3_GetRetType()` report the storage type: a
 host sees `funcref` whatever shape the reference has, matching the proposal's
 own position that concrete reference types don't cross the embedding boundary.
 
+### Atomics
+
+With `d_m3HasAtomics`, the `0xFE` prefix carries the threads proposal's atomic
+instructions, and bit 1 of a memory's limits marks it shared. Each of its checks
+has one owner:
+
+| Check | Layer |
+|---|---|
+| a shared memory declares a maximum (`shared memory must have maximum`) | parser, with the other limits |
+| a table's limits still reject bit 1 | parser |
+| the alignment immediate equals the natural alignment (`atomic alignment must be natural`) | validator |
+| the instruction names a memory, and the static offset fits its address type | validator |
+| `atomic.fence`'s reserved byte is zero | validator |
+| a shared import is satisfied only by a shared export, and the other way round | linker (`LinkImports`) |
+| the effective address is aligned, in bounds, and for `wait` names a shared memory | the ops, when they run |
+
+The alignment rule differs from an ordinary access, where the immediate may be
+anything up to the natural alignment: an atomic access is only atomic when it
+does not straddle a boundary, so the effective address has to be a multiple of
+the width, and a hint that promised less would be a hint that cannot be honoured.
+The address check itself is a run-time trap (`[trap] unaligned atomic`) and comes
+before the bounds check, as the spec orders them.
+
+A `memory.atomic.wait` on an unshared memory is valid; it traps when it runs.
+
 ## Knobs
 
 ### `d_m3EnableValidation` - `m3_config.h`, default `1`

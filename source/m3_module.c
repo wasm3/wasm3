@@ -200,6 +200,7 @@ _try {
     memory->pageSize   = i_info->pageSize;
     memory->hasMax     = i_info->hasMax;
     memory->isMemory64 = i_info->isMemory64;
+    memory->isShared   = i_info->isShared;
 
     io_module->memories[index] = memory;
     io_module->numMemories     = index + 1;

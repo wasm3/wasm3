@@ -31,6 +31,8 @@
 #include "m3_env.h"
 #include "m3_info.h"
 #include "m3_exec_defs.h"
+#include "m3_atomic.h"
+#include "m3_host.h"
 
 #include <limits.h>
 
@@ -4061,6 +4063,8 @@ d_m3Store_i(i64, u8)
 d_m3Store_i(i64, i16)
 d_m3Store_i(i64, i32)
 d_m3Store_i(i64, i64)
+
+#include "m3_exec_atomic.h"
 
 #undef m3MemCheck
 

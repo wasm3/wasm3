@@ -1145,6 +1145,10 @@ _       (PutLEB_u32(s, first));
             continue;
         }
 
+        // a shared memory belongs to every runtime that maps it, and the file
+        // holds the state of one
+        _throwif("a shared memory cannot be saved in a snapshot", memory and memory->isShared);
+
         // the file counts pages and addresses bytes in 32 bits, whatever size
         // the memory's pages are, so one this large has no encoding here
         _throwif("the memory is too large for a snapshot", bytes > UINT32_MAX);
@@ -2158,6 +2162,7 @@ _       (GetLEB_u32(l, &pageBits));
 _       (GetLEB_u32(l, &numPages));
 
         memory = module->memories[memIndex];
+        _throwif("a shared memory cannot be restored from a snapshot", memory and memory->isShared);
 
         size_t bytes = 0;
         u8*    data  = NULL;

@@ -271,3 +271,8 @@ the machine. See [Deterministic execution](./Cookbook.md#deterministic-execution
 `d_m3HasThreadStackProbe` asks the OS how much stack the calling thread has, so
 that `d_m3MaxNativeStack` can be cut down to what is really there instead of trusting
 a compile-time guess.
+
+`d_m3HasAtomics` implements the atomic instructions of the threads proposal and the
+shared flag on a memory's limits. Everything runs on one thread for now, so an atomic
+access is an ordinary one that also checks its alignment, and `memory.atomic.wait` can
+only time out.

@@ -272,6 +272,14 @@
 #  define d_m3HasWideArithmetic                1       // implement the wide arithmetic proposal
 #endif
 
+// The threads proposal's 0xFE atomic instructions, and the shared flag on a memory's
+// limits. On their own they keep single-thread semantics: an atomic access is an
+// ordinary one that also checks its alignment, and memory.atomic.wait can only
+// time out. Sharing a memory between runtimes is d_m3HasThreads.
+#ifndef d_m3HasAtomics
+#  define d_m3HasAtomics                       1       // implement the atomic instructions of the threads proposal
+#endif
+
 // The exception handling proposal: a tag section, the exnref value type, and
 // the try_table / throw / throw_ref instructions. Exceptions unwind by riding
 // the same m3ret_t return path traps already use, so the cost when no module

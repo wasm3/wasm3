@@ -1804,11 +1804,11 @@ M3Result Compile_ExtendedOpcode (IM3Compilation o, m3opcode_t i_opcode)
 {
 _try {
     u32 opcode;
-_   (ReadLEB_u32(&opcode, &o->wasm, o->wasmEnd));               m3log (compile, d_indent " (FC: %" PRIu32 ")", get_indention_string (o), opcode);
+_   (ReadLEB_u32(&opcode, &o->wasm, o->wasmEnd));               m3log (compile, d_indent " (%s: %" PRIu32 ")", get_indention_string (o), (i_opcode == c_waOp_atomic) ? "FE" : "FC", opcode);
 
     // m3opcode_t carries only the low byte, so a wider sub-opcode is unknown
     // here rather than something to truncate into range
-    _throwif(m3Err_unknownOpcode, opcode > c_waOp_lastExtended);
+    _throwif(m3Err_unknownOpcode, opcode > (u32)((i_opcode == c_waOp_atomic) ? c_waOp_lastAtomic : c_waOp_lastExtended));
 
     i_opcode = (m3opcode_t)((i_opcode << 8) | opcode);
 
@@ -4797,15 +4797,14 @@ _   (PushRegister(o, c_m3Type_i64));                  // the high half
 // itself compiles exactly as it would against a 32-bit memory: one slot to read
 // the address from, and an offset of zero folded in already.
 //
-// For a store the address sits under the value, so it is rewritten where it
-// stands rather than popped - its stack entry is repointed at the scratch slot
-// and retyped, and the slot it used to occupy released.
+// Where the address sits under other operands - the value of a store, the
+// operands of an atomic - it is rewritten where it stands rather than popped:
+// its stack entry is repointed at the scratch slot and retyped, and the slot it
+// used to occupy released. i_numOperands counts the address and all above it.
 static
-M3Result EmitCheckAddr64 (IM3Compilation o, u64 i_offset, bool i_isStore)
+M3Result EmitCheckAddr64 (IM3Compilation o, u64 i_offset, u16 i_numOperands)
 {
     M3Result result = m3Err_none;
-
-    u16 numOperands = i_isStore ? 2 : 1;
 
     // The address has to be in a slot for op_CheckAddr64 to read it. Spilling
     // r0 wholesale also keeps the value of a store out of it, which is what
@@ -4813,12 +4812,12 @@ M3Result EmitCheckAddr64 (IM3Compilation o, u64 i_offset, bool i_isStore)
 _   (PreserveRegisterIfOccupied(o, c_m3Type_i64));
 
     // unreachable code: the operands the instruction names may not be there
-    if (o->stackIndex < o->block.blockStackIndex + numOperands) {
+    if (o->stackIndex < o->block.blockStackIndex + i_numOperands) {
         return result;
     }
 
     {
-        u16      stackIndex = (u16)(o->stackIndex - numOperands);
+        u16      stackIndex = (u16)(o->stackIndex - i_numOperands);
         u16      srcSlot    = o->wasmStack[stackIndex];
         m3type_t srcType    = o->typeStack[stackIndex];
 
@@ -4898,7 +4897,7 @@ _       (EmitSetMemory(o, memoryIdx));
             memoryOffset = d_m3AddressLimit;
         }
 
-_       (EmitCheckAddr64(o, memoryOffset, opInfo->stackOffset < 0));
+_       (EmitCheckAddr64(o, memoryOffset, opInfo->stackOffset < 0 ? 2 : 1));
 
         // op_CheckAddr64 has folded the offset in already
         memoryOffset = 0;
@@ -4915,6 +4914,163 @@ _       (EmitSetMemory(o, 0));
 }
     _catch: return result;
 }
+
+
+#if d_m3HasAtomics
+
+// What an atomic instruction takes and gives back, from its sub-opcode. The
+// accesses come in runs of seven, one per combination of value type and cell width:
+// i32/32, i64/64, i32/8, i32/16, i64/8, i64/16, i64/32. Those runs are told apart by
+// where they start.
+//
+// The operand count includes the address. The top operand is the one that ends up
+// in a register, so its type is the one to check on the way out; a store has no
+// result, which is c_m3Type_none.
+static
+void GetAtomicShape (u32 i_sub, u16* o_numOperands, m3type_t* o_topType, m3type_t* o_resultType)
+{
+    // clang-format off
+    static const m3type_t c_valueTypes [7] = {
+        c_m3Type_i32, c_m3Type_i64,
+        c_m3Type_i32, c_m3Type_i32,
+        c_m3Type_i64, c_m3Type_i64, c_m3Type_i64
+    };
+    // clang-format on
+
+    if (i_sub == 0x00) {                    // memory.atomic.notify: address, count
+        *o_numOperands = 2;
+        *o_topType     = c_m3Type_i32;
+        *o_resultType  = c_m3Type_i32;
+    } else if (i_sub <= 0x02) {             // memory.atomic.wait32/64: address, expected, timeout
+        *o_numOperands = 3;
+        *o_topType     = c_m3Type_i64;
+        *o_resultType  = c_m3Type_i32;
+    } else if (i_sub <= 0x16) {             // loads: address
+        *o_numOperands = 1;
+        *o_topType     = c_m3Type_i32;
+        *o_resultType  = c_valueTypes[i_sub - 0x10];
+    } else if (i_sub <= 0x1d) {             // stores: address, value
+        *o_numOperands = 2;
+        *o_topType     = c_valueTypes[i_sub - 0x17];
+        *o_resultType  = c_m3Type_none;
+    } else if (i_sub <= 0x47) {             // read-modify-write: address, value
+        *o_numOperands = 2;
+        *o_topType     = c_valueTypes[(i_sub - 0x1e) % 7];
+        *o_resultType  = *o_topType;
+    } else {                                // cmpxchg: address, expected, replacement
+        *o_numOperands = 3;
+        *o_topType     = c_valueTypes[i_sub - 0x48];
+        *o_resultType  = *o_topType;
+    }
+}
+
+
+// The description an access takes as its last immediate: see m3_exec_atomic.h
+static
+u32 GetAtomicDesc (u32 i_sub)
+{
+    // per variant, the log2 of the width of the cell
+    static const u8 c_log2Widths[7] = { 2, 3, 0, 1, 0, 1, 2 };
+
+    u32 variant, kind = 0;
+
+    if (i_sub <= 0x16) {
+        variant = i_sub - 0x10;
+    } else if (i_sub <= 0x1d) {
+        variant = i_sub - 0x17;
+    } else if (i_sub <= 0x47) {
+        variant = (i_sub - 0x1e) % 7;
+        kind    = (i_sub - 0x1e) / 7;         // add, sub, and, or, xor, xchg
+    } else {
+        variant = i_sub - 0x48;
+    }
+
+    // variants 1 and 4..6 are the i64 ones
+    u32 is64 = (variant == 1 or variant >= 4) ? 1u : 0u;
+
+    return c_log2Widths[variant] | (is64 << 2) | (kind << 3);
+}
+
+
+// Every atomic access is one op, whose operands are the topmost in _r0 and the rest
+// in slots, topmost first. The address is always the deepest, so it is the last slot
+// (or, for a load, the register), followed by the memarg offset. The ops check the
+// address themselves: for an atomic that includes its alignment, which only the
+// effective address can be asked.
+static
+M3Result Compile_Atomic (IM3Compilation o, m3opcode_t i_opcode)
+{
+_try {
+    u32 alignHint, memoryIdx;
+    u64 memoryOffset;
+
+    u16      numOperands = 0;
+    m3type_t topType     = c_m3Type_none;
+    m3type_t resultType  = c_m3Type_none;
+
+    if (i_opcode == c_waOp_atomicFence) {
+        // the reserved byte, which the validator has checked to be zero. There
+        // is nothing to order between accesses that one thread makes in sequence.
+        u8 reserved;
+_       (Read_u8(&reserved, &o->wasm, o->wasmEnd));
+    } else {
+        // alignHint is checked by the validator
+_       (ReadMemoryArg(&alignHint, &memoryIdx, &memoryOffset, &o->wasm, o->wasmEnd));
+                                                                        m3log (compile, d_indent " (memory = %d; offset = %llu)", get_indention_string (o), memoryIdx, (unsigned long long) memoryOffset);
+        _throwif(m3Err_unknownMemory, memoryIdx >= o->module->numMemories);
+
+        IM3OpInfo opInfo = GetOpInfo(i_opcode);
+        _throwif(m3Err_unknownOpcode, not opInfo);
+
+        bool isMemory64 = o->module->memories[memoryIdx]->isMemory64;
+
+        // see Compile_Load_Store
+        _throwif(m3Err_wasmMalformed, not isMemory64 and memoryOffset > 0xFFFFFFFFull);
+
+        GetAtomicShape(i_opcode & 0xFF, &numOperands, &topType, &resultType);
+
+        if (memoryIdx) {
+_           (EmitSetMemory(o, memoryIdx));
+        }
+
+#  if d_m3HasMemory64
+        if (isMemory64) {
+            // see Compile_Load_Store
+            if (memoryOffset > d_m3AddressLimit) {
+                memoryOffset = d_m3AddressLimit;
+            }
+
+_           (EmitCheckAddr64(o, memoryOffset, numOperands));
+            memoryOffset = 0;
+        }
+#  endif
+
+_       (CopyStackTopToRegister(o, false));
+_       (EmitOp(o, opInfo->operations[0]));
+_       (PopType(o, topType));
+
+        for (u16 i = 1; i < numOperands; ++i) {
+_           (EmitSlotNumOfStackTopAndPop(o));
+        }
+
+        EmitConstant32(o, (u32)memoryOffset);
+        if (i_opcode >= c_waOp_atomicFirstAccess) {
+            EmitConstant32(o, GetAtomicDesc(i_opcode & 0xFF));
+        }
+
+        if (memoryIdx) {
+_           (EmitSetMemory(o, 0));
+        }
+
+        if (resultType != c_m3Type_none) {
+_           (PushRegister(o, resultType));
+        }
+    }
+}
+    _catch: return result;
+}
+
+#endif // d_m3HasAtomics
 
 
 M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const void* i_function, const void* i_userdata)
@@ -4991,6 +5147,7 @@ M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const
     _( Compile_Const_i64 )              \
     _( Compile_Convert )                \
     _( Compile_ExtendedOpcode )         \
+    d_m3CompilerList_atomics( _ )       \
     d_m3CompilerList_f( _ )             \
     d_m3CompilerList_refTypes( _ )      \
     d_m3CompilerList_typedRefs( _ )     \
@@ -5037,6 +5194,13 @@ M3Result CompileRawFunction (IM3Module io_module, IM3Function io_function, const
     _( Compile_TryTable )
 #else
 #  define d_m3CompilerList_eh(_)
+#endif
+
+#if d_m3HasAtomics
+#  define d_m3CompilerList_atomics(_)   \
+    _( Compile_Atomic )
+#else
+#  define d_m3CompilerList_atomics(_)
 #endif
 
 #if d_m3HasWideArithmetic
@@ -5443,6 +5607,53 @@ const M3OpInfo c_operationsFC[] =
 # endif
 };
 
+#if d_m3HasAtomics
+
+// The 0xFE instructions share one entry per kind rather than each having its own: what
+// tells them apart, the width of the cell and the operation, is worked out from the
+// sub-opcode by Compile_Atomic. GetAtomicInfoIndex () maps a sub-opcode onto this table.
+enum {
+    c_opAtomic_notify,
+    c_opAtomic_wait32,
+    c_opAtomic_wait64,
+    c_opAtomic_fence,
+    c_opAtomic_load,
+    c_opAtomic_store,
+    c_opAtomic_rmw,
+    c_opAtomic_cmpxchg
+};
+
+const M3OpInfo c_operationsFE[] =
+{
+    M3OP( "memory.atomic.notify",  -1, i_32,  d_cc(Compile_Atomic), d_logOp (AtomicNotify) ),    // c_opAtomic_notify
+    M3OP( "memory.atomic.wait32",  -2, i_32,  d_cc(Compile_Atomic), d_logOp (AtomicWait32) ),    // c_opAtomic_wait32
+    M3OP( "memory.atomic.wait64",  -2, i_32,  d_cc(Compile_Atomic), d_logOp (AtomicWait64) ),    // c_opAtomic_wait64
+    M3OP( "atomic.fence",           0, none,  d_cc(Compile_Atomic), d_emptyOpList ),             // c_opAtomic_fence
+    M3OP( "atomic.load",            0, any,   d_cc(Compile_Atomic), d_logOp (AtomicLoad) ),      // c_opAtomic_load
+    M3OP( "atomic.store",          -2, none,  d_cc(Compile_Atomic), d_logOp (AtomicStore) ),     // c_opAtomic_store
+    M3OP( "atomic.rmw",            -1, any,   d_cc(Compile_Atomic), d_logOp (AtomicRmw) ),       // c_opAtomic_rmw
+    M3OP( "atomic.rmw.cmpxchg",    -2, any,   d_cc(Compile_Atomic), d_logOp (AtomicCmpxchg) ),   // c_opAtomic_cmpxchg
+};
+
+const u32 c_numOperationsFE = M3_COUNT_OF(c_operationsFE);
+
+// The entry a 0xFE sub-opcode uses, or -1 for one that names nothing: the spec leaves
+// 0x04..0x0f and everything past cmpxchg unassigned. The accesses come in runs of seven,
+// one per pairing of value type and cell width.
+static inline
+i32 GetAtomicInfoIndex (u32 i_sub)
+{
+    if (i_sub <= 0x03) return (i32)i_sub;
+    if (i_sub < 0x10) return -1;
+    if (i_sub <= 0x16) return c_opAtomic_load;
+    if (i_sub <= 0x1d) return c_opAtomic_store;
+    if (i_sub <= 0x47) return c_opAtomic_rmw;
+    if (i_sub <= c_waOp_lastAtomic) return c_opAtomic_cmpxchg;
+    return -1;
+}
+
+#endif // d_m3HasAtomics
+
 // The opcodes above c_waOp_lastCore are sparse: the reference instructions at
 // 0xd0..0xd2 and 0xd4, and the 0xfc extended-opcode prefix. Indexing c_operations out to
 // 0xfc to reach them would leave ~50 empty entries there, so they get their own
@@ -5464,6 +5675,9 @@ enum {
     c_opHigh_resumeThrow,
     c_opHigh_resumeThrowRef,
     c_opHigh_switch,
+#endif
+#if d_m3HasAtomics
+    c_opHigh_atomic,
 #endif
     c_opHigh_extended   // always present, so the enum is never empty
 };
@@ -5490,6 +5704,9 @@ static const M3OpInfo c_operationsHigh[] =
     M3OP( "switch",            2, any,             d_cc(Compile_Switch),         d_emptyOpList ),  // 0xe6  c_opHigh_switch
 #endif
 
+#if d_m3HasAtomics
+    M3OP( "0xFE",            0, c_m3Type_unknown,  d_cc(Compile_ExtendedOpcode), d_emptyOpList ),  // 0xfe  c_opHigh_atomic
+#endif
     M3OP( "0xFC",            0, c_m3Type_unknown,  d_cc(Compile_ExtendedOpcode), d_emptyOpList ),  // 0xfc  c_opHigh_extended
 };
 M3_STATIC_ASSERT (M3_COUNT_OF (c_operationsHigh) == c_opHigh_extended + 1, c_operationsHigh_needs_one_entry_per_c_opHigh);
@@ -5532,6 +5749,9 @@ i32 GetHighOpIndex (m3opcode_t opcode)
     case c_waOp_switch: return c_opHigh_switch;
 #endif
     case c_waOp_extended: return c_opHigh_extended;
+#if d_m3HasAtomics
+    case c_waOp_atomic: return c_opHigh_atomic;
+#endif
     default: return -1;
     }
 }
@@ -5559,6 +5779,14 @@ IM3OpInfo GetOpInfo (m3opcode_t opcode)
             info = &c_operationsFC[opcode];
         }
         break;
+#if d_m3HasAtomics
+    case c_waOp_atomic: {
+        i32 index = GetAtomicInfoIndex(opcode & 0xFF);
+        if (index >= 0) {
+            info = &c_operationsFE[index];
+        }
+    } break;
+#endif
     }
 
     return (info and IsImplementedOp(info)) ? info : NULL;
@@ -5685,6 +5913,11 @@ u32 GetGasCost (m3opcode_t i_opcode)
         return c_arithmeticCosts[i_opcode - (i_opcode <= 0x78 ? 0x6a : 0x7c)];
     }
 
+    // the atomic accesses are memory accesses; what waits, wakes or orders is worth
+    // as much as an operation over a whole region
+    if (i_opcode >= (c_waOp_atomic << 8) and i_opcode <= ((c_waOp_atomic << 8) | c_waOp_lastAtomic)) {
+        return (i_opcode <= c_waOp_atomicFence) ? c_gasHeavy : c_gasAccess;
+    }
     if (i_opcode >= 0x20 and i_opcode <= 0x3e) {
         return c_gasAccess;           // locals, globals, table accesses, loads and stores
     }
@@ -5771,15 +6004,16 @@ M3Result MeterOpcode (IM3Compilation o, m3opcode_t i_opcode)
     // constant expressions are not metered: they run once at instantiation,
     // before the module is anything a gas budget was handed out for
     if (o->function and o->page and IsMetering(o)) {
-        // only the 0xFC prefix has been read so far; the instruction it names is
+        // only the 0xFC or 0xFE prefix has been read so far; the instruction it names is
         // the LEB128 u32 the compiler is about to take. Peek it without consuming.
         // Anything the tables do not cover leaves the prefix priced on its own,
         // which is moot - the compile fails on it a moment later.
-        if (i_opcode == c_waOp_extended) {
+        if (i_opcode == c_waOp_extended or i_opcode == c_waOp_atomic) {
             bytes_t peek = o->wasm;
             u32     sub;
+            u32     last = (i_opcode == c_waOp_atomic) ? c_waOp_lastAtomic : c_waOp_lastExtended;
 
-            if (not ReadLEB_u32(&sub, &peek, o->wasmEnd) and sub <= c_waOp_lastExtended) {
+            if (not ReadLEB_u32(&sub, &peek, o->wasmEnd) and sub <= last) {
                 i_opcode = (m3opcode_t)((i_opcode << 8) | sub);
             }
         }

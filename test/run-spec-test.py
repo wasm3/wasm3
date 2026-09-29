@@ -87,7 +87,7 @@ parser.add_argument(
 # banner is inference: a config regression that turns one off silently drops the
 # tests that cover it, and the run stays green. A job that names them instead
 # states what it expects of the build it just made.
-features_known = ("tail-call", "typed-refs", "multi-memory")
+features_known = ("tail-call", "typed-refs", "multi-memory", "atomics")
 
 parser.add_argument(
     "--skip-features",
@@ -1116,6 +1116,14 @@ if not hasMultiMemory:
         ]
     )
 
+# The threads proposal: shared memories and the atomic instructions. Only wg-3.0 has a
+# suite for it that matches what the engine implements. A build without atomics
+# rejects those modules outright, so the suite is dropped at discovery, as the
+# multi-memory one is.
+hasAtomics = "atomics" in features
+if not hasAtomics:
+    warning("build has no atomics, skipping the threads suite", True)
+
 # A build with guarded memories backs each one with reserved address space and lets
 # the system catch what runs off the end, which it can only do a system page at a
 # time. That is exact for a Wasm page and not for the byte-sized ones the custom page
@@ -1153,6 +1161,7 @@ else:
                 "wide-arithmetic",
             )
             + (("multi-memory",) if hasMultiMemory else ())
+            + (("threads",) if hasAtomics and args.spec == "wg-3.0" else ())
             + (() if hasGuardedMemory else ("custom-page-sizes",))
         ):
             jsonFiles += glob.glob(os.path.join(spec_dir, stage, subdir, "*.json"))
@@ -1180,6 +1189,11 @@ for fn in jsonFiles:
     # them all from that point on. Unqualified lookups hit the most recently
     # loaded module first.
     keep_modules = False
+
+    # These start threads of their own, which the repl cannot yet
+    if any(cmd["type"] == "thread" for cmd in data["commands"]):
+        warning(f"{fn} starts threads, skipping", True)
+        continue
 
     print(f"Running {fn}")
 

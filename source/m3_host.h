@@ -54,6 +54,10 @@ void  m3_HostRemoveInterruptHandler (void);
 // nothing depends on it being right.
 u64   m3_HostTimeMs (void);
 
+// Blocks the calling thread for at least the given time. A host with no clock to
+// wait on returns at once, as though the time had passed.
+void  m3_HostSleepNs (u64 i_ns);
+
 
 // A file's bytes and how they were come by.
 //

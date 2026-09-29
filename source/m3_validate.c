@@ -103,6 +103,54 @@ static u32 v_max_align (m3opcode_t opcode)
     }
 }
 
+#if d_m3HasAtomics
+
+// What an instruction of the 0xFE prefix (other than atomic.fence) touches and
+// takes: the width in bytes of the cell it addresses, how many operands it pops
+// counting the address, the type of every operand but the address - a wait's
+// timeout aside - and what it pushes. False for a sub-opcode that is not one.
+//
+// Outside notify and wait, the accesses come in runs of seven, one per pairing of
+// value type and cell width: i32/32, i64/64, i32/8, i32/16, i64/8, i64/16, i64/32.
+static bool v_atomic_shape (u32 sub, u32 * o_width, u32 * o_numOperands, m3type_t * o_valueType, m3type_t * o_resultType)
+{
+    static const u8 c_widths [7] = { 4, 8, 1, 2, 1, 2, 4 };
+    static const m3type_t c_types [7] = {
+        c_m3Type_i32, c_m3Type_i64,
+        c_m3Type_i32, c_m3Type_i32,
+        c_m3Type_i64, c_m3Type_i64, c_m3Type_i64
+    };
+
+    u32 variant;
+
+    if (sub <= 0x02) {              // memory.atomic.notify, wait32, wait64
+        *o_width       = (sub == 0x02) ? 8 : 4;
+        *o_numOperands = (sub == 0x00) ? 2 : 3;
+        *o_valueType   = (sub == 0x02) ? c_m3Type_i64 : c_m3Type_i32;
+        *o_resultType  = c_m3Type_i32;
+        return true;
+    }
+
+    if (sub < 0x10 or sub > c_waOp_lastAtomic) return false;
+
+    if (sub <= 0x16) {              // loads
+        variant = sub - 0x10;       *o_numOperands = 1;
+    } else if (sub <= 0x1d) {       // stores
+        variant = sub - 0x17;       *o_numOperands = 2;
+    } else if (sub <= 0x47) {       // add, sub, and, or, xor, xchg
+        variant = (sub - 0x1e) % 7; *o_numOperands = 2;
+    } else {                        // cmpxchg
+        variant = sub - 0x48;       *o_numOperands = 3;
+    }
+
+    *o_width      = c_widths [variant];
+    *o_valueType  = c_types [variant];
+    *o_resultType = (sub >= 0x17 and sub <= 0x1d) ? c_m3Type_none : c_types [variant];
+    return true;
+}
+
+#endif
+
 // ---------- Operand stack ----------
 
 static M3Result v_push (ValCtx * v, m3type_t type)
@@ -1347,6 +1395,48 @@ static M3Result v_validate_body (ValCtx * v)
             }
             break;
         }
+
+#if d_m3HasAtomics
+        // ---- 0xFE prefix (atomics) ----
+        case 0xfe:
+        {
+            u32 sub;
+            r = ReadLEB_u32(&sub, &v->wasm, v->wasmEnd);
+            if (r) return r;
+
+            if (sub == 0x03) { // atomic.fence
+                u8 reserved;
+                r = Read_u8(&reserved, &v->wasm, v->wasmEnd); if (r) return r;
+                if (reserved != 0) return m3Err_wasmMalformed;
+                break;
+            }
+
+            u32 width, numOperands; m3type_t valueType, resultType;
+            if (not v_atomic_shape(sub, &width, &numOperands, &valueType, &resultType)) return m3Err_unknownOpcode;
+
+            u32 align, memidx; u64 offset;
+            r = ReadMemoryArg(&align, &memidx, &offset, &v->wasm, v->wasmEnd); if (r) return r;
+            // Spec: unlike an ordinary access, an atomic one must be aligned exactly
+            if ((1u << align) != width) return m3Err_invalidAtomicAlignment;
+            if (not v_has_memory_idx(v, memidx)) return m3Err_unknownMemory;
+            if (not v_offset_in_range(v, memidx, offset)) return m3Err_wasmMalformed;
+
+            // the operands above the address are all of the one type, except a
+            // wait, whose timeout is an i64 whatever it is waiting on
+            if (sub == 0x01 or sub == 0x02) {
+                r = v_pop_expect(v, c_m3Type_i64, &a); if (r) return r;
+                numOperands--;
+            }
+            for (u32 i = 1; i < numOperands; ++i) {
+                r = v_pop_expect(v, valueType, &a); if (r) return r;
+            }
+            r = v_pop_expect(v, v_memory_addrtype(v, memidx), &a); if (r) return r;
+            if (resultType != c_m3Type_none) {
+                r = v_push(v, resultType); if (r) return r;
+            }
+            break;
+        }
+#endif
 
 #if d_m3HasStackSwitching
         // ---- Stack Switching ----

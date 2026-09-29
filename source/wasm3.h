@@ -223,6 +223,7 @@ d_m3ErrorConst(unknownDataSegment,             "unknown data segment")
 d_m3ErrorConst(unknownElemSegment,             "unknown elem segment")
 d_m3ErrorConst(dataCountRequired,              "data count section required")
 d_m3ErrorConst(invalidAlignment,               "alignment must not be larger than natural")
+d_m3ErrorConst(invalidAtomicAlignment,         "atomic alignment must be natural")
 d_m3ErrorConst(undeclaredFuncRef,              "undeclared function reference")
 
 // runtime errors
@@ -247,6 +248,9 @@ d_m3ErrorConst(unknownResourceLimit,           "unknown resource limit")
 
 // traps
 d_m3ErrorConst(trapOutOfBoundsMemoryAccess,    "[trap] out of bounds memory access")
+d_m3ErrorConst(trapUnalignedAtomic,            "[trap] unaligned atomic")
+d_m3ErrorConst(trapExpectedSharedMemory,       "[trap] expected shared memory")
+d_m3ErrorConst(trapWaitForever,                "[trap] wait would block forever")
 d_m3ErrorConst(trapDivisionByZero,             "[trap] integer divide by zero")
 d_m3ErrorConst(trapIntegerOverflow,            "[trap] integer overflow")
 d_m3ErrorConst(trapIntegerConversion,          "[trap] invalid conversion to integer")

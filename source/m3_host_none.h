@@ -41,6 +41,11 @@ u64 m3_HostTimeMs (void)
     return 0;
 }
 
+void m3_HostSleepNs (u64 i_ns)
+{
+    (void)i_ns;
+}
+
 // No mmap here, so the module's bytes are read directly onto the heap
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)
 {

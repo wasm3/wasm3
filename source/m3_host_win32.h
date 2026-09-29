@@ -82,6 +82,18 @@ u64 m3_HostTimeMs (void)
     return (ticks > c_unixEpoch) ? (ticks - c_unixEpoch) / 10000 : 0;
 }
 
+void m3_HostSleepNs (u64 i_ns)
+{
+    // whole milliseconds, rounded up; the wait is never shorter than asked
+    u64 ms = (i_ns + 999999u) / 1000000u;
+
+    while (ms > 0) {
+        DWORD step = (ms > 0x7FFFFFFFu) ? 0x7FFFFFFFu : (DWORD)ms;
+        Sleep(step);
+        ms -= step;
+    }
+}
+
 // FILE_SHARE_READ and nothing else: another process may read the file, and one
 // trying to write or delete it is refused for as long as the mapping lives. The
 // kernel enforces that, so it is the real thing rather than the advisory lock POSIX

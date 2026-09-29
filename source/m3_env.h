@@ -28,6 +28,7 @@ typedef struct M3MemoryInfo {
     u32  pageSize;
     bool hasMax;         // a declared maximum of 0 is not the same as none
     bool isMemory64;     // addressed by i64 rather than i32
+    bool isShared;       // the threads proposal: a maximum is required
 } M3MemoryInfo;
 
 
@@ -49,6 +50,7 @@ typedef struct M3Memory {
     u32              pageSize;
     bool             hasMax;         // see M3MemoryInfo
     bool             isMemory64;     // addressed by i64 rather than i32
+    bool             isShared;       // see M3MemoryInfo
 
     struct M3Module* owner;          // the module that allocated it
     M3ImportInfo     import;         // when declared as an import

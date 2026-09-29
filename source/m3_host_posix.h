@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <time.h>
 
 // Whether pthread_getattr_np - or Darwin's pair of calls - can be reached without
@@ -232,6 +233,17 @@ u64 m3_HostTimeMs (void)
     }
 
     return (u64)now.tv_sec * 1000 + (u64)now.tv_nsec / 1000000;
+}
+
+void m3_HostSleepNs (u64 i_ns)
+{
+    struct timespec left;
+    left.tv_sec = (time_t)(i_ns / 1000000000u);
+    left.tv_nsec = (long)(i_ns % 1000000000u);
+
+    // a signal cuts the sleep short and reports what remains
+    while (nanosleep(&left, &left) != 0 and errno == EINTR) {
+    }
 }
 
 bool m3_HostMapFile (const char* i_path, size_t i_maxBytes, M3HostFile* o_file)

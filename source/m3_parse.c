@@ -235,13 +235,19 @@ M3Result ParseType_Memory (M3MemoryInfo* o_memory, bytes_t* io_bytes, cbytes_t i
 
 _   (ReadLEB_u7(&flag, io_bytes, i_end));
 
-    // bit 0: has max, bit 2: memory64, bit 3: custom page size. bit 1 (shared)
-    // belongs to a proposal we don't implement.
-#if d_m3HasMemory64
-    _throwif(m3Err_wasmMalformed, flag & ~0x0Du);
-#else
-    _throwif(m3Err_wasmMalformed, flag & ~0x09u);
+    // bit 0: has max, bit 1: shared, bit 2: memory64, bit 3: custom page size
+    {
+        u32 known = 0x09u;
+#if d_m3HasAtomics
+        known |= 0x02u;
 #endif
+#if d_m3HasMemory64
+        known |= 0x04u;
+#endif
+        _throwif(m3Err_wasmMalformed, flag & ~known);
+    }
+
+    o_memory->isShared = (flag & (1u << 1)) != 0;
 
     o_memory->isMemory64 = (flag & (1u << 2)) != 0;
     if (o_memory->isMemory64) {
@@ -258,6 +264,8 @@ _       (ReadLebUnsigned(&o_memory->maxPages, addrBits, io_bytes, i_end));
         // Spec: memory limits validation - max must not be less than init
         _throwif(m3Err_wasmMalformed, o_memory->maxPages < o_memory->initPages);
     }
+
+    _throwif("shared memory must have maximum", o_memory->isShared and not o_memory->hasMax);
 
     o_memory->pageSize = 0;
     if (flag & (1u << 3)) {

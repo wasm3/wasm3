@@ -903,6 +903,9 @@ M3Result LinkImports (IM3Runtime io_runtime, IM3Module io_module)
         _throwif(m3Err_incompatibleImportType, exported->isMemory64 != memory->isMemory64);
         _throwif(m3Err_incompatibleImportType, Memory_PageSize(exported) != Memory_PageSize(memory));
 
+        // a shared memory is not a subtype of an unshared one, or the other way round
+        _throwif(m3Err_incompatibleImportType, exported->isShared != memory->isShared);
+
         _throwif(m3Err_incompatibleImportType,
                  not LimitsSatisfy(exported->numPages, exported->hasMax, exported->maxPages,
                                    memory->initPages, memory->hasMax, memory->maxPages));
