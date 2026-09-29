@@ -273,9 +273,10 @@ that `d_m3MaxNativeStack` can be cut down to what is really there instead of tru
 a compile-time guess.
 
 `d_m3HasAtomics` implements the atomic instructions of the threads proposal and the
-shared flag on a memory's limits. Everything runs on one thread for now, so an atomic
-access is an ordinary one that also checks its alignment, and `memory.atomic.wait` can
-only time out.
+shared flag on a memory's limits. Without `d_m3HasThreads` everything runs on one thread, so
+an atomic access is an ordinary one that also checks its alignment, and `memory.atomic.wait`
+can only time out: one with no timeout, which nothing could ever end, traps with `wait would
+block forever`.
 
 `d_m3HasThreads` lets runtimes on threads of their own share a memory. It is on wherever the
 host has threads (`m3_host_posix.h`, `m3_host_win32.h`) and needs `d_m3HasAtomics`. Wasm3
@@ -298,6 +299,13 @@ shared memory of the first, and a module in that runtime imports it like any oth
 - Atomic accesses are sequentially consistent, and a read-modify-write is a compare-and-swap
   loop: on hosts of either byte order, at every width, on a 32-bit target as much as on a
   64-bit one, with `-latomic` where the compiler wants it for 64-bit cells.
+- `memory.atomic.wait` on a shared memory blocks the calling thread until another runtime
+  notifies it, or its timeout passes. It compares the cell under the memory's lock, so a
+  notify cannot slip in between the comparison and the queueing, and it queues in one FIFO
+  per memory that `memory.atomic.notify` walks oldest first. A wait with no timeout on a
+  memory nobody will notify blocks for good, as it does anywhere else. Time is counted on a
+  clock that does not jump, and a wakeup that was not a notify goes back to sleep for what is
+  left. A runtime has one wait record, made when it first waits and freed with it.
 - Every access reads the memory's length with a relaxed atomic load, and reaches the bytes
   through a pointer in the runtime's header for that memory instead of at a fixed offset from
   it. Without `d_m3HasThreads` neither costs anything.

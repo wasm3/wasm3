@@ -90,6 +90,10 @@ version_banner = subprocess.run(
 # any kind, which "uvwasi" and "metawasi" answer to as well. A build without it skips
 # the case rather than failing it.
 #
+# "unless" is the same the other way round: a build that reports the word skips the case. It
+# is for what only holds without a feature - an infinite wait that traps because nothing can
+# ever notify it, which with "threads" is a wait that is simply long.
+#
 
 # fmt: off
 tests = [
@@ -508,6 +512,7 @@ tests = [
     "args":           ["--func", func],
     "expect_trap":    trap,
     "requires":       "atomics",
+    "unless":         "threads",
   } for func, trap in (
     ("forever",  "wait would block forever"),
   )] + [
@@ -723,6 +728,13 @@ for test in tests:
     if required and f", {required}" not in version_banner:
         stats.skipped += 1
         print(f"{ansi.WARNING}SKIPPED:{ansi.ENDC} this build is not {required}")
+        print()
+        continue
+
+    excluded = test.get("unless")
+    if excluded and f", {excluded}" in version_banner:
+        stats.skipped += 1
+        print(f"{ansi.WARNING}SKIPPED:{ansi.ENDC} this build is {excluded}")
         print()
         continue
 

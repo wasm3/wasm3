@@ -248,6 +248,11 @@ M3HostCond                       m3_HostCondInit (void);
 // a clock that does not jump. False when the time ran out.
 bool                             m3_HostCondWait (M3HostCond i_cond, M3HostMutex i_mutex, i64 i_timeoutNs);
 void                             m3_HostCondSignal (M3HostCond i_cond);
+
+// Nanoseconds on a clock that only goes forward, from no particular start: the
+// difference between two answers is how long passed, which is what a wait that was cut
+// short by a spurious wakeup needs to know to go back to sleep for the rest.
+u64                              m3_HostMonotonicNs (void);
 void                             m3_HostCondFree (M3HostCond io_cond);
 
 // Runs i_body(i_context) on a thread of its own, with a stack big enough for the

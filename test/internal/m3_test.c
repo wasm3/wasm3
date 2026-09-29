@@ -997,6 +997,104 @@ void BurnGasBody (void* io_work)
     work->result = m3_CallV(work->burn, work->count);
 }
 
+// (module
+//   (memory (export "mem") 1 1 shared)
+//   (func (export "wait") (param i32 i32 i64) (result i32) ... memory.atomic.wait32)
+//   (func (export "notify") (param i32 i32) (result i32) ... memory.atomic.notify)
+//   (func (export "store") (param i32 i32) ... i32.atomic.store)
+//   (func (export "load") (param i32) (result i32) ... i32.atomic.load))
+//
+// and the same over a memory imported as "Mem" "mem".
+static const u8 c_waitWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x18, 0x04, 0x60,
+    0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f,
+    0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x05,
+    0x04, 0x00, 0x01, 0x02, 0x03, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07,
+    0x26, 0x05, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x04, 0x77, 0x61, 0x69,
+    0x74, 0x00, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x00, 0x01,
+    0x05, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x02, 0x04, 0x6c, 0x6f, 0x61,
+    0x64, 0x00, 0x03, 0x0a, 0x2d, 0x04, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01,
+    0x20, 0x02, 0xfe, 0x01, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00, 0x20,
+    0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01,
+    0xfe, 0x17, 0x02, 0x00, 0x0b, 0x08, 0x00, 0x20, 0x00, 0xfe, 0x10, 0x02,
+    0x00, 0x0b
+};
+
+static const u8 c_waitUserWasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x18, 0x04, 0x60,
+    0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f,
+    0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x0d,
+    0x01, 0x03, 0x4d, 0x65, 0x6d, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x03, 0x01,
+    0x01, 0x03, 0x05, 0x04, 0x00, 0x01, 0x02, 0x03, 0x07, 0x20, 0x04, 0x04,
+    0x77, 0x61, 0x69, 0x74, 0x00, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69, 0x66,
+    0x79, 0x00, 0x01, 0x05, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x02, 0x04,
+    0x6c, 0x6f, 0x61, 0x64, 0x00, 0x03, 0x0a, 0x2d, 0x04, 0x0c, 0x00, 0x20,
+    0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00, 0x0b, 0x0a, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x20,
+    0x00, 0x20, 0x01, 0xfe, 0x17, 0x02, 0x00, 0x0b, 0x08, 0x00, 0x20, 0x00,
+    0xfe, 0x10, 0x02, 0x00, 0x0b
+};
+
+typedef struct {
+    IM3Function wait;
+    u32         address;
+    u32         expected;
+    i64         timeout;
+    M3Result    result;
+    u32         answer;
+} WaitWork;
+
+static
+void WaitBody (void* io_work)
+{
+    WaitWork* work = (WaitWork*)io_work;
+
+    work->answer = 0xDEADBEEF;
+    work->result = m3_CallV(work->wait, work->address, work->expected, work->timeout);
+
+    if (not work->result) {
+        m3_GetResultsV(work->wait, &work->answer);
+    }
+}
+
+// How many runtimes are queued on a shared memory right now
+static
+u32 CountWaiters (IM3Memory i_memory)
+{
+    M3SharedMemory* shared = i_memory->shared;
+    u32             count  = 0;
+
+    m3_HostMutexLock(shared->mutex);
+    for (M3Waiter* w = shared->waitersHead; w; w = w->next) {
+        ++count;
+    }
+    m3_HostMutexUnlock(shared->mutex);
+
+    return count;
+}
+
+// Until the memory has i_count waiters, or long enough that something is wrong
+static
+bool WaitForWaiters (IM3Memory i_memory, u32 i_count)
+{
+    for (u32 i = 0; i < 10000 and CountWaiters(i_memory) != i_count; ++i) {
+        m3_HostSleepNs(1000000);
+    }
+
+    return CountWaiters(i_memory) == i_count;
+}
+
+static
+u32 CallShared2 (IM3Function i_function, u32 i_a, u32 i_b)
+{
+    u32 result = 0xDEADBEEF;
+
+    m3_CallV(i_function, i_a, i_b);
+    m3_GetResultsV(i_function, &result);
+
+    return result;
+}
+
 #endif // d_m3HasThreads
 
 
@@ -4405,6 +4503,134 @@ int main (int argc, const char* argv[])
         m3_FreeRuntime(c);
         m3_FreeRuntime(b);
         m3_FreeRuntime(a);
+    }
+
+    Test(threads.wait_is_woken_by_a_notify_from_another_runtime)
+    {
+        IM3Environment envB  = m3_NewEnvironment();
+        IM3Runtime     a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime     b     = m3_NewRuntime(envB, 65536, NULL);
+        IM3Module      owner = NULL, proxy = NULL, user = NULL;
+
+        expect(!m3_ParseModule(env, &owner, c_waitWasm, sizeof(c_waitWasm)));
+        expect(!m3_LoadModule(a, owner));
+        expect(!m3_ShareModule(b, owner, &proxy));
+        m3_SetModuleName(proxy, "Mem");
+        expect(!m3_ParseModule(envB, &user, c_waitUserWasm, sizeof(c_waitUserWasm)));
+        expect(!m3_LoadModule(b, user));
+
+        WaitWork    work = { NULL, 0, 0, -1, NULL, 0 };
+        IM3Function notify;
+        expect(!m3_FindFunction(&work.wait, b, "wait"));
+        expect(!m3_FindFunction(&notify, a, "notify"));
+
+        // the cell is never changed, so what ends the wait can only be the notify
+        M3HostThread thread = m3_HostThreadStart(WaitBody, &work);
+        expect(thread != NULL);
+        expect(WaitForWaiters(owner->memories[0], 1));
+
+        // another address is another queue
+        expect(CallShared2(notify, 4, 1) == 0);
+        expect(CountWaiters(owner->memories[0]) == 1);
+
+        expect(CallShared2(notify, 0, 1) == 1);
+        m3_HostThreadJoin(thread);
+
+        expect(work.result == m3Err_none and work.answer == 0);
+        expect(CountWaiters(owner->memories[0]) == 0);
+
+        // nothing left to wake
+        expect(CallShared2(notify, 0, 1) == 0);
+
+        m3_FreeRuntime(b);
+        m3_FreeRuntime(a);
+        m3_FreeEnvironment(envB);
+    }
+
+    Test(threads.wait_answers_for_a_different_value_and_for_time)
+    {
+        IM3Runtime a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Module  owner = NULL;
+
+        expect(!m3_ParseModule(env, &owner, c_waitWasm, sizeof(c_waitWasm)));
+        expect(!m3_LoadModule(a, owner));
+
+        IM3Function wait, store;
+        expect(!m3_FindFunction(&wait, a, "wait"));
+        expect(!m3_FindFunction(&store, a, "store"));
+
+        WaitWork work = { wait, 8, 0, -1, NULL, 0 };
+
+        // the cell holds 7, not 0: no waiting, whatever the timeout
+        m3_CallV(store, (u32)8, (u32)7);
+        WaitBody(&work);
+        expect(work.result == m3Err_none and work.answer == 1);
+
+        // it holds what is expected, and nobody is going to notify: it runs out of time
+        work.address = 16;
+        work.timeout = 0;
+        WaitBody(&work);
+        expect(work.result == m3Err_none and work.answer == 2);
+
+        work.timeout = 30 * 1000000;
+        u64 before   = m3_HostMonotonicNs();
+        WaitBody(&work);
+        u64 elapsed = m3_HostMonotonicNs() - before;
+        expect(work.result == m3Err_none and work.answer == 2);
+        expect(elapsed >= 25 * 1000000ull and elapsed < 10000ull * 1000000);
+        expect(CountWaiters(owner->memories[0]) == 0);
+
+        m3_FreeRuntime(a);
+    }
+
+    Test(threads.notify_wakes_the_oldest_waiters_first_and_only_as_many_as_asked)
+    {
+        IM3Environment envB = m3_NewEnvironment(), envC = m3_NewEnvironment();
+        IM3Runtime     a     = m3_NewRuntime(env, 65536, NULL);
+        IM3Runtime     b     = m3_NewRuntime(envB, 65536, NULL);
+        IM3Runtime     c     = m3_NewRuntime(envC, 65536, NULL);
+        IM3Module      owner = NULL, proxyB = NULL, proxyC = NULL, userB = NULL, userC = NULL;
+
+        expect(!m3_ParseModule(env, &owner, c_waitWasm, sizeof(c_waitWasm)));
+        expect(!m3_LoadModule(a, owner));
+        expect(!m3_ShareModule(b, owner, &proxyB));
+        expect(!m3_ShareModule(c, owner, &proxyC));
+        m3_SetModuleName(proxyB, "Mem");
+        m3_SetModuleName(proxyC, "Mem");
+        expect(!m3_ParseModule(envB, &userB, c_waitUserWasm, sizeof(c_waitUserWasm)));
+        expect(!m3_ParseModule(envC, &userC, c_waitUserWasm, sizeof(c_waitUserWasm)));
+        expect(!m3_LoadModule(b, userB));
+        expect(!m3_LoadModule(c, userC));
+
+        WaitWork    first = { NULL, 0, 0, -1, NULL, 0 }, second = { NULL, 0, 0, -1, NULL, 0 };
+        IM3Function notify;
+        expect(!m3_FindFunction(&first.wait, b, "wait"));
+        expect(!m3_FindFunction(&second.wait, c, "wait"));
+        expect(!m3_FindFunction(&notify, a, "notify"));
+
+        // queued in this order, the second only once the first is in
+        M3HostThread firstThread = m3_HostThreadStart(WaitBody, &first);
+        expect(WaitForWaiters(owner->memories[0], 1));
+        M3HostThread secondThread = m3_HostThreadStart(WaitBody, &second);
+        expect(WaitForWaiters(owner->memories[0], 2));
+
+        // one notify wakes one, and the one that had waited longest
+        expect(CallShared2(notify, 0, 1) == 1);
+        m3_HostThreadJoin(firstThread);
+        expect(first.result == m3Err_none and first.answer == 0);
+        expect(CountWaiters(owner->memories[0]) == 1);
+
+        // and asking for more than there are wakes what there is
+        expect(CallShared2(notify, 0, 100) == 1);
+        m3_HostThreadJoin(secondThread);
+        expect(second.result == m3Err_none and second.answer == 0);
+        expect(CountWaiters(owner->memories[0]) == 0);
+
+        m3_FreeRuntime(c);
+        m3_FreeRuntime(b);
+        m3_FreeRuntime(a);
+        m3_FreeEnvironment(envC);
+        m3_FreeEnvironment(envB);
     }
 
 #  if d_m3HasGasMetering

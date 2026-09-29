@@ -56,6 +56,17 @@ typedef struct M3MemoryInfo {
 // a header of its own in its runtime (see M3MemoryHeader); this one sits right before
 // the bytes, as the header of a memory that is not shared does, and is what a host
 // function holding only a pointer to them finds the length in.
+// A thread waiting in memory.atomic.wait. Owned by the runtime that waits, and allocated
+// once for it rather than once per wait: a runtime is used by one thread at a time, so it
+// has at most one. It sits in the shared memory's queue only while it waits, and everything
+// in it but 'cond' is guarded by that memory's mutex.
+typedef struct M3Waiter {
+    struct M3Waiter* next;
+    u64              addr;        // the byte address in the memory
+    bool             woken;       // set by notify, which is also what takes it off the queue
+    M3HostCond       cond;
+} M3Waiter;
+
 typedef struct M3SharedMemory {
     // first, so that it is 8-byte aligned wherever the struct is: a 64-bit atomic needs
     // it, and 32-bit x86 aligns a u64 member to 4
@@ -69,6 +80,9 @@ typedef struct M3SharedMemory {
     size_t           maxBytes;       // what was reserved
 
     struct M3Memory* views;          // linked through M3Memory.nextView
+
+    M3Waiter*        waitersHead;    // in the order they began to wait, which is the order
+    M3Waiter*        waitersTail;    // notify wakes them in
 
     struct M3Memory* creator;        // the view that was charged; NULL once it is gone
     size_t           charged;
@@ -702,6 +716,10 @@ typedef struct M3Runtime {
     bool          isSuspendable;
     volatile bool suspendRequested;
 
+#if d_m3HasThreads
+    struct M3Waiter* waiter;      // this runtime's one wait record, made when it first waits
+#endif
+
 #if d_m3HasStackSwitching
     // Set while m3_ResumeRuntime replays a paused invocation: a back edge or a
     // function entry it paused at goes on past its check, so a pause already
@@ -790,6 +808,18 @@ u64      GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_num
 // io_source is a view of, in the runtime io_runtime: it gets a header of its own and
 // takes a reference. The bytes are not copied.
 M3Result AttachSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, const M3Memory* i_source);
+
+// memory.atomic.wait on a shared memory: waits, with the cell of i_log2Width holding
+// i_expected at i_address, for a notify or for i_timeoutNs, which is infinite when
+// negative. The answer is the instruction's: 0 woken, 1 the cell held something else, 2 timed
+// out - or d_m3WaitFailed when the wait could not be set up.
+#  define d_m3WaitFailed  ((u32)-1)
+u32 SharedMemoryWait (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_address, u32 i_log2Width,
+                      u64 i_expected, i64 i_timeoutNs);
+
+// memory.atomic.notify: wakes up to i_count of the waiters at i_address, oldest first, and
+// answers how many
+u32 SharedMemoryNotify (IM3Memory io_memory, u64 i_address, u32 i_count);
 
 #endif // d_m3HasThreads
 

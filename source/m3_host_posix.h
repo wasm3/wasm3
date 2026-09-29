@@ -436,6 +436,14 @@ bool m3_HostCondWait (M3HostCond i_cond, M3HostMutex i_mutex, i64 i_timeoutNs)
     return result != ETIMEDOUT;
 }
 
+u64 m3_HostMonotonicNs (void)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    return (u64)now.tv_sec * 1000000000u + (u64)now.tv_nsec;
+}
+
 void m3_HostCondSignal (M3HostCond i_cond)
 {
     pthread_cond_signal(&i_cond->cond);

@@ -207,6 +207,24 @@ void m3_HostMutexFree (M3HostMutex io_mutex)
     free(io_mutex);
 }
 
+u64 m3_HostMonotonicNs (void)
+{
+    static LARGE_INTEGER frequency;
+
+    if (frequency.QuadPart == 0) {
+        QueryPerformanceFrequency(&frequency);
+    }
+
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+
+    // whole seconds and the remainder apart, so that a long uptime cannot overflow the product
+    u64 seconds = (u64)counter.QuadPart / (u64)frequency.QuadPart;
+    u64 remainder = (u64)counter.QuadPart % (u64)frequency.QuadPart;
+
+    return seconds * 1000000000u + remainder * 1000000000u / (u64)frequency.QuadPart;
+}
+
 M3HostCond m3_HostCondInit (void)
 {
     M3HostCond cond = (M3HostCond)malloc(sizeof(*cond));

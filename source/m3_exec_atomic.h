@@ -110,21 +110,50 @@ d_m3Op(AtomicPause)
 
 #  endif
 
-// memory.atomic.notify: nothing waits on a memory only one thread can reach
+// memory.atomic.notify: wakes the waiters at the address, oldest first. On a memory that is
+// not shared nothing can be waiting, and the count is 0 once the address has been checked.
 d_m3Op(AtomicNotify)
 {
+    u32 count = (u32)_r0;
     u64 ea = slot(u32);
     ea += immediate(u32);
     d_m3AtomicCheckAlways(sizeof(u32), ea);
 
+#  if d_m3HasThreads
+    if (m3MemInfo(_mem)->shared) {
+        _r0 = SharedMemoryNotify(m3MemInfo(_mem), ea, count);
+        nextOp();
+    }
+#  endif
+
+    (void)count;
     _r0 = 0;
     nextOp();
 }
 
 
-// The wait itself, for a cell of type T. The result is 1 when the cell did not hold
-// the expected value, and 2 when the timeout ran out. A negative timeout is
-// infinite, which with one thread is a wait that nothing can end.
+// The wait itself, for a cell of type T. The result is 0 when it was notified, 1 when
+// the cell did not hold the expected value, and 2 when the timeout ran out. A negative
+// timeout is infinite.
+//
+// With threads, a shared memory has other runtimes that can notify, and the wait is theirs
+// to end. Without, or on a memory only this runtime can reach, nothing can: a wait that has
+// a timeout sleeps it out, and one that has none would never return, which traps instead.
+#  if d_m3HasThreads
+#    define d_m3SharedWait(T)                                                                        \
+          if (m3MemInfo(_mem)->shared) {                                                             \
+              u32 answer = SharedMemoryWait(m3MemRuntime(_mem), m3MemInfo(_mem), ea,                 \
+                                            sizeof(T) == 8 ? 3 : 2, (u64)expected, timeout);         \
+              if (M3_UNLIKELY(answer == d_m3WaitFailed)) {                                           \
+                  newTrap(m3Err_mallocFailed);                                                       \
+              }                                                                                      \
+              _r0 = answer;                                                                          \
+              nextOp();                                                                              \
+          }
+#  else
+#    define d_m3SharedWait(T)
+#  endif
+
 #  define d_m3AtomicWaitOp(NAME, T)                                          \
       d_m3Op(NAME)                                                           \
       {                                                                      \
@@ -137,6 +166,8 @@ d_m3Op(AtomicNotify)
           if (M3_UNLIKELY(not m3MemInfo(_mem)->isShared)) {                  \
               newTrap(m3Err_trapExpectedSharedMemory);                       \
           }                                                                  \
+                                                                             \
+          d_m3SharedWait(T)                                                  \
                                                                              \
           if (m3_AtomicLoad_##T(d_m3AtomicCell(ea)) != expected) {           \
               _r0 = 1;                                                       \

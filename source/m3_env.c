@@ -399,6 +399,13 @@ void Runtime_Release (IM3Runtime i_runtime)
 
     m3_Free(i_runtime->originStack);
 
+#if d_m3HasThreads
+    if (i_runtime->waiter) {
+        m3_HostCondFree(i_runtime->waiter->cond);
+        m3_Free(i_runtime->waiter);
+    }
+#endif
+
 #if d_m3EnableValidation
     m3_Free(i_runtime->validator);
 #endif
@@ -1369,6 +1376,147 @@ void FreeSharedView (IM3Memory io_memory)
     io_memory->shared     = NULL;
 
     FreeSharedReference(shared);
+}
+
+
+// Takes i_waiter off the memory's queue, if it is on it. Called with the mutex held.
+static
+void UnlinkWaiter (M3SharedMemory* io_shared, M3Waiter* i_waiter)
+{
+    M3Waiter* previous = NULL;
+
+    for (M3Waiter* w = io_shared->waitersHead; w; previous = w, w = w->next) {
+        if (w == i_waiter) {
+            if (previous) {
+                previous->next = w->next;
+            } else {
+                io_shared->waitersHead = w->next;
+            }
+            if (io_shared->waitersTail == w) {
+                io_shared->waitersTail = previous;
+            }
+            w->next = NULL;
+            return;
+        }
+    }
+}
+
+
+u32 SharedMemoryWait (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_address, u32 i_log2Width,
+                      u64 i_expected, i64 i_timeoutNs)
+{
+    M3SharedMemory* shared = io_memory->shared;
+    M3Waiter*       waiter = io_runtime->waiter;
+    u32             answer = 1;
+
+    if (not waiter) {
+        waiter = m3_AllocStruct(M3Waiter);
+        if (not waiter) {
+            return d_m3WaitFailed;
+        }
+
+        waiter->cond = m3_HostCondInit();
+        if (not waiter->cond) {
+            m3_Free(waiter);
+            return d_m3WaitFailed;
+        }
+
+        io_runtime->waiter = waiter;
+    }
+
+    // the wait ends at a moment fixed now, so that a wakeup that was not a notify - they
+    // happen - goes back to sleep for what is left and not for the whole of it again
+    u64 deadline = 0;
+    if (i_timeoutNs >= 0) {
+        u64 now = m3_HostMonotonicNs();
+
+        deadline = ((u64)i_timeoutNs > UINT64_MAX - now) ? UINT64_MAX : now + (u64)i_timeoutNs;
+    }
+
+    m3_HostMutexLock(shared->mutex);
+
+    // read and compared under the lock, which is what a notify takes: one that comes
+    // after the value was changed to what the waiter is waiting to see must find it queued
+    if (m3_AtomicLoadW(shared->data + i_address, i_log2Width) == i_expected) {
+        waiter->addr  = i_address;
+        waiter->woken = false;
+        waiter->next  = NULL;
+
+        if (shared->waitersTail) {
+            shared->waitersTail->next = waiter;
+        } else {
+            shared->waitersHead = waiter;
+        }
+        shared->waitersTail = waiter;
+
+        while (not waiter->woken) {
+            i64 remaining = -1;
+
+            if (i_timeoutNs >= 0) {
+                u64 now = m3_HostMonotonicNs();
+
+                if (now >= deadline) {
+                    break;
+                }
+
+                remaining = (i64)(deadline - now);
+            }
+
+            m3_HostCondWait(waiter->cond, shared->mutex, remaining);
+        }
+
+        // notify takes the waiter off the queue when it wakes it, so one still there ran out of time
+        if (waiter->woken) {
+            answer = 0;
+        } else {
+            UnlinkWaiter(shared, waiter);
+            answer = 2;
+        }
+    }
+
+    m3_HostMutexUnlock(shared->mutex);
+
+    return answer;
+}
+
+
+u32 SharedMemoryNotify (IM3Memory io_memory, u64 i_address, u32 i_count)
+{
+    M3SharedMemory* shared = io_memory->shared;
+    u32             woken  = 0;
+
+    m3_HostMutexLock(shared->mutex);
+
+    M3Waiter* previous = NULL;
+    M3Waiter* w        = shared->waitersHead;
+
+    while (w and woken < i_count) {
+        M3Waiter* next = w->next;
+
+        if (w->addr == i_address) {
+            if (previous) {
+                previous->next = next;
+            } else {
+                shared->waitersHead = next;
+            }
+            if (shared->waitersTail == w) {
+                shared->waitersTail = previous;
+            }
+
+            w->next  = NULL;
+            w->woken = true;
+            m3_HostCondSignal(w->cond);
+            ++woken;
+        } else {
+            previous = w;
+        }
+
+        w = next;
+    }
+
+    m3_HostMutexUnlock(shared->mutex);
+
+    return woken;
 }
 
 #endif // d_m3HasThreads
