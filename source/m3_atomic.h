@@ -62,9 +62,11 @@ u64 m3_AtomicApply (u32 i_kind, u64 i_old, u64 i_value)
 // *io_expected with what the cell held when it fails.
 #    if defined(__GNUC__) || defined(__clang__)
 
-// the cells are bytes of linear memory reached through a wider type
+// the cells are bytes of linear memory reached through a wider type, which is aligned as
+// wide as it is: the interpreter has checked the address, and a 32-bit x86 would otherwise
+// take a 64-bit type to need only 4
 #      define d_m3AtomicRaw(T)                                                                      \
-          typedef T __attribute__ ((may_alias)) m3_Alias_##T;                                       \
+          typedef T __attribute__ ((may_alias, aligned (sizeof (T)))) m3_Alias_##T;                 \
                                                                                                     \
           static inline T m3_AtomicRawLoad_##T (const u8* i_cell)                                   \
           {                                                                                         \
@@ -250,6 +252,94 @@ d_m3AtomicTyped(u16);
 d_m3AtomicTyped(u32);
 d_m3AtomicTyped(u64);
 
+#  if d_m3HasThreads
+
+// A byte or a halfword is read-modified through the aligned word around it, with the
+// word-wide compare-and-swap every target with threads has, and not with the compiler's
+// own for the narrower width. A target with no instruction for the narrow one gets it
+// from the compiler as a loop over the word or as a call into a library, and on at least
+// one of them (big-endian MicroBlaze) that came out wrong: the old value was right and the
+// cell kept it. This way the only atomic the target has to get right is the one it has.
+//
+// The word has to be the memory's: a cell at the very end of one whose size is not a
+// multiple of four, which only a custom page size makes, has a word that runs past it,
+// and that one is left to the compiler.
+static inline
+u32 m3_SubWordShift (const u8* i_cell, u32 i_size)
+{
+    u32 offset = (u32)((uintptr_t)i_cell & 3);
+
+    // where the cell's bytes sit in the word, whose bits are in the host's order
+#    if defined(M3_BIG_ENDIAN)
+    return 8u * (4u - i_size - offset);
+#    else
+    (void)i_size;               // a little-endian word counts from the cell's own end
+    return 8u * offset;
+#    endif
+}
+
+#    define d_m3AtomicSubWord(T)                                                                       \
+        static inline u64 m3_AtomicRmwSub_##T (u8* io_cell, const u8* i_end, u32 i_kind, u64 i_value) \
+        {                                                                                              \
+            u8* word = (u8*) ((uintptr_t) io_cell & ~(uintptr_t) 3);                                   \
+                                                                                                       \
+            if (word + 4 > i_end) {                                                                    \
+                return m3_AtomicRmw_##T (io_cell, i_kind, i_value);                                    \
+            }                                                                                          \
+                                                                                                       \
+            u32 shift = m3_SubWordShift (io_cell, sizeof (T));                                         \
+            u32 mask  = (u32) ((T) ~(T) 0) << shift;                                                   \
+            u32 raw   = m3_AtomicRawLoad_u32 (word);                                                   \
+                                                                                                       \
+            for (;;) {                                                                                 \
+                T old = (T) ((raw & mask) >> shift);                                                   \
+                M3_BSWAP_##T (old);                                                                    \
+                                                                                                       \
+                T updated = (T) m3_AtomicApply (i_kind, old, i_value);                                 \
+                M3_BSWAP_##T (updated);                                                                \
+                                                                                                       \
+                if (m3_AtomicRawCas_u32 (word, & raw, (raw & ~mask) | ((u32) updated << shift))) {     \
+                    return old;                                                                        \
+                }                                                                                      \
+            }                                                                                          \
+        }                                                                                              \
+                                                                                                       \
+        static inline u64 m3_AtomicCmpxchgSub_##T (u8* io_cell, const u8* i_end,                       \
+                                                   u64 i_expected, u64 i_replacement)                  \
+        {                                                                                              \
+            u8* word = (u8*) ((uintptr_t) io_cell & ~(uintptr_t) 3);                                   \
+                                                                                                       \
+            if (word + 4 > i_end) {                                                                    \
+                return m3_AtomicCmpxchg_##T (io_cell, i_expected, i_replacement);                      \
+            }                                                                                          \
+                                                                                                       \
+            u32 shift = m3_SubWordShift (io_cell, sizeof (T));                                         \
+            u32 mask  = (u32) ((T) ~(T) 0) << shift;                                                   \
+            u32 raw   = m3_AtomicRawLoad_u32 (word);                                                   \
+            T   replacement = (T) i_replacement;                                                       \
+            M3_BSWAP_##T (replacement);                                                                \
+                                                                                                       \
+            for (;;) {                                                                                 \
+                T old = (T) ((raw & mask) >> shift);                                                   \
+                M3_BSWAP_##T (old);                                                                    \
+                                                                                                       \
+                /* a mismatch writes nothing, and answers what it saw */                               \
+                if (old != (T) i_expected) {                                                           \
+                    return old;                                                                        \
+                }                                                                                      \
+                                                                                                       \
+                /* the rest of the word may have moved under it, and then it is tried again */         \
+                if (m3_AtomicRawCas_u32 (word, & raw, (raw & ~mask) | ((u32) replacement << shift))) { \
+                    return old;                                                                        \
+                }                                                                                      \
+            }                                                                                          \
+        }
+
+d_m3AtomicSubWord(u8);
+d_m3AtomicSubWord(u16);
+
+#  endif // d_m3HasThreads
+
 static inline
 u64 m3_AtomicLoadW (const u8* i_cell, u32 i_log2Width)
 {
@@ -273,23 +363,38 @@ void m3_AtomicStoreW (u8* o_cell, u32 i_log2Width, u64 i_value)
 }
 
 static inline
-u64 m3_AtomicRmwW (u8* io_cell, u32 i_log2Width, u32 i_kind, u64 i_value)
+u64 m3_AtomicRmwW (u8* io_cell, const u8* i_end, u32 i_log2Width, u32 i_kind, u64 i_value)
 {
+    (void)i_end;
+
     switch (i_log2Width) {
+#  if d_m3HasThreads
+    case 0: return m3_AtomicRmwSub_u8(io_cell, i_end, i_kind, i_value);
+    case 1: return m3_AtomicRmwSub_u16(io_cell, i_end, i_kind, i_value);
+#  else
     case 0: return m3_AtomicRmw_u8(io_cell, i_kind, i_value);
     case 1: return m3_AtomicRmw_u16(io_cell, i_kind, i_value);
+#  endif
     case 2: return m3_AtomicRmw_u32(io_cell, i_kind, i_value);
     default: return m3_AtomicRmw_u64(io_cell, i_kind, i_value);
     }
 }
 
-// The value compared against is cut to the width of the cell
+// The value compared against is cut to the width of the cell. i_end is where the memory
+// ends, which a narrow cell's word must not pass.
 static inline
-u64 m3_AtomicCmpxchgW (u8* io_cell, u32 i_log2Width, u64 i_expected, u64 i_replacement)
+u64 m3_AtomicCmpxchgW (u8* io_cell, const u8* i_end, u32 i_log2Width, u64 i_expected, u64 i_replacement)
 {
+    (void)i_end;
+
     switch (i_log2Width) {
+#  if d_m3HasThreads
+    case 0: return m3_AtomicCmpxchgSub_u8(io_cell, i_end, i_expected, i_replacement);
+    case 1: return m3_AtomicCmpxchgSub_u16(io_cell, i_end, i_expected, i_replacement);
+#  else
     case 0: return m3_AtomicCmpxchg_u8(io_cell, i_expected, i_replacement);
     case 1: return m3_AtomicCmpxchg_u16(io_cell, i_expected, i_replacement);
+#  endif
     case 2: return m3_AtomicCmpxchg_u32(io_cell, i_expected, i_replacement);
     default: return m3_AtomicCmpxchg_u64(io_cell, i_expected, i_replacement);
     }
@@ -407,7 +512,11 @@ void m3_CpuRelax (void)
     // written out: the builtin wants SSE2 for a 32-bit target, and the instruction
     // itself is a plain no-op on a processor that has never heard of it
     __asm__ volatile("pause" ::: "memory");
-#    elif defined(__aarch64__) || defined(__arm__)
+#    elif defined(__aarch64__) ||                                                           \
+      (defined(__arm__) && (defined(__ARM_ARCH) && __ARM_ARCH >= 7)) ||                     \
+      defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6KZ__) || defined(__ARM_ARCH_6ZK__) || \
+      defined(__ARM_ARCH_6M__)
+    // ARM has it from ARMv6K, and an assembler for the earlier ones refuses it
     __asm__ volatile("yield" ::: "memory");
 #    else
     __asm__ volatile("" ::: "memory");

@@ -1235,9 +1235,8 @@ _       (CreateSharedMemory(io_runtime, io_memory));
 }
 
 
-M3Result GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPagesToGrow, u64* o_oldPages)
+u64 GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPagesToGrow)
 {
-    M3Result        result = m3Err_none;
     M3SharedMemory* shared = io_memory->shared;
 
     (void)io_runtime;
@@ -1247,16 +1246,14 @@ M3Result GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_num
     u64 oldPages = shared->numPages;
 
     // maxPages is never below the current size, so the difference cannot wrap
-    if (i_numPagesToGrow <= io_memory->maxPages - oldPages) {
-        result = GrowSharedLocked(io_memory, oldPages + i_numPagesToGrow);
-    } else {
-        result = m3Err_wasmMemoryOverflow;
+    if (i_numPagesToGrow > io_memory->maxPages - oldPages or
+        GrowSharedLocked(io_memory, oldPages + i_numPagesToGrow)) {
+        oldPages = d_m3GrowFailed;
     }
 
     m3_HostMutexUnlock(shared->mutex);
 
-    *o_oldPages = oldPages;
-    return result;
+    return oldPages;
 }
 
 

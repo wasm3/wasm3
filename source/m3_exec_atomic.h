@@ -30,6 +30,7 @@
 #  define d_m3AtomicCheckAlways(WIDTH, EA)  d_m3AtomicCheckWith(M3_LIKELY, WIDTH, EA)
 
 #  define d_m3AtomicCell(EA)                (m3MemData(_mem) + (EA))
+#  define d_m3AtomicEnd                     (m3MemData(_mem) + m3MemLength(_mem))
 
 
 // One op per kind of access. The last immediate describes the instruction:
@@ -76,7 +77,7 @@ d_m3Op(AtomicRmw)
     u32 lw = d_m3AtomicLog2Width(desc);
     d_m3AtomicCheck((u64)1 << lw, ea);
 
-    _r0 = d_m3AtomicResult(desc, m3_AtomicRmwW(d_m3AtomicCell(ea), lw, d_m3AtomicKind(desc), (u64)_r0));
+    _r0 = d_m3AtomicResult(desc, m3_AtomicRmwW(d_m3AtomicCell(ea), d_m3AtomicEnd, lw, d_m3AtomicKind(desc), (u64)_r0));
     nextOp();
 }
 
@@ -93,7 +94,7 @@ d_m3Op(AtomicCmpxchg)
 
     u64 expected = d_m3AtomicIs64(desc) ? *(u64*)(_sp + expectedSlot) : (u64) * (u32*)(_sp + expectedSlot);
 
-    _r0 = d_m3AtomicResult(desc, m3_AtomicCmpxchgW(d_m3AtomicCell(ea), lw, expected, (u64)_r0));
+    _r0 = d_m3AtomicResult(desc, m3_AtomicCmpxchgW(d_m3AtomicCell(ea), d_m3AtomicEnd, lw, expected, (u64)_r0));
     nextOp();
 }
 

@@ -775,8 +775,12 @@ void     FreeMemoryBlock (IM3Memory io_memory);
 
 // memory.grow on a shared memory. Two runtimes growing at once each get a distinct old
 // size, so the whole of "read the size, check the maximum, make room" is one step here,
-// under the memory's lock. o_oldPages is the size before, which is what memory.grow answers.
-M3Result GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPagesToGrow, u64* o_oldPages);
+// under the memory's lock. Answers the size before, which is what memory.grow answers, or
+// d_m3GrowFailed. It is a return value and not an out parameter because the op that calls it
+// ends in a tail call, and the address of a local cannot outlive one.
+#  define d_m3GrowFailed              UINT64_MAX
+
+u64      GrowSharedMemory (IM3Runtime io_runtime, IM3Memory io_memory, u64 i_numPagesToGrow);
 
 // Makes io_memory, a fresh memory that has no bytes yet, another view of the shared memory
 // io_source is a view of, in the runtime io_runtime: it gets a header of its own and

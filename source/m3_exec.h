@@ -1309,9 +1309,8 @@ d_m3Op(MemGrow)
     if (numPagesToGrow >= 0) {
 #if d_m3HasThreads
         if (memory->shared) {
-            u64 oldPages;
-
-            _r0 = GrowSharedMemory(runtime, memory, (u32)numPagesToGrow, &oldPages) ? (m3reg_t)-1 : (m3reg_t)oldPages;
+            // failure is d_m3GrowFailed, which is -1 in a register once it is cut to an i32
+            _r0 = (m3reg_t)GrowSharedMemory(runtime, memory, (u32)numPagesToGrow);
 
             nextOp();
         }
@@ -1351,9 +1350,7 @@ d_m3Op(MemGrow64)
 
 #  if d_m3HasThreads
     if (memory->shared) {
-        u64 oldPages;
-
-        _r0 = GrowSharedMemory(runtime, memory, numPagesToGrow, &oldPages) ? (m3reg_t)-1 : (m3reg_t)oldPages;
+        _r0 = (m3reg_t)GrowSharedMemory(runtime, memory, numPagesToGrow);
 
         nextOp();
     }

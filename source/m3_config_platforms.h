@@ -212,6 +212,12 @@ typedef int8_t         i8;
 #  define vectorcall
 #endif
 
+#if defined(M3_COMPILER_TCC)
+#  ifndef d_m3HasAtomics
+#    define d_m3HasAtomics 0
+#  endif
+#endif
+
 
 /*
  * Device-specific defaults
