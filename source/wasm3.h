@@ -387,6 +387,20 @@ void           m3_FreeModule (IM3Module i_module);
 //  Do not call m3_FreeModule on a module after passing it here.
 M3Result       m3_LoadModule (IM3Runtime io_runtime, IM3Module io_module);
 
+// Makes, in i_target, a module that exports a view of each shared memory i_source exports, under
+// the same names, and loads it there. Other exports are not carried over. The module comes
+// out unnamed: name it with m3_SetModuleName, as the modules that import its memory expect.
+//
+// The bytes are shared, not copied: a memory.grow in either runtime is seen by the other, and
+// atomic accesses and memory.atomic.wait / notify reach across. This is how a program that runs
+// a runtime on each of several threads gives them one memory - Wasm3 starts no threads itself.
+// A runtime, and the environment it was made in, are still used by one thread at a time.
+//
+// i_source may itself be such a view, and the new module then shares the same memory. It must
+// not be freed while this runs. o_proxy is set only on success. A build without threads
+// (d_m3HasThreads) has nothing to share, and reports an error.
+M3Result       m3_ShareModule (IM3Runtime i_target, IM3Module i_source, IM3Module* o_proxy);
+
 // Optional, compiles all functions in the module
 M3Result       m3_CompileModule (IM3Module io_module);
 

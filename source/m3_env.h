@@ -576,7 +576,11 @@ typedef struct M3Module {
     struct M3Module* next;
 } M3Module;
 
-M3Result Module_AddMemory (IM3Module io_module, IM3Memory* o_memory, const M3MemoryInfo* i_info, bool i_isImported);
+M3Result  Module_AddMemory (IM3Module io_module, IM3Memory* o_memory, const M3MemoryInfo* i_info, bool i_isImported);
+
+// A module that has nothing in it yet: what a parse fills in, and what m3_NewModule and
+// m3_ShareModule make without one
+IM3Module Module_New (IM3Environment i_environment);
 
 // Memory 0 of a module - the one the interpreter's _mem register tracks while
 // that module's code is running. Never NULL once the module has been loaded.

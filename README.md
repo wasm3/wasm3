@@ -61,9 +61,9 @@ Minimum useful system requirements: **~64Kb** for code and **~10Kb** RAM
 | Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Features |
 |:---    |:---      |
 | ⭐ Ready | **[Lime1][WasmLime1]:** `Import/Export of Mutable Globals` `Non-trapping float-to-int conversions` `Sign-extension operators` `Multi-value` `Extended constant expressions` `bulk-memory-opt` `call-indirect-overlong` |
-| ⭐ Ready | **[Proposals][WasmStatus]:** `Bulk memory operations` `Exception handling` `Multiple memories` `Memory64+Table64` `Reference types` `Typed function references (partial)` `Tail call` `Custom page size` `Compact Import section` `Deterministic profile` `Stack switching` `Wide arithmetic` `Threads (atomics only)` |
+| ⭐ Ready | **[Proposals][WasmStatus]:** `Bulk memory operations` `Exception handling` `Multiple memories` `Memory64+Table64` `Reference types` `Typed function references (partial)` `Tail call` `Custom page size` `Compact Import section` `Deterministic profile` `Stack switching` `Wide arithmetic` `Threads` `Acquire-release atomics` |
 | ✨ Ready | **Extra:** `Structured execution tracing` `Big-Endian support` `Gas metering` `Suspend/resume snapshots` `Wasm and WASI self-hosting` `Guard-page memories` `Linear memory limit (< 64KiB)` `Resource caps` |
-| ⛔ N/A | `Garbage collection` `Threads` `Fixed-width SIMD` |
+| ⛔ N/A | `Garbage collection` `Fixed-width SIMD` |
 
 
 ## Motivation

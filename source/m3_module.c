@@ -18,6 +18,23 @@ void Module_FreeFunctions (IM3Module i_module)
 }
 
 
+IM3Module Module_New (IM3Environment i_environment)
+{
+    IM3Module module = m3_AllocStruct(M3Module);
+
+    if (module) {
+        module->name          = ".unnamed";
+        module->startFunction = -1;
+        module->environment   = i_environment;
+
+        module->wasmStart = NULL;
+        module->wasmEnd   = NULL;
+    }
+
+    return module;
+}
+
+
 void m3_FreeModule (IM3Module i_module)
 {
     if (i_module) {

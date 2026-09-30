@@ -28,6 +28,7 @@
 # - Fix imports.wast
 
 import argparse
+import copy
 import glob
 import json
 import math
@@ -355,6 +356,17 @@ class Wasm3:
     def name_module(self, module):
         return self._run_cmd(":name " + module + "\n")
 
+    def thread(self, name, shared_module, lines):
+        # the lines that follow are the thread's commands, counted rather than ended, which
+        # is what lets one of them start a thread in turn
+        shared = shared_module if shared_module else "-"
+        return self._run_cmd(
+            f":thread {name} {shared} {len(lines)}\n" + "\n".join(lines) + "\n"
+        )
+
+    def wait(self, name):
+        return self._run_cmd(f":wait {name}\n")
+
     def _run_cmd(self, cmd):
         if self.autorestart and not self._is_running():
             self.restart()
@@ -575,6 +587,12 @@ blacklist = Blacklist(
         # nothing is there to check it against.
         "imports.wast:* imports.141.wasm assert_unlinkable (unknown import)",  # wg-2.0
         "imports.wast:* imports.177.wasm assert_unlinkable (unknown import)",  # wg-3.0
+        # and the same in the threads suite, where a module names something no thread
+        # ever registered - one of them a thread with nothing shared at all
+        "thread.wast:* thread.4.wasm assert_unlinkable (unknown import)",
+        "thread.wast:* thread.5.wasm assert_unlinkable (unknown import)",
+        "unlinkable.wast:* unlinkable.1.wasm assert_unlinkable (unknown import)",
+        "unlinkable.wast:* unlinkable.2.wasm assert_unlinkable (unknown import)",
         # The repl talks in whitespace-separated tokens, so a module registered under
         # the empty name has nothing to send: the token disappears. Any placeholder
         # would be a string some other test could legitimately register under, so the
@@ -908,7 +926,9 @@ trapmap = {
 }
 
 
-def runInvoke(test):
+def runInvoke(test, output=None):
+    # output is what a thread said about this call, which is checked as it comes: the
+    # call was made by the thread, and there is nothing to send
     test.cmd = [test.action.field]
 
     displayArgs = []
@@ -927,13 +947,16 @@ def runInvoke(test):
 
     stats.total_run += 1
 
-    output = ""
+    received = output is not None
+    output = output if received else ""
     actual = None
     actual_val = None
     force_fail = False
 
     try:
-        if test.action.type == "get":
+        if received:
+            pass
+        elif test.action.type == "get":
             output = wasm3.get_global(test.cmd[0], test.action.module)
         else:
             output = wasm3.invoke(test.cmd, test.action.module)
@@ -979,13 +1002,25 @@ def runInvoke(test):
         if len(test.expected) == 0:
             expect = "result <Empty Stack>"
         else:
-            if actual_val is not None:
-                # normalize the actual result first: it needs the raw expected
-                # values, which normalizeResults() rewrites in place below
-                actual = "result " + combineResults(
-                    parseResults(actual_val, test.expected)
-                )
-            expect = "result " + combineResults(normalizeResults(test.expected))
+            # A racy program has more than one right answer, which the spec writes as
+            # an "either" result holding them. It passes if it is any of them; when it
+            # is none, the first is what is reported as expected.
+            alternatives = [test.expected]
+            if len(test.expected) == 1 and test.expected[0].get("type") == "either":
+                alternatives = [[copy.deepcopy(v)] for v in test.expected[0]["values"]]
+
+            given = actual
+            for expected in alternatives:
+                actual = given
+                if actual_val is not None:
+                    # normalize the actual result first: it needs the raw expected
+                    # values, which normalizeResults() rewrites in place below
+                    actual = "result " + combineResults(
+                        parseResults(actual_val, expected)
+                    )
+                expect = "result " + combineResults(normalizeResults(expected))
+                if actual == expect:
+                    break
 
     elif hasattr(test, "expected_trap"):
         if test.expected_trap in trapmap:
@@ -1028,7 +1063,7 @@ def runInvoke(test):
         # sys.exit(1)
 
 
-def runValidation(test, cmd, wasm_dir, keep_modules=False):
+def runValidation(test, cmd, wasm_dir, keep_modules=False, output=None):
     # assert_invalid/assert_malformed/assert_uninstantiable: the module must be
     # rejected at load. wasm3's error strings don't match the spec's, so we only
     # check that it *is* rejected; the expected text is kept for the log.
@@ -1064,9 +1099,13 @@ def runValidation(test, cmd, wasm_dir, keep_modules=False):
         # Once modules are being kept, the runtime holds the registered ones the
         # rest of the file still needs - and an unlinkable/uninstantiable module
         # is only meaningful against them - so it must not be reset here.
-        if not keep_modules:
-            wasm3.init()
-        detail = wasm3.load(os.path.join(wasm_dir, test.wasm))
+        if output is not None:
+            # a thread loaded it, and said what became of it
+            detail = output.strip()
+        else:
+            if not keep_modules:
+                wasm3.init()
+            detail = wasm3.load(os.path.join(wasm_dir, test.wasm))
         actual = "rejected" if detail else "accepted"
     except Exception as e:
         actual = "<Crashed>"
@@ -1173,6 +1212,178 @@ else:
 jsonFiles = list(map(lambda x: os.path.relpath(x, scriptDir), jsonFiles))
 jsonFiles.sort()
 
+
+def prepareActionTest(test, cmd):
+    """Says what an action, or an assertion about one, expects. False when there is
+    nothing here that the repl can run."""
+    if test.type == "action":
+        test.expected_anything = True
+    elif test.type == "assert_return":
+        test.expected = cmd["expected"]
+    elif test.type == "assert_return_canonical_nan":
+        test.expected = cmd["expected"]
+        test.expected[0]["value"] = "nan:canonical"
+    elif test.type == "assert_return_arithmetic_nan":
+        test.expected = cmd["expected"]
+        test.expected[0]["value"] = "nan:arithmetic"
+    elif test.type == "assert_trap":
+        test.expected_trap = cmd["text"]
+    elif test.type == "assert_exhaustion":
+        test.expected_trap = "stack overflow"
+    elif test.type == "assert_exception":
+        # the exception handling proposal only asserts that something
+        # was thrown and never caught, without naming it
+        test.expected_trap = "uncaught exception"
+    else:
+        stats.skipped += 1
+        warning(f"Skipped {test.source} ({test.type} not implemented)")
+        return False
+
+    test.action = SimpleNamespace(**cmd["action"])
+    if test.action.type not in ("invoke", "get"):
+        stats.skipped += 1
+        warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
+        return False
+
+    # an action may name the module whose export it means, which is
+    # how a test reaches past the most recently loaded one
+    module = getattr(test.action, "module", None)
+    test.action.module = escape_str(module) if module else None
+
+    test.action.field = escape_str(test.action.field)
+    test.action.args = getattr(test.action, "args", [])
+
+    return True
+
+
+# A thread of a script, as the repl is told about it: the commands it runs, one to a line,
+# and what to check when it has finished. Everything the thread says comes back at once, when
+# it is waited for, in a record for each command it ran - so what to check is kept beside them.
+class ThreadBody:
+    def __init__(self, depth):
+        self.depth = depth
+        self.lines = []
+        self.checks = (
+            []
+        )  # one for each command in lines: None, or what to check about it
+        self.children = {}  # the threads it started, by name
+
+    def add(self, lines, check=None):
+        self.lines.extend(lines)
+        self.checks.append(check)
+
+
+def moduleLines(path):
+    with open(path, "rb") as f:
+        wasm = f.read()
+    return [f":load-hex {len(wasm)}", wasm.hex()]
+
+
+def buildThread(commands, depth, fn, wast_source):
+    body = ThreadBody(depth)
+    module = ""
+
+    for sub in commands:
+        kind = sub["type"]
+        test = SimpleNamespace()
+        test.line = int(sub["line"])
+        test.source = wast_source + ":" + str(test.line)
+        test.wasm = module
+        test.type = kind
+
+        if kind == "register":
+            name = f" {sub['name']}" if sub.get("name") else ""
+            body.add([f":register {sub['as']}{name}"])
+
+        elif kind == "module":
+            module = sub["filename"]
+            body.add(moduleLines(os.path.join(pathname(fn), module)))
+            if sub.get("name"):
+                body.add([f":name {sub['name']}"])
+
+        elif kind in (
+            "action",
+            "assert_return",
+            "assert_trap",
+            "assert_exhaustion",
+            "assert_exception",
+            "assert_return_canonical_nan",
+            "assert_return_arithmetic_nan",
+        ):
+            if not prepareActionTest(test, sub):
+                continue
+
+            command = [test.action.field] + [a["value"] for a in test.action.args]
+            if test.action.module:
+                body.add(
+                    [
+                        ":invoke-in "
+                        + test.action.module
+                        + " "
+                        + " ".join(map(str, command))
+                    ],
+                    ("invoke", test),
+                )
+            else:
+                body.add([":invoke " + " ".join(map(str, command))], ("invoke", test))
+
+        elif kind in (
+            "assert_invalid",
+            "assert_malformed",
+            "assert_uninstantiable",
+            "assert_unlinkable",
+        ):
+            if sub.get("module_type") != "binary":
+                stats.skipped += 1
+                warning(f"Skipped {test.source} ({kind} of a text module)")
+                continue
+            body.add(
+                moduleLines(os.path.join(pathname(fn), sub["filename"])),
+                ("validate", test, sub),
+            )
+
+        elif kind == "thread":
+            child = buildThread(sub["commands"], depth + 1, fn, wast_source)
+            body.children[sub["name"]] = child
+            body.add(
+                [
+                    f":thread {sub['name']} {sub.get('shared_module', '-')} {len(child.lines)}"
+                ]
+                + child.lines
+            )
+
+        elif kind == "wait":
+            body.add([f":wait {sub['thread']}"], ("wait", sub["thread"]))
+
+        else:
+            stats.skipped += 1
+            warning(f"Skipped {test.source} ('{kind}' not implemented in a thread)")
+
+    return body
+
+
+def checkThread(body, output, fn):
+    # a record for each command, each ended by a line naming the depth it was run at; the
+    # text after the last of them is nothing
+    records = re.split(rf"^--- record {body.depth} ---\n?", output, flags=re.MULTILINE)[
+        :-1
+    ]
+
+    for i, check in enumerate(body.checks):
+        if check is None:
+            continue
+
+        # a thread that said less than it was asked to is a failure of each thing it missed
+        record = records[i] if i < len(records) else ""
+
+        if check[0] == "invoke":
+            runInvoke(check[1], output=record)
+        elif check[0] == "validate":
+            runValidation(check[1], check[2], pathname(fn), output=record)
+        elif check[0] == "wait":
+            checkThread(body.children[check[1]], record, fn)
+
+
 for fn in jsonFiles:
     with open(fn, encoding="utf-8") as f:
         data = json.load(f)
@@ -1190,10 +1401,15 @@ for fn in jsonFiles:
     # loaded module first.
     keep_modules = False
 
-    # These start threads of their own, which the repl cannot yet
-    if any(cmd["type"] == "thread" for cmd in data["commands"]):
+    # A build without threads has nothing to run them on
+    if "threads" not in features and any(
+        cmd["type"] == "thread" for cmd in data["commands"]
+    ):
         warning(f"{fn} starts threads, skipping", True)
         continue
+
+    # what the script started, by name, until it waits for it
+    running = {}
 
     print(f"Running {fn}")
 
@@ -1248,45 +1464,8 @@ for fn in jsonFiles:
                     except Exception:
                         pass
 
-            if test.type == "action":
-                test.expected_anything = True
-            elif test.type == "assert_return":
-                test.expected = cmd["expected"]
-            elif test.type == "assert_return_canonical_nan":
-                test.expected = cmd["expected"]
-                test.expected[0]["value"] = "nan:canonical"
-            elif test.type == "assert_return_arithmetic_nan":
-                test.expected = cmd["expected"]
-                test.expected[0]["value"] = "nan:arithmetic"
-            elif test.type == "assert_trap":
-                test.expected_trap = cmd["text"]
-            elif test.type == "assert_exhaustion":
-                test.expected_trap = "stack overflow"
-            elif test.type == "assert_exception":
-                # the exception handling proposal only asserts that something
-                # was thrown and never caught, without naming it
-                test.expected_trap = "uncaught exception"
-            else:
-                stats.skipped += 1
-                warning(f"Skipped {test.source} ({test.type} not implemented)")
-                continue
-
-            test.action = SimpleNamespace(**cmd["action"])
-            if test.action.type in ("invoke", "get"):
-                # an action may name the module whose export it means, which is
-                # how a test reaches past the most recently loaded one
-                module = getattr(test.action, "module", None)
-                test.action.module = escape_str(module) if module else None
-
-                test.action.field = escape_str(test.action.field)
-                test.action.args = getattr(test.action, "args", [])
-
+            if prepareActionTest(test, cmd):
                 runInvoke(test)
-            else:
-                stats.skipped += 1
-                warning(
-                    f"Skipped {test.source} (unknown action type '{test.action.type}')"
-                )
 
         elif (
             test.type == "assert_invalid"
@@ -1315,6 +1494,34 @@ for fn in jsonFiles:
                     keep_modules = True
             except Exception as e:
                 warning(str(e))
+
+        elif test.type == "thread":
+            body = buildThread(cmd["commands"], 1, fn, wast_source)
+            running[cmd["name"]] = body
+            keep_modules = True
+
+            try:
+                res = wasm3.thread(cmd["name"], cmd.get("shared_module"), body.lines)
+                if res:
+                    warning(res)
+            except Exception as e:
+                warning(str(e))
+
+        elif test.type == "wait":
+            if args.line and test.line != args.line:
+                continue
+
+            body = running.pop(cmd["thread"], None)
+            try:
+                output = wasm3.wait(cmd["thread"])
+            except Exception as e:
+                # nothing came back: what the thread was to check has failed
+                output = ""
+                # the process itself is what ended: whatever it printed on the way out
+                # - a sanitizer report, an assertion - is the only account of why
+                warning(f"{test.source}: {e}\n{getattr(e, 'output', '')}", True)
+            if body:
+                checkThread(body, output, fn)
 
         # Others - report as skipped
         else:

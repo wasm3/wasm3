@@ -1,0 +1,17 @@
+# ThreadSanitizer suppressions for the test suites, used as
+#
+#   TSAN_OPTIONS="suppressions=test/tsan.supp" python3 test/run-spec-test.py ...
+#
+# What a guest program does to a shared linear memory is allowed to race: the threads proposal
+# gives an unsynchronized access a defined outcome - one of the values written - and the spec's
+# own tests (nested, MP, SB, LB, thread, ...) do it on purpose, to see that an engine copes.
+# The interpreter performs those accesses as the plain loads, stores and bulk operations they
+# are, which is what ThreadSanitizer reports, so they are named here and nothing else is:
+# every atomic access, the waiter queue, the memory's length and the runtime's own state stay
+# in view.
+
+race:op_*_Load_*
+race:op_*_Store_*
+race:op_MemCopy*
+race:op_MemFill*
+race:op_MemInit*

@@ -6,6 +6,7 @@
 //
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
@@ -33,6 +34,111 @@
 
 #define MAX_MODULES     64
 
+// A :thread runs the same commands over a session of its own - a runtime, the modules it
+// loaded, the names it gave them - so what a session holds is per thread, and one that is
+// not started by :thread is simply the first thread's. Without threads there is only ever
+// the one.
+#if d_m3HasThreads
+#  define REPL_LOCAL    M3_THREAD_LOCAL
+#else
+#  define REPL_LOCAL
+#endif
+
+// Where the session writes what it reports. The first goes to stderr, where a
+// person or the spec runner reads it; a thread's is kept in a buffer that :wait gives to whoever
+// asks - the runner, or the thread that started it - so that what each thread said stays together.
+static REPL_LOCAL char*  outBuffer;
+static REPL_LOCAL size_t outLength;
+static REPL_LOCAL size_t outCapacity;
+static REPL_LOCAL bool   outCapturing;
+
+// 0 for the first session, and one more for each thread down from it. What is process-wide -
+// the handler that turns Ctrl+C into a suspension of a runtime - is the first session's.
+static REPL_LOCAL int replDepth = 0;
+
+static
+void repl_printf (const char* i_format, ...)
+{
+    va_list args;
+    va_start(args, i_format);
+
+    if (not outCapturing) {
+        vfprintf(stderr, i_format, args);
+        va_end(args);
+        return;
+    }
+
+    va_list measure;
+    va_copy(measure, args);
+    int needed = vsnprintf(NULL, 0, i_format, measure);
+    va_end(measure);
+
+    if (needed > 0) {
+        size_t required = outLength + (size_t)needed + 1;
+
+        if (required > outCapacity) {
+            size_t capacity = outCapacity ? outCapacity : 1024;
+            while (capacity < required) {
+                capacity *= 2;
+            }
+
+            char* grown = (char*)realloc(outBuffer, capacity);
+            if (not grown) {
+                va_end(args);
+                return;
+            }
+            outBuffer   = grown;
+            outCapacity = capacity;
+        }
+
+        vsnprintf(outBuffer + outLength, (size_t)needed + 1, i_format, args);
+        outLength += (size_t)needed;
+    }
+
+    va_end(args);
+}
+
+// and where it reads commands from: stdin, or for a thread the lines it was handed
+static REPL_LOCAL const char* inBuffer;
+static REPL_LOCAL size_t      inLength;
+static REPL_LOCAL size_t      inPosition;
+
+static
+int repl_getc (void)
+{
+    if (inBuffer) {
+        return (inPosition < inLength) ? (unsigned char)inBuffer[inPosition++] : EOF;
+    }
+
+    return fgetc(stdin);
+}
+
+// Like fgets: up to i_size - 1 characters of a line, with its newline if that fits. A
+// longer line is left for the next call.
+static
+char* repl_fgets (char* o_line, int i_size)
+{
+    int length = 0;
+
+    while (length < i_size - 1) {
+        int c = repl_getc();
+
+        if (c == EOF) {
+            break;
+        }
+
+        o_line[length++] = (char)c;
+
+        if (c == '\n') {
+            break;
+        }
+    }
+
+    o_line[length] = '\0';
+
+    return length ? o_line : NULL;
+}
+
 #define FATAL(msg, ...) { fprintf(stderr, "Error: [Fatal] " msg "\n", ##__VA_ARGS__); goto _onfatal; }
 
 #if defined(_MSC_VER)
@@ -59,16 +165,16 @@ bool launched_from_gui_shell ()
 #endif
 
 
-static IM3Environment env;
-static IM3Runtime     runtime;
+static REPL_LOCAL IM3Environment env;
+static REPL_LOCAL IM3Runtime     runtime;
 
 // Every wasm binary handed to the runtime. A module points into its bytes, and
 // m3_LoadModule takes ownership of the module whether or not it succeeds, so
 // the bytes have to live until the runtime is freed. One spec-test file can
 // hand over hundreds, so this grows instead of being capped.
-static M3HostFile* wasm_bins     = NULL;
-static int         wasm_bins_qty = 0;
-static int         wasm_bins_cap = 0;
+static REPL_LOCAL M3HostFile* wasm_bins     = NULL;
+static REPL_LOCAL int         wasm_bins_qty = 0;
+static REPL_LOCAL int         wasm_bins_cap = 0;
 
 // Takes ownership of i_bin's bytes on success; the caller still owns them on failure.
 static
@@ -110,7 +216,7 @@ M3Result read_wasm_file (const char* i_path, M3HostFile* o_bin)
 }
 
 // the module the most recent :load / :load-hex produced
-static IM3Module lastLoadedModule = NULL;
+static REPL_LOCAL IM3Module lastLoadedModule = NULL;
 
 static bool        argGasMeter = false;
 static uint64_t    argMaxMemory, argMaxTableElements, argMaxContinuations;
@@ -126,6 +232,9 @@ static bool        argInterrupt    = false;
 static bool        argAutoResume     = false;
 static bool        argResumeEmbedded = false;
 static const char* argFunc           = "_start";
+static bool        argCompile        = false;
+static bool        argNoValidate     = false;
+static unsigned    argStackSize      = 512 * 1024;
 static char        argSnapshotFileBuf[1024];
 static char        argResumeFileBuf[1024];
 static char        argFileBuf[1024];
@@ -303,7 +412,7 @@ M3Result repl_load_hex (u32 fsize)
         char hex[3]   = { 0, 0, 0 };
         int  hex_idx  = 0;
         while (wasm_idx < fsize) {
-            int c = fgetc(stdin);
+            int c = repl_getc();
             if (c == EOF) {
                 m3_Free(wasm);
                 return "unexpected end of input";
@@ -322,7 +431,7 @@ M3Result repl_load_hex (u32 fsize)
             }
         }
         int c;                          // Consume the rest of the line
-        while ((c = fgetc(stdin)) != EOF && c != '\n') {
+        while ((c = repl_getc()) != EOF && c != '\n') {
         }
     }
 
@@ -384,7 +493,7 @@ void print_gas_used ()
     if (argGasMeter) {
         // the last segment is charged before it runs, so a module that ran out
         // reports slightly more than the limit it was given
-        fprintf(stderr, "Gas used: %0.4f\n", (double)m3_GetResourceUsage(runtime, c_m3Limit_GasUnits) / M3_GAS_UNITS_PER_GAS);
+        repl_printf("Gas used: %0.4f\n", (double)m3_GetResourceUsage(runtime, c_m3Limit_GasUnits) / M3_GAS_UNITS_PER_GAS);
     }
 }
 
@@ -398,30 +507,30 @@ void print_backtrace ()
         return;
     }
 
-    fprintf(stderr, "==== wasm backtrace:");
+    repl_printf("==== wasm backtrace:");
 
     int               frameCount = 0;
     IM3BacktraceFrame curr       = info->frames;
     while (curr) {
-        fprintf(stderr, "\n  %d: 0x%06x - %s!%s",
-                frameCount, curr->moduleOffset,
-                m3_GetModuleName(m3_GetFunctionModule(curr->function)),
-                m3_GetFunctionName(curr->function));
+        repl_printf("\n  %d: 0x%06x - %s!%s",
+                    frameCount, curr->moduleOffset,
+                    m3_GetModuleName(m3_GetFunctionModule(curr->function)),
+                    m3_GetFunctionName(curr->function));
         curr = curr->next;
         frameCount++;
     }
     if (info->lastFrame == M3_BACKTRACE_TRUNCATED) {
-        fprintf(stderr, "\n  (truncated)");
+        repl_printf("\n  (truncated)");
     }
-    fprintf(stderr, "\n");
+    repl_printf("\n");
 }
 
 M3Result repl_print_results (IM3Function func)
 {
     int ret_count = m3_GetRetCount(func);
 
-    static uint64_t    valbuff[128];
-    static const void* valptrs[128];
+    uint64_t    valbuff[128];
+    const void* valptrs[128];
     memset(valbuff, 0, sizeof(valbuff));
     for (int i = 0; i < ret_count; i++) {
         valptrs[i] = &valbuff[i];
@@ -432,15 +541,15 @@ M3Result repl_print_results (IM3Function func)
     }
 
     if (ret_count <= 0) {
-        fprintf(stderr, "Result: <Empty Stack>\n");
+        repl_printf("Result: <Empty Stack>\n");
     }
     for (int i = 0; i < ret_count; i++) {
         switch (m3_GetRetType(func, i)) {
-        case c_m3Type_i32: fprintf(stderr, "Result: %" PRIi32 "\n", *(i32*)valptrs[i]); break;
-        case c_m3Type_i64: fprintf(stderr, "Result: %" PRIi64 "\n", *(i64*)valptrs[i]); break;
+        case c_m3Type_i32: repl_printf("Result: %" PRIi32 "\n", *(i32*)valptrs[i]); break;
+        case c_m3Type_i64: repl_printf("Result: %" PRIi64 "\n", *(i64*)valptrs[i]); break;
 #if d_m3HasFloat
-        case c_m3Type_f32: fprintf(stderr, "Result: %" PRIf32 "\n", *(f32*)valptrs[i]); break;
-        case c_m3Type_f64: fprintf(stderr, "Result: %" PRIf64 "\n", *(f64*)valptrs[i]); break;
+        case c_m3Type_f32: repl_printf("Result: %" PRIf32 "\n", *(f32*)valptrs[i]); break;
+        case c_m3Type_f64: repl_printf("Result: %" PRIf64 "\n", *(f64*)valptrs[i]); break;
 #endif
         default: return "unknown return type";
         }
@@ -585,9 +694,9 @@ static
 void print_ref (uintptr_t ref, const char* type)
 {
     if (ref) {
-        fprintf(stderr, "%" PRIu64 ":%s", (uint64_t)(ref - 1), type);
+        repl_printf("%" PRIu64 ":%s", (uint64_t)(ref - 1), type);
     } else {
-        fprintf(stderr, "null:%s", type);
+        repl_printf("null:%s", type);
     }
 }
 
@@ -628,8 +737,8 @@ M3Result repl_invoke (const char* i_module, const char* name, int argc, const ch
         return "too many arguments";
     }
 
-    static uint64_t    valbuff[128];
-    static const void* valptrs[128];
+    uint64_t    valbuff[128];
+    const void* valptrs[128];
     memset(valbuff, 0, sizeof(valbuff));
     memset((void*)valptrs, 0, sizeof(valptrs));
 
@@ -676,17 +785,17 @@ M3Result repl_invoke (const char* i_module, const char* name, int argc, const ch
         return result;
     }
 
-    fprintf(stderr, "Result: ");
+    repl_printf("Result: ");
     if (ret_count <= 0) {
-        fprintf(stderr, "<Empty Stack>");
+        repl_printf("<Empty Stack>");
     }
     for (int i = 0; i < ret_count; i++) {
         // clang-format off
         switch (m3_GetRetType(func, i)) {
-        case c_m3Type_i32: fprintf (stderr, "%" PRIu32 ":i32", *(u32*)valptrs[i]);  break;
-        case c_m3Type_f32: fprintf (stderr, "%" PRIu32 ":f32", *(u32*)valptrs[i]);  break;
-        case c_m3Type_i64: fprintf (stderr, "%" PRIu64 ":i64", *(u64*)valptrs[i]);  break;
-        case c_m3Type_f64: fprintf (stderr, "%" PRIu64 ":f64", *(u64*)valptrs[i]);  break;
+        case c_m3Type_i32: repl_printf("%" PRIu32 ":i32", *(u32*)valptrs[i]);  break;
+        case c_m3Type_f32: repl_printf("%" PRIu32 ":f32", *(u32*)valptrs[i]);  break;
+        case c_m3Type_i64: repl_printf("%" PRIu64 ":i64", *(u64*)valptrs[i]);  break;
+        case c_m3Type_f64: repl_printf("%" PRIu64 ":f64", *(u64*)valptrs[i]);  break;
         case c_m3Type_funcref:   print_ref (*(uintptr_t*)valptrs[i], "funcref");   break;
         case c_m3Type_externref: print_ref (*(uintptr_t*)valptrs[i], "externref"); break;
         case c_m3Type_exnref:    print_ref (*(uintptr_t*)valptrs[i], "exnref");    break;
@@ -694,29 +803,29 @@ M3Result repl_invoke (const char* i_module, const char* name, int argc, const ch
         }
         // clang-format on
         if (i != ret_count - 1) {
-            fprintf(stderr, ", ");
+            repl_printf(", ");
         }
     }
-    fprintf(stderr, "\n");
+    repl_printf("\n");
 
     return result;
 }
 
 // m3_SetModuleName does not take ownership, and the name has to outlive the
 // command line it came from, so the names live here and are reused after :init
-static char registeredNames[MAX_MODULES][32];
-static int  numRegisteredNames = 0;
+static REPL_LOCAL char registeredNames[MAX_MODULES][32];
+static REPL_LOCAL int  numRegisteredNames = 0;
 
 // A spec test addresses a module by the variable name its .wast gave it ($Mf),
 // which is a different thing from the name it is registered under for other
 // modules to import from (Mf) - one module can have both, or neither. Only the
 // test harness cares about the first, so the mapping lives here rather than in
 // M3Module.
-static struct {
+static REPL_LOCAL struct {
     char      id[32];
     IM3Module module;
 } moduleIds[MAX_MODULES];
-static int numModuleIds = 0;
+static REPL_LOCAL int numModuleIds = 0;
 
 static
 IM3Module module_by_id (const char* id)
@@ -793,21 +902,21 @@ M3Result repl_global_get (const char* i_module, const char* name)
     }
 
     // "Result: " so spec-test output parses the same as :invoke
-    fprintf(stderr, "Result: ");
+    repl_printf("Result: ");
 
     // clang-format off
     switch (tagged.type) {
-    case c_m3Type_i32:  fprintf (stderr, "%" PRIu32 ":i32", tagged.value.i32);  break;
-    case c_m3Type_i64:  fprintf (stderr, "%" PRIu64 ":i64", tagged.value.i64);  break;
-    case c_m3Type_f32:  fprintf (stderr, "%" PRIf32 ":f32", tagged.value.f32);  break;
-    case c_m3Type_f64:  fprintf (stderr, "%" PRIf64 ":f64", tagged.value.f64);  break;
+    case c_m3Type_i32:  repl_printf("%" PRIu32 ":i32", tagged.value.i32);  break;
+    case c_m3Type_i64:  repl_printf("%" PRIu64 ":i64", tagged.value.i64);  break;
+    case c_m3Type_f32:  repl_printf("%" PRIf32 ":f32", tagged.value.f32);  break;
+    case c_m3Type_f64:  repl_printf("%" PRIf64 ":f64", tagged.value.f64);  break;
     case c_m3Type_funcref:   print_ref ((uintptr_t) tagged.value.i64, "funcref");   break;
     case c_m3Type_externref: print_ref ((uintptr_t) tagged.value.i64, "externref"); break;
     case c_m3Type_exnref:    print_ref ((uintptr_t) tagged.value.i64, "exnref");    break;
     default:            return m3Err_invalidTypeId;
     }
     // clang-format on
-    fprintf(stderr, "\n");
+    repl_printf("\n");
     return m3Err_none;
 }
 
@@ -872,7 +981,9 @@ void release_wasm_bins ()
 void repl_free ()
 {
     if (runtime) {
-        m3_HostRemoveInterruptHandler();
+        if (replDepth == 0) {
+            m3_HostRemoveInterruptHandler();
+        }
         m3_FreeRuntime(runtime);
         runtime = NULL;
     }
@@ -952,7 +1063,9 @@ M3Result repl_init (unsigned stack)
     // than once in main because :init builds a new runtime.
     if (argSnapshotFile || argResumeFile) {
         m3_SetSuspendable(runtime, true);
-        m3_HostInstallInterruptHandler(runtime);
+        if (replDepth == 0) {
+            m3_HostInstallInterruptHandler(runtime);
+        }
     }
 
     // has to be armed before anything is compiled: only the function bodies
@@ -1223,6 +1336,376 @@ M3Result FileSnapshotReader (void* o_buffer, size_t i_size, void* i_userdata)
 #define ARGV_SHIFT()  { i_argc--; i_argv++; }
 #define ARGV_SET(x)   { if (i_argc > 0) { x = i_argv[0]; ARGV_SHIFT(); } }
 
+M3Result repl_thread (const char* i_name, const char* i_shared, int i_lines);
+M3Result repl_wait (const char* i_name);
+
+#define NEED_ARGS(N)   if (argc < (N)) { result = "not enough arguments"; } else
+
+// One command of the repl, whichever session it comes from. False for the one that ends it.
+static
+bool repl_dispatch (int argc, char** argv)
+{
+    M3Result result = m3Err_none;
+
+    if (!strcmp(":init", argv[0])) {
+        result = repl_init(argStackSize);
+        m3_SetValidation(runtime, not argNoValidate);
+    } else if (!strcmp(":version", argv[0])) {
+        print_version();
+    } else if (!strcmp(":exit", argv[0])) {
+        repl_free();
+        return false;
+    } else if (!strcmp(":load", argv[0])) {             // :load <filename>
+        NEED_ARGS(2)
+        {
+            result = repl_load(argv[1]);
+            if (argCompile and not result) {
+                result = repl_compile();
+            }
+        }
+    } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
+        NEED_ARGS(2)
+        {
+            result = repl_load_hex(atol(argv[1]));
+            if (argCompile and not result) {
+                result = repl_compile();
+            }
+        }
+    } else if (!strcmp(":get-global", argv[0])) {       // :get-global <global>
+        NEED_ARGS(2)
+        {
+            unescape(argv[1]);
+            result = repl_global_get(NULL, argv[1]);
+        }
+    } else if (!strcmp(":get-global-in", argv[0])) {    // :get-global-in <module> <global>
+        NEED_ARGS(3)
+        {
+            unescape(argv[1]);
+            unescape(argv[2]);
+            result = repl_global_get(argv[1], argv[2]);
+        }
+    } else if (!strcmp(":set-global", argv[0])) {       // :set-global <global> <value>
+        NEED_ARGS(3)
+        {
+            result = repl_global_set(argv[1], argv[2]);
+        }
+    } else if (!strcmp(":register", argv[0])) {         // :register <name> [module]
+        NEED_ARGS(2)
+        {
+            result = repl_register(argv[1], argc > 2 ? argv[2] : NULL);
+        }
+    } else if (!strcmp(":name", argv[0])) {             // :name <module>
+        NEED_ARGS(2)
+        {
+            result = repl_name(argv[1]);
+        }
+    } else if (!strcmp(":dump", argv[0])) {
+        result = repl_dump();
+    } else if (!strcmp(":compile", argv[0])) {
+        result = repl_compile();
+    } else if (!strcmp(":invoke", argv[0])) {           // :invoke <function> [args...]
+        NEED_ARGS(2)
+        {
+            unescape(argv[1]);
+            result = repl_invoke(NULL, argv[1], argc - 2, (const char**)(argv + 2));
+        }
+    } else if (!strcmp(":invoke-in", argv[0])) {        // :invoke-in <module> <function> [args...]
+        NEED_ARGS(3)
+        {
+            unescape(argv[1]);
+            unescape(argv[2]);
+            result = repl_invoke(argv[1], argv[2], argc - 3, (const char**)(argv + 3));
+        }
+    } else if (!strcmp(":thread", argv[0])) {           // :thread <name> <shared-module|-> <nlines>
+        NEED_ARGS(4)
+        {
+            result = repl_thread(argv[1], argv[2], atoi(argv[3]));
+        }
+    } else if (!strcmp(":wait", argv[0])) {             // :wait <name>
+        NEED_ARGS(2)
+        {
+            result = repl_wait(argv[1]);
+        }
+    } else if (argv[0][0] == ':') {
+        result = "no such command";
+    } else {
+        unescape(argv[0]);
+        result = repl_call(argv[0], argc - 1, (const char**)(argv + 1));
+        if (result) {
+            print_backtrace();
+        }
+    }
+
+    if (result == m3Err_trapWasiExit) {
+#if defined(LINK_WASI)
+        // the exit code lives on the WASI context, the same one the non-repl
+        // path exits with; in the repl the session continues, so report it
+        repl_printf(M3_ARCH "-wasi: exit(%d)\n", m3_GetWasiContext()->exit_code);
+#endif
+    } else if (result) {
+        repl_printf("Error: %s", result);
+        M3ErrorInfo info;
+        m3_GetErrorInfo(runtime, &info);
+        repl_printf(" (%s)\n", info.message);
+    }
+
+    return true;
+}
+
+#undef NEED_ARGS
+
+#if d_m3HasThreads
+
+// A :thread, from when it is started until :wait has given back what it said. The thread
+// owns its session; the record is the starting thread's, and only one of them ever
+// touches any of it at a time.
+typedef struct ReplThread {
+    char         name[32];
+    M3HostThread handle;
+    char*        input;            // the lines it runs, one command each, load-hex's data included
+    size_t       inputLength;
+    char         sharedId[32];     // what the module it shares is called there, and in the thread
+    IM3Module    source;           // the module in the starting thread whose memories it shares, or NULL
+    int          depth;            // 1 for a thread of the first session, and so on
+    char*        output;           // what it said, once it has finished
+    size_t       outputLength;
+} ReplThread;
+
+static REPL_LOCAL ReplThread* replThreads[MAX_MODULES];
+static REPL_LOCAL int         numReplThreads = 0;
+
+// Records are told apart by a line of their own naming the depth they were made at, so that
+// what a thread says about one it waited for, which has records of its own, stays apart
+#  define REPL_RECORD  "--- record %d ---\n"
+
+static
+void repl_thread_finish (ReplThread* io_thread)
+{
+    if (io_thread->handle) {
+        m3_HostThreadJoin(io_thread->handle);
+        io_thread->handle = NULL;
+    }
+}
+
+static
+void repl_thread_free (ReplThread* io_thread)
+{
+    free(io_thread->input);
+    free(io_thread->output);
+    free(io_thread);
+}
+
+static
+void repl_thread_main (void* io_thread)
+{
+    ReplThread* self = (ReplThread*)io_thread;
+
+    // this thread's own session: everything REPL_LOCAL starts as zero here
+    replDepth    = self->depth;
+    inBuffer     = self->input;
+    inLength     = self->inputLength;
+    inPosition   = 0;
+    outCapturing = true;
+
+    env = m3_NewEnvironment();
+
+    M3Result result = env ? repl_init(argStackSize) : "m3_NewEnvironment failed";
+
+    if (not result) {
+        m3_SetValidation(runtime, not argNoValidate);
+    }
+
+    if (not result and self->source) {
+        IM3Module proxy = NULL;
+
+        result = m3_ShareModule(runtime, self->source, &proxy);
+
+        if (not result and numModuleIds < MAX_MODULES) {
+            snprintf(moduleIds[numModuleIds].id, sizeof(moduleIds[0].id), "%s", self->sharedId);
+            moduleIds[numModuleIds].module = proxy;
+            numModuleIds++;
+            lastLoadedModule = proxy;
+        }
+    }
+
+    // not part of the records: nothing that asked for them can tell which one it was
+    if (result) {
+        fprintf(stderr, "Error: thread %s: %s\n", self->name, result);
+    }
+
+    char  line[2048];
+    char* argv[32] = { 0 };
+
+    while (repl_fgets(line, sizeof(line))) {
+        int argc = split_argv(line, argv);
+        if (argc <= 0) {
+            continue;
+        }
+
+        if (not repl_dispatch(argc, argv)) {
+            break;
+        }
+
+        repl_printf(REPL_RECORD, replDepth);
+    }
+
+    // whatever it started and did not wait for
+    for (int i = 0; i < numReplThreads; ++i) {
+        repl_thread_finish(replThreads[i]);
+        repl_thread_free(replThreads[i]);
+    }
+    numReplThreads = 0;
+
+    self->output       = outBuffer;
+    self->outputLength = outLength;
+    outBuffer          = NULL;
+
+    repl_free();
+    m3_FreeEnvironment(env);
+    env = NULL;
+}
+
+// The next i_lines lines of what the session reads, which are the commands of the thread
+static
+M3Result repl_read_lines (int i_lines, char** o_text, size_t* o_length)
+{
+    char*  text     = NULL;
+    size_t length   = 0;
+    size_t capacity = 0;
+
+    for (int i = 0; i < i_lines; ++i) {
+        for (;;) {
+            int c = repl_getc();
+
+            if (c == EOF) {
+                free(text);
+                return "unexpected end of input";
+            }
+
+            if (length + 2 > capacity) {
+                capacity = capacity ? capacity * 2 : 4096;
+
+                char* grown = (char*)realloc(text, capacity);
+                if (not grown) {
+                    free(text);
+                    return "cannot allocate memory for the thread's commands";
+                }
+                text = grown;
+            }
+
+            text[length++] = (char)c;
+
+            if (c == '\n') {
+                break;
+            }
+        }
+    }
+
+    *o_text   = text;
+    *o_length = length;
+    return m3Err_none;
+}
+
+M3Result repl_thread (const char* i_name, const char* i_shared, int i_lines)
+{
+    // read first, whatever comes of it: what is left behind gets read back as commands
+    char*    text   = NULL;
+    size_t   length = 0;
+    M3Result result = (i_lines > 0) ? repl_read_lines(i_lines, &text, &length) : "no commands for the thread";
+
+    if (result) {
+        return result;
+    }
+
+    ReplThread* thread = (ReplThread*)calloc(1, sizeof(ReplThread));
+    IM3Module   source = NULL;
+
+    if (not thread) {
+        result = "cannot allocate memory for the thread";
+    } else if (numReplThreads >= MAX_MODULES) {
+        result = "too many threads";
+    } else if (strcmp(i_shared, "-") != 0) {
+        source = repl_find_module(i_shared);
+        if (not source) {
+            result = "module not found";
+        }
+    }
+
+    if (not result) {
+        snprintf(thread->name, sizeof(thread->name), "%s", i_name);
+        snprintf(thread->sharedId, sizeof(thread->sharedId), "%s", i_shared);
+        thread->input       = text;
+        thread->inputLength = length;
+        thread->source      = source;
+        thread->depth       = replDepth + 1;
+
+        thread->handle = m3_HostThreadStart(repl_thread_main, thread);
+        if (not thread->handle) {
+            result = "cannot start the thread";
+        }
+    }
+
+    if (result) {
+        if (thread) {
+            repl_thread_free(thread);
+        } else {
+            free(text);
+        }
+        return result;
+    }
+
+    replThreads[numReplThreads++] = thread;
+    return m3Err_none;
+}
+
+M3Result repl_wait (const char* i_name)
+{
+    for (int i = numReplThreads - 1; i >= 0; --i) {
+        ReplThread* thread = replThreads[i];
+
+        if (strcmp(thread->name, i_name) != 0) {
+            continue;
+        }
+
+        repl_thread_finish(thread);
+
+        if (thread->output) {
+            repl_printf("%s", thread->output);
+        }
+
+        repl_thread_free(thread);
+
+        for (int j = i + 1; j < numReplThreads; ++j) {
+            replThreads[j - 1] = replThreads[j];
+        }
+        numReplThreads--;
+
+        return m3Err_none;
+    }
+
+    return "no such thread";
+}
+
+#else // d_m3HasThreads
+
+M3Result repl_thread (const char* i_name, const char* i_shared, int i_lines)
+{
+    (void)i_name;
+    (void)i_shared;
+    (void)i_lines;
+
+    return "threads are not available in this build of Wasm3";
+}
+
+M3Result repl_wait (const char* i_name)
+{
+    (void)i_name;
+
+    return "threads are not available in this build of Wasm3";
+}
+
+#endif // d_m3HasThreads
+
 int main (int i_argc, const char* i_argv[])
 {
     M3Result result = m3Err_none;
@@ -1232,11 +1715,8 @@ int main (int i_argc, const char* i_argv[])
 
     bool        argRepl         = false;
     bool        argDumpOnTrap   = false;
-    bool        argCompile      = false;
     bool        argValidateOnly = false;
-    bool        argNoValidate   = false;
     const char* argFile         = NULL;
-    unsigned    argStackSize    = 512 * 1024;
 
     // m3_PrintM3Info ();
 
@@ -1527,107 +2007,16 @@ int main (int i_argc, const char* i_argv[])
         char* argv[32]       = { 0 };
         fprintf(stdout, "wasm3> ");
         fflush(stdout);
-        if (!fgets(cmd_buff, sizeof(cmd_buff), stdin)) {
+        if (!repl_fgets(cmd_buff, sizeof(cmd_buff))) {
             return 0;
         }
         int argc = split_argv(cmd_buff, argv);
         if (argc <= 0) {
             continue;
         }
-        result = m3Err_none;
 
-#define NEED_ARGS(N)   if (argc < (N)) { result = "not enough arguments"; } else
-
-        if (!strcmp(":init", argv[0])) {
-            result = repl_init(argStackSize);
-            m3_SetValidation(runtime, not argNoValidate);
-        } else if (!strcmp(":version", argv[0])) {
-            print_version();
-        } else if (!strcmp(":exit", argv[0])) {
-            repl_free();
+        if (not repl_dispatch(argc, argv)) {
             return 0;
-        } else if (!strcmp(":load", argv[0])) {             // :load <filename>
-            NEED_ARGS(2)
-            {
-                result = repl_load(argv[1]);
-                if (argCompile and not result) {
-                    result = repl_compile();
-                }
-            }
-        } else if (!strcmp(":load-hex", argv[0])) {         // :load-hex <size>\n <hex-encoded-binary>
-            NEED_ARGS(2)
-            {
-                result = repl_load_hex(atol(argv[1]));
-                if (argCompile and not result) {
-                    result = repl_compile();
-                }
-            }
-        } else if (!strcmp(":get-global", argv[0])) {       // :get-global <global>
-            NEED_ARGS(2)
-            {
-                unescape(argv[1]);
-                result = repl_global_get(NULL, argv[1]);
-            }
-        } else if (!strcmp(":get-global-in", argv[0])) {    // :get-global-in <module> <global>
-            NEED_ARGS(3)
-            {
-                unescape(argv[1]);
-                unescape(argv[2]);
-                result = repl_global_get(argv[1], argv[2]);
-            }
-        } else if (!strcmp(":set-global", argv[0])) {       // :set-global <global> <value>
-            NEED_ARGS(3)
-            {
-                result = repl_global_set(argv[1], argv[2]);
-            }
-        } else if (!strcmp(":register", argv[0])) {         // :register <name> [module]
-            NEED_ARGS(2)
-            {
-                result = repl_register(argv[1], argc > 2 ? argv[2] : NULL);
-            }
-        } else if (!strcmp(":name", argv[0])) {             // :name <module>
-            NEED_ARGS(2)
-            {
-                result = repl_name(argv[1]);
-            }
-        } else if (!strcmp(":dump", argv[0])) {
-            result = repl_dump();
-        } else if (!strcmp(":compile", argv[0])) {
-            result = repl_compile();
-        } else if (!strcmp(":invoke", argv[0])) {           // :invoke <function> [args...]
-            NEED_ARGS(2)
-            {
-                unescape(argv[1]);
-                result = repl_invoke(NULL, argv[1], argc - 2, (const char**)(argv + 2));
-            }
-        } else if (!strcmp(":invoke-in", argv[0])) {        // :invoke-in <module> <function> [args...]
-            NEED_ARGS(3)
-            {
-                unescape(argv[1]);
-                unescape(argv[2]);
-                result = repl_invoke(argv[1], argv[2], argc - 3, (const char**)(argv + 3));
-            }
-        } else if (argv[0][0] == ':') {
-            result = "no such command";
-        } else {
-            unescape(argv[0]);
-            result = repl_call(argv[0], argc - 1, (const char**)(argv + 1));
-            if (result) {
-                print_backtrace();
-            }
-        }
-
-        if (result == m3Err_trapWasiExit) {
-#if defined(LINK_WASI)
-            // the exit code lives on the WASI context, the same one the non-repl
-            // path exits with; in the repl the session continues, so report it
-            fprintf(stderr, M3_ARCH "-wasi: exit(%d)\n", m3_GetWasiContext()->exit_code);
-#endif
-        } else if (result) {
-            fprintf(stderr, "Error: %s", result);
-            M3ErrorInfo info;
-            m3_GetErrorInfo(runtime, &info);
-            fprintf(stderr, " (%s)\n", info.message);
         }
     }
 

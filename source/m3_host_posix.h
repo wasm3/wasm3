@@ -223,8 +223,8 @@ void m3_HostRemoveInterruptHandler (void)
         sigaction(SIGTSTP, &s_oldSigTstp, NULL);
         sigaction(SIGINT, &s_oldSigInt, NULL);
         s_suspendHandlersInstalled = false;
+        s_posixSuspendRuntime = NULL;
     }
-    s_posixSuspendRuntime = NULL;
 }
 
 u64 m3_HostTimeMs (void)

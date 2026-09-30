@@ -118,6 +118,46 @@ jobs:
       if: ${{ matrix.config.strace }}
       run: cd test && python3 run-strace-test.py
 
+  # What a guest program does to a shared memory races on purpose - the spec's own tests do it,
+  # and test/tsan.supp names the accesses that covers and nothing else - so this is about
+  # everything around them: the wait queue, growing a memory under other threads, atomics,
+  # the runtime's own state. A race shows on the runs where it happens and not on the others,
+  # so the scripts that start threads are repeated. ThreadSanitizer cannot see through guarded
+  # memory's signal handling, so it takes the bounds-checked build, as ASan does.
+  threads-tsan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Configure
+      env:
+        CC: clang
+        CFLAGS: -fsanitize=thread -fno-omit-frame-pointer -Dd_m3GuardedMemory=0
+        LDFLAGS: -fsanitize=thread
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_WERROR=ON -DBUILD_WASI=simple ..
+    - name: Build
+      run: |
+        cmake --build build
+        ./build/wasm3 --version
+    - name: Test embedding API
+      env:
+        TSAN_OPTIONS: halt_on_error=1 suppressions=${{ github.workspace }}/test/tsan.supp
+      run: |
+        for i in $(seq 1 10); do ./build/m3_test; done
+    - name: Test threads
+      env:
+        TSAN_OPTIONS: halt_on_error=1 suppressions=${{ github.workspace }}/test/tsan.supp
+      run: |
+        cd test
+        files=$(ls .spec-wg-3.0/proposals/threads/*.json | grep -E 'thread|MP|SB|LB|nested|simple|unlinkable|wait_notify')
+        for i in $(seq 1 50); do
+          python3 run-spec-test.py --skip-features=none $files
+        done
+
   # A snapshot is written in Wasm's terms, so one build's snapshot has to resume in
   # another that lays its state out differently. Each program here is suspended
   # twice and resumed twice: on x64 with 64-bit slots, then on 32-bit big-endian

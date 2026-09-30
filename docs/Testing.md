@@ -39,6 +39,22 @@ still reports success; naming them instead makes that case fail. CI names them.
 To narrow a run down: supply path to a `.json` file to run one suite, `--line <n>` to re-run a
 single assertion, and read `spec-test.log` for every assertion and its outcome.
 
+The threads proposal's scripts start threads of their own. The runner sends each one to the repl
+as `:thread <name> <shared-module> <nlines>` followed by its commands, one to a line, which the
+repl runs on a runtime of its own over the shared memory; `:wait <name>` joins it and returns
+what it said, in a record for each command, which the runner then checks. A build without
+threads skips those scripts, and runs the rest of the suite.
+
+These scripts race on purpose, so a ThreadSanitizer build of them reports what the guest
+does. `test/tsan.supp` names those accesses - the guest's loads, stores and bulk memory
+operations - and nothing else, which is what leaves the rest in view:
+
+```sh
+TSAN_OPTIONS="halt_on_error=1 suppressions=$PWD/tsan.supp"   python3 run-spec-test.py --exec "../build/wasm3 --spec-repl" .spec-wg-3.0/proposals/threads/nested.json
+```
+
+A race shows on the runs where it happens, so CI repeats the scripts that start threads.
+
 ## Running WASI test
 
 Wasm3 comes with a set of benchmarks and test programs (prebuilt as `WASI` apps) including `CoreMark`, `C-Ray`, `Brotli`, `mandelbrot`, `smallpt` and `wasm3` itself.

@@ -14,18 +14,7 @@
 
 IM3Module m3_NewModule (IM3Environment i_environment)
 {
-    IM3Module module = m3_AllocStruct(M3Module);
-
-    if (module) {
-        module->name          = ".unnamed";
-        module->startFunction = -1;
-        module->environment   = i_environment;
-
-        module->wasmStart = NULL;
-        module->wasmEnd   = NULL;
-    }
-
-    return module;
+    return Module_New(i_environment);
 }
 
 
@@ -114,81 +103,4 @@ _   (CompileFunction(function));
 IM3Function m3_GetFunctionByIndex (IM3Module i_module, uint32_t i_index)
 {
     return Module_GetFunction(i_module, i_index);
-}
-
-
-M3Result m3_ShareModule (IM3Runtime i_target, IM3Module i_source, IM3Module* o_proxy)
-{
-#if d_m3HasThreads
-    M3Result  result = m3Err_none;
-    IM3Module proxy  = NULL;
-    u32       count  = 0;
-
-    _throwif(m3Err_unknownMemory, not i_target or not i_source or not o_proxy);
-
-    // what there is to share: the memories the source exports, that are shared
-    for (u32 i = 0; i < i_source->numExports; ++i) {
-        const M3Export* e = &i_source->exports[i];
-
-        if (e->kind == d_externalKind_memory and i_source->memories[e->index] and
-            i_source->memories[e->index]->shared) {
-            ++count;
-        }
-    }
-
-    _throwif("module exports no shared memory", count == 0);
-
-    proxy = m3_NewModule(i_target->environment);
-    _throwifnull(proxy);
-
-    proxy->exports = m3_AllocArray(M3Export, count);
-    _throwifnull(proxy->exports);
-
-    for (u32 i = 0; i < i_source->numExports; ++i) {
-        const M3Export* e    = &i_source->exports[i];
-        IM3Memory       from = (e->kind == d_externalKind_memory) ? i_source->memories[e->index] : NULL;
-
-        if (not from or not from->shared) {
-            continue;
-        }
-
-        M3MemoryInfo info;
-        info.initPages  = from->initPages;
-        info.maxPages   = from->maxPages;
-        info.pageSize   = from->pageSize;
-        info.hasMax     = true;
-        info.isMemory64 = from->isMemory64;
-        info.isShared   = true;
-
-        IM3Memory view = NULL;
-_       (Module_AddMemory(proxy, &view, &info, false));
-_       (AttachSharedMemory(i_target, view, from));
-
-        // Named as the source names it. The name is a copy: exports own theirs.
-        M3Export* entry = &proxy->exports[proxy->numExports];
-        entry->name     = (cstr_t)m3_CopyMem(e->name, (size_t)e->nameLength + 1);
-        _throwifnull(entry->name);
-        entry->nameLength = e->nameLength;
-        entry->index      = proxy->numMemories - 1;
-        entry->kind       = d_externalKind_memory;
-        ++proxy->numExports;
-    }
-
-_   (m3_LoadModule(i_target, proxy));
-
-    *o_proxy = proxy;
-    return result;
-
-    _catch:
-    // once loaded the runtime owns it, which m3_LoadModule has taken on even when it failed
-    if (proxy and not proxy->runtime) {
-        m3_FreeModule(proxy);
-    }
-    return result;
-#else
-    (void)i_target;
-    (void)i_source;
-    (void)o_proxy;
-    return "sharing memories needs a build with d_m3HasThreads";
-#endif
 }

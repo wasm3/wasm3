@@ -283,7 +283,7 @@ host has threads (`m3_host_posix.h`, `m3_host_win32.h`) and needs `d_m3HasAtomic
 does not start the threads: the embedder does, and gives each one a runtime of its own,
 because a runtime holds one value stack and compiles lazily, so it is used by one thread at
 a time. What they share is a memory that a module declares `shared`. `m3_ShareModule`
-(`extensions/wasm3_ext.h`) makes, in another runtime, a module that exports a view of each
+(`wasm3.h`) makes, in another runtime, a module that exports a view of each
 shared memory of the first, and a module in that runtime imports it like any other.
 
 - An `M3Environment` belongs to one thread as well, so each runtime that is parsed into on
