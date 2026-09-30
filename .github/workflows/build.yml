@@ -486,7 +486,9 @@ jobs:
       run: python3 run-regression-test.py --exec "$WASM3"
     - name: Test WebAssembly spec
       working-directory: test
-      run: python3 run-spec-test.py --exec "$WASM3 --spec-repl"
+      # a target may name a reason its thread scripts cannot run - an emulator that breaks
+      # under threads - which build-cross.py carries in its list
+      run: python3 run-spec-test.py --exec "$WASM3 --spec-repl" ${{ matrix.target.skip_threads && format('--skip-thread-tests "{0}"', matrix.target.skip_threads) || '' }}
     - name: Test WASI apps
       working-directory: test
       run: python3 run-wasi-test.py --fast --exec "$WASM3"

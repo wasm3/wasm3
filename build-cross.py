@@ -312,6 +312,7 @@ if __name__ == "__main__":
                         "dist": not t.get("nodist"),
                         "apt": t.get("apt", ""),
                         "runner": t.get("runner", ""),
+                        "skip_threads": t.get("skip_thread_tests", ""),
                     }
                     for t in musl_targets
                 ]
