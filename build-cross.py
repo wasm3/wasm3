@@ -7,6 +7,7 @@ import contextlib
 import json
 import multiprocessing
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -46,7 +47,11 @@ musl_targets = [
     # instead - the same project's gcc build, tagged and laid out the same way
     { "name": "linux-m68k"      , "arch": "m68k-unknown-linux-musl"           , "runner": "qemu-m68k-static"      , "gcc": True },
     { "name": "linux-microblaze", "arch": "microblaze-xilinx-linux-musl"      , "runner": "qemu-microblaze-static", "gcc": True },
-    { "name": "linux-sh4"       , "arch": "sh4-multilib-linux-musl"           , "runner": "qemu-sh4-static"       , "gcc": True },
+    # qemu-sh4-static crashes any program that runs two threads - a plain C one that only locks and
+    # allocates does it every time, on this toolchain - so what the thread scripts would show is
+    # QEMU's, not Wasm3's. The target is built as it is for real hardware, and only those are skipped.
+    { "name": "linux-sh4"       , "arch": "sh4-multilib-linux-musl"           , "runner": "qemu-sh4-static"       , "gcc": True,
+      "skip_thread_tests": "qemu-sh4 crashes any program that runs two threads, Wasm3 or not" },
 
     # No musl cross toolchain exists for alpha, so this one comes from the distro and
     # is built against glibc. CI installs the package named here; see the cross job.
@@ -233,11 +238,22 @@ def run_tests(wasm3_binary, target, wasm3_cmd):
         print(f"Testing {name} target: {wasm3_binary} is missing - build it first")
         return ["build"]
 
+    # a target whose emulator cannot run threads still has them built in: say why the
+    # scripts that start them are left out, where the log will show it
+    skip_threads = ""
+    if "skip_thread_tests" in target:
+        skip_threads = (
+            f" --skip-thread-tests {shlex.quote(target['skip_thread_tests'])}"
+        )
+
     # the regression cases run first: they are the quickest of the three, and they
     # hold the memory64/table64 address-wrap tests, which is what the 32-bit
     # targets here are most likely to get wrong
     for stage, cmd in (
-        ("spec", f'python3 run-spec-test.py --exec "{wasm3_cmd} --spec-repl"'),
+        (
+            "spec",
+            f'python3 run-spec-test.py --exec "{wasm3_cmd} --spec-repl"{skip_threads}',
+        ),
         ("wasi", f'python3 run-wasi-test.py --fast --exec "{wasm3_cmd}"'),
         ("regression", f'python3 run-regression-test.py --exec "{wasm3_cmd}"'),
     ):

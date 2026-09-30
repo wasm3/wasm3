@@ -100,6 +100,20 @@ parser.add_argument(
     "for all of them. An explicit list is checked against the banner, so a "
     "build that quietly loses a feature fails instead of skipping its tests",
 )
+parser.add_argument(
+    "--skip-thread-tests",
+    metavar="<reason>",
+    help="skip the scripts that start threads although the build has them, and say why. "
+    "For a host that cannot run threads soundly - an emulator, say - where the build is "
+    "right and what would run it is not; --skip-features is for the other case, and checks "
+    "that the build really lacks the feature",
+)
+parser.add_argument(
+    "--fetch-only",
+    action="store_true",
+    help="download the spec suite if it is not here, and stop. For a caller that has to "
+    "name the suite's files, which are not there to name before the first run",
+)
 parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
@@ -247,6 +261,9 @@ if not (os.path.isdir(spec_dir)):
                 zipInfo.filename = newpath
                 zipFile.extract(zipInfo)
 
+if args.fetch_only:
+    sys.exit(0)
+
 #
 # Wasm3 REPL
 #
@@ -390,7 +407,11 @@ class Wasm3:
                 buff = buff + data.decode("utf-8")
                 idx = buff.rfind(token)
                 if idx >= 0:
-                    return buff[0:idx].strip()
+                    # A Windows build that links libuv leaves stderr in text mode, and then every
+                    # line ends in \r\n. Only what ends the reply was ever stripped of it, which
+                    # was enough while a reply was one line; a thread's is many, each to be
+                    # read back and compared, so the ends are made the same everywhere.
+                    return buff[0:idx].replace("\r\n", "\n").strip()
             except Empty:
                 pass
         else:
@@ -1401,11 +1422,16 @@ for fn in jsonFiles:
     # loaded module first.
     keep_modules = False
 
+    startsThreads = any(cmd["type"] == "thread" for cmd in data["commands"])
+
     # A build without threads has nothing to run them on
-    if "threads" not in features and any(
-        cmd["type"] == "thread" for cmd in data["commands"]
-    ):
+    if startsThreads and "threads" not in features:
         warning(f"{fn} starts threads, skipping", True)
+        continue
+
+    # and a build with them can be somewhere they cannot be run
+    if startsThreads and args.skip_thread_tests:
+        warning(f"{fn} starts threads, skipping: {args.skip_thread_tests}", True)
         continue
 
     # what the script started, by name, until it waits for it

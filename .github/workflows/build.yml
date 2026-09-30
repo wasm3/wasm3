@@ -153,7 +153,8 @@ jobs:
         TSAN_OPTIONS: halt_on_error=1 suppressions=${{ github.workspace }}/test/tsan.supp
       run: |
         cd test
-        files=$(ls .spec-wg-3.0/proposals/threads/*.json | grep -E 'thread|MP|SB|LB|nested|simple|unlinkable|wait_notify')
+        python3 run-spec-test.py --fetch-only
+        files=$(ls .spec-wg-3.0/proposals/threads/*.json | grep -E '/(thread|MP|SB|LB|nested|deeply_nested|simple|unlinkable|wait_notify)[^/]*\.json$')
         for i in $(seq 1 50); do
           python3 run-spec-test.py --skip-features=none $files
         done
