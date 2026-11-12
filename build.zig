@@ -25,14 +25,14 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .optimize = optimize,
             .target = target,
-            .omit_frame_pointer = if (optimize == .Debug) null else true,
-            .stack_check = if (optimize == .Debug) null else false,
-            .stack_protector = if (optimize == .Debug) null else false,
+            .omit_frame_pointer = if (optimize == .debug) null else true,
+            .stack_check = if (optimize == .debug) null else false,
+            .stack_protector = if (optimize == .debug) null else false,
             .sanitize_c = .off, // fno-sanitize=undefined
         }),
     });
     libwasm3.root_module.addCMacro("d_m3HasTracer", "");
-    if (optimize == .Debug)
+    if (optimize == .debug)
         libwasm3.root_module.addCMacro("DEBUG", "1");
 
     switch (build_wasi) {
@@ -116,9 +116,9 @@ pub fn build(b: *std.Build) !void {
             .root_module = b.createModule(.{
                 .target = target,
                 .optimize = optimize,
-                .omit_frame_pointer = if (optimize == .Debug) null else true,
-                .stack_check = if (optimize == .Debug) null else false,
-                .stack_protector = if (optimize == .Debug) null else false,
+                .omit_frame_pointer = if (optimize == .debug) null else true,
+                .stack_check = if (optimize == .debug) null else false,
+                .stack_protector = if (optimize == .debug) null else false,
             }),
         });
         wasm3.stack_size = 8388608;
@@ -130,7 +130,7 @@ pub fn build(b: *std.Build) !void {
             .flags = &cflags,
         });
         wasm3.root_module.addCMacro("d_m3HasTracer", "");
-        if (optimize == .Debug)
+        if (optimize == .debug)
             wasm3.root_module.addCMacro("DEBUG", "1");
 
         switch (build_wasi) {
